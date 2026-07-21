@@ -1,6 +1,6 @@
 {
   "name": "Ultimate Frisbee Scorekeeper",
-  "short_name": "Scorekeeper",
+  "short_name": "Ultimate Scorekeeper",
   "description": "Guided scorekeeping for Ultimate Frisbee volunteers",
   "start_url": ".",
   "display": "standalone",
