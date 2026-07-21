@@ -2,7 +2,7 @@ import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import type { TeamId } from '../state/types';
 import { Modal } from './Modal';
-import { secondaryButton } from './ui';
+import { contrastText, secondaryButton } from './ui';
 
 /**
  * "Who called it?" for a travel — unlike CallTeamDialog, picking a team both logs
@@ -27,8 +27,11 @@ export function TravelTeamDialog({ onClose }: { onClose: () => void }) {
         {(['A', 'B'] as TeamId[]).map((id) => (
           <button
             key={id}
-            className="rounded-xl font-board font-bold text-white py-6 active:scale-[0.99] truncate px-2"
-            style={{ backgroundColor: state.config.teams[id].color }}
+            className="rounded-xl font-board font-bold py-6 active:scale-[0.99] truncate px-2"
+            style={{
+              backgroundColor: state.config.teams[id].color,
+              color: contrastText(state.config.teams[id].color),
+            }}
             onClick={() => choose(id)}
           >
             {state.config.teams[id].name}

@@ -26,6 +26,7 @@ import { RecordEventDialog, type RecordEventChoice } from './RecordEventDialog';
 import { SignalCard } from './SignalCard';
 import { TravelTeamDialog } from './TravelTeamDialog';
 import { TurnoverDialog } from './TurnoverDialog';
+import { contrastText } from './ui';
 
 const END_GAME_CONFIRM_KEY = 'ultimate-scorekeeper:end-game-confirm-open';
 const ASSIST_DISMISSED_KEY = 'ultimate-scorekeeper:assist-dismissed-up-to';
@@ -66,6 +67,7 @@ function ScorePanel({ team, side }: { team: TeamId; side: 'left' | 'right' }) {
   const press = useLongPress(tap, hold);
 
   const cfg = state.config.teams[team];
+  const ink = contrastText(cfg.color);
   return (
     <button
       {...press}
@@ -75,10 +77,16 @@ function ScorePanel({ team, side }: { team: TeamId; side: 'left' | 'right' }) {
       } ${side === 'left' ? 'rounded-r-none' : 'rounded-l-none'}`}
       style={{ backgroundColor: cfg.color }}
     >
-      <span className="font-board font-semibold text-white/90 text-base sm:text-xl lscape:text-[9px] leading-tight drop-shadow px-2 truncate max-w-full">
+      <span
+        className="font-board font-semibold text-base sm:text-xl lscape:text-[9px] leading-tight drop-shadow px-2 truncate max-w-full"
+        style={{ color: ink, opacity: 0.9 }}
+      >
         {cfg.name}
       </span>
-      <span className="font-clock font-semibold text-white text-[clamp(4rem,20vw,9rem)] lscape:text-[clamp(1.5rem,16vh,4.5rem)] leading-none drop-shadow-lg">
+      <span
+        className="font-clock font-semibold text-[clamp(4rem,20vw,9rem)] lscape:text-[clamp(1.5rem,16vh,4.5rem)] leading-none drop-shadow-lg"
+        style={{ color: ink }}
+      >
         {state.scores[team]}
       </span>
       {flash && (
@@ -351,6 +359,19 @@ export default function GameScreen() {
     setShowRecordEvent(true);
   };
 
+  // Whether the Record event launcher itself should be disabled: a call awaiting
+  // resolution, an SOTG stoppage in progress (its own dedicated "Resume game"
+  // button is the one way out), or any other record-event flow already open —
+  // none of these should be interrupted by starting a second one on top.
+  const recordEventBusy =
+    state.pendingCall !== null ||
+    paused ||
+    showInjury ||
+    showNote ||
+    showTravel ||
+    callKind !== null ||
+    turnoverTeam !== null;
+
   return (
     <div className="h-dvh flex flex-col bg-pitch text-chalk overflow-y-auto">
       {/* Header */}
@@ -498,11 +519,7 @@ export default function GameScreen() {
             when none are configured — nothing to call. */}
         <div className={`grid ${timeoutsOn ? 'grid-cols-4' : 'grid-cols-2'} gap-2 lscape:gap-1`}>
           {timeoutsOn && <TimeoutButton team={left} side="left" onCall={tryTimeout} />}
-          <button
-            className={utility}
-            onClick={openRecordEvent}
-            disabled={state.pendingCall !== null}
-          >
+          <button className={utility} onClick={openRecordEvent} disabled={recordEventBusy}>
             {t('btnRecordEvent')}
           </button>
           <button className={utility} onClick={() => setShowLog(true)}>

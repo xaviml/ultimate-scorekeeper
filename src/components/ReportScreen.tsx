@@ -10,7 +10,7 @@ import {
 } from '../state/stats';
 import type { TeamId } from '../state/types';
 import { GameLogTable } from './GameLogTable';
-import { primaryButton, secondaryButtonOnPitch, sectionTitle } from './ui';
+import { contrastText, primaryButton, secondaryButtonOnPitch, sectionTitle } from './ui';
 
 /**
  * Fallback for browsers/contexts where the async Clipboard API is unavailable
@@ -125,8 +125,11 @@ export default function ReportScreen() {
               {i === 1 && <span className="font-clock text-3xl text-chalk/40">—</span>}
               <div className="text-center">
                 <div
-                  className="font-clock text-6xl font-semibold rounded-lg px-4 py-2 text-white"
-                  style={{ backgroundColor: state.config.teams[id].color }}
+                  className="font-clock text-6xl font-semibold rounded-lg px-4 py-2"
+                  style={{
+                    backgroundColor: state.config.teams[id].color,
+                    color: contrastText(state.config.teams[id].color),
+                  }}
                 >
                   {state.scores[id]}
                 </div>
