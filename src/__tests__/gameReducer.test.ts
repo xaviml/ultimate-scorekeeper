@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  canRecordEvent,
   canScore,
   canTurnover,
   canUndo,
@@ -605,5 +606,102 @@ describe('turnovers', () => {
 
     const next = gameReducer(s, { type: 'PULL_THROWN' });
     expect(next.possessionTeam).toBe('B'); // A scored, so B receives
+  });
+});
+
+describe('recorded events (travel, calls, notes)', () => {
+  const lastLog = (s: GameState) => s.log[s.log.length - 1];
+
+  it('records a travel against the calling team with no effect on the game', () => {
+    const before = live();
+    const s = gameReducer(before, { type: 'TRAVEL', team: 'B' });
+    expect(lastLog(s)).toMatchObject({ type: 'travel', team: 'B' });
+    expect(s.assist).toBe('travel');
+    // Nothing about the game itself moved.
+    expect(s.scores).toEqual(before.scores);
+    expect(s.gameSeconds).toBe(before.gameSeconds);
+    expect(s.status).toBe(before.status);
+    expect(s.possessionTeam).toBe(before.possessionTeam);
+  });
+
+  it('stays available during a timeout, half-time and an SOTG pause', () => {
+    // Unlike scoring, bookkeeping never stops — a foul called as the teams line up
+    // still has to be written down.
+    for (const action of [
+      { type: 'SOTG_TOGGLE' },
+      { type: 'TIMEOUT_START', team: 'A' },
+    ] as Action[]) {
+      const s = gameReducer(live(), action);
+      expect(canRecordEvent(s).ok).toBe(true);
+      expect(
+        gameReducer(s, { type: 'TRAVEL', team: 'A' }).log.some((e) => e.type === 'travel'),
+      ).toBe(true);
+    }
+  });
+
+  it('records nothing before the game starts or after it ends', () => {
+    for (const s of [createInitialState(cfg()), gameReducer(live(), { type: 'END_GAME' })]) {
+      expect(canRecordEvent(s).ok).toBe(false);
+      const after = run(
+        s,
+        { type: 'TRAVEL', team: 'A' },
+        { type: 'CALL_MADE', kind: 'foul', team: 'A' },
+        { type: 'NOTE', text: 'nope' },
+      );
+      expect(after.log.length).toBe(s.log.length);
+      expect(after.pendingCall).toBeNull();
+    }
+  });
+
+  it('opens a call against the team that made it, and shows its own signal', () => {
+    const s = gameReducer(live(), { type: 'CALL_MADE', kind: 'foul', team: 'B' });
+    expect(s.pendingCall).toEqual({ kind: 'foul', team: 'B', startedAtSeconds: 0 });
+    expect(lastLog(s)).toMatchObject({ type: 'call', team: 'B', callKind: 'foul' });
+    expect(s.assist).toBe('call_foul');
+    expect(s.possessionTeam).toBe('A'); // a call never hands the disc over
+  });
+
+  it('logs the resolution with how long it took on the game clock', () => {
+    let s = gameReducer(live(), { type: 'CALL_MADE', kind: 'pick', team: 'A' });
+    s = ticks(s, 14);
+    s = gameReducer(s, { type: 'CALL_RESOLVED', resolution: 'contested' });
+
+    expect(s.pendingCall).toBeNull();
+    expect(lastLog(s)).toMatchObject({
+      type: 'callResolved',
+      team: 'A', // still the caller, so the pair reads as one story
+      callKind: 'pick',
+      resolution: 'contested',
+      resolutionSeconds: 14,
+    });
+    expect(s.assist).toBe('resolution_contested');
+  });
+
+  it('refuses a second call until the open one is resolved', () => {
+    const first = gameReducer(live(), { type: 'CALL_MADE', kind: 'foul', team: 'A' });
+    const second = gameReducer(first, { type: 'CALL_MADE', kind: 'travel' as never, team: 'B' });
+    expect(second).toBe(first);
+
+    const resolved = gameReducer(first, { type: 'CALL_RESOLVED', resolution: 'accepted' });
+    const next = gameReducer(resolved, { type: 'CALL_MADE', kind: 'stallOut', team: 'B' });
+    expect(next.pendingCall).toMatchObject({ kind: 'stallOut', team: 'B' });
+  });
+
+  it('ignores a resolution when no call is open', () => {
+    const s = live();
+    expect(gameReducer(s, { type: 'CALL_RESOLVED', resolution: 'accepted' })).toBe(s);
+  });
+
+  it('logs a note as free text and stays silent about it', () => {
+    const s = gameReducer(live(), { type: 'NOTE', text: '  huge layout by #7  ' });
+    expect(lastLog(s)).toMatchObject({ type: 'note', detail: 'huge layout by #7' });
+    // `note` maps to neither a call-out nor a signal, so nothing is shown — but the
+    // assist key must still change, or the previous announcement would replay.
+    expect(s.assist).toBe('note');
+  });
+
+  it('drops an empty note instead of logging a blank row', () => {
+    const s = live();
+    expect(gameReducer(s, { type: 'NOTE', text: '   ' })).toBe(s);
   });
 });

@@ -52,6 +52,24 @@ export const en = {
   startGame: 'Start game',
   teamsRequired: 'Enter or select both team names to start',
   language: 'Language',
+  aboutBtn: 'About',
+  aboutTitle: 'About',
+  aboutDesignedByPrefix: 'Designed, developed and maintained by Xavi #29 from ',
+  aboutDesignedBySuffix: '.',
+  aboutBasedOnPrefix:
+    'Based on an Android application, Ultimate Score&timekeeper assistant, by Kýkhë #00 ',
+  aboutBasedOnSuffix: '.',
+  aboutQuestion: 'Questions? Open an issue on GitHub:',
+
+  // Install banner — shown above the config/report screens only, never during
+  // an in-progress game (that screen has no vertical room to spare).
+  installBannerTitle: 'Install Scorekeeper',
+  installBannerBody: 'Add it to your home screen for one-tap access and a full-screen view.',
+  installBannerIosBody: 'Tap the Share icon, then "Add to Home Screen".',
+  installBannerOpenTitle: 'Scorekeeper is installed',
+  installBannerOpenBody: 'Open it from your home screen for the best experience.',
+  btnInstall: 'Install',
+  dismissBanner: 'Dismiss',
 
   // Players / rosters
   playersTitle: 'Players',
@@ -91,6 +109,7 @@ export const en = {
   btnStoppage: 'Stoppage',
   btnInjury: 'Injury',
   btnTurnover: 'Turn',
+  btnRecordEvent: 'Record event',
   btnSotg: 'SOTG',
   btnEndHalftime: 'End half-time',
   btnSettings: 'Settings',
@@ -114,6 +133,32 @@ export const en = {
   cappedTo: 'Capped to {n}',
   universePointBadge: 'Universe point',
 
+  // Record event — the dialog behind the "Record event" button, and everything
+  // reachable from it. None of these change the score, the clock or possession.
+  recordEventTitle: 'Record event',
+  recordEventHint: 'Log what just happened. Nothing here changes the score or the clock.',
+  btnTravel: 'Travel',
+  btnNote: 'Event',
+  callKind_foul: 'Foul',
+  callKind_stallOut: 'Stall out',
+  callKind_pick: 'Pick',
+  callKind_offside: 'Off-side',
+  callKind_discDown: 'Disc down',
+  callKind_generic: 'Call',
+  callTeamTitle: '{kind} — who called it?',
+  callTeamHint: 'Then answer how it ended with the buttons that appear above the clocks.',
+  travelTeamTitle: 'Travel — who called it?',
+  travelTeamHint: 'Recorded as soon as you pick a team — no follow-up needed.',
+  callPending: '{kind} — {team}',
+  callResolution_accepted: 'Accepted',
+  callResolution_contested: 'Contested',
+  callResolution_retracted: 'Retracted',
+  callResolvedIn: 'resolved in {n}s',
+  callBlockedPending: 'Resolve the call in progress first.',
+  noteTitle: 'Event',
+  noteHint: 'Anything worth remembering — a huge layout, a bird crossing the field...',
+  notePlaceholder: 'What happened?',
+
   // Hand-signal dialog (floats over the score panels) — the official WFDF signal to make
   handSignal: 'Hand signal',
   signal_goal: 'Goal',
@@ -124,6 +169,17 @@ export const en = {
   signal_ratioFemale: 'Ratio: female',
   signal_whistle: 'Whistle',
   signal_universePoint: 'Universe point',
+  signal_travel: 'Travel',
+  signal_foul: 'Foul',
+  // WFDF has no dedicated stall-out pictogram; the timing signal is the closest fit.
+  signal_stallOut: 'Stall out',
+  signal_pick: 'Pick',
+  signal_offside: 'Off-side',
+  signal_discDown: 'Disc down',
+  signal_call: 'Play stopped',
+  signal_accepted: 'Uncontested',
+  signal_contested: 'Contested',
+  signal_retracted: 'Retracted',
 
   // Call-outs (green) — the exact words to shout, shown briefly with the signal
   say_gameOn: '"Game on!"',
@@ -145,6 +201,16 @@ export const en = {
   say_halfCapNone: '"Half-time after this point!"',
   say_gameOver: '"Game over — {a} {as}, {b} {bs}!"',
   say_universePoint: '"{a} {as}, {b} {bs} — Universe point!"',
+  say_travel: '"Travel!"',
+  say_callFoul: '"Foul — {team}!"',
+  say_callStallOut: '"Stall out — {team}!"',
+  say_callPick: '"Pick — {team}!"',
+  say_callOffside: '"Off-side — {team}!"',
+  say_callDiscDown: '"Disc down — {team}!"',
+  say_callGeneric: '"Call by {team} — play stopped!"',
+  say_resolutionAccepted: '"Uncontested — play on!"',
+  say_resolutionContested: '"Contested — disc back to the thrower!"',
+  say_resolutionRetracted: '"Retracted — play on!"',
 
   // Status line (amber) — what is happening now and what to do about it
   now_setup: 'Fill in the game setup, then press "Start game".',
@@ -173,6 +239,9 @@ export const en = {
 
   // Report
   reportTitle: 'Final report',
+  reportStarted: 'Started: {time}',
+  reportFinished: 'Finished: {time}',
+  reportDuration: 'Duration: {duration}',
   finalScore: 'Final score',
   statOLineHolds: 'O-line holds',
   statBreaks: 'Break points',
@@ -187,6 +256,7 @@ export const en = {
   colDetail: 'Detail',
   copyReport: 'Copy to clipboard',
   copied: 'Copied!',
+  copyFailed: 'Copy failed — try again',
   newGame: 'New game',
   event_gameStart: 'Game start',
   event_goal: 'Goal',
@@ -195,6 +265,10 @@ export const en = {
   event_timeoutEnd: 'Timeout ended',
   event_injury: 'Injury stoppage',
   event_turnover: 'Turnover',
+  event_travel: 'Travel',
+  event_call: 'Call made',
+  event_callResolved: 'Call resolved',
+  event_note: 'Event',
   event_sotgStart: 'SOTG stoppage (clock paused)',
   event_sotgEnd: 'SOTG stoppage ended',
   event_halftimeStart: 'Half-time',

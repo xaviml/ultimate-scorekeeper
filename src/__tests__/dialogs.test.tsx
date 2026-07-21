@@ -7,9 +7,13 @@ import { createInitialState } from '../state/gameReducer';
 import { AssistGoalDialog } from '../components/AssistGoalDialog';
 import { ConfirmEndGameDialog } from '../components/ConfirmEndGameDialog';
 import { GameLog } from '../components/GameLog';
+import { CallTeamDialog } from '../components/CallTeamDialog';
 import { InjuryDialog } from '../components/InjuryDialog';
 import { Modal } from '../components/Modal';
+import { NoteDialog } from '../components/NoteDialog';
 import { PlayersDialog } from '../components/PlayersDialog';
+import { RecordEventDialog } from '../components/RecordEventDialog';
+import { TravelTeamDialog } from '../components/TravelTeamDialog';
 import { TurnoverDialog } from '../components/TurnoverDialog';
 
 function renderWithProviders(ui: ReactNode) {
@@ -124,6 +128,47 @@ describe('dialogs render through the shared Modal', () => {
     expect(screen.getByText('Assist')).toBeInTheDocument();
     expect(screen.queryByText('No assist')).toBeNull();
     expect(screen.getAllByText('#7 Alex')).toHaveLength(2);
+  });
+
+  it('RecordEventDialog routes each choice back to its caller', () => {
+    const onChoose = vi.fn();
+    renderWithProviders(<RecordEventDialog onClose={noop} onChoose={onChoose} />);
+
+    fireEvent.click(screen.getByText('Turn'));
+    expect(onChoose).toHaveBeenCalledWith({ type: 'turnover' });
+
+    fireEvent.click(screen.getByText('Foul'));
+    expect(onChoose).toHaveBeenCalledWith({ type: 'call', kind: 'foul' });
+
+    fireEvent.click(screen.getByText('Event'));
+    expect(onChoose).toHaveBeenCalledWith({ type: 'note' });
+  });
+
+  it('CallTeamDialog offers both teams as the way to record who called it', () => {
+    renderWithProviders(<CallTeamDialog kind="pick" onClose={noop} />);
+    expect(screen.getByText(/Pick — who called it/)).toBeInTheDocument();
+    expect(screen.getByText('Team A')).toBeInTheDocument();
+    expect(screen.getByText('Team B')).toBeInTheDocument();
+  });
+
+  it('TravelTeamDialog picks a team and closes immediately, with no resolution step', () => {
+    const onClose = vi.fn();
+    renderWithProviders(<TravelTeamDialog onClose={onClose} />);
+    expect(screen.getByText(/Travel — who called it/)).toBeInTheDocument();
+    expect(screen.queryByText('Accepted')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Team A'));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('NoteDialog keeps Save disabled until there is text', () => {
+    renderWithProviders(<NoteDialog onClose={noop} />);
+    const save = screen.getByText('Save') as HTMLButtonElement;
+    expect(save).toBeDisabled();
+    fireEvent.change(screen.getByPlaceholderText('What happened?'), {
+      target: { value: 'a bird crossed the field' },
+    });
+    expect(save).not.toBeDisabled();
   });
 
   it('ConfirmEndGameDialog wires cancel and confirm separately', () => {

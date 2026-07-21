@@ -73,6 +73,21 @@ export function turnoverPlayersDetail(state: GameState, e: LogEntry, t: TFunc): 
   return parts.length ? ` — ${parts.join(', ')}` : '';
 }
 
+/**
+ * Detail suffix for the two call log entries, e.g. "Foul" when it is made and
+ * "Foul — Contested (resolved in 14s)" when it is settled. Returns '' for every
+ * other entry type so it can be dropped straight into the log table.
+ */
+export function callDetail(e: LogEntry, t: TFunc): string {
+  if (!e.callKind) return '';
+  const kind = t(`callKind_${e.callKind}` as never);
+  if (e.type === 'call') return kind;
+  if (e.type !== 'callResolved' || !e.resolution) return '';
+  const how = t(`callResolution_${e.resolution}` as never);
+  const took = t('callResolvedIn', { n: e.resolutionSeconds ?? 0 });
+  return `${kind} — ${how} (${took})`;
+}
+
 export function formatClock(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;

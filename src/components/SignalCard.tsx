@@ -46,6 +46,20 @@ function currentSignal(state: GameState): Signal | null {
     injury: { file: 'stoppage', caption: 'signal_stoppage' },
     sotg: { file: 'sotg', caption: 'signal_sotg' },
     universePoint: { file: 'match-point', caption: 'signal_universePoint' },
+    // Recorded events. Each call shows the infraction when it is made, and one of
+    // the three outcome signals when it is resolved. There is no WFDF pictogram for
+    // a stall-out, so it borrows the timing signal — the stall count is what is at
+    // issue. A free-text note (`note`) is deliberately absent: nothing to signal.
+    travel: { file: 'travel', caption: 'signal_travel' },
+    call_foul: { file: 'foul', caption: 'signal_foul' },
+    call_stallOut: { file: 'timing', caption: 'signal_stallOut' },
+    call_pick: { file: 'pick', caption: 'signal_pick' },
+    call_offside: { file: 'offside', caption: 'signal_offside' },
+    call_discDown: { file: 'disc-down', caption: 'signal_discDown' },
+    call_generic: { file: 'play-stopped', caption: 'signal_call' },
+    resolution_accepted: { file: 'uncontested', caption: 'signal_accepted' },
+    resolution_contested: { file: 'contest', caption: 'signal_contested' },
+    resolution_retracted: { file: 'retracted', caption: 'signal_retracted' },
     // Half-time has no WFDF hand signal — it's announced verbally only.
     // The app also whistles to restart after a timeout and on every cap.
     timeoutOver: WHISTLE,

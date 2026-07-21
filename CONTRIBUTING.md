@@ -13,7 +13,7 @@ Thanks for helping make scorekeeping easier for volunteers!
 ## Ground rules
 
 - **No persistence**: never introduce `localStorage`/`sessionStorage`/IndexedDB for game state. Refresh clears the game by design.
-- **All user-facing text goes through i18n** (`src/i18n/en.ts` + `src/i18n/es.ts`). Add both languages.
+- **All user-facing text goes through i18n** (`src/i18n/en.ts` + `src/i18n/es.ts` + `src/i18n/ca.ts`). Add all languages.
 - **Game rules live in the reducer**, not in components. Components read state and dispatch actions.
 - Keep the UI usable one-handed on a phone, in sunlight, by someone who has never seen Ultimate.
 

@@ -56,7 +56,10 @@ function log(
   type: LogType,
   team?: TeamId,
   detail?: string,
-  extra?: Pick<LogEntry, 'turnoverId' | 'defenseId'>,
+  extra?: Pick<
+    LogEntry,
+    'turnoverId' | 'defenseId' | 'callKind' | 'resolution' | 'resolutionSeconds'
+  >,
 ): GameState {
   return {
     ...state,
@@ -65,6 +68,7 @@ function log(
       {
         id: state.nextLogId,
         wallClock: wallClock(),
+        atMs: Date.now(),
         gameSeconds: state.gameSeconds,
         type,
         team,
@@ -114,6 +118,7 @@ export function createInitialState(config: GameConfig = defaultConfig): GameStat
     timeCapReached: false,
     halfTimeCapReached: false,
     halftimePlayed: false,
+    pendingCall: null,
     points: [],
     log: [],
     history: [],
@@ -143,6 +148,21 @@ export function canTurnover(state: GameState): { ok: boolean; reason?: string } 
   const base = canScore(state);
   if (!base.ok) return base;
   if (state.possessionTeam === null) return { ok: false, reason: 'pullNotThrown' };
+  return { ok: true };
+}
+
+/**
+ * May a bookkeeping-only event (injury, travel, a call, a free-text note) be
+ * recorded right now?
+ *
+ * Deliberately far more permissive than canScore: none of these touch the score,
+ * the clock or possession, so they stay available during a timeout, half-time or
+ * an SOTG pause — a foul called as the teams line up is still a foul. Only a game
+ * that hasn't started or has already finished has nothing to record against.
+ */
+export function canRecordEvent(state: GameState): { ok: boolean; reason?: string } {
+  if (state.phase !== 'game') return { ok: false, reason: 'gameNotStarted' };
+  if (state.status === 'finished') return { ok: false, reason: 'gameFinished' };
   return { ok: true };
 }
 
@@ -503,7 +523,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
 
     case 'INJURY': {
       // Logged but the game clock is NOT affected. Optionally records the injured player.
-      if (state.phase !== 'game' || state.status === 'finished') return state;
+      if (!canRecordEvent(state).ok) return state;
       const injured = action.team
         ? findPlayer(state.config.players[action.team], action.playerId)
         : undefined;
@@ -523,6 +543,51 @@ export function gameReducer(state: GameState, action: Action): GameState {
         defenseId: action.defenseId,
       });
       return { ...s, possessionTeam: other(attacking), assist: 'turnover' };
+    }
+
+    case 'TRAVEL': {
+      // Only the calling team is attributed, not a player: a travel is called on the
+      // thrower by the marker, and chasing down which player it was is more than a
+      // volunteer can follow. Unlike the six CALL_MADE kinds, there's no dispute to
+      // resolve, so it registers in one step with no pendingCall.
+      if (!canRecordEvent(state).ok) return state;
+      return { ...log(state, 'travel', action.team), assist: 'travel' };
+    }
+
+    case 'CALL_MADE': {
+      if (!canRecordEvent(state).ok) return state;
+      // One open call at a time — the resolution buttons answer exactly one question,
+      // and a second call would have no way to say which of the two it settled.
+      if (state.pendingCall !== null) return state;
+      const s = log(state, 'call', action.team, undefined, { callKind: action.kind });
+      return {
+        ...s,
+        pendingCall: { kind: action.kind, team: action.team, startedAtSeconds: s.gameSeconds },
+        assist: `call_${action.kind}`,
+      };
+    }
+
+    case 'CALL_RESOLVED': {
+      const pending = state.pendingCall;
+      if (pending === null) return state;
+      // Measured on the game clock, so an SOTG pause mid-discussion is not counted
+      // against the teams — the same clock every other duration in the log uses.
+      const s = log(state, 'callResolved', pending.team, undefined, {
+        callKind: pending.kind,
+        resolution: action.resolution,
+        resolutionSeconds: Math.max(0, state.gameSeconds - pending.startedAtSeconds),
+      });
+      return { ...s, pendingCall: null, assist: `resolution_${action.resolution}` };
+    }
+
+    case 'NOTE': {
+      if (!canRecordEvent(state).ok) return state;
+      const text = action.text.trim();
+      if (!text) return state;
+      // A note is written down and nothing more: no signal, no call-out. `assist` still
+      // has to change, because the bar and the signal card key off it plus the log
+      // counter — leaving it alone would re-trigger whatever was last announced.
+      return { ...log(state, 'note', undefined, text), assist: 'note' };
     }
 
     case 'SOTG_TOGGLE': {

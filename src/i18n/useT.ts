@@ -1,17 +1,21 @@
 import { createContext, useContext } from 'react';
 import { en } from './en';
 import { es } from './es';
+import { ca } from './ca';
 
-export type Lang = 'en' | 'es';
+export type Lang = 'en' | 'es' | 'ca';
 export type Dict = typeof en;
 /** The translator returned by useT(); shared so helpers outside components can accept it. */
 export type TFunc = (key: keyof Dict, vars?: Record<string, string | number>) => string;
 
-export const dicts: Record<Lang, Dict> = { en, es };
+export const dicts: Record<Lang, Dict> = { en, es, ca };
 
 export function detectLang(): Lang {
   const nav = typeof navigator !== 'undefined' ? navigator.language : 'en';
-  return nav.toLowerCase().startsWith('es') ? 'es' : 'en';
+  const lower = nav.toLowerCase();
+  if (lower.startsWith('ca')) return 'ca';
+  if (lower.startsWith('es')) return 'es';
+  return 'en';
 }
 
 export interface I18nCtx {

@@ -4,6 +4,7 @@ import { defaultConfig } from '../state/gameReducer';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import { deleteTeam, loadSavedTeams } from '../state/rosterStorage';
 import type { GameConfig, SavedTeam, TeamId } from '../state/types';
+import { AboutDialog } from './AboutDialog';
 import { PlayerRosterEditor } from './PlayerRosterEditor';
 import { TeamColorPicker } from './TeamColorPicker';
 import { TeamNameCombobox } from './TeamNameCombobox';
@@ -39,6 +40,7 @@ export default function ConfigScreen() {
       : state.config,
   );
   const [savedTeams, setSavedTeams] = useState<SavedTeam[]>(() => loadSavedTeams());
+  const [showAbout, setShowAbout] = useState(false);
   const removeSavedTeam = (name: string) => {
     deleteTeam(name);
     setSavedTeams((prev) => prev.filter((t) => t.name !== name));
@@ -82,16 +84,28 @@ export default function ConfigScreen() {
           <h1 className="font-board text-2xl font-bold">{t('appTitle')}</h1>
           <p className="text-chalk/50 text-sm">{t('tagline')}</p>
         </div>
-        <select
-          aria-label={t('language')}
-          className="rounded-lg bg-panel border border-line px-2 py-1"
-          value={lang}
-          onChange={(e) => setLang(e.target.value as Lang)}
-        >
-          <option value="en">EN</option>
-          <option value="es">ES</option>
-        </select>
+        <div className="flex flex-col items-end gap-2">
+          <select
+            aria-label={t('language')}
+            className="rounded-lg bg-panel border border-line px-2 py-1"
+            value={lang}
+            onChange={(e) => setLang(e.target.value as Lang)}
+          >
+            <option value="en">EN</option>
+            <option value="es">ES</option>
+            <option value="ca">CA</option>
+          </select>
+          <button
+            className="rounded-lg bg-panel border border-line w-8 h-8 text-chalk/70"
+            aria-label={t('aboutBtn')}
+            onClick={() => setShowAbout(true)}
+          >
+            ⓘ
+          </button>
+        </div>
       </header>
+
+      {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
 
       <Section title={t('setupTitle')}>
         <div className="grid grid-cols-2 gap-3">

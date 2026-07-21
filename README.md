@@ -10,7 +10,7 @@ A Progressive Web App for keeping score at Ultimate Frisbee games — designed f
 - **Strict validation**: no scoring before the game starts, while paused, during timeouts/half-time, or before the pull is thrown; scores never go below 0; undo restores everything, gender ratio included.
 - **Audio alerts**: whistle sequence at 45 s (single), 60 s (double), 75 s (triple) of pull time, plus timeout-end and cap whistles (placeholder mp3 URLs — see `src/audio/whistle.ts`).
 - **Post-game report**: final score, O-line holds, breaks, average hold/break time, full chronological event history, one-tap plain-text copy to clipboard.
-- **i18n**: English and Spanish, auto-detected from the device, English fallback.
+- **i18n**: English, Spanish and Catalan, auto-detected from the device, English fallback.
 - **No persistence by design**: state is in memory only. Refreshing clears the game; multiple tabs are independent.
 
 ## Getting started

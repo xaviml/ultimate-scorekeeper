@@ -71,6 +71,18 @@ export type GameStatus =
   | 'halftime'
   | 'finished';
 
+/**
+ * A call a player makes on the field. Purely observational for the scorekeeper:
+ * recording one never touches the score, the clock or possession — it only writes
+ * to the log and cues a hand signal.
+ *
+ * `generic` is the catch-all button (labelled just "Call") for anything the list
+ * doesn't name; it signals "play stopped" rather than a specific infraction.
+ */
+export type CallKind = 'foul' | 'stallOut' | 'pick' | 'offside' | 'discDown' | 'generic';
+
+export type CallResolution = 'accepted' | 'contested' | 'retracted';
+
 export type LogType =
   | 'gameStart'
   | 'goal'
@@ -79,6 +91,10 @@ export type LogType =
   | 'timeoutEnd'
   | 'injury'
   | 'turnover'
+  | 'travel'
+  | 'call'
+  | 'callResolved'
+  | 'note'
   | 'sotgStart'
   | 'sotgEnd'
   | 'halftimeStart'
@@ -90,6 +106,8 @@ export type LogType =
 export interface LogEntry {
   id: number;
   wallClock: string; // real-world time, e.g. "17:42:05"
+  /** Same instant as wallClock but as an epoch ms, for computing real-world durations without reparsing a locale-formatted string. */
+  atMs: number;
   gameSeconds: number; // elapsed game clock at the moment of the event
   type: LogType;
   team?: TeamId;
@@ -100,6 +118,24 @@ export interface LogEntry {
   turnoverId?: string;
   /** Turnover entries only: the defender who forced it, from the other team. */
   defenseId?: string;
+  /** `call` and `callResolved` entries: which infraction was called (team = caller). */
+  callKind?: CallKind;
+  /** `callResolved` entries only. */
+  resolution?: CallResolution;
+  /** `callResolved` entries only: game-clock seconds the call took to settle. */
+  resolutionSeconds?: number;
+}
+
+/**
+ * A call that has been made but not yet resolved. While one is open the game
+ * screen shows the three resolution buttons above the clocks, and no second call
+ * can be started — the volunteer has one thing to answer.
+ */
+export interface PendingCall {
+  kind: CallKind;
+  team: TeamId; // team that made the call
+  /** Game clock when the call was logged; the resolution duration counts from here. */
+  startedAtSeconds: number;
 }
 
 export interface PointRecord {
@@ -169,6 +205,8 @@ export interface GameState {
   timeCapReached: boolean;
   halfTimeCapReached: boolean;
   halftimePlayed: boolean;
+  /** Open call awaiting an accepted/contested/retracted answer, or null. */
+  pendingCall: PendingCall | null;
   points: PointRecord[];
   log: LogEntry[];
   history: GoalSnapshot[]; // undo stack for goals
@@ -187,6 +225,10 @@ export type Action =
   | { type: 'TIMEOUT_END' }
   | { type: 'INJURY'; team?: TeamId; playerId?: string }
   | { type: 'TURNOVER'; turnoverId?: string; defenseId?: string }
+  | { type: 'TRAVEL'; team: TeamId }
+  | { type: 'CALL_MADE'; kind: CallKind; team: TeamId }
+  | { type: 'CALL_RESOLVED'; resolution: CallResolution }
+  | { type: 'NOTE'; text: string }
   | { type: 'SOTG_TOGGLE' }
   | { type: 'HALFTIME_END' }
   | { type: 'TICK' } // 1 s of real time while clocks run

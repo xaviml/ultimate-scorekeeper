@@ -14,7 +14,7 @@ PWA scorekeeper for Ultimate Frisbee aimed at volunteers with zero knowledge of 
 
 - State: pure reducer in `src/state/gameReducer.ts` + React Context (`GameContext.tsx`). **Never use localStorage or any persistence** — refresh clears the game, tabs are independent.
 - All game rules (score validation, caps, timeouts, ratio) belong in the reducer and must be covered by unit tests in `src/__tests__/`.
-- All user-facing strings go through `src/i18n` (English + Spanish; device auto-detect, English fallback).
+- All user-facing strings go through `src/i18n` (English + Spanish + Catalan; device auto-detect, English fallback).
 - Mobile-first, portrait and landscape.
 
 ## Domain invariants (enforce in code and tests)

@@ -1,4 +1,6 @@
-const WHISTLE_URL = '/whistle.mp3';
+// A public/ asset: build the URL via BASE_URL so it keeps working under the
+// GitHub Pages base path (a plain "/whistle.mp3" would not).
+const WHISTLE_URL = `${import.meta.env.BASE_URL}whistle.mp3`;
 
 let el: HTMLAudioElement | null = null;
 function audio(): HTMLAudioElement {

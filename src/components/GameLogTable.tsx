@@ -1,6 +1,6 @@
 import { useT } from '../i18n/useT';
 import { useGame } from '../state/gameHooks';
-import { formatClock, goalPlayersDetail, turnoverPlayersDetail } from '../state/stats';
+import { callDetail, formatClock, goalPlayersDetail, turnoverPlayersDetail } from '../state/stats';
 
 /**
  * The event history table, shared by the in-game log dialog and the end-of-game
@@ -35,6 +35,7 @@ export function GameLogTable({ order = 'asc' }: { order?: 'asc' | 'desc' }) {
               {e.detail ?? ''}
               {goalPlayersDetail(state, e, t)}
               {turnoverPlayersDetail(state, e, t)}
+              {callDetail(e, t)}
             </td>
           </tr>
         ))}

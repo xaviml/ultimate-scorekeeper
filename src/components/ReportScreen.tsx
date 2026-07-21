@@ -1,16 +1,46 @@
 import { useState } from 'react';
 import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
-import { formatClock, goalPlayersDetail, teamStats, turnoverPlayersDetail } from '../state/stats';
+import {
+  callDetail,
+  formatClock,
+  goalPlayersDetail,
+  teamStats,
+  turnoverPlayersDetail,
+} from '../state/stats';
 import type { TeamId } from '../state/types';
 import { GameLogTable } from './GameLogTable';
 import { primaryButton, secondaryButtonOnPitch, sectionTitle } from './ui';
+
+/**
+ * Fallback for browsers/contexts where the async Clipboard API is unavailable
+ * (non-HTTPS dev/LAN testing, older mobile browsers) — the deprecated but
+ * still widely supported execCommand path.
+ */
+function legacyCopy(text: string): boolean {
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  let ok = false;
+  try {
+    ok = document.execCommand('copy');
+  } catch {
+    ok = false;
+  }
+  document.body.removeChild(textarea);
+  return ok;
+}
 
 export default function ReportScreen() {
   const state = useGame();
   const dispatch = useGameDispatch();
   const { t } = useT();
-  const [copied, setCopied] = useState(false);
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
 
   const A = teamStats(state, 'A');
   const B = teamStats(state, 'B');
@@ -21,6 +51,17 @@ export default function ReportScreen() {
   const buildPlainText = () => {
     const lines: string[] = [];
     lines.push(`${t('appTitle')} — ${t('field', { n: state.config.fieldNumber })}`);
+
+    const startEntry = state.log.find((e) => e.type === 'gameStart');
+    const endEntry = [...state.log].reverse().find((e) => e.type === 'gameEnd');
+    if (startEntry) lines.push(t('reportStarted', { time: startEntry.wallClock }));
+    if (endEntry) lines.push(t('reportFinished', { time: endEntry.wallClock }));
+    if (startEntry && endEntry) {
+      const durationSeconds = Math.round((endEntry.atMs - startEntry.atMs) / 1000);
+      lines.push(t('reportDuration', { duration: formatClock(durationSeconds) }));
+    }
+    lines.push('');
+
     lines.push(`${t('finalScore')}: ${nameOf('A')} ${A.score} — ${B.score} ${nameOf('B')}`);
     lines.push('');
     for (const [id, s] of [
@@ -33,28 +74,35 @@ export default function ReportScreen() {
       lines.push(`  ${t('statAvgHold')}: ${fmt(s.avgHoldSeconds)}`);
       lines.push(`  ${t('statAvgBreak')}: ${fmt(s.avgBreakSeconds)}`);
       lines.push(`  ${t('statTimeouts')}: ${s.timeoutsUsed}`);
+      lines.push('');
     }
-    lines.push('');
     lines.push(t('historyTitle'));
     for (const e of state.log) {
       const team = e.team ? ` — ${nameOf(e.team)}` : '';
       const detail = e.detail ? ` (${e.detail})` : '';
       const players = goalPlayersDetail(state, e, t) + turnoverPlayersDetail(state, e, t);
+      const call = callDetail(e, t);
       lines.push(
-        `  [${e.wallClock} | ${formatClock(e.gameSeconds)}] ${t(`event_${e.type}` as never)}${team}${detail}${players}`,
+        `  [${formatClock(e.gameSeconds)}] ${t(`event_${e.type}` as never)}${team}${detail}${players}${call ? ` — ${call}` : ''}`,
       );
     }
     return lines.join('\n');
   };
 
   const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(buildPlainText());
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      /* clipboard unavailable */
+    const text = buildPlainText();
+    let ok = false;
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text);
+        ok = true;
+      } catch {
+        ok = false;
+      }
     }
+    if (!ok) ok = legacyCopy(text);
+    setCopyState(ok ? 'copied' : 'failed');
+    setTimeout(() => setCopyState('idle'), 2000);
   };
 
   const statRows: Array<[string, string | number, string | number]> = [
@@ -117,7 +165,11 @@ export default function ReportScreen() {
 
       <div className="grid grid-cols-2 gap-3">
         <button className={primaryButton} onClick={copy}>
-          {copied ? t('copied') : t('copyReport')}
+          {copyState === 'copied'
+            ? t('copied')
+            : copyState === 'failed'
+              ? t('copyFailed')
+              : t('copyReport')}
         </button>
         <button
           className={secondaryButtonOnPitch}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import {
+  canRecordEvent,
   canScore,
   canTurnover,
   canUndo,
@@ -12,14 +13,18 @@ import {
 } from '../state/gameReducer';
 import { formatClock } from '../state/stats';
 import { useLongPress } from '../hooks/useLongPress';
-import type { GameState, TeamId } from '../state/types';
+import type { CallKind, CallResolution, GameState, TeamId } from '../state/types';
 import { AssistanceBar } from './AssistanceBar';
 import { AssistGoalDialog } from './AssistGoalDialog';
+import { CallTeamDialog } from './CallTeamDialog';
 import { ConfirmEndGameDialog } from './ConfirmEndGameDialog';
 import { GameLog } from './GameLog';
 import { InjuryDialog } from './InjuryDialog';
+import { NoteDialog } from './NoteDialog';
 import { PlayersDialog } from './PlayersDialog';
+import { RecordEventDialog, type RecordEventChoice } from './RecordEventDialog';
 import { SignalCard } from './SignalCard';
+import { TravelTeamDialog } from './TravelTeamDialog';
 import { TurnoverDialog } from './TurnoverDialog';
 
 const END_GAME_CONFIRM_KEY = 'ultimate-scorekeeper:end-game-confirm-open';
@@ -94,17 +99,45 @@ function timeoutsLeft(state: GameState, team: TeamId): number {
     : (perGame ?? 0) - used.half1 - used.half2;
 }
 
+const utility =
+  'rounded-lg bg-panel border border-line px-2 py-2 lscape:px-1 lscape:py-1 text-xs sm:text-sm lscape:text-[9px] font-board uppercase tracking-wide active:scale-95 disabled:opacity-40';
+
 /**
- * Timeout caller in the header: a stopwatch tinted with the team colour plus the
- * number remaining. Borderless and small on purpose — it sits beside the wall clock
- * and must not compete with the score panels for attention or thumb space.
+ * Timeout caller, sitting in the action row under the clocks alongside Record event
+ * and Log. Tinted with the team colour and showing timeouts remaining — number and
+ * icon ordered so the icon always sits toward the middle of the row, the number
+ * toward the outer edge.
  */
-function TimeoutChip({ team, onCall }: { team: TeamId; onCall: (team: TeamId) => void }) {
+function TimeoutButton({
+  team,
+  side,
+  onCall,
+}: {
+  team: TeamId;
+  side: 'left' | 'right';
+  onCall: (team: TeamId) => void;
+}) {
   const state = useGame();
   const { t } = useT();
   const cfg = state.config.teams[team];
   const left = timeoutsLeft(state, team);
   const label = `${cfg.name} — ${t('timeoutsLeft', { n: left })}`;
+
+  const icon = (
+    <svg
+      viewBox="0 0 24 24"
+      className="w-4 h-4 lscape:w-3 lscape:h-3"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="14" r="7" />
+      <path d="M12 11v3M9.5 2h5M12 2v3" />
+    </svg>
+  );
+  const count = <span className="font-clock text-sm lscape:text-[10px] leading-none">{left}</span>;
 
   return (
     <button
@@ -112,23 +145,58 @@ function TimeoutChip({ team, onCall }: { team: TeamId; onCall: (team: TeamId) =>
       disabled={state.status === 'finished'}
       aria-label={label}
       title={label}
-      className="flex items-center gap-1 px-1.5 py-0.5 rounded-md active:scale-95 disabled:opacity-40"
+      className={`${utility} flex items-center justify-center gap-1`}
       style={{ color: cfg.color }}
     >
-      <svg
-        viewBox="0 0 24 24"
-        className="w-4 h-4 lscape:w-3 lscape:h-3"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        aria-hidden="true"
-      >
-        <circle cx="12" cy="14" r="7" />
-        <path d="M12 11v3M9.5 2h5M12 2v3" />
-      </svg>
-      <span className="font-clock text-sm lscape:text-[10px] leading-none">{left}</span>
+      {side === 'left' ? (
+        <>
+          {count}
+          {icon}
+        </>
+      ) : (
+        <>
+          {icon}
+          {count}
+        </>
+      )}
     </button>
+  );
+}
+
+const RESOLUTIONS: CallResolution[] = ['accepted', 'contested', 'retracted'];
+
+/**
+ * The three answers to an open call, parked directly above the clocks so they are
+ * the first thing the thumb finds while the discussion is still going on. Rendered
+ * only while a call is pending; picking one logs how long it took and clears it.
+ */
+function CallResolutionRow() {
+  const state = useGame();
+  const dispatch = useGameDispatch();
+  const { t } = useT();
+  const pending = state.pendingCall;
+  if (!pending) return null;
+
+  return (
+    <div className="space-y-1 lscape:space-y-0.5">
+      <p className="text-[10px] lscape:text-[8px] uppercase tracking-widest text-signal">
+        {t('callPending', {
+          kind: t(`callKind_${pending.kind}` as never),
+          team: state.config.teams[pending.team].name,
+        })}
+      </p>
+      <div className="grid grid-cols-3 gap-2 lscape:gap-1">
+        {RESOLUTIONS.map((resolution) => (
+          <button
+            key={resolution}
+            className="rounded-lg bg-signal/20 border border-signal text-signal px-2 py-2 lscape:px-1 lscape:py-1 text-xs sm:text-sm lscape:text-[9px] font-board uppercase tracking-wide active:scale-95"
+            onClick={() => dispatch({ type: 'CALL_RESOLVED', resolution })}
+          >
+            {t(`callResolution_${resolution}` as never)}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -158,6 +226,11 @@ export default function GameScreen() {
   const [showLog, setShowLog] = useState(false);
   const [showPlayers, setShowPlayers] = useState(false);
   const [showInjury, setShowInjury] = useState(false);
+  const [showRecordEvent, setShowRecordEvent] = useState(false);
+  const [showNote, setShowNote] = useState(false);
+  const [showTravel, setShowTravel] = useState(false);
+  // The call kind chosen in the Record event dialog, waiting on "who called it?".
+  const [callKind, setCallKind] = useState<CallKind | null>(null);
   // Attacking team captured when the turnover dialog opens, since recording the
   // turnover is what flips possession.
   const [turnoverTeam, setTurnoverTeam] = useState<TeamId | null>(null);
@@ -246,8 +319,37 @@ export default function GameScreen() {
     else dispatch({ type: 'TURNOVER' });
   };
 
-  const utility =
-    'rounded-lg bg-panel border border-line px-2 py-2 lscape:px-1 lscape:py-1 text-xs sm:text-sm lscape:text-[9px] font-board uppercase tracking-wide active:scale-95 disabled:opacity-40';
+  // The Record event menu closes on every choice; what happens next depends on the
+  // choice. Turnover and injury keep their own guards and player prompts, so they
+  // behave exactly as they did when they were dashboard buttons.
+  const recordEvent = (choice: RecordEventChoice) => {
+    setShowRecordEvent(false);
+    if (choice.type === 'call') {
+      setCallKind(choice.kind);
+      return;
+    }
+    switch (choice.type) {
+      case 'turnover':
+        return tryTurnover();
+      case 'injury':
+        return tryInjury();
+      case 'note':
+        return setShowNote(true);
+      case 'travel':
+        return setShowTravel(true);
+      case 'sotg':
+        return dispatch({ type: 'SOTG_TOGGLE' });
+    }
+  };
+
+  const openRecordEvent = () => {
+    const check = canRecordEvent(state);
+    if (!check.ok) {
+      flashHint(t(`assist_blocked_${check.reason}` as never));
+      return;
+    }
+    setShowRecordEvent(true);
+  };
 
   return (
     <div className="h-dvh flex flex-col bg-pitch text-chalk overflow-y-auto">
@@ -256,14 +358,8 @@ export default function GameScreen() {
         <span className="font-board text-signal justify-self-start">
           {t('field', { n: state.config.fieldNumber })}
         </span>
-        {/* Timeouts flank the clock, each on the same side as that team's score panel.
-            Hidden entirely when no timeouts are configured — nothing to call. */}
-        <span className="flex items-center gap-1 justify-self-center">
-          {timeoutsOn && <TimeoutChip team={left} onCall={tryTimeout} />}
-          <span className="font-clock">
-            {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </span>
-          {timeoutsOn && <TimeoutChip team={right} onCall={tryTimeout} />}
+        <span className="font-clock justify-self-center">
+          {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </span>
         <span className="font-board justify-self-end">
           {state.half === 1 ? t('half1') : t('half2')}
@@ -360,6 +456,9 @@ export default function GameScreen() {
 
       {/* Clocks + actions */}
       <div className="flex flex-col gap-2 lscape:gap-1 px-3 lscape:px-2 py-2 lscape:py-0.5 bg-panel border-t border-line shrink-0">
+        {/* Answer to an open call, above the clocks — nothing else matters until it's given. */}
+        <CallResolutionRow />
+
         {/* Both clocks side by side. */}
         <div className="grid grid-cols-2 gap-2 lscape:gap-1">
           <div className="rounded-lg bg-pitch border border-line p-2 lscape:p-0.5">
@@ -393,20 +492,23 @@ export default function GameScreen() {
           </div>
         </div>
 
-        {/* Turnover / injury / sotg / log, in one row under both clocks. */}
-        <div className="grid grid-cols-4 gap-2 lscape:gap-1">
-          <button className={utility} onClick={tryTurnover}>
-            {t('btnTurnover')}
-          </button>
-          <button className={utility} onClick={tryInjury}>
-            {t('btnInjury')}
-          </button>
-          <button className={utility} onClick={() => dispatch({ type: 'SOTG_TOGGLE' })}>
-            {t('btnSotg')}
+        {/* Timeout (left) / Record event / Log / Timeout (right), in one row under both
+            clocks. Turnover, injury and the SOTG toggle live inside Record event now,
+            alongside travels, calls and free-text notes. Timeouts are hidden entirely
+            when none are configured — nothing to call. */}
+        <div className={`grid ${timeoutsOn ? 'grid-cols-4' : 'grid-cols-2'} gap-2 lscape:gap-1`}>
+          {timeoutsOn && <TimeoutButton team={left} side="left" onCall={tryTimeout} />}
+          <button
+            className={utility}
+            onClick={openRecordEvent}
+            disabled={state.pendingCall !== null}
+          >
+            {t('btnRecordEvent')}
           </button>
           <button className={utility} onClick={() => setShowLog(true)}>
             {t('btnLog')}
           </button>
+          {timeoutsOn && <TimeoutButton team={right} side="right" onCall={tryTimeout} />}
         </div>
       </div>
 
@@ -429,6 +531,12 @@ export default function GameScreen() {
 
       {showLog && <GameLog onClose={() => setShowLog(false)} />}
       {showPlayers && <PlayersDialog onClose={() => setShowPlayers(false)} />}
+      {showRecordEvent && (
+        <RecordEventDialog onClose={() => setShowRecordEvent(false)} onChoose={recordEvent} />
+      )}
+      {callKind && <CallTeamDialog kind={callKind} onClose={() => setCallKind(null)} />}
+      {showNote && <NoteDialog onClose={() => setShowNote(false)} />}
+      {showTravel && <TravelTeamDialog onClose={() => setShowTravel(false)} />}
       {showInjury && <InjuryDialog onClose={() => setShowInjury(false)} />}
       {turnoverTeam && (
         <TurnoverDialog attacking={turnoverTeam} onClose={() => setTurnoverTeam(null)} />

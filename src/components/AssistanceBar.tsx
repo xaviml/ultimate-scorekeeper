@@ -35,6 +35,19 @@ const SAY: Record<string, string> = {
   halfCapNone: 'say_halfCapNone',
   gameOver: 'say_gameOver',
   universePoint: 'say_universePoint',
+  travel: 'say_travel',
+  // A call and its outcome are both shouted: the players around the disc know what
+  // was called, the rest of the field does not. `note` is the exception — a free-text
+  // note is written down only, so it is absent here and from the signal map.
+  call_foul: 'say_callFoul',
+  call_stallOut: 'say_callStallOut',
+  call_pick: 'say_callPick',
+  call_offside: 'say_callOffside',
+  call_discDown: 'say_callDiscDown',
+  call_generic: 'say_callGeneric',
+  resolution_accepted: 'say_resolutionAccepted',
+  resolution_contested: 'say_resolutionContested',
+  resolution_retracted: 'say_resolutionRetracted',
 };
 
 /**
@@ -84,15 +97,19 @@ function assistVars(state: GameState) {
     b: b.name,
     as: state.scores.A,
     bs: state.scores.B,
-    // Whichever team the current message is about: the one that called the timeout,
-    // else whoever holds the disc, else the puller (the only one that matters between
-    // points, where possession is null).
+    // Whichever team the current message is about: the one with an unresolved call
+    // on the field, else the one that called the timeout, else whoever holds the
+    // disc, else the puller (the only one that matters between points, where
+    // possession is null). An open call outranks possession because that is what
+    // play has stopped for, and it is the only thing being talked about.
     team:
-      state.timeoutTeam !== null
-        ? state.config.teams[state.timeoutTeam].name
-        : state.possessionTeam !== null
-          ? state.config.teams[state.possessionTeam].name
-          : state.config.teams[state.pullingTeam].name,
+      state.pendingCall !== null
+        ? state.config.teams[state.pendingCall.team].name
+        : state.timeoutTeam !== null
+          ? state.config.teams[state.timeoutTeam].name
+          : state.possessionTeam !== null
+            ? state.config.teams[state.possessionTeam].name
+            : state.config.teams[state.pullingTeam].name,
     n: state.cappedTarget ?? state.halfCappedTarget ?? state.config.targetScore,
     gender,
   };
