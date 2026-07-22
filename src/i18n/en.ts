@@ -164,6 +164,7 @@ export const en = {
   timeoutBlockedLastFive: 'Timeouts are not allowed in the last 5 minutes',
   timeoutBlockedNone: 'No timeouts left for this team',
   timeoutBlockedNotNow: 'Timeouts can only be called during play',
+  timeoutBlockedCallPending: 'Timeouts are blocked until the pending call is resolved',
   currentRatio: 'Ratio: {gender}',
   pullChip: 'Pull: {team} ({side})',
   // Short, glanceable cap indicators — only shown once a cap has fixed a new target.
@@ -269,6 +270,9 @@ export const en = {
   now_halftime:
     'Half-time break. Resumes automatically when the clock runs out, or press "End half-time" if both teams are ready sooner.',
   now_paused: 'Spirit stoppage. Clock paused — press "Resume game" to continue.',
+  now_pauseManual: 'Game paused. Clock stopped — press "Resume game" to continue.',
+  now_stoppageClockStopped:
+    'Game stopped: the stoppage has lasted more than 2 minutes. Press "Resume game" once play can resume.',
   now_finished: 'Game finished.',
   now_pull45: 'Single whistle — 45 seconds. Teams should be getting ready.',
   now_pull60: 'Double whistle — 60 seconds. Teams must signal readiness.',
@@ -285,6 +289,7 @@ export const en = {
   assist_blocked_notLastScorer: 'Only the most recent goal can be undone (long-press that team).',
   assist_blocked_gameFinished: 'The game is finished.',
   assist_blocked_nothingToUndo: 'There is no goal to undo yet.',
+  assist_blocked_callPending: 'Score locked: resolve the pending call first.',
 
   // Report
   reportTitle: 'Final report',
@@ -314,6 +319,7 @@ export const en = {
   event_timeoutEnd: 'Timeout ended',
   event_stoppage: 'Stoppage',
   event_stoppageResolved: 'Stoppage resolved',
+  event_stoppageClockStopped: 'Game clock stopped (stoppage over 2 min)',
   event_turnover: 'Turnover',
   event_travel: 'Travel',
   event_call: 'Call made',

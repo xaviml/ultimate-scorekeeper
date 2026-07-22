@@ -163,6 +163,8 @@ export const es: typeof en = {
   timeoutBlockedLastFive: 'No se permiten tiempos muertos en los últimos 5 minutos',
   timeoutBlockedNone: 'Este equipo no tiene tiempos muertos restantes',
   timeoutBlockedNotNow: 'Los tiempos muertos solo pueden pedirse durante el juego',
+  timeoutBlockedCallPending:
+    'Los tiempos muertos están bloqueados hasta resolver la falta pendiente',
   currentRatio: 'Ratio: {gender}',
   pullChip: 'Pull: {team} ({side})',
   halfCapChip: 'Half a {n}',
@@ -270,6 +272,9 @@ export const es: typeof en = {
   now_halftime:
     'Descanso. Se reanuda solo cuando termine el tiempo, o pulsa «Fin del descanso» si ambos equipos están listos antes.',
   now_paused: 'Parada de espíritu. Reloj pausado — pulsa «Reanudar partido» para continuar.',
+  now_pauseManual: 'Partido pausado. Reloj detenido — pulsa «Reanudar partido» para continuar.',
+  now_stoppageClockStopped:
+    'Partido detenido: la parada lleva más de 2 minutos. Pulsa «Reanudar partido» en cuanto el juego pueda continuar.',
   now_finished: 'Partido terminado.',
   now_pull45: 'Un pitido — 45 segundos. Los equipos deben prepararse.',
   now_pull60: 'Dos pitidos — 60 segundos. Los equipos deben señalar que están listos.',
@@ -286,6 +291,7 @@ export const es: typeof en = {
   assist_blocked_notLastScorer: 'Solo se puede deshacer el último gol (mantén pulsado ese equipo).',
   assist_blocked_gameFinished: 'El partido ha terminado.',
   assist_blocked_nothingToUndo: 'Todavía no hay ningún gol que deshacer.',
+  assist_blocked_callPending: 'Marcador bloqueado: resuelve primero la falta pendiente.',
 
   reportTitle: 'Informe final',
   reportStarted: 'Inicio: {time}',
@@ -314,6 +320,7 @@ export const es: typeof en = {
   event_timeoutEnd: 'Fin del tiempo muerto',
   event_stoppage: 'Parada',
   event_stoppageResolved: 'Parada resuelta',
+  event_stoppageClockStopped: 'Reloj del partido detenido (parada de más de 2 min)',
   event_turnover: 'Pérdida',
   event_travel: 'Travel',
   event_call: 'Llamado',

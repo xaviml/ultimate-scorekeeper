@@ -132,6 +132,7 @@ export type LogType =
   | 'timeoutEnd'
   | 'stoppage'
   | 'stoppageResolved'
+  | 'stoppageClockStopped'
   | 'turnover'
   | 'travel'
   | 'call'
@@ -188,14 +189,25 @@ export interface PendingCall {
  * A stoppage that has been logged but not yet resolved. While one is open the
  * game screen shows the "Play can resume" button above the clocks, and no second
  * stoppage can be logged — same one-open-question shape as PendingCall.
+ *
+ * Left unresolved for two minutes, the game clock auto-stops (see TICK in the
+ * reducer), same as an SOTG pause — at that point the "Resume game" action row
+ * button takes over from the small "Play can resume" button, and resuming also
+ * resolves the stoppage.
  */
 export interface PendingStoppage {
   kind: StoppageKind;
   team?: TeamId;
   /** `injury` only — a technical stoppage is never attributed to a player. */
   playerId?: string;
-  /** Game clock when the stoppage was logged; the resolution duration counts from here. */
-  startedAtSeconds: number;
+  /**
+   * Seconds since the stoppage was logged, incremented every TICK regardless of
+   * whether the game clock itself is running — so the resolution duration keeps
+   * counting even after `clockStopped` freezes `gameSeconds`.
+   */
+  elapsedSeconds: number;
+  /** True once two minutes elapsed unresolved and the game clock was auto-stopped. */
+  clockStopped: boolean;
 }
 
 export interface PointRecord {

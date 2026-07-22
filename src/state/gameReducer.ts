@@ -44,6 +44,9 @@ export const defaultConfig: GameConfig = {
 
 const other = (t: TeamId): TeamId => (t === 'A' ? 'B' : 'A');
 
+/** How long an injury/technical stoppage may sit unresolved before the game clock auto-stops (see TICK), same threshold whether the stoppage started mid-point or between points. */
+const PROLONGED_STOPPAGE_SECONDS = 2 * 60;
+
 function wallClock(): string {
   return new Date().toLocaleTimeString([], {
     hour: '2-digit',
@@ -134,7 +137,14 @@ export function createInitialState(config: GameConfig = defaultConfig): GameStat
   };
 }
 
-/** Central validation: may this team's score change right now? */
+/**
+ * Central validation: may this team's score change right now?
+ *
+ * Also blocks while a player call is unresolved (`pendingCall`): the disc is
+ * dead until it's settled, so a goal or turnover can't be logged out from
+ * under an open dispute — that would leave the call permanently stuck with
+ * no way to resolve it against a point that has already moved on.
+ */
 export function canScore(state: GameState): { ok: boolean; reason?: string } {
   if (state.phase !== 'game' || state.status === 'notStarted' || state.status === 'awaitingStart')
     return { ok: false, reason: 'gameNotStarted' };
@@ -143,6 +153,7 @@ export function canScore(state: GameState): { ok: boolean; reason?: string } {
   if (state.status === 'timeout') return { ok: false, reason: 'timeoutActive' };
   if (state.status === 'halftime') return { ok: false, reason: 'halftimeActive' };
   if (state.status === 'awaitingPull') return { ok: false, reason: 'pullNotThrown' };
+  if (state.pendingCall !== null) return { ok: false, reason: 'callPending' };
   return { ok: true };
 }
 
@@ -245,6 +256,7 @@ export function timeoutAvailability(
   if (!timeoutsConfigured(timeouts)) return { ok: false, reason: 'timeoutNoneLeft' };
   if (state.status !== 'live' && state.status !== 'awaitingPull')
     return { ok: false, reason: 'timeoutNotNow' };
+  if (state.pendingCall !== null) return { ok: false, reason: 'callPending' };
   if (
     timeouts.disallowLastFiveMinutes &&
     state.config.timeLimitMinutes * 60 - state.gameSeconds <= 5 * 60
@@ -656,8 +668,9 @@ export function gameReducer(state: GameState, action: Action): GameState {
     }
 
     case 'STOPPAGE': {
-      // Logged but the game clock is NOT affected. An injury optionally records the
-      // injured player; a technical stoppage is never attributed to a player.
+      // Logged without touching the game clock at first — it only auto-stops if the
+      // stoppage runs long (see TICK). An injury optionally records the injured
+      // player; a technical stoppage is never attributed to a player.
       if (!canRecordEvent(state, { requiresPull: true }).ok) return state;
       // One open stoppage at a time — the "play can resume" button answers exactly
       // one question, same shape as CALL_MADE/CALL_RESOLVED.
@@ -675,7 +688,8 @@ export function gameReducer(state: GameState, action: Action): GameState {
           kind: action.kind,
           team: action.team,
           playerId: action.kind === 'injury' ? action.playerId : undefined,
-          startedAtSeconds: s.gameSeconds,
+          elapsedSeconds: 0,
+          clockStopped: false,
         },
         assist: action.kind === 'injury' ? 'stoppageInjury' : 'stoppageTechnical',
       };
@@ -684,13 +698,26 @@ export function gameReducer(state: GameState, action: Action): GameState {
     case 'STOPPAGE_RESOLVED': {
       const pending = state.pendingStoppage;
       if (pending === null) return state;
-      // Measured on the game clock, same as a call resolution — the clock was never
-      // stopped for the stoppage in the first place, so this just records how long
-      // it took, not a correction to the clock.
+      // elapsedSeconds is ticked forward every TICK regardless of whether the game
+      // clock itself is running (see TICK), so this is accurate whether or not the
+      // stoppage ran long enough to auto-stop the clock below.
       const s = log(state, 'stoppageResolved', pending.team, undefined, {
         stoppageKind: pending.kind,
-        resolutionSeconds: Math.max(0, state.gameSeconds - pending.startedAtSeconds),
+        resolutionSeconds: pending.elapsedSeconds,
       });
+      // A stoppage left open long enough auto-stops the clock exactly like an SOTG
+      // pause (see TICK) — resolving it is then also what un-pauses the game, since
+      // the dedicated "Resume game" button replaces the small "Play can resume" one
+      // in that state. A stoppage resolved before that point never touched status.
+      if (pending.clockStopped) {
+        return {
+          ...s,
+          pendingStoppage: null,
+          status: s.statusBeforePause ?? 'live',
+          statusBeforePause: null,
+          assist: 'resumed',
+        };
+      }
       // Same call-out as coming back from an SOTG pause: the marker signals and
       // play is live again.
       return { ...s, pendingStoppage: null, assist: 'resumed' };
@@ -807,8 +834,9 @@ export function gameReducer(state: GameState, action: Action): GameState {
       if (s.status === 'awaitingStart' && s.startingAtMs !== null && Date.now() >= s.startingAtMs) {
         s = beginPlay(s);
       }
-      // Game clock only stops for an SOTG stoppage (status 'paused');
-      // halftime and timeouts don't stop it.
+      // Game clock only stops for a pause (status 'paused') — manual, SOTG, or
+      // auto-triggered by a prolonged stoppage below; halftime and timeouts don't
+      // stop it.
       const clockRuns =
         s.status === 'live' ||
         s.status === 'awaitingPull' ||
@@ -828,6 +856,38 @@ export function gameReducer(state: GameState, action: Action): GameState {
         // End-game time cap
         if (!s.timeCapReached && s.gameSeconds >= s.config.timeLimitMinutes * 60) {
           s = applyEndCap(s);
+        }
+      }
+      // Pending stoppage bookkeeping: elapsedSeconds keeps counting every tick for
+      // recording purposes even once the clock below has stopped. Left unresolved
+      // for PROLONGED_STOPPAGE_SECONDS, the game clock auto-stops exactly like an
+      // SOTG pause, so a lingering injury/technical stoppage doesn't quietly eat
+      // into game time — "Resume game" then also resolves the stoppage (see
+      // STOPPAGE_RESOLVED). Gated on `clockRuns` (the status the clock actually had
+      // this tick, before any of the above touches it) so this never fires twice —
+      // once already paused (manually, or by this same rule), there's nothing left
+      // to stop.
+      if (s.pendingStoppage !== null) {
+        const pending = {
+          ...s.pendingStoppage,
+          elapsedSeconds: s.pendingStoppage.elapsedSeconds + 1,
+        };
+        s = { ...s, pendingStoppage: pending };
+        if (
+          !pending.clockStopped &&
+          clockRuns &&
+          pending.elapsedSeconds >= PROLONGED_STOPPAGE_SECONDS
+        ) {
+          s = log(s, 'stoppageClockStopped', pending.team, undefined, {
+            stoppageKind: pending.kind,
+          });
+          s = {
+            ...s,
+            status: 'paused',
+            statusBeforePause: s.status,
+            pendingStoppage: { ...pending, clockStopped: true },
+            assist: 'stoppageClockStopped',
+          };
         }
       }
       // Secondary timer

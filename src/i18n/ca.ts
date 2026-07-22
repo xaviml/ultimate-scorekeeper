@@ -163,6 +163,8 @@ export const ca: typeof en = {
   timeoutBlockedLastFive: 'No es permeten temps morts en els últims 5 minuts',
   timeoutBlockedNone: 'Aquest equip no té temps morts restants',
   timeoutBlockedNotNow: 'Els temps morts només es poden demanar durant el joc',
+  timeoutBlockedCallPending:
+    'Els temps morts estan bloquejats fins que es resolgui la falta pendent',
   currentRatio: 'Ràtio: {gender}',
   pullChip: 'Pull: {team} ({side})',
   halfCapChip: 'Half a {n}',
@@ -267,6 +269,9 @@ export const ca: typeof en = {
   now_halftime:
     "Descans. Es reprèn sol quan s'acabi el temps, o prem «Fi del descans» si tots dos equips estan llestos abans.",
   now_paused: "Aturada d'esperit. Rellotge en pausa — prem «Reprendre partit» per continuar.",
+  now_pauseManual: 'Partit en pausa. Rellotge aturat — prem «Reprendre partit» per continuar.',
+  now_stoppageClockStopped:
+    'Partit aturat: la parada porta més de 2 minuts. Prem «Reprendre partit» quan el joc pugui continuar.',
   now_finished: 'Partit acabat.',
   now_pull45: "Un xiulet — 45 segons. Els equips s'han de preparar.",
   now_pull60: 'Dos xiulets — 60 segons. Els equips han de senyalar que estan llestos.',
@@ -283,6 +288,7 @@ export const ca: typeof en = {
   assist_blocked_notLastScorer: "Només es pot desfer l'últim gol (mantén premut aquell equip).",
   assist_blocked_gameFinished: 'El partit ha acabat.',
   assist_blocked_nothingToUndo: 'Encara no hi ha cap gol per desfer.',
+  assist_blocked_callPending: 'Marcador bloquejat: resol primer la falta pendent.',
 
   reportTitle: 'Informe final',
   reportStarted: 'Inici: {time}',
@@ -311,6 +317,7 @@ export const ca: typeof en = {
   event_timeoutEnd: 'Fi del temps mort',
   event_stoppage: 'Aturada',
   event_stoppageResolved: 'Aturada resolta',
+  event_stoppageClockStopped: 'Rellotge del partit aturat (parada de més de 2 min)',
   event_turnover: 'Pèrdua',
   event_travel: 'Travel',
   event_call: 'Call',

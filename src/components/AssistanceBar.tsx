@@ -85,7 +85,13 @@ function statusKey(state: GameState): string {
     case 'halftime':
       return 'now_halftime';
     case 'paused':
-      return 'now_paused';
+      // A stoppage left open too long auto-stops the clock (see TICK in the
+      // reducer) and takes priority here — it's a distinct reason from either a
+      // manual pause or an SOTG stoppage, so it gets its own wording.
+      if (state.pendingStoppage?.clockStopped) return 'now_stoppageClockStopped';
+      // The generic pause button covers reasons (technical, weather, a prolonged
+      // stoppage) that aren't spirit-related, so it gets its own, SOTG-free wording.
+      return state.pauseSilent ? 'now_pauseManual' : 'now_paused';
     case 'finished':
       return 'now_finished';
     default:

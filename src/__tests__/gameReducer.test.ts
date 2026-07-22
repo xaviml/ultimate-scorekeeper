@@ -12,6 +12,7 @@ import {
   leftEndzoneTeam,
   pullFromSide,
   ruleARatio,
+  timeoutAvailability,
   timeoutsConfigured,
 } from '../state/gameReducer';
 import type { Action, GameConfig, GameState } from '../state/types';
@@ -72,6 +73,21 @@ describe('score validation', () => {
     s = gameReducer(s, { type: 'PULL_THROWN' });
     s = gameReducer(s, { type: 'GOAL', team: 'A' });
     expect(s.scores.A).toBe(2);
+  });
+
+  it('blocks scoring and turnovers while a call is unresolved, and unblocks on resolution', () => {
+    const s = gameReducer(live(), { type: 'CALL_MADE', kind: 'foul', team: 'A' });
+    expect(canScore(s).ok).toBe(false);
+    expect(canScore(s).reason).toBe('callPending');
+    expect(gameReducer(s, { type: 'GOAL', team: 'A' }).scores.A).toBe(0);
+
+    expect(canTurnover(s).ok).toBe(false);
+    expect(canTurnover(s).reason).toBe('callPending');
+    expect(gameReducer(s, { type: 'TURNOVER' }).possessionTeam).toBe(s.possessionTeam);
+
+    const resolved = gameReducer(s, { type: 'CALL_RESOLVED', resolution: 'accepted' });
+    expect(canScore(resolved).ok).toBe(true);
+    expect(gameReducer(resolved, { type: 'GOAL', team: 'A' }).scores.A).toBe(1);
   });
 });
 
@@ -547,6 +563,17 @@ describe('timeouts', () => {
     const s = ticks(live(config), 5 * 60 + 1); // inside the last 5 minutes
     const blocked = gameReducer(s, { type: 'TIMEOUT_START', team: 'A' });
     expect(blocked.status).not.toBe('timeout');
+  });
+
+  it('blocks a timeout while a call is unresolved', () => {
+    const s = gameReducer(live(), { type: 'CALL_MADE', kind: 'foul', team: 'A' });
+    expect(timeoutAvailability(s, 'A').ok).toBe(false);
+    expect(timeoutAvailability(s, 'A').reason).toBe('callPending');
+    const blocked = gameReducer(s, { type: 'TIMEOUT_START', team: 'A' });
+    expect(blocked.status).not.toBe('timeout');
+
+    const resolved = gameReducer(s, { type: 'CALL_RESOLVED', resolution: 'accepted' });
+    expect(timeoutAvailability(resolved, 'A').ok).toBe(true);
   });
 
   it('keeps the game clock running during a regular timeout, but not during SOTG', () => {
@@ -1038,7 +1065,8 @@ describe('recorded events (travel, calls, notes)', () => {
       kind: 'injury',
       team: 'B',
       playerId: undefined,
-      startedAtSeconds: 0,
+      elapsedSeconds: 0,
+      clockStopped: false,
     });
     expect(lastLog(s)).toMatchObject({ type: 'stoppage', team: 'B', stoppageKind: 'injury' });
     expect(s.assist).toBe('stoppageInjury');
@@ -1055,8 +1083,10 @@ describe('recorded events (travel, calls, notes)', () => {
       resolutionSeconds: 30,
     });
     expect(s.assist).toBe('resumed');
-    // Stoppages never touch the clock, resolving them included.
+    // Stoppages never touch the clock, resolving them included — this one settled
+    // well within the two-minute grace period.
     expect(s.gameSeconds).toBe(before);
+    expect(s.status).toBe('live');
   });
 
   it('opens a technical stoppage attributed to a team, never a player', () => {
@@ -1070,7 +1100,8 @@ describe('recorded events (travel, calls, notes)', () => {
       kind: 'technical',
       team: 'A',
       playerId: undefined,
-      startedAtSeconds: 0,
+      elapsedSeconds: 0,
+      clockStopped: false,
     });
     expect(lastLog(s)).toMatchObject({ type: 'stoppage', team: 'A', stoppageKind: 'technical' });
     expect(s.assist).toBe('stoppageTechnical');
@@ -1089,6 +1120,49 @@ describe('recorded events (travel, calls, notes)', () => {
   it('ignores a resolution when no stoppage is open', () => {
     const s = live();
     expect(gameReducer(s, { type: 'STOPPAGE_RESOLVED' })).toBe(s);
+  });
+
+  it('auto-stops the game clock once a stoppage runs unresolved for two minutes', () => {
+    let s = gameReducer(live(), { type: 'STOPPAGE', kind: 'injury', team: 'A' });
+    s = ticks(s, 119);
+    expect(s.status).toBe('live');
+    expect(s.gameSeconds).toBe(119);
+    expect(s.pendingStoppage).toMatchObject({ elapsedSeconds: 119, clockStopped: false });
+
+    s = ticks(s, 1);
+    expect(s.status).toBe('paused');
+    expect(s.statusBeforePause).toBe('live');
+    expect(s.gameSeconds).toBe(120); // this tick's game-clock second still lands before the freeze
+    expect(s.pendingStoppage).toMatchObject({ elapsedSeconds: 120, clockStopped: true });
+    expect(lastLog(s)).toMatchObject({
+      type: 'stoppageClockStopped',
+      team: 'A',
+      stoppageKind: 'injury',
+    });
+    expect(s.assist).toBe('stoppageClockStopped');
+
+    // The game clock is frozen from here, but the stoppage keeps counting for
+    // the eventual resolutionSeconds.
+    s = ticks(s, 10);
+    expect(s.gameSeconds).toBe(120);
+    expect(s.pendingStoppage).toMatchObject({ elapsedSeconds: 130 });
+
+    // "Resume game" (STOPPAGE_RESOLVED once clockStopped) un-pauses AND resolves.
+    s = gameReducer(s, { type: 'STOPPAGE_RESOLVED' });
+    expect(s.status).toBe('live');
+    expect(s.statusBeforePause).toBeNull();
+    expect(s.pendingStoppage).toBeNull();
+    expect(lastLog(s)).toMatchObject({
+      type: 'stoppageResolved',
+      team: 'A',
+      stoppageKind: 'injury',
+      resolutionSeconds: 130,
+    });
+    expect(s.assist).toBe('resumed');
+
+    // The clock resumes ticking normally afterward.
+    s = ticks(s, 1);
+    expect(s.gameSeconds).toBe(121);
   });
 
   it('logs a note as free text and stays silent about it', () => {

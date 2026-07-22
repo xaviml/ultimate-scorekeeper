@@ -324,12 +324,17 @@ function CallResolutionRow() {
  * The one answer to an open stoppage, parked next to the call resolution row
  * above the clocks. Rendered only while a stoppage (injury or technical) is
  * awaiting resolution; tapping it logs how long the stoppage took and clears it.
+ *
+ * Hidden once the stoppage has run long enough to auto-stop the game clock
+ * (`clockStopped`) — at that point the game is 'paused' exactly like an SOTG
+ * stoppage, so the action row's own "Resume game" button is the one way out
+ * instead (see the `actionRowStatus === 'paused'` button below).
  */
 function StoppageResolutionRow() {
   const state = useGame();
   const dispatch = useGameDispatch();
   const { t } = useT();
-  if (!state.pendingStoppage) return null;
+  if (!state.pendingStoppage || state.pendingStoppage.clockStopped) return null;
   const kind = t(`stoppageKind_${state.pendingStoppage.kind}` as never);
 
   return (
@@ -374,8 +379,11 @@ function pullLabel(state: GameState, t: (k: never, v?: Record<string, string | n
  * SOTG is measured on the wall clock (via the most recent 'sotgStart' log entry's
  * `atMs`) rather than the game clock: it's the one status that actually stops
  * gameSeconds, so a game-clock diff would be stuck at 0 for its whole duration.
- * Calls and stoppages never stop the clock, so their own startedAtSeconds against
- * the still-running gameSeconds is the right measure.
+ * Calls never stop the clock, so their own startedAtSeconds against the still-
+ * running gameSeconds is the right measure. A stoppage instead carries its own
+ * `elapsedSeconds`, ticked forward every TICK regardless of the game clock — a
+ * stoppage left open long enough auto-stops the game clock (see TICK in the
+ * reducer), and this counter is what keeps counting through that.
  */
 function secondaryOverride(
   state: GameState,
@@ -391,7 +399,7 @@ function secondaryOverride(
   if (state.pendingStoppage) {
     return {
       label: t(`stoppageKind_${state.pendingStoppage.kind}` as never),
-      seconds: Math.max(0, state.gameSeconds - state.pendingStoppage.startedAtSeconds),
+      seconds: state.pendingStoppage.elapsedSeconds,
     };
   }
   if (state.status === 'paused') {
@@ -485,9 +493,18 @@ export default function GameScreen() {
   // Mirrors the SOTG_TOGGLE guard in the reducer: pausing only makes sense once the
   // disc is live (or about to be pulled); resuming is always available while paused.
   const canTogglePause = paused || state.status === 'live' || state.status === 'awaitingPull';
+  // A stoppage left open long enough auto-stops the clock (state.pendingStoppage
+  // .clockStopped) exactly like an SOTG pause — resuming from there also has to
+  // resolve the stoppage, since its own small "Play can resume" button is hidden
+  // in favour of this one (see StoppageResolutionRow).
+  const resumeFromPause = () => {
+    dispatch(
+      state.pendingStoppage?.clockStopped ? { type: 'STOPPAGE_RESOLVED' } : { type: 'SOTG_TOGGLE' },
+    );
+  };
   const togglePause = () => {
     if (paused) {
-      dispatch({ type: 'SOTG_TOGGLE' });
+      resumeFromPause();
       return;
     }
     setShowPauseConfirm(true);
@@ -518,7 +535,9 @@ export default function GameScreen() {
           ? t('timeoutBlockedLastFive')
           : check.reason === 'timeoutNoneLeft'
             ? t('timeoutBlockedNone')
-            : t('timeoutBlockedNotNow'),
+            : check.reason === 'callPending'
+              ? t('timeoutBlockedCallPending')
+              : t('timeoutBlockedNotNow'),
       );
       return;
     }
@@ -706,7 +725,7 @@ export default function GameScreen() {
         {actionRowStatus === 'paused' && (
           <button
             className="w-full rounded-lg bg-signal text-pitch px-3 py-3 lscape:py-1.5 font-board font-bold text-base lscape:text-xs animate-pulse"
-            onClick={() => dispatch({ type: 'SOTG_TOGGLE' })}
+            onClick={resumeFromPause}
           >
             {t('btnResumeGame')}
           </button>
