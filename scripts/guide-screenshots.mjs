@@ -1,0 +1,206 @@
+/**
+ * Regenerates the screenshots used by the in-app guide (src/components/GuideScreen.tsx)
+ * and prints the marker coordinates that go with them.
+ *
+ * Playwright is not a dependency of this project — it is only needed to run this
+ * script, so install it temporarily:
+ *
+ *   yarn add -D playwright && npx playwright install chromium
+ *   yarn dev                                    # in another terminal
+ *   node scripts/guide-screenshots.mjs
+ *   yarn remove playwright
+ *
+ * It drives a real game through the real UI, writes public/guide/*.png, and dumps
+ * the FIG_* arrays to paste back into GuideScreen.tsx. The markers are measured
+ * from the live bounding boxes rather than eyeballed, so they keep pointing at the
+ * right control after a layout change.
+ *
+ * The screenshots are intentionally English-only: the numbered captions next to
+ * them live in the dictionaries and translate on their own.
+ */
+import { chromium } from 'playwright';
+import { mkdir } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const BASE = process.env.GUIDE_BASE_URL ?? 'http://localhost:5173';
+const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'guide');
+const VIEWPORT = { width: 390, height: 844 };
+
+const TEAM_A = 'Reds';
+const TEAM_B = 'Blues';
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Percentage position of a point inside `element`, relative to the clip rect. */
+async function marker(element, clip, ax = 0.5, ay = 0.5) {
+  const box = await element.boundingBox();
+  const x = ((box.x + box.width * ax - clip.x) / clip.width) * 100;
+  const y = ((box.y + box.height * ay - clip.y) / clip.height) * 100;
+  return [Number(x.toFixed(1)), Number(y.toFixed(1))];
+}
+
+/** A clip rect spanning the page width, from the top of `from` to the bottom of `to`. */
+async function span(page, from, to, padTop = 0) {
+  const a = await from.boundingBox();
+  const b = await to.boundingBox();
+  const top = Math.max(0, a.y - padTop);
+  return { x: 0, y: top, width: VIEWPORT.width, height: b.y + b.height - top + 12 };
+}
+
+const out = {};
+
+async function main() {
+  await mkdir(OUT, { recursive: true });
+  const browser = await chromium.launch();
+  const page = await browser.newPage({
+    viewport: VIEWPORT,
+    deviceScaleFactor: 2,
+    locale: 'en-GB',
+    colorScheme: 'dark',
+  });
+  const shot = (name, options) => page.screenshot({ path: join(OUT, name), ...options });
+
+  await page.goto(BASE);
+  await page.waitForSelector('text=Game setup');
+
+  // --- Setup screen -------------------------------------------------------
+  await page.getByLabel('Team 1', { exact: true }).fill(TEAM_A);
+  await page.getByLabel('Team 2', { exact: true }).fill(TEAM_B);
+  await page.keyboard.press('Escape');
+  await page.locator('h1').click(); // close the combobox suggestion panel
+  await sleep(200);
+
+  const sections = page.locator('section');
+  const [template, setup, players, toss, win, timeouts] = [0, 1, 2, 3, 4, 6].map((i) =>
+    sections.nth(i),
+  );
+
+  const setupClip = await span(page, page.locator('header'), players);
+  await shot('setup.png', { clip: setupClip, fullPage: true });
+  // Anchors are nudged off centre on purpose: a marker should sit beside the
+  // control it points at, not on top of the value the reader is trying to read.
+  out.FIG_SETUP = [
+    await marker(template.locator('select'), setupClip, -0.04),
+    await marker(setup.locator('select').first(), setupClip, -0.04),
+    await marker(page.getByLabel('Team 1', { exact: true }), setupClip, -0.04),
+    await marker(setup.locator('input[type=checkbox]'), setupClip),
+    await marker(players.locator('h2'), setupClip, 1.25),
+  ];
+
+  const tossClip = await span(page, toss, toss);
+  await shot('toss.png', { clip: tossClip, fullPage: true });
+  out.FIG_TOSS = [
+    await marker(toss.locator('select').nth(0), tossClip, -0.04),
+    await marker(toss.locator('select').nth(1), tossClip, -0.04),
+    await marker(toss.locator('select').nth(2), tossClip, -0.04),
+  ];
+
+  const rulesClip = await span(page, win, timeouts);
+  await shot('rules.png', { clip: rulesClip, fullPage: true });
+
+  // --- Dashboard ----------------------------------------------------------
+  await page.getByRole('button', { name: 'Start game' }).click();
+  await page.waitForSelector('text=Pull thrown');
+  await sleep(1200); // let the pull clock move off 00:00, keep the call-out on screen
+
+  const dash = { x: 0, y: 0, ...VIEWPORT };
+  await shot('dashboard.png', { clip: dash });
+  const panelA = page.locator(`button[aria-label^="${TEAM_A}:"]`);
+  const panelB = page.locator(`button[aria-label^="${TEAM_B}:"]`);
+  const gameClockBox = page.locator('text=Game clock').locator('xpath=..');
+  out.FIG_DASHBOARD = [
+    await marker(page.locator('header'), dash, 0.28),
+    await marker(panelB, dash, 0.78, 0.78),
+    await marker(page.locator('text=/^Pull: /'), dash, -0.06),
+    await marker(page.getByRole('button', { name: 'Pull thrown' }), dash, 0.08),
+    // The clock row and the button row are wall-to-wall, so these two sit in the
+    // only free space each has: the end of the clock's label line, and the gutter
+    // between two buttons.
+    await marker(gameClockBox, dash, 0.95, 0.18),
+    await marker(page.getByRole('button', { name: 'Record event' }), dash, 1.12),
+    await marker(page.locator('div[aria-live=assertive]'), dash, 0.92),
+  ];
+
+  // Play a point so the "score / undo" figure shows a real scoreline.
+  await page.getByRole('button', { name: 'Pull thrown' }).click();
+  await sleep(800);
+  await panelA.click();
+  await page.waitForSelector('text=Pull thrown');
+  await sleep(900);
+
+  await shot('play.png', { clip: dash });
+  out.FIG_PLAY = [
+    await marker(page.getByRole('button', { name: 'Pull thrown' }), dash, 0.08),
+    // Both on the same panel — the two gestures act on the same target — and clear
+    // of the hand-signal card that sits in the bottom-left corner of the panels.
+    await marker(panelA, dash, 0.3, 0.28),
+    await marker(panelA, dash, 0.85, 0.8),
+  ];
+
+  // --- Record event dialog ------------------------------------------------
+  await page.getByRole('button', { name: 'Pull thrown' }).click();
+  await sleep(400);
+  await page.getByRole('button', { name: 'Record event' }).click();
+  await page.waitForSelector('text=Stall out');
+  await sleep(300);
+  await shot('record.png', { clip: dash });
+
+  // Log the travel for real, so the report's history has something in it besides
+  // goals. Points below are played out slowly on purpose: the report shows hold
+  // times, and a game where every point lasted a second looks like a bug.
+  await page.getByRole('button', { name: 'Travel', exact: true }).click();
+  await page.getByRole('button', { name: TEAM_B, exact: true }).click();
+  await sleep(500);
+
+  // --- A few more points, then the report ---------------------------------
+  const point = async (panel, seconds) => {
+    const pull = page.getByRole('button', { name: 'Pull thrown' });
+    if (await pull.count()) await pull.click();
+    await sleep(seconds * 1000);
+    await panel.click();
+    await sleep(1500);
+  };
+  await point(panelB, 14);
+  await point(panelA, 9);
+
+  // One timeout, mid-point, so the report's "timeouts used" is not all zeros.
+  await page.getByRole('button', { name: 'Pull thrown' }).click();
+  await sleep(4000);
+  await page.locator(`button[aria-label^="${TEAM_B} — "]`).click();
+  await page.getByRole('button', { name: 'End timeout' }).click();
+  await sleep(6000);
+  await panelB.click();
+  await sleep(1500);
+
+  await point(panelA, 11);
+  await point(panelA, 8);
+
+  await page.getByRole('button', { name: 'End game' }).first().click();
+  await page.getByRole('button', { name: 'End game' }).last().click();
+  await page.waitForSelector('text=Final report');
+  await sleep(300);
+
+  const report = page.locator('h1');
+  const history = page.locator('section').nth(2);
+  const reportClip = await span(page, report, history);
+  await shot('report.png', {
+    fullPage: true,
+    clip: { ...reportClip, height: Math.min(reportClip.height, 1100) },
+  });
+
+  await browser.close();
+
+  for (const [name, markers] of Object.entries(out)) {
+    console.log(
+      `const ${name}: readonly Marker[] = [\n${markers
+        .map(([x, y]) => `  [${x}, ${y}],`)
+        .join('\n')}\n];`,
+    );
+  }
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

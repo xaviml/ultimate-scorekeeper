@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   canRecordEvent,
   canScore,
@@ -7,6 +7,7 @@ import {
   createInitialState,
   defaultConfig,
   gameReducer,
+  halfTargetApplies,
   isUniversePoint,
   leftEndzoneTeam,
   pullFromSide,
@@ -122,6 +123,68 @@ describe('undo', () => {
     const afterUndo = gameReducer(s, { type: 'UNDO_GOAL', team: 'B' });
     expect(afterUndo.scores).toEqual({ A: 1, B: 0 });
   });
+
+  it('removes the goal entry outright when nothing was logged since the goal', () => {
+    let s = gameReducer(live(), { type: 'GOAL', team: 'A' });
+    expect(s.log.some((e) => e.type === 'goal')).toBe(true);
+    s = gameReducer(s, { type: 'UNDO_GOAL', team: 'A' });
+    expect(s.log.some((e) => e.type === 'goal')).toBe(false);
+    expect(s.log.some((e) => e.type === 'undo')).toBe(false);
+  });
+
+  it('logs a correction entry instead when something was recorded after the goal', () => {
+    let s = gameReducer(live(), { type: 'GOAL', team: 'A' });
+    s = gameReducer(s, { type: 'NOTE', text: 'checked in with captains' });
+    s = gameReducer(s, { type: 'UNDO_GOAL', team: 'A' });
+    expect(s.log.some((e) => e.type === 'goal')).toBe(true);
+    expect(s.log.some((e) => e.type === 'undo')).toBe(true);
+  });
+
+  it('allows undoing the goal that just reached half-time by score', () => {
+    const config = cfg({ halfScore: 1 });
+    let s = gameReducer(live(config), { type: 'GOAL', team: 'A' });
+    expect(s.status).toBe('halftime');
+    expect(s.halftimePlayed).toBe(true);
+    expect(canUndo(s, 'A').ok).toBe(true);
+
+    s = gameReducer(s, { type: 'UNDO_GOAL', team: 'A' });
+    expect(s.scores.A).toBe(0);
+    expect(s.status).toBe('live');
+    expect(s.half).toBe(1);
+    // Reverting the goal also reverts the half itself, not just the score, so
+    // half-time is eligible to trigger again once the point is replayed.
+    expect(s.halftimePlayed).toBe(false);
+    expect(s.secondary).toBeNull();
+    // Nothing else was recorded in between, so both the goal and the automatic
+    // halftimeStart entry it triggered are dropped rather than left dangling.
+    expect(s.log.some((e) => e.type === 'goal')).toBe(false);
+    expect(s.log.some((e) => e.type === 'halftimeStart')).toBe(false);
+  });
+
+  it('re-triggers half-time once the corrected goal is replayed', () => {
+    const config = cfg({ halfScore: 1 });
+    let s = gameReducer(live(config), { type: 'GOAL', team: 'A' }); // mis-tap
+    s = gameReducer(s, { type: 'UNDO_GOAL', team: 'A' });
+    s = gameReducer(s, { type: 'GOAL', team: 'B' }); // actual scorer
+    expect(s.status).toBe('halftime');
+    expect(s.scores).toEqual({ A: 0, B: 1 });
+  });
+
+  it('cannot pick up a stray correction entry from the break, since recording is blocked during half-time', () => {
+    const config = cfg({ halfScore: 1 });
+    let s = gameReducer(live(config), { type: 'GOAL', team: 'A' });
+    expect(s.status).toBe('halftime');
+    const attempted = gameReducer(s, { type: 'NOTE', text: 'checked in with captains' });
+    expect(attempted.log).toBe(s.log); // rejected outright, nothing appended
+    s = gameReducer(attempted, { type: 'UNDO_GOAL', team: 'A' });
+    // Nothing was actually recorded during the break, so this is the same clean
+    // removal as when nothing happens at all between the goal and the undo.
+    expect(s.log.some((e) => e.type === 'goal')).toBe(false);
+    expect(s.log.some((e) => e.type === 'halftimeStart')).toBe(false);
+    expect(s.log.some((e) => e.type === 'undo')).toBe(false);
+    expect(s.status).toBe('live');
+    expect(s.halftimePlayed).toBe(false);
+  });
 });
 
 describe('mixed gender ratio (Rule A)', () => {
@@ -134,15 +197,74 @@ describe('mixed gender ratio (Rule A)', () => {
   });
 });
 
+describe('SHOW_RATIO_SIGNAL', () => {
+  it('sets assist to nextRatio and bumps ratioSignalId so the signal card re-arms', () => {
+    const config = cfg({ division: 'mixed', mixedRule: 'A', startingRatio: 'female' });
+    const before = live(config);
+    const idBefore = before.ratioSignalId;
+    let s = gameReducer(before, { type: 'SHOW_RATIO_SIGNAL' });
+    expect(s.assist).toBe('nextRatio');
+    expect(s.ratioSignalId).toBe(idBefore + 1);
+    // Tapping again while assist is already 'nextRatio' still bumps the id.
+    s = gameReducer(s, { type: 'SHOW_RATIO_SIGNAL' });
+    expect(s.ratioSignalId).toBe(idBefore + 2);
+  });
+
+  it('is a no-op when the division has no active ratio', () => {
+    const config = cfg({ division: 'open' });
+    const s = gameReducer(live(config), { type: 'SHOW_RATIO_SIGNAL' });
+    expect(s.assist).not.toBe('nextRatio');
+    expect(s.ratioSignalId).toBe(0);
+  });
+});
+
 describe('caps', () => {
-  it('applies end cap +1 when the time limit is reached (Option B)', () => {
+  it('resolves end cap +1 only once the point in progress has finished (Option B)', () => {
     const config = cfg({ timeLimitMinutes: 1, endCap: { kind: 'cap', plus: 1 } });
-    let s = run(live(config), { type: 'GOAL', team: 'A' }, { type: 'PULL_THROWN' });
+    let s = run(live(config), { type: 'GOAL', team: 'A' }, { type: 'PULL_THROWN' }); // 1-0
     s = ticks(s, 60);
     expect(s.timeCapReached).toBe(true);
-    expect(s.cappedTarget).toBe(2); // max(1,0) + 1
-    // Team A scores again -> reaches capped target -> game over.
+    // The horn names no number yet — the point still being played counts towards it.
+    expect(s.cappedTarget).toBeNull();
+    expect(s.assist).toBe('capPending');
+    // That point finishes 2-0, so the game lands on the leader (2) plus the cap.
     s = gameReducer(s, { type: 'GOAL', team: 'A' });
+    expect(s.cappedTarget).toBe(3);
+    expect(s.assist).toBe('capReached');
+    expect(s.status).not.toBe('finished');
+    s = run(s, { type: 'PULL_THROWN' }, { type: 'GOAL', team: 'A' }); // 3-0 reaches it
+    expect(s.status).toBe('finished');
+  });
+
+  it('caps the game on the score after the point, not the score at the horn', () => {
+    // Horn at 9-9 with CAP +1: the point finishes 9-10, so the game is to 11 — not the
+    // 10 that capping on the horn score would have given, which would have ended it.
+    const config = cfg({
+      timeLimitMinutes: 1,
+      endCap: { kind: 'cap', plus: 1 },
+      targetScore: 15,
+      halfScore: 99, // keep half-time out of the way; this is about the end cap
+    });
+    let s = live(config);
+    for (let i = 0; i < 9; i++) {
+      s = run(s, { type: 'GOAL', team: 'A' }, { type: 'PULL_THROWN' });
+      s = run(s, { type: 'GOAL', team: 'B' }, { type: 'PULL_THROWN' });
+    }
+    expect(s.scores).toEqual({ A: 9, B: 9 });
+    s = ticks(s, 60); // horn sounds mid-point
+    expect(s.cappedTarget).toBeNull();
+    s = gameReducer(s, { type: 'GOAL', team: 'B' }); // point finishes 9-10
+    expect(s.cappedTarget).toBe(11);
+    expect(s.status).not.toBe('finished');
+    s = run(s, { type: 'PULL_THROWN' }, { type: 'GOAL', team: 'B' }); // 9-11 wins it
+    expect(s.status).toBe('finished');
+  });
+
+  it('never caps the game beyond the configured target score', () => {
+    const config = cfg({ timeLimitMinutes: 1, endCap: { kind: 'cap', plus: 1 }, targetScore: 1 });
+    let s = ticks(live(config), 60); // horn during the opening point, still 0-0
+    s = gameReducer(s, { type: 'GOAL', team: 'A' }); // leader 1 + 1 = 2, clamped to 1
+    expect(s.cappedTarget).toBe(1);
     expect(s.status).toBe('finished');
   });
 
@@ -180,18 +302,166 @@ describe('caps', () => {
     expect(s2.cappedTarget).toBe(2); // max(1,1)+1
   });
 
-  it('applies the half-time cap when the half time limit is reached', () => {
+  it('resolves the half-time cap only once the point in progress has finished', () => {
     const config = cfg({
       halfTimeLimitMinutes: 1,
       halfCap: { kind: 'cap', plus: 1 },
       halfScore: 8,
     });
-    let s = run(live(config), { type: 'GOAL', team: 'A' }, { type: 'PULL_THROWN' });
+    let s = run(live(config), { type: 'GOAL', team: 'A' }, { type: 'PULL_THROWN' }); // 1-0
     s = ticks(s, 60);
     expect(s.halfTimeCapReached).toBe(true);
-    expect(s.halfCappedTarget).toBe(2);
+    // The horn names no number yet — the point still being played counts towards it.
+    expect(s.halfCappedTarget).toBeNull();
+    expect(s.assist).toBe('halfCapPending');
+    // That point finishes 2-0, so the half lands on the leader (2) plus the cap.
     s = gameReducer(s, { type: 'GOAL', team: 'A' });
+    expect(s.halfCappedTarget).toBe(3);
+    expect(s.assist).toBe('halfCapReached');
+    expect(s.status).not.toBe('halftime');
+    s = run(s, { type: 'PULL_THROWN' }, { type: 'GOAL', team: 'A' }); // 3-0 reaches the cap
     expect(s.status).toBe('halftime');
+  });
+
+  it('caps the half on the score after the point, not the score at the horn', () => {
+    // Horn at 4-5 with CAP +1: the point finishes 4-6, so the half is at 7 — not the
+    // 6 that capping on the horn score would have given.
+    const config = cfg({
+      halfTimeLimitMinutes: 1,
+      halfCap: { kind: 'cap', plus: 1 },
+      halfScore: 8,
+      startingOffense: 'A',
+    });
+    let s = live(config);
+    // Walk to 4-5 without touching the clock: only TICK advances it.
+    for (const team of ['A', 'B', 'A', 'B', 'A', 'B', 'A', 'B', 'B'] as const) {
+      s = run(s, { type: 'GOAL', team }, { type: 'PULL_THROWN' });
+    }
+    expect(s.scores).toEqual({ A: 4, B: 5 });
+    s = ticks(s, 60); // horn sounds mid-point
+    expect(s.halfCappedTarget).toBeNull();
+    s = gameReducer(s, { type: 'GOAL', team: 'B' }); // point finishes 4-6
+    expect(s.halfCappedTarget).toBe(7);
+    expect(s.status).not.toBe('halftime');
+    s = run(s, { type: 'PULL_THROWN' }, { type: 'GOAL', team: 'B' }); // 4-7 reaches it
+    expect(s.status).toBe('halftime');
+  });
+
+  it('never caps the half beyond the configured half score', () => {
+    const config = cfg({
+      halfTimeLimitMinutes: 1,
+      halfCap: { kind: 'cap', plus: 1 },
+      halfScore: 1,
+    });
+    let s = ticks(live(config), 60); // horn during the opening point, still 0-0
+    s = gameReducer(s, { type: 'GOAL', team: 'A' }); // leader 1 + 1 = 2, clamped to 1
+    expect(s.halfCappedTarget).toBe(1);
+    expect(s.status).toBe('halftime');
+  });
+});
+
+describe('game target announcement', () => {
+  it('names where the game ends the first time a team is one goal short', () => {
+    const config = cfg({ targetScore: 3, halfScore: 99, startingOffense: 'A' });
+    let s = gameReducer(live(config), { type: 'GOAL', team: 'A' }); // 1-0
+    expect(s.gameAnnounced).toBe(false);
+    expect(s.assist).toBe('goalScored');
+    s = run(s, { type: 'PULL_THROWN' }, { type: 'GOAL', team: 'A' }); // 2-0, one short of 3
+    expect(s.assist).toBe('gameAt');
+    expect(s.gameAnnounced).toBe(true);
+    expect(s.status).not.toBe('finished');
+  });
+
+  it('announces it only once, even when both teams get one short', () => {
+    const config = cfg({ targetScore: 3, halfScore: 99, startingOffense: 'A' });
+    let s = gameReducer(live(config), { type: 'GOAL', team: 'A' }); // 1-0
+    s = run(s, { type: 'PULL_THROWN' }, { type: 'GOAL', team: 'A' }); // 2-0
+    expect(s.assist).toBe('gameAt');
+    s = run(s, { type: 'PULL_THROWN' }, { type: 'GOAL', team: 'B' }); // 2-1
+    // 2-2 leaves B one short too, and is a universe point — the more urgent shout wins,
+    // but either way the target is not announced a second time.
+    s = run(s, { type: 'PULL_THROWN' }, { type: 'GOAL', team: 'B' }); // 2-2
+    expect(s.assist).toBe('universePoint');
+  });
+
+  it('marks the target announced on a universe point even though the shout differs', () => {
+    // The chip keys off gameAnnounced, so it must be set whenever the target becomes
+    // known — including when "Universe point!" is what actually gets shouted.
+    const config = cfg({ targetScore: 3, halfScore: 99, startingOffense: 'A' });
+    let s = gameReducer(live(config), { type: 'GOAL', team: 'A' }); // 1-0
+    s = run(s, { type: 'PULL_THROWN' }, { type: 'GOAL', team: 'B' }); // 1-1
+    s = run(s, { type: 'PULL_THROWN' }, { type: 'GOAL', team: 'B' }); // 1-2, B one short
+    expect(s.gameAnnounced).toBe(true);
+  });
+
+  it('a resolved end cap announces the target instead of a separate call-out', () => {
+    const config = cfg({ timeLimitMinutes: 1, endCap: { kind: 'cap', plus: 1 }, halfScore: 99 });
+    let s = run(live(config), { type: 'GOAL', team: 'A' }, { type: 'PULL_THROWN' }); // 1-0
+    s = ticks(s, 60);
+    expect(s.gameAnnounced).toBe(false);
+    s = gameReducer(s, { type: 'GOAL', team: 'A' }); // 2-0, game capped to 3
+    expect(s.assist).toBe('capReached');
+    expect(s.gameAnnounced).toBe(true);
+  });
+
+  it('undoing the announcing goal lets it be announced again', () => {
+    const config = cfg({ targetScore: 3, halfScore: 99, startingOffense: 'A' });
+    let s = gameReducer(live(config), { type: 'GOAL', team: 'A' }); // 1-0
+    s = run(s, { type: 'PULL_THROWN' }, { type: 'GOAL', team: 'A' }); // 2-0
+    expect(s.gameAnnounced).toBe(true);
+    s = gameReducer(s, { type: 'UNDO_GOAL', team: 'A' });
+    expect(s.gameAnnounced).toBe(false);
+    s = gameReducer(s, { type: 'GOAL', team: 'A' });
+    expect(s.assist).toBe('gameAt');
+  });
+});
+
+describe('half target applies', () => {
+  it('is true while the half score is still what decides half-time', () => {
+    expect(halfTargetApplies(live(cfg({ halfScore: 8, targetScore: 15 })))).toBe(true);
+  });
+
+  it('is false once half has been played', () => {
+    const s = gameReducer(live(cfg({ halfScore: 1 })), { type: 'GOAL', team: 'A' });
+    expect(s.halftimePlayed).toBe(true);
+    expect(halfTargetApplies(s)).toBe(false);
+  });
+
+  it('is false when the game target is at or below the half target', () => {
+    // The game-end check runs before the half check, so half can never be reached.
+    expect(halfTargetApplies(live(cfg({ halfScore: 8, targetScore: 8 })))).toBe(false);
+    expect(halfTargetApplies(live(cfg({ halfScore: 8, targetScore: 5 })))).toBe(false);
+  });
+
+  it('is false once an end cap has dropped the game target below the half target', () => {
+    const config = cfg({
+      halfScore: 8,
+      targetScore: 15,
+      timeLimitMinutes: 1,
+      endCap: { kind: 'cap', plus: 1 },
+    });
+    let s = run(live(config), { type: 'GOAL', team: 'A' }, { type: 'PULL_THROWN' }); // 1-0
+    expect(halfTargetApplies(s)).toBe(true);
+    s = ticks(s, 60);
+    s = gameReducer(s, { type: 'GOAL', team: 'A' }); // 2-0 -> game capped to 3
+    expect(s.cappedTarget).toBe(3);
+    // Half was at 8; the game now ends at 3, so naming the half score is meaningless.
+    expect(halfTargetApplies(s)).toBe(false);
+  });
+
+  it('is false when an Option A time cap will end the game on the next goal', () => {
+    const config = cfg({ halfScore: 8, targetScore: 15, timeLimitMinutes: 1 });
+    const s = ticks(live({ ...config, endCap: { kind: 'none' } }), 60);
+    expect(s.timeCapReached).toBe(true);
+    expect(halfTargetApplies(s)).toBe(false);
+  });
+
+  it('is false when the half time limit passed with no half cap', () => {
+    // Half comes on the next goal whatever the score, so the threshold governs nothing.
+    const config = cfg({ halfScore: 8, halfTimeLimitMinutes: 1, halfCap: { kind: 'none' } });
+    const s = ticks(live(config), 60);
+    expect(s.halfTimeCapReached).toBe(true);
+    expect(halfTargetApplies(s)).toBe(false);
   });
 });
 
@@ -214,15 +484,22 @@ describe('universe point', () => {
     expect(s.status).toBe('finished');
   });
 
-  it('flags a tie one point below a target already lowered by a time cap', () => {
+  it('flags a tie one point below a target just lowered by a time cap', () => {
+    // The cap resolves on the goal that ends the point, so the universe point it
+    // creates only appears then — never at the horn, which names no target yet.
     const config = cfg({ timeLimitMinutes: 1, endCap: { kind: 'cap', plus: 1 } });
     let s = run(live(config), { type: 'GOAL', team: 'A' }, { type: 'PULL_THROWN' }); // 1-0
     s = run(s, { type: 'GOAL', team: 'B' }, { type: 'PULL_THROWN' }); // 1-1
-    s = ticks(s, 60); // time cap fires while tied -> capped target = max(1,1)+1 = 2
+    s = run(s, { type: 'GOAL', team: 'B' }, { type: 'PULL_THROWN' }); // 1-2
+    s = ticks(s, 60);
     expect(s.timeCapReached).toBe(true);
-    expect(s.cappedTarget).toBe(2);
-    expect(s.assist).toBe('universePoint');
+    expect(s.cappedTarget).toBeNull();
+    expect(isUniversePoint(s)).toBe(false);
+    s = gameReducer(s, { type: 'GOAL', team: 'A' }); // 2-2 -> target = 2 + 1 = 3
+    expect(s.cappedTarget).toBe(3);
     expect(isUniversePoint(s)).toBe(true);
+    // Universe point outranks the cap announcement: it is the more urgent thing to shout.
+    expect(s.assist).toBe('universePoint');
   });
 
   it('is false once the game has finished', () => {
@@ -340,13 +617,14 @@ describe('halves and pulls', () => {
     expect(s.gameSeconds).toBe(before + 10);
   });
 
-  it('flags one point away from half by plain score', () => {
+  it('names where half is the first time a team is one goal short', () => {
     const config = cfg({ halfScore: 3, startingOffense: 'A' });
     let s = gameReducer(live(config), { type: 'GOAL', team: 'A' }); // 1-0
     expect(s.assist).toBe('goalScored');
     s = gameReducer(s, { type: 'PULL_THROWN' });
     s = gameReducer(s, { type: 'GOAL', team: 'A' }); // 2-0, one short of halfScore 3
-    expect(s.assist).toBe('halfPointAway');
+    expect(s.assist).toBe('halfAt');
+    expect(s.halfAnnounced).toBe(true);
     expect(s.status).not.toBe('halftime');
     s = gameReducer(s, { type: 'PULL_THROWN' });
     s = gameReducer(s, { type: 'GOAL', team: 'A' }); // 3-0 reaches half
@@ -354,7 +632,29 @@ describe('halves and pulls', () => {
     expect(s.status).toBe('halftime');
   });
 
-  it('also flags one point away from a half target already lowered by a time cap', () => {
+  it('announces where half is only once, even when both teams get one short', () => {
+    // 2-0 announces it; 2-2 must not, or the same fact is shouted twice a game.
+    const config = cfg({ halfScore: 3, startingOffense: 'A' });
+    let s = gameReducer(live(config), { type: 'GOAL', team: 'A' }); // 1-0
+    s = run(s, { type: 'PULL_THROWN' }, { type: 'GOAL', team: 'A' }); // 2-0
+    expect(s.assist).toBe('halfAt');
+    s = run(s, { type: 'PULL_THROWN' }, { type: 'GOAL', team: 'B' }); // 2-1
+    s = run(s, { type: 'PULL_THROWN' }, { type: 'GOAL', team: 'B' }); // 2-2, B one short too
+    expect(s.assist).toBe('goalScored');
+  });
+
+  it('undoing the announcing goal lets it be announced again', () => {
+    const config = cfg({ halfScore: 3, startingOffense: 'A' });
+    let s = gameReducer(live(config), { type: 'GOAL', team: 'A' }); // 1-0
+    s = run(s, { type: 'PULL_THROWN' }, { type: 'GOAL', team: 'A' }); // 2-0
+    expect(s.halfAnnounced).toBe(true);
+    s = gameReducer(s, { type: 'UNDO_GOAL', team: 'A' }); // back to 1-0
+    expect(s.halfAnnounced).toBe(false);
+    s = gameReducer(s, { type: 'GOAL', team: 'A' }); // 2-0 again
+    expect(s.assist).toBe('halfAt');
+  });
+
+  it('a resolved half cap announces the new target instead of a separate call-out', () => {
     const config = cfg({
       halfTimeLimitMinutes: 1,
       halfCap: { kind: 'cap', plus: 1 },
@@ -362,11 +662,12 @@ describe('halves and pulls', () => {
     });
     let s = run(live(config), { type: 'GOAL', team: 'A' }, { type: 'PULL_THROWN' }); // 1-0
     s = ticks(s, 60);
-    expect(s.halfCappedTarget).toBe(2); // max(1,0) + 1
+    s = gameReducer(s, { type: 'GOAL', team: 'B' }); // 1-1, half capped to 2
+    expect(s.halfCappedTarget).toBe(2);
+    // The cap message already says "half at 2", so it stands in for the one-time
+    // call-out rather than being followed by it.
     expect(s.assist).toBe('halfCapReached');
-    // One more goal by either team reaches the capped target of 2 — one away first.
-    s = gameReducer(s, { type: 'GOAL', team: 'B' }); // 1-1, one short of the capped target
-    expect(s.assist).toBe('halfPointAway');
+    expect(s.halfAnnounced).toBe(true);
     expect(s.status).not.toBe('halftime');
   });
 
@@ -624,19 +925,30 @@ describe('recorded events (travel, calls, notes)', () => {
     expect(s.possessionTeam).toBe(before.possessionTeam);
   });
 
-  it('stays available during a timeout, half-time and an SOTG pause', () => {
-    // Unlike scoring, bookkeeping never stops — a foul called as the teams line up
-    // still has to be written down.
-    for (const action of [
-      { type: 'SOTG_TOGGLE' },
-      { type: 'TIMEOUT_START', team: 'A' },
-    ] as Action[]) {
-      const s = gameReducer(live(), action);
-      expect(canRecordEvent(s).ok).toBe(true);
-      expect(
-        gameReducer(s, { type: 'TRAVEL', team: 'A' }).log.some((e) => e.type === 'travel'),
-      ).toBe(true);
-    }
+  it('stays available during an SOTG pause', () => {
+    // A foul called as the teams line up mid-dispute still has to be written down.
+    const s = gameReducer(live(), { type: 'SOTG_TOGGLE' });
+    expect(canRecordEvent(s).ok).toBe(true);
+    expect(gameReducer(s, { type: 'TRAVEL', team: 'A' }).log.some((e) => e.type === 'travel')).toBe(
+      true,
+    );
+  });
+
+  it('blocks recording during a timeout or half-time', () => {
+    // Unlike an SOTG pause, a timeout or half-time is a break in play — recording
+    // waits for the game to resume, same as scoring does.
+    const timeout = gameReducer(live(), { type: 'TIMEOUT_START', team: 'A' });
+    expect(canRecordEvent(timeout).ok).toBe(false);
+    expect(
+      gameReducer(timeout, { type: 'TRAVEL', team: 'A' }).log.some((e) => e.type === 'travel'),
+    ).toBe(false);
+
+    const half = gameReducer(live(cfg({ halfScore: 1 })), { type: 'GOAL', team: 'A' });
+    expect(half.status).toBe('halftime');
+    expect(canRecordEvent(half).ok).toBe(false);
+    expect(
+      gameReducer(half, { type: 'TRAVEL', team: 'A' }).log.some((e) => e.type === 'travel'),
+    ).toBe(false);
   });
 
   it('records nothing before the game starts or after it ends', () => {
@@ -703,5 +1015,54 @@ describe('recorded events (travel, calls, notes)', () => {
   it('drops an empty note instead of logging a blank row', () => {
     const s = live();
     expect(gameReducer(s, { type: 'NOTE', text: '   ' })).toBe(s);
+  });
+});
+
+describe('scheduled kickoff', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('holds the game at awaitingStart until the scheduled time, then opens the pull on its own', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2024-06-01T10:00:00'));
+    const config = cfg({ startingTime: { enabled: true, time: '10:05' } });
+
+    let s = gameReducer(createInitialState(config), { type: 'START_GAME', config });
+    expect(s.phase).toBe('game');
+    expect(s.status).toBe('awaitingStart');
+    expect(s.startingAtMs).toBe(new Date('2024-06-01T10:05:00').getTime());
+    expect(canScore(s).reason).toBe('gameNotStarted');
+    expect(canRecordEvent(s).reason).toBe('gameNotStarted');
+    expect(canUndo(s, 'A').reason).toBe('gameNotStarted');
+    // A goal attempt (or any TICK before the scheduled time) changes nothing.
+    expect(gameReducer(s, { type: 'GOAL', team: 'A' }).scores.A).toBe(0);
+
+    vi.setSystemTime(new Date('2024-06-01T10:04:59'));
+    s = gameReducer(s, { type: 'TICK' });
+    expect(s.status).toBe('awaitingStart');
+    expect(s.gameSeconds).toBe(0); // the game clock doesn't run before kickoff
+
+    vi.setSystemTime(new Date('2024-06-01T10:05:00'));
+    s = gameReducer(s, { type: 'TICK' });
+    expect(s.status).toBe('awaitingPull');
+    expect(s.startingAtMs).toBeNull();
+    expect(s.assist).toBe('firstPull');
+    expect(s.log[s.log.length - 1]).toMatchObject({ type: 'gameStart' });
+    expect(canScore({ ...s, status: 'live' }).ok).toBe(true);
+  });
+
+  it('starts immediately if the configured time has already passed by the time Start game is pressed', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2024-06-01T10:10:00'));
+    const config = cfg({ startingTime: { enabled: true, time: '10:05' } });
+
+    const s = gameReducer(createInitialState(config), { type: 'START_GAME', config });
+    expect(s.status).toBe('awaitingPull');
+    expect(s.startingAtMs).toBeNull();
+  });
+
+  it('starts immediately when no starting time is configured, as before', () => {
+    const s = started();
+    expect(s.status).toBe('awaitingPull');
+    expect(s.startingAtMs).toBeNull();
   });
 });

@@ -3,19 +3,86 @@ import { useT, type Lang } from '../i18n/useT';
 import { defaultConfig } from '../state/gameReducer';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import { deleteTeam, loadSavedTeams } from '../state/rosterStorage';
-import type { GameConfig, SavedTeam, TeamId } from '../state/types';
+import {
+  BEACH_TEMPLATE,
+  GRASS_TEMPLATE,
+  deleteTemplate,
+  extractTemplateSettings,
+  loadSavedTemplates,
+  saveTemplate,
+} from '../state/templates';
+import type { GameConfig, SavedTeam, SavedTemplate, TeamId } from '../state/types';
+import { loadPlayersSectionCollapsed, savePlayersSectionCollapsed } from '../state/uiPreferences';
 import { AboutDialog } from './AboutDialog';
+import { ConfirmDeleteTemplateDialog } from './ConfirmDeleteTemplateDialog';
+import GuideScreen from './GuideScreen';
 import { PlayerRosterEditor } from './PlayerRosterEditor';
+import { SaveTemplateDialog } from './SaveTemplateDialog';
 import { TeamColorPicker } from './TeamColorPicker';
 import { TeamNameCombobox } from './TeamNameCombobox';
 import { uid } from '../state/uid';
-import { fieldLabel, inputClass, sectionTitle } from './ui';
+import { fieldLabel, inputClass, secondaryButtonOnPitch, sectionTitle } from './ui';
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+const PREDEFINED_TEMPLATES = {
+  grass: GRASS_TEMPLATE,
+  beach: BEACH_TEMPLATE,
+} as const;
+
+/** "HH:MM" for the next quarter-hour strictly after `date` (10:55→11:00, 10:31→10:45, 11:00→11:15). */
+function suggestedStartingTime(date: Date = new Date()): string {
+  const totalMinutes = date.getHours() * 60 + date.getMinutes();
+  const nextQuarter = (Math.floor(totalMinutes / 15) * 15 + 15) % (24 * 60);
+  const h = Math.floor(nextQuarter / 60);
+  const m = nextQuarter % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+/** Whether a configured "HH:MM" starting time is still ahead of the current time (today). */
+function startingTimeIsFuture(time: string): boolean {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(time);
+  if (!match) return false;
+  const d = new Date();
+  d.setHours(Number(match[1]), Number(match[2]), 0, 0);
+  return d.getTime() > Date.now();
+}
+
+function Section({
+  title,
+  children,
+  collapsible,
+  collapsed,
+  onToggleCollapsed,
+  toggleAriaLabel,
+}: {
+  title: string;
+  children: React.ReactNode;
+  collapsible?: boolean;
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
+  toggleAriaLabel?: string;
+}) {
   return (
     <section className="rounded-xl bg-panel border border-line p-4 space-y-3">
-      <h2 className={sectionTitle}>{title}</h2>
-      {children}
+      {collapsible ? (
+        <button
+          type="button"
+          className="w-full flex items-center justify-between"
+          aria-expanded={!collapsed}
+          aria-label={toggleAriaLabel}
+          onClick={onToggleCollapsed}
+        >
+          <h2 className={sectionTitle}>{title}</h2>
+          <span
+            aria-hidden="true"
+            className={`text-chalk/60 transition-transform ${collapsed ? '-rotate-90' : ''}`}
+          >
+            ▾
+          </span>
+        </button>
+      ) : (
+        <h2 className={sectionTitle}>{title}</h2>
+      )}
+      {(!collapsible || !collapsed) && children}
     </section>
   );
 }
@@ -28,23 +95,68 @@ export default function ConfigScreen() {
   // fresh app load or reload always resets it to the defaultConfig singleton
   // instead, see GameContext) — so a referential check tells apart "coming back
   // from a game, prefill for a quick edit" from "starting clean, blank the names".
+  // A fresh start also defaults to the Grass template — the common case — rather
+  // than forcing every volunteer to pick it by hand.
+  const startingFresh = state.config === defaultConfig;
   const [cfg, setCfg] = useState<GameConfig>(() =>
-    state.config === defaultConfig
+    startingFresh
       ? {
           ...defaultConfig,
+          ...GRASS_TEMPLATE,
           teams: {
             A: { ...defaultConfig.teams.A, name: '' },
             B: { ...defaultConfig.teams.B, name: '' },
           },
+          // Pre-filled and ready the moment the checkbox is ticked, so the volunteer
+          // never has to hand-compute the next quarter-hour themselves.
+          startingTime: { enabled: false, time: suggestedStartingTime() },
         }
       : state.config,
   );
   const [savedTeams, setSavedTeams] = useState<SavedTeam[]>(() => loadSavedTeams());
   const [showAbout, setShowAbout] = useState(false);
+  // The guide is a page, not a dialog, and it is rendered from here rather than
+  // from App so this screen stays mounted underneath it — everything already
+  // typed into the form is still there when the volunteer comes back.
+  const [showGuide, setShowGuide] = useState(false);
+  // Collapsed by default; a fresh load/reload always starts collapsed regardless of what
+  // was saved, since that saved value only means something relative to a just-finished
+  // game. Coming back from BACK_TO_CONFIG (see startingFresh above) is the one case where
+  // "the user had it open" is worth honoring.
+  const [playersCollapsed, setPlayersCollapsed] = useState(() =>
+    startingFresh ? true : loadPlayersSectionCollapsed(),
+  );
+  const togglePlayersCollapsed = () =>
+    setPlayersCollapsed((prev) => {
+      const next = !prev;
+      savePlayersSectionCollapsed(next);
+      return next;
+    });
   const removeSavedTeam = (name: string) => {
     deleteTeam(name);
     setSavedTeams((prev) => prev.filter((t) => t.name !== name));
   };
+
+  const [savedTemplates, setSavedTemplates] = useState<SavedTemplate[]>(() => loadSavedTemplates());
+  // Grass is always the dropdown's starting selection — there's no "none" option,
+  // since every field already has a sensible value and can just be overwritten.
+  const [selectedTemplateKey, setSelectedTemplateKey] = useState('predefined:grass');
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [pendingDeleteTemplate, setPendingDeleteTemplate] = useState<string | null>(null);
+
+  const applyTemplateChoice = (key: string) => {
+    setSelectedTemplateKey(key);
+    if (key === 'predefined:grass') setCfg((c) => ({ ...c, ...PREDEFINED_TEMPLATES.grass }));
+    else if (key === 'predefined:beach') setCfg((c) => ({ ...c, ...PREDEFINED_TEMPLATES.beach }));
+    else if (key.startsWith('custom:')) {
+      const name = key.slice('custom:'.length);
+      const template = savedTemplates.find((t) => t.name === name);
+      if (template) setCfg((c) => ({ ...c, ...template.settings }));
+    }
+  };
+  const selectedCustomName = selectedTemplateKey.startsWith('custom:')
+    ? selectedTemplateKey.slice('custom:'.length)
+    : null;
 
   const set = <K extends keyof GameConfig>(key: K, value: GameConfig[K]) =>
     setCfg((c) => ({ ...c, [key]: value }));
@@ -75,7 +187,12 @@ export default function ConfigScreen() {
     return Number.isFinite(n) && n >= 0 ? n : fallback;
   };
 
+  if (showGuide) return <GuideScreen onBack={() => setShowGuide(false)} />;
+
   const teamsReady = cfg.teams.A.name.trim() !== '' && cfg.teams.B.name.trim() !== '';
+  const startingTimeReady =
+    !cfg.startingTime.enabled || startingTimeIsFuture(cfg.startingTime.time);
+  const canStart = teamsReady && startingTimeReady;
 
   return (
     <div className="min-h-dvh bg-pitch text-chalk p-4 pb-10 max-w-2xl mx-auto space-y-4">
@@ -106,6 +223,54 @@ export default function ConfigScreen() {
       </header>
 
       {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
+
+      {/* Entry to the guide: directly under the description and above the first
+          card, where a volunteer who has never done this lands before touching
+          anything — and out of the header, so it never competes with the icons. */}
+      <p className="text-center">
+        <button
+          type="button"
+          className="text-sm text-signal underline"
+          onClick={() => setShowGuide(true)}
+        >
+          {t('guideLink')}
+        </button>
+      </p>
+
+      <Section title={t('templateTitle')}>
+        <div>
+          <label className={fieldLabel}>{t('templateSelectLabel')}</label>
+          <select
+            aria-label={t('templateSelectLabel')}
+            className={inputClass}
+            value={selectedTemplateKey}
+            onChange={(e) => applyTemplateChoice(e.target.value)}
+          >
+            <optgroup label={t('templatePredefinedGroup')}>
+              <option value="predefined:grass">{t('templateGrassName')}</option>
+              <option value="predefined:beach">{t('templateBeachName')}</option>
+            </optgroup>
+            {savedTemplates.length > 0 && (
+              <optgroup label={t('templateCustomGroup')}>
+                {savedTemplates.map((template) => (
+                  <option key={template.name} value={`custom:${template.name}`}>
+                    {template.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+        </div>
+        {selectedCustomName && (
+          <button
+            type="button"
+            className="text-xs text-chalk/60 underline"
+            onClick={() => setPendingDeleteTemplate(selectedCustomName)}
+          >
+            {t('btnDeleteTemplate')}
+          </button>
+        )}
+      </Section>
 
       <Section title={t('setupTitle')}>
         <div className="grid grid-cols-2 gap-3">
@@ -168,6 +333,59 @@ export default function ConfigScreen() {
             </select>
           </div>
         )}
+
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={cfg.startingTime.enabled}
+            onChange={(e) =>
+              set('startingTime', { ...cfg.startingTime, enabled: e.target.checked })
+            }
+          />
+          <span>{t('startingTimeEnabled')}</span>
+        </label>
+        {cfg.startingTime.enabled && (
+          <div>
+            <label className={fieldLabel}>{t('startingTimeLabel')}</label>
+            <input
+              type="time"
+              className={inputClass}
+              value={cfg.startingTime.time}
+              onChange={(e) => set('startingTime', { ...cfg.startingTime, time: e.target.value })}
+            />
+          </div>
+        )}
+      </Section>
+
+      <Section
+        title={t('playersTitle')}
+        collapsible
+        collapsed={playersCollapsed}
+        onToggleCollapsed={togglePlayersCollapsed}
+        toggleAriaLabel={t(playersCollapsed ? 'expandSection' : 'collapseSection', {
+          title: t('playersTitle'),
+        })}
+      >
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={cfg.trackPlayers}
+            onChange={(e) => set('trackPlayers', e.target.checked)}
+          />
+          <span>{t('trackPlayers')}</span>
+        </label>
+        <PlayerRosterEditor
+          label={cfg.teams.A.name.trim() || t('teamA')}
+          players={cfg.players.A}
+          onAdd={(number, name) => addPlayer('A', number, name)}
+          onRemove={(id) => removePlayer('A', id)}
+        />
+        <PlayerRosterEditor
+          label={cfg.teams.B.name.trim() || t('teamB')}
+          players={cfg.players.B}
+          onAdd={(number, name) => addPlayer('B', number, name)}
+          onRemove={(id) => removePlayer('B', id)}
+        />
       </Section>
 
       <Section title={t('coinToss')}>
@@ -341,29 +559,6 @@ export default function ConfigScreen() {
         </label>
       </Section>
 
-      <Section title={t('playersTitle')}>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={cfg.trackPlayers}
-            onChange={(e) => set('trackPlayers', e.target.checked)}
-          />
-          <span>{t('trackPlayers')}</span>
-        </label>
-        <PlayerRosterEditor
-          label={cfg.teams.A.name.trim() || t('teamA')}
-          players={cfg.players.A}
-          onAdd={(number, name) => addPlayer('A', number, name)}
-          onRemove={(id) => removePlayer('A', id)}
-        />
-        <PlayerRosterEditor
-          label={cfg.teams.B.name.trim() || t('teamB')}
-          players={cfg.players.B}
-          onAdd={(number, name) => addPlayer('B', number, name)}
-          onRemove={(id) => removePlayer('B', id)}
-        />
-      </Section>
-
       <Section title={t('timeoutsTitle')}>
         <label className="flex items-center gap-2">
           <input
@@ -439,13 +634,48 @@ export default function ConfigScreen() {
       </Section>
 
       <button
+        type="button"
+        className={`${secondaryButtonOnPitch} w-full`}
+        onClick={() => setShowSaveTemplate(true)}
+      >
+        {t('saveAsTemplateBtn')}
+      </button>
+      <button
         className="w-full rounded-xl bg-signal text-pitch font-board font-bold text-lg py-4 active:scale-[0.99] disabled:opacity-40 disabled:active:scale-100"
-        disabled={!teamsReady}
+        disabled={!canStart}
         onClick={() => dispatch({ type: 'START_GAME', config: cfg })}
       >
         {t('startGame')}
       </button>
       {!teamsReady && <p className="text-sm text-chalk/60 text-center">{t('teamsRequired')}</p>}
+      {teamsReady && !startingTimeReady && (
+        <p className="text-sm text-chalk/60 text-center">{t('startingTimeInPast')}</p>
+      )}
+
+      {showSaveTemplate && (
+        <SaveTemplateDialog
+          onClose={() => setShowSaveTemplate(false)}
+          onSave={(name) => {
+            saveTemplate({ name, settings: extractTemplateSettings(cfg) });
+            setSavedTemplates(loadSavedTemplates());
+            setSelectedTemplateKey(`custom:${name}`);
+            setShowSaveTemplate(false);
+          }}
+        />
+      )}
+      {pendingDeleteTemplate && (
+        <ConfirmDeleteTemplateDialog
+          name={pendingDeleteTemplate}
+          onCancel={() => setPendingDeleteTemplate(null)}
+          onConfirm={() => {
+            deleteTemplate(pendingDeleteTemplate);
+            setSavedTemplates((prev) => prev.filter((t) => t.name !== pendingDeleteTemplate));
+            if (selectedTemplateKey === `custom:${pendingDeleteTemplate}`)
+              applyTemplateChoice('predefined:grass');
+            setPendingDeleteTemplate(null);
+          }}
+        />
+      )}
     </div>
   );
 }

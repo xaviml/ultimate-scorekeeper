@@ -8,8 +8,20 @@ function audio(): HTMLAudioElement {
   return el;
 }
 
+/** Timer for the next blast of the sequence currently playing, if any. */
+let pending: ReturnType<typeof setTimeout> | null = null;
+
 /** Play n short whistle blasts in a row (1 = single, 2 = double, 3 = triple). */
 export function whistle(times: 1 | 2 | 3): void {
+  // A new sequence supersedes one still in flight. Every blast restarts the same
+  // single audio element, so two overlapping chains would cut each other off mid-
+  // blast and keep re-triggering — two short bursts turning into one long ragged
+  // run of whistles. This can happen for real: a cap fires on the same second a
+  // pull timer crosses 45/60/75.
+  if (pending !== null) {
+    clearTimeout(pending);
+    pending = null;
+  }
   let played = 0;
   const blast = () => {
     const a = audio();
@@ -18,7 +30,7 @@ export function whistle(times: 1 | 2 | 3): void {
       /* placeholder URL / autoplay policy: fail silently */
     });
     played += 1;
-    if (played < times) setTimeout(blast, 700);
+    pending = played < times ? setTimeout(blast, 700) : null;
   };
   blast();
 }

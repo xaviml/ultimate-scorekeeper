@@ -1,10 +1,9 @@
 {
   "name": "Ultimate Frisbee Scorekeeper",
   "short_name": "Ultimate Scorekeeper",
-  "description": "Guided scorekeeping for Ultimate Frisbee volunteers",
+  "description": "A guided assistant for Ultimate Frisbee scorekeepers",
   "start_url": ".",
   "display": "standalone",
-  "orientation": "any",
   "background_color": "#101418",
   "theme_color": "#101418",
   "icons": [

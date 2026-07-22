@@ -64,6 +64,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(id);
   }, [state.phase]);
 
+  // Scheduled-kickoff whistle: a single blast the moment a configured starting
+  // time arrives and the reducer auto-opens the pull. A game started directly
+  // (no starting time, or PULL_THROWN reachable right away) never passes through
+  // 'awaitingStart', so it never gets this whistle.
+  const wasAwaitingStart = useRef(state.status === 'awaitingStart');
+  useEffect(() => {
+    if (wasAwaitingStart.current && state.status !== 'awaitingStart') whistle(1);
+    wasAwaitingStart.current = state.status === 'awaitingStart';
+  }, [state.status]);
+
   // Pull-time whistle sequence: 1x @45s, 2x @60s, 3x @75s.
   const pullSec = state.secondary?.kind === 'pull' ? state.secondary.seconds : null;
   useEffect(() => {
@@ -76,20 +86,59 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const breakDone =
     (state.secondary?.kind === 'timeout' || state.secondary?.kind === 'halftime') &&
     state.secondary.seconds === 0;
+  // Re-running on every status change is deliberate: it retries ending the break if
+  // it ran out while the game was paused. But the whistle must not retry with it, so
+  // it is latched to fire once per break and re-armed when the next one starts.
+  const breakWhistled = useRef(false);
   useEffect(() => {
-    if (!breakDone) return;
-    whistle(2);
+    if (!breakDone) {
+      breakWhistled.current = false;
+      return;
+    }
+    if (!breakWhistled.current) {
+      whistle(2);
+      breakWhistled.current = true;
+    }
     if (state.status === 'timeout') dispatch({ type: 'TIMEOUT_END' });
     if (state.status === 'halftime') dispatch({ type: 'HALFTIME_END' });
   }, [breakDone, state.status]);
 
-  // Cap whistles.
+  // Cap whistles. The baseline is whatever the provider mounted with, not 0: state is
+  // restored from sessionStorage, so a reload of a game whose caps have already fired
+  // would otherwise replay their whistle. Only a cap reached during play whistles.
   const capCount = (state.timeCapReached ? 1 : 0) + (state.halfTimeCapReached ? 1 : 0);
-  const prevCaps = useRef(0);
+  const prevCaps = useRef(capCount);
   useEffect(() => {
-    if (capCount > prevCaps.current) whistle(3);
+    if (state.phase === 'game' && capCount > prevCaps.current) whistle(3);
     prevCaps.current = capCount;
-  }, [capCount]);
+  }, [capCount, state.phase]);
+
+  // Keep the screen awake during a game: locking the phone suspends timers and
+  // audio, silently breaking the pull/timeout/cap whistles. The lock is released
+  // by the browser whenever the tab is hidden, so it must be re-requested on
+  // visibilitychange, not just once on mount. Unsupported browsers no-op.
+  useEffect(() => {
+    if (state.phase !== 'game' || !('wakeLock' in navigator)) return;
+    let lock: WakeLockSentinel | null = null;
+    let cancelled = false;
+    const acquire = async () => {
+      try {
+        lock = await navigator.wakeLock.request('screen');
+      } catch {
+        // Denied (low battery, backgrounded tab, etc.) — fail silently.
+      }
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && !cancelled) void acquire();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    void acquire();
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      void lock?.release();
+    };
+  }, [state.phase]);
 
   // Delayed gender-ratio reveal: a few seconds after a goal, surface the next ratio.
   const pendingRatio = state.nextRatio !== null && state.assist === 'goalScored';

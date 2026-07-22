@@ -34,9 +34,20 @@ function currentSignal(state: GameState): Signal | null {
   // head for the 4-men point, arms out to the sides for the 4-women point.
   if (state.assist === 'nextRatio') {
     const g = state.nextRatio ?? state.ratio;
-    if (g === 'male') return { key: 'ratioMale', file: 'ratio-4men', caption: 'signal_ratioMale' };
+    // ratioSignalId in the key so re-tapping the ratio chip re-arms the card even
+    // though assist is already 'nextRatio' and the gender hasn't changed.
+    if (g === 'male')
+      return {
+        key: `ratioMale:${state.ratioSignalId}`,
+        file: 'ratio-4men',
+        caption: 'signal_ratioMale',
+      };
     if (g === 'female')
-      return { key: 'ratioFemale', file: 'ratio-4women', caption: 'signal_ratioFemale' };
+      return {
+        key: `ratioFemale:${state.ratioSignalId}`,
+        file: 'ratio-4women',
+        caption: 'signal_ratioFemale',
+      };
     return null;
   }
 
@@ -65,9 +76,10 @@ function currentSignal(state: GameState): Signal | null {
     timeoutOver: WHISTLE,
     capReached: WHISTLE,
     capNoneFinishPoint: WHISTLE,
-    capConditional: WHISTLE,
+    capPending: WHISTLE,
     halfCapReached: WHISTLE,
     halfCapNone: WHISTLE,
+    halfCapPending: WHISTLE,
   };
   const art = map[state.assist];
   // Log counter in the key so a repeat of the same event (two injuries in a row)

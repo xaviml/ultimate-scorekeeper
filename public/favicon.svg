@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="16 16 68 68">
+  <!-- Transparent-background favicon: two half-discs with a real gap between
+       them, and the pips punched out (fill-rule evenodd) so the browser tab
+       shows through the gap and dots on any light or dark theme. -->
+  <path fill="#ffd447" fill-rule="evenodd" d="M48.4,20.04 A30,30 0 0,0 48.4,79.96 Z
+    M33.6,40 a3.4,3.4 0 1,0 6.8,0 a3.4,3.4 0 1,0 -6.8,0 Z
+    M33.6,50 a3.4,3.4 0 1,0 6.8,0 a3.4,3.4 0 1,0 -6.8,0 Z
+    M33.6,60 a3.4,3.4 0 1,0 6.8,0 a3.4,3.4 0 1,0 -6.8,0 Z"/>
+  <path fill="#4ade80" fill-rule="evenodd" d="M51.6,20.04 A30,30 0 0,1 51.6,79.96 Z
+    M59.6,45 a3.4,3.4 0 1,0 6.8,0 a3.4,3.4 0 1,0 -6.8,0 Z
+    M59.6,55 a3.4,3.4 0 1,0 6.8,0 a3.4,3.4 0 1,0 -6.8,0 Z"/>
+</svg>

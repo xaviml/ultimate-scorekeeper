@@ -6,6 +6,8 @@ import {
   canScore,
   canTurnover,
   canUndo,
+  effectiveHalfTarget,
+  halfTargetApplies,
   isUniversePoint,
   pullFromSide,
   timeoutAvailability,
@@ -109,6 +111,88 @@ function timeoutsLeft(state: GameState, team: TeamId): number {
 
 const utility =
   'rounded-lg bg-panel border border-line px-2 py-2 lscape:px-1 lscape:py-1 text-xs sm:text-sm lscape:text-[9px] font-board uppercase tracking-wide active:scale-95 disabled:opacity-40';
+
+// Tailwind's scanner needs each class name to appear literally in source, so the
+// action row's column count (2 to 5, depending on whether timeouts and player
+// tracking are configured) is looked up rather than interpolated.
+const ACTION_GRID_COLS: Record<number, string> = {
+  2: 'grid-cols-2',
+  3: 'grid-cols-3',
+  4: 'grid-cols-4',
+  5: 'grid-cols-5',
+};
+
+const iconButton = `${utility} flex items-center justify-center`;
+
+// Shared by Log and Record event: the latter is the same list glyph with a
+// "+" badge overlapping its bottom-right corner, since recording an event
+// adds an entry to that same log.
+const LIST_GLYPH_PATH =
+  'M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0z';
+
+function RecordEventIcon() {
+  return (
+    <span className="relative inline-flex w-5 h-5 lscape:w-4 lscape:h-4">
+      <svg
+        viewBox="0 0 24 24"
+        className="w-full h-full"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d={LIST_GLYPH_PATH} />
+      </svg>
+      <svg
+        viewBox="0 0 24 24"
+        className="absolute -bottom-1 -right-1 w-3 h-3 lscape:w-2.5 lscape:h-2.5 rounded-full bg-panel"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        aria-hidden="true"
+      >
+        <path d="M12 5v14M5 12h14" />
+      </svg>
+    </span>
+  );
+}
+
+function LogIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="w-5 h-5 lscape:w-4 lscape:h-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d={LIST_GLYPH_PATH} />
+    </svg>
+  );
+}
+
+function PlayersIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="w-5 h-5 lscape:w-4 lscape:h-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0z" />
+    </svg>
+  );
+}
 
 /**
  * Timeout caller, sitting in the action row under the clocks alongside Record event
@@ -247,6 +331,20 @@ export default function GameScreen() {
     () => sessionStorage.getItem(END_GAME_CONFIRM_KEY) === '1',
   );
 
+  // The action row (Pull thrown / Resume game / End timeout / End halftime) only
+  // exists in the DOM while one of these statuses is active, which shrinks the
+  // score panels above to make room for it the instant it appears. A goal is the
+  // most common way into it, so the button materialises exactly where the
+  // volunteer's finger already was tapping to score — see the min-height reserved
+  // on its container below, which keeps the score panels a constant size instead.
+  const actionRowStatus =
+    state.status === 'awaitingPull' ||
+    state.status === 'paused' ||
+    state.status === 'timeout' ||
+    state.status === 'halftime'
+      ? state.status
+      : null;
+
   // Post-goal assist dialog: pops up once per new point once trackPlayers is on,
   // tracked by how many points have already been resolved (skipped or saved).
   //
@@ -289,6 +387,14 @@ export default function GameScreen() {
   const isMixed = state.config.division === 'mixed';
   const paused = state.status === 'paused';
   const timeoutsOn = timeoutsConfigured(state.config.timeouts);
+
+  // Scheduled kickoff not yet reached: the game clock counts down to it instead of
+  // up from it (see the header dot and the clock label below), and TICK in the
+  // reducer promotes the game to 'awaitingPull' on its own once it arrives.
+  const countdownSeconds =
+    state.status === 'awaitingStart' && state.startingAtMs !== null
+      ? Math.max(0, Math.round((state.startingAtMs - now.getTime()) / 1000))
+      : null;
 
   const flashHint = (message: string) => {
     setActionHint(message);
@@ -379,13 +485,22 @@ export default function GameScreen() {
         <span className="font-board text-signal justify-self-start">
           {t('field', { n: state.config.fieldNumber })}
         </span>
-        <span className="font-clock justify-self-center">
+        <span className="font-clock justify-self-center flex items-center gap-1.5">
+          {state.status === 'awaitingStart' && (
+            <span
+              aria-label={t('awaitingStartDotLabel')}
+              title={t('awaitingStartDotLabel')}
+              className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse"
+            />
+          )}
           {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </span>
         <span className="font-board justify-self-end">
           {state.half === 1 ? t('half1') : t('half2')}
           {' · '}
-          {state.cappedTarget !== null ? t('cappedTo', { n: target }) : t('target', { n: target })}
+          {/* Always the target actually in force: the configured score until a cap
+              lowers it, and the capped one from then on. */}
+          {t('target', { n: target })}
         </span>
       </header>
 
@@ -413,17 +528,46 @@ export default function GameScreen() {
               {t('universePointBadge' as never)}
             </div>
           )}
-          {isMixed && (state.ratio || state.nextRatio) && (
+          {/* Each target goes on screen at the moment it is first announced — one goal
+              short of it, or when a cap fixes a new one — and stays as the standing
+              reminder of what was just shouted. Highlighted while it is a capped value,
+              since that is the number nobody can infer. The half chip also retires once
+              the half score stops deciding anything. */}
+          {state.halfAnnounced && halfTargetApplies(state) && (
             <div
               aria-live="polite"
               className={`rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border ${
+                state.halfCappedTarget !== null
+                  ? 'border-signal text-signal'
+                  : 'border-line text-chalk'
+              }`}
+            >
+              {t('halfCapChip', { n: effectiveHalfTarget(state) })}
+            </div>
+          )}
+          {state.gameAnnounced && (
+            <div
+              aria-live="polite"
+              className={`rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border ${
+                state.cappedTarget !== null ? 'border-signal text-signal' : 'border-line text-chalk'
+              }`}
+            >
+              {t('gameCapChip', { n: target })}
+            </div>
+          )}
+          {isMixed && (state.ratio || state.nextRatio) && (
+            <button
+              type="button"
+              aria-live="polite"
+              onClick={() => dispatch({ type: 'SHOW_RATIO_SIGNAL' })}
+              className={`rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border active:scale-95 ${
                 state.nextRatio
                   ? 'border-signal text-signal animate-pulse'
                   : 'border-line text-chalk'
               }`}
             >
               {ratioLabel(state, t as never)}
-            </div>
+            </button>
           )}
           <div
             aria-live="polite"
@@ -434,46 +578,46 @@ export default function GameScreen() {
         </div>
       </div>
 
-      {/* Timeout / pull / halftime action */}
-      {(state.status === 'awaitingPull' ||
-        state.status === 'timeout' ||
-        state.status === 'halftime' ||
-        state.status === 'paused') && (
-        <div className="px-3 lscape:px-2 py-2 lscape:py-1 bg-panel border-t border-line shrink-0">
-          {state.status === 'awaitingPull' && (
-            <button
-              className="w-full rounded-lg bg-signal text-pitch px-3 py-3 lscape:py-1.5 font-board font-bold text-base lscape:text-xs animate-pulse"
-              onClick={() => dispatch({ type: 'PULL_THROWN' })}
-            >
-              {t('pullThrown')}
-            </button>
-          )}
-          {state.status === 'paused' && (
-            <button
-              className="w-full rounded-lg bg-signal text-pitch px-3 py-3 lscape:py-1.5 font-board font-bold text-base lscape:text-xs animate-pulse"
-              onClick={() => dispatch({ type: 'SOTG_TOGGLE' })}
-            >
-              {t('btnResumeGame')}
-            </button>
-          )}
-          {state.status === 'timeout' && (
-            <button
-              className="w-full rounded-lg bg-panel border border-line px-3 py-3 lscape:py-1.5 font-board text-base lscape:text-xs"
-              onClick={() => dispatch({ type: 'TIMEOUT_END' })}
-            >
-              {t('btnEndTimeout')}
-            </button>
-          )}
-          {state.status === 'halftime' && (
-            <button
-              className="w-full rounded-lg bg-panel border border-line px-3 py-3 lscape:py-1.5 font-board text-base lscape:text-xs"
-              onClick={() => dispatch({ type: 'HALFTIME_END' })}
-            >
-              {t('btnEndHalftime')}
-            </button>
-          )}
-        </div>
-      )}
+      {/* Timeout / pull / halftime action. Height is reserved (min-h) rather than
+          only appearing when active: the score panels above are flex-1, so an
+          on/off row would resize them the instant this appears — most often
+          right when a goal is scored, putting a new button exactly where the
+          volunteer's finger already was tapping to score. A fixed-height slot
+          keeps the score panel boundary stable so that never happens. */}
+      <div className="min-h-16 lscape:min-h-10 px-3 lscape:px-2 py-2 lscape:py-1 bg-panel border-t border-line shrink-0 flex items-center">
+        {actionRowStatus === 'awaitingPull' && (
+          <button
+            className="w-full rounded-lg bg-signal text-pitch px-3 py-3 lscape:py-1.5 font-board font-bold text-base lscape:text-xs animate-pulse"
+            onClick={() => dispatch({ type: 'PULL_THROWN' })}
+          >
+            {t('pullThrown')}
+          </button>
+        )}
+        {actionRowStatus === 'paused' && (
+          <button
+            className="w-full rounded-lg bg-signal text-pitch px-3 py-3 lscape:py-1.5 font-board font-bold text-base lscape:text-xs animate-pulse"
+            onClick={() => dispatch({ type: 'SOTG_TOGGLE' })}
+          >
+            {t('btnResumeGame')}
+          </button>
+        )}
+        {actionRowStatus === 'timeout' && (
+          <button
+            className="w-full rounded-lg bg-panel border border-line px-3 py-3 lscape:py-1.5 font-board text-base lscape:text-xs"
+            onClick={() => dispatch({ type: 'TIMEOUT_END' })}
+          >
+            {t('btnEndTimeout')}
+          </button>
+        )}
+        {actionRowStatus === 'halftime' && (
+          <button
+            className="w-full rounded-lg bg-panel border border-line px-3 py-3 lscape:py-1.5 font-board text-base lscape:text-xs"
+            onClick={() => dispatch({ type: 'HALFTIME_END' })}
+          >
+            {t('btnEndHalftime')}
+          </button>
+        )}
+      </div>
 
       {/* Clocks + actions */}
       <div className="flex flex-col gap-2 lscape:gap-1 px-3 lscape:px-2 py-2 lscape:py-0.5 bg-panel border-t border-line shrink-0">
@@ -484,12 +628,12 @@ export default function GameScreen() {
         <div className="grid grid-cols-2 gap-2 lscape:gap-1">
           <div className="rounded-lg bg-pitch border border-line p-2 lscape:p-0.5">
             <div className="text-[10px] lscape:text-[8px] uppercase tracking-widest text-chalk/50">
-              {t('gameClock')}
+              {countdownSeconds !== null ? t('timeBeforeGame') : t('gameClock')}
             </div>
             <div
               className={`font-clock text-3xl lscape:text-base ${paused ? 'text-chalk/40' : 'text-chalk'}`}
             >
-              {formatClock(state.gameSeconds)}
+              {formatClock(countdownSeconds ?? state.gameSeconds)}
             </div>
           </div>
 
@@ -513,29 +657,48 @@ export default function GameScreen() {
           </div>
         </div>
 
-        {/* Timeout (left) / Record event / Log / Timeout (right), in one row under both
-            clocks. Turnover, injury and the SOTG toggle live inside Record event now,
-            alongside travels, calls and free-text notes. Timeouts are hidden entirely
-            when none are configured — nothing to call. */}
-        <div className={`grid ${timeoutsOn ? 'grid-cols-4' : 'grid-cols-2'} gap-2 lscape:gap-1`}>
+        {/* Timeout (left) / Record event / Log / Players / Timeout (right), in one row
+            under both clocks. Turnover, injury and the SOTG toggle live inside Record
+            event now, alongside travels, calls and free-text notes. Timeouts are
+            hidden entirely when none are configured — nothing to call. Players is
+            hidden unless the game is configured to track players. */}
+        <div
+          className={`grid ${ACTION_GRID_COLS[2 + (timeoutsOn ? 2 : 0) + (state.config.trackPlayers ? 1 : 0)]} gap-2 lscape:gap-1`}
+        >
           {timeoutsOn && <TimeoutButton team={left} side="left" onCall={tryTimeout} />}
-          <button className={utility} onClick={openRecordEvent} disabled={recordEventBusy}>
-            {t('btnRecordEvent')}
+          <button
+            className={iconButton}
+            onClick={openRecordEvent}
+            disabled={recordEventBusy}
+            aria-label={t('btnRecordEvent')}
+            title={t('btnRecordEvent')}
+          >
+            <RecordEventIcon />
           </button>
-          <button className={utility} onClick={() => setShowLog(true)}>
-            {t('btnLog')}
+          <button
+            className={iconButton}
+            onClick={() => setShowLog(true)}
+            aria-label={t('btnLog')}
+            title={t('btnLog')}
+          >
+            <LogIcon />
           </button>
+          {state.config.trackPlayers && (
+            <button
+              className={iconButton}
+              onClick={() => setShowPlayers(true)}
+              aria-label={t('btnPlayers')}
+              title={t('btnPlayers')}
+            >
+              <PlayersIcon />
+            </button>
+          )}
           {timeoutsOn && <TimeoutButton team={right} side="right" onCall={tryTimeout} />}
         </div>
       </div>
 
       {/* Utility row */}
       <div className="px-3 lscape:px-2 pb-1 bg-panel shrink-0">
-        {state.config.trackPlayers && (
-          <button className={`${utility} w-full`} onClick={() => setShowPlayers(true)}>
-            {t('btnPlayers')}
-          </button>
-        )}
         <button
           className="w-full mt-1 text-[11px] lscape:text-[9px] uppercase tracking-widest text-chalk/40 py-1 lscape:py-0.5"
           onClick={openEndGameConfirm}

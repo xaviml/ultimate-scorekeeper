@@ -34,6 +34,8 @@ export type PwaInstallStatus =
  * iOS (which never fires that event), or a nudge to open the installed app —
  * inferred from a flag this hook sets the first time `appinstalled` fires,
  * since there is no cross-browser way to ask "is this already installed?".
+ * There's also no `appuninstalled` event, so a fresh `beforeinstallprompt`
+ * firing (the browser no longer considers the app installed) clears the flag.
  */
 export function usePwaInstall(): PwaInstallStatus {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
@@ -45,6 +47,10 @@ export function usePwaInstall(): PwaInstallStatus {
     const onBeforePrompt = (e: Event) => {
       e.preventDefault();
       setDeferred(e as BeforeInstallPromptEvent);
+      // The browser only offers this prompt when it doesn't consider the app
+      // installed, which contradicts a stale flag from a since-uninstalled PWA.
+      localStorage.removeItem(INSTALLED_KEY);
+      setInstalledFlag(false);
     };
     const onInstalled = () => {
       localStorage.setItem(INSTALLED_KEY, '1');

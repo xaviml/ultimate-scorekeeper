@@ -2,6 +2,12 @@
 
 A Progressive Web App for keeping score at Ultimate Frisbee games — designed for **volunteers with zero knowledge of the sport**. A persistent Assistance Bar tells the scorekeeper exactly **what to say and which hand signal to use** at every stage of the game.
 
+## Background
+
+This app is designed for young volunteers hired to keep score at Ultimate Frisbee tournaments in my area — often with little or no knowledge of the sport itself. Kýkhë from EUC built an Android app to help these volunteers keep up with pull time, gender ratio, half-time and time-outs, but it was never published to the Play Store, so it only reached players with an Android phone and a direct install link.
+
+This project carries that same mission forward: rebuilt to run on any device, with usability and experience improved along the way. The goal hasn't changed — make that volunteer's job easier, and spare both teams the frustration of losing track of the pull count or the gender ratio mid-game.
+
 ## Features
 
 - **Guided scorekeeping**: dynamic assistance messages with hand-signal pictograms ("Raise one hand: 'Time cap reached!'").
@@ -11,7 +17,6 @@ A Progressive Web App for keeping score at Ultimate Frisbee games — designed f
 - **Audio alerts**: whistle sequence at 45 s (single), 60 s (double), 75 s (triple) of pull time, plus timeout-end and cap whistles (placeholder mp3 URLs — see `src/audio/whistle.ts`).
 - **Post-game report**: final score, O-line holds, breaks, average hold/break time, full chronological event history, one-tap plain-text copy to clipboard.
 - **i18n**: English, Spanish and Catalan, auto-detected from the device, English fallback.
-- **No persistence by design**: state is in memory only. Refreshing clears the game; multiple tabs are independent.
 
 ## Getting started
 
@@ -29,7 +34,7 @@ Pushing to `main` runs tests and deploys `dist/` to GitHub Pages via `.github/wo
 
 ## PWA
 
-The app ships a `manifest.webmanifest` and a minimal service worker so it can be installed to the home screen and load offline. Game state is intentionally never persisted.
+The app ships a `manifest.webmanifest` and a minimal service worker so it can be installed to the home screen and load offline. Game state is intentionally never persisted in Cloud only within the device.
 
 ## Tech stack
 

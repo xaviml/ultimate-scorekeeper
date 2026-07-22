@@ -37,11 +37,17 @@ Things that are easy to get wrong and are already decided in the reducer:
 - **The game clock keeps running during timeouts and half-time.** Only `paused` (manual pause or SOTG stoppage) stops it. Injuries are logged but never touch the clock.
 - **Half-time can only trigger on a goal**, never mid-point — the in-progress point always plays out.
 - Conditional end cap (Option C) is resolved inside `GOAL`, not when the time cap fires, because it depends on the score difference _after_ the point finishes.
-- **Recorded events are bookkeeping only** — they never touch the score, clock or possession, only the log and the assist hint. They share one guard, `canRecordEvent`, deliberately far looser than `canScore`: it allows them during a timeout, half-time or an SOTG pause, blocking only before the game starts and after it finishes. They are all reached through the one **Record event** button (`RecordEventDialog`), which absorbed the old Turn/Injury dashboard buttons. The kinds: `TRAVEL` (team attributed via `TravelTeamDialog`, but never a player — a travel is called on the thrower by the marker, and chasing down which player it was is more than a volunteer can follow; it registers in one step, with no `pendingCall` and no resolution), `NOTE` (free text — the only recorded event with no call-out and no signal), and the six player calls via `CALL_MADE`/`CALL_RESOLVED`. A call opens `state.pendingCall` (one at a time — the resolution buttons answer exactly one question) and `CALL_RESOLVED` logs how long it took **on the game clock** (`gameSeconds`, so an SOTG pause mid-dispute isn't counted). The three resolution buttons render above the clocks in `GameScreen` while `pendingCall` is set.
+- **Recorded events are bookkeeping only** — they never touch the score, clock or possession, only the log and the assist hint. They share one guard, `canRecordEvent`: looser than `canScore` in one respect (an SOTG pause doesn't block it — a foul called as the teams line up is still a foul), but a timeout or half-time is a break in play, so recording waits for the game to resume, same as scoring does; it also blocks before the game starts and after it finishes. They are all reached through the one **Record event** button (`RecordEventDialog`), which absorbed the old Turn/Injury dashboard buttons. The kinds: `TRAVEL` (team attributed via `TravelTeamDialog`, but never a player — a travel is called on the thrower by the marker, and chasing down which player it was is more than a volunteer can follow; it registers in one step, with no `pendingCall` and no resolution), `NOTE` (free text — the only recorded event with no call-out and no signal), and the six player calls via `CALL_MADE`/`CALL_RESOLVED`. A call opens `state.pendingCall` (one at a time — the resolution buttons answer exactly one question) and `CALL_RESOLVED` logs how long it took **on the game clock** (`gameSeconds`, so an SOTG pause mid-dispute isn't counted). The three resolution buttons render above the clocks in `GameScreen` while `pendingCall` is set.
 
 ### GameContext owns all side effects
 
 `src/state/GameContext.tsx` is where impurity lives: the 1 s `TICK` heartbeat, the whistle sequences (45/60/75 s pull, timeout end, cap), the delayed next-ratio reveal, the `beforeunload` guard, and localStorage persistence. If you're adding time- or audio-driven behaviour, it belongs here, driven by derived values from state — not inside the reducer.
+
+### The guide is a screen, not a dialog
+
+`GuideScreen.tsx` is the walkthrough reached from the link under the tagline on the config screen. It is rendered _by_ `ConfigScreen` (early return, not a `phase`), so the setup form stays mounted underneath and everything already typed survives the round trip — and the reducer stays free of a UI-only state. Its text is ordinary `guide*` dictionary keys, so it translates like everything else.
+
+The figures are real screenshots (`public/guide/*.png`), captured English-only by `scripts/guide-screenshots.mjs`, which drives an actual game through Playwright. The numbered pointers are **not** drawn into the images: the script measures the live bounding boxes and prints the `FIG_*` percentage arrays that `GuideScreen` positions markers with, and the captions are the translated list beside the picture. So after a layout change to the config screen, the dashboard or the report, re-run the script and paste the arrays back — otherwise the markers drift off their controls.
 
 ### i18n key conventions
 
@@ -63,10 +69,6 @@ Interpolation is `{name}` placeholders via `t(key, vars)`. Add a language by cop
 Tailwind with a custom dark palette (`pitch`, `panel`, `line`, `chalk`, `signal`) and a custom `lscape:` screen — `(orientation: landscape) and (max-height: 500px)` — for phones held sideways, which needs its own compacted `GameScreen` layout. Shared class strings live in `src/components/ui.ts`; reuse them rather than re-deriving button/input classes.
 
 The UI target is a volunteer who has never seen Ultimate, one-handed on a phone in sunlight: huge tap targets, tap = +1, long-press = undo (`src/hooks/useLongPress.ts`).
-
-## Docs contradict the code on persistence
-
-`README.md`, `CONTRIBUTING.md`, and `.github/copilot-instructions.md` all state "no persistence by design — never use localStorage." The code does the opposite and clearly on purpose: `src/state/persistence.ts` mirrors state into localStorage, `GameContext` restores it on mount, and `GameScreen` persists the end-game-confirm dialog flag. Net user-visible behaviour still matches the docs (a confirmed refresh fires `pagehide`, which clears the store, so you come back to a fresh config screen) — but the blanket prohibition is stale. **Confirm with the user before either removing persistence or updating those three docs.**
 
 ## Other notes
 

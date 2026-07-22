@@ -37,6 +37,7 @@ export const defaultConfig: GameConfig = {
     durationSeconds: 75,
     disallowLastFiveMinutes: false,
   },
+  startingTime: { enabled: false, time: '' },
   trackPlayers: false,
   players: { A: [], B: [] },
 };
@@ -108,6 +109,7 @@ export function createInitialState(config: GameConfig = defaultConfig): GameStat
     offenseTeam: config.startingOffense,
     possessionTeam: null,
     gameSeconds: 0,
+    startingAtMs: null,
     pointStartSeconds: null,
     secondary: null,
     pausedPullSeconds: null,
@@ -118,18 +120,21 @@ export function createInitialState(config: GameConfig = defaultConfig): GameStat
     timeCapReached: false,
     halfTimeCapReached: false,
     halftimePlayed: false,
+    halfAnnounced: false,
+    gameAnnounced: false,
     pendingCall: null,
     points: [],
     log: [],
     history: [],
     nextLogId: 1,
     assist: 'welcome',
+    ratioSignalId: 0,
   };
 }
 
 /** Central validation: may this team's score change right now? */
 export function canScore(state: GameState): { ok: boolean; reason?: string } {
-  if (state.phase !== 'game' || state.status === 'notStarted')
+  if (state.phase !== 'game' || state.status === 'notStarted' || state.status === 'awaitingStart')
     return { ok: false, reason: 'gameNotStarted' };
   if (state.status === 'finished') return { ok: false, reason: 'gameFinished' };
   if (state.status === 'paused') return { ok: false, reason: 'gamePaused' };
@@ -155,27 +160,31 @@ export function canTurnover(state: GameState): { ok: boolean; reason?: string } 
  * May a bookkeeping-only event (injury, travel, a call, a free-text note) be
  * recorded right now?
  *
- * Deliberately far more permissive than canScore: none of these touch the score,
- * the clock or possession, so they stay available during a timeout, half-time or
- * an SOTG pause — a foul called as the teams line up is still a foul. Only a game
- * that hasn't started or has already finished has nothing to record against.
+ * More permissive than canScore in one respect only: an SOTG pause doesn't block
+ * it — a foul called as the teams line up is still a foul. But a timeout or
+ * half-time is a break in play, not a pause mid-dispute, so recording waits for
+ * the game to resume, same as scoring does.
  */
 export function canRecordEvent(state: GameState): { ok: boolean; reason?: string } {
-  if (state.phase !== 'game') return { ok: false, reason: 'gameNotStarted' };
+  if (state.phase !== 'game' || state.status === 'awaitingStart')
+    return { ok: false, reason: 'gameNotStarted' };
   if (state.status === 'finished') return { ok: false, reason: 'gameFinished' };
+  if (state.status === 'timeout') return { ok: false, reason: 'timeoutActive' };
+  if (state.status === 'halftime') return { ok: false, reason: 'halftimeActive' };
   return { ok: true };
 }
 
 export function canUndo(state: GameState, team: TeamId): { ok: boolean; reason?: string } {
   // Deliberately does not reuse canScore: a goal leaves the game in 'awaitingPull'
-  // until the next pull is thrown, but that shouldn't block undoing the goal that
-  // just put it there. Every other non-live status still blocks undo.
-  if (state.phase !== 'game' || state.status === 'notStarted')
+  // until the next pull is thrown, or in 'halftime' if it reached the half score —
+  // either way that shouldn't block undoing the goal that just put it there (halftime
+  // is only ever entered straight out of a goal, so it's always that same goal).
+  // Every other non-live status still blocks undo.
+  if (state.phase !== 'game' || state.status === 'notStarted' || state.status === 'awaitingStart')
     return { ok: false, reason: 'gameNotStarted' };
   if (state.status === 'finished') return { ok: false, reason: 'gameFinished' };
   if (state.status === 'paused') return { ok: false, reason: 'gamePaused' };
   if (state.status === 'timeout') return { ok: false, reason: 'timeoutActive' };
-  if (state.status === 'halftime') return { ok: false, reason: 'halftimeActive' };
   if (state.scores[team] <= 0) return { ok: false, reason: 'minScoreZero' }; // never below 0
   if (state.history.length === 0) return { ok: false, reason: 'nothingToUndo' };
   const last = state.history[state.history.length - 1];
@@ -252,14 +261,35 @@ function snapshot(state: GameState): GoalSnapshot {
     pointStartSeconds: state.pointStartSeconds,
     cappedTarget: state.cappedTarget,
     halfCappedTarget: state.halfCappedTarget,
+    halftimePlayed: state.halftimePlayed,
+    halfAnnounced: state.halfAnnounced,
+    gameAnnounced: state.gameAnnounced,
   };
 }
 
-function effectiveTarget(state: GameState): number {
+export function effectiveTarget(state: GameState): number {
   return state.cappedTarget ?? state.config.targetScore;
 }
-function effectiveHalfTarget(state: GameState): number {
+export function effectiveHalfTarget(state: GameState): number {
   return state.halfCappedTarget ?? state.config.halfScore;
+}
+
+/**
+ * Whether the half target is still a score worth naming — i.e. half-time is ahead
+ * and will actually be decided by reaching that score.
+ *
+ * Three ways it stops being true even though half has not been played:
+ *   - the game ends first. A goal is checked against the game target BEFORE the
+ *     half target (see GOAL), so a half at or above the game target never fires.
+ *   - an Option A time cap has been reached, which ends the game on the next goal.
+ *   - the half time limit passed with no half cap, which sends the game to half on
+ *     the next goal whatever the score — the threshold no longer governs anything.
+ */
+export function halfTargetApplies(state: GameState): boolean {
+  if (state.phase !== 'game' || state.halftimePlayed || state.half !== 1) return false;
+  if (state.timeCapReached && state.config.endCap.kind === 'none') return false;
+  if (state.halfTimeCapReached && state.config.halfCap.kind === 'none') return false;
+  return effectiveHalfTarget(state) < effectiveTarget(state);
 }
 
 /**
@@ -277,14 +307,10 @@ function applyEndCap(state: GameState): GameState {
   const rule = state.config.endCap;
   const s = log({ ...state, timeCapReached: true }, 'timeCap', undefined, `rule:${rule.kind}`);
   if (rule.kind === 'none') return { ...s, assist: 'capNoneFinishPoint' };
-  const max = Math.max(s.scores.A, s.scores.B);
-  if (rule.kind === 'cap') {
-    const capped = { ...s, cappedTarget: Math.min(max + rule.plus, s.config.targetScore) };
-    return { ...capped, assist: isUniversePoint(capped) ? 'universePoint' : 'capReached' };
-  }
-  // conditional: cap only applies if, after the current point, the diff is > minDiff.
-  // We store the intent; the check happens when the current point ends (in GOAL).
-  return { ...s, assist: 'capConditional' };
+  // Both capped rules depend on the score once the point in progress has finished, so
+  // neither target can be computed here — see GOAL. Naming a number now would name one
+  // that the point still being played is about to invalidate.
+  return { ...s, assist: 'capPending' };
 }
 
 function applyHalfCap(state: GameState): GameState {
@@ -296,12 +322,11 @@ function applyHalfCap(state: GameState): GameState {
     `rule:${rule.kind}`,
   );
   if (rule.kind === 'none') return { ...s, assist: 'halfCapNone' };
-  const max = Math.max(s.scores.A, s.scores.B);
-  return {
-    ...s,
-    halfCappedTarget: Math.min(max + rule.plus, s.config.halfScore),
-    assist: 'halfCapReached',
-  };
+  // The capped half target is deliberately NOT computed here: it is the leading score
+  // once the point in progress has finished, plus the cap, so only GOAL can resolve it
+  // (the same shape as the conditional end cap). Naming a number now would name one the
+  // point still being played is about to invalidate.
+  return { ...s, assist: 'halfCapPending' };
 }
 
 function finishGame(state: GameState): GameState {
@@ -309,20 +334,41 @@ function finishGame(state: GameState): GameState {
   return { ...s, status: 'finished', phase: 'report', secondary: null, assist: 'gameOver' };
 }
 
+/** Epoch ms for a configured kickoff time (today, local), or null if none is set. */
+function startingTimeMs(config: GameConfig): number | null {
+  if (!config.startingTime.enabled) return null;
+  const match = /^(\d{1,2}):(\d{2})$/.exec(config.startingTime.time);
+  if (!match) return null;
+  const d = new Date();
+  d.setHours(Number(match[1]), Number(match[2]), 0, 0);
+  return d.getTime();
+}
+
+/** Opens the pull, whether that happens right at START_GAME or once a scheduled kickoff arrives. */
+function beginPlay(state: GameState): GameState {
+  const s = log({ ...state, startingAtMs: null }, 'gameStart');
+  return {
+    ...s,
+    status: 'awaitingPull',
+    secondary: { kind: 'pull', seconds: 0, total: 75 },
+    assist: 'firstPull',
+  };
+}
+
 export function gameReducer(state: GameState, action: Action): GameState {
   switch (action.type) {
     case 'START_GAME': {
-      const init = createInitialState(action.config);
-      const started = log(
-        {
-          ...init,
-          phase: 'game',
-          status: 'awaitingPull',
-          secondary: { kind: 'pull', seconds: 0, total: 75 },
-        },
-        'gameStart',
-      );
-      return { ...started, assist: 'firstPull' };
+      const init: GameState = { ...createInitialState(action.config), phase: 'game' };
+      const startingAtMs = startingTimeMs(action.config);
+      // A kickoff time set for the future holds the game at 'awaitingStart' rather
+      // than opening the pull right away; TICK below promotes it once the wall
+      // clock actually reaches it. A time already in the past (the config screen
+      // should prevent this, but the wall clock keeps moving while it's open)
+      // starts play immediately instead of waiting forever.
+      if (startingAtMs !== null && startingAtMs > Date.now()) {
+        return { ...init, status: 'awaitingStart', startingAtMs, assist: 'awaitingGameStart' };
+      }
+      return beginPlay(init);
     }
 
     case 'PULL_THROWN': {
@@ -365,22 +411,47 @@ export function gameReducer(state: GameState, action: Action): GameState {
       };
       s = log(s, 'goal', team, `${s.scores.A}-${s.scores.B}${isBreak ? ' (break)' : ''}`);
 
-      // Conditional end cap (Option C): decide now that the point has finished.
+      // End cap by time (Options B and C): the target is the leading score now that the
+      // point in progress has finished, plus the cap, never beyond the configured target.
+      // Resolved here rather than when the horn sounded so that point counts — 9-9 at the
+      // horn finishing 9-10 puts the game at 11, not 10. Option C differs only in getting
+      // a chance to end the game outright first, when the margin already settles it.
       const cap = s.config.endCap;
-      if (s.timeCapReached && cap.kind === 'conditional' && s.cappedTarget === null) {
-        const diff = Math.abs(s.scores.A - s.scores.B);
-        if (diff > cap.minDiff) {
-          s = finishGame(s); // cap decides the game immediately
-          return s;
+      let capResolved = false;
+      if (s.timeCapReached && cap.kind !== 'none' && s.cappedTarget === null) {
+        if (cap.kind === 'conditional' && Math.abs(s.scores.A - s.scores.B) > cap.minDiff) {
+          return finishGame(s);
         }
-        const max = Math.max(s.scores.A, s.scores.B);
-        s = { ...s, cappedTarget: Math.min(max + cap.plus, s.config.targetScore) };
+        const leader = Math.max(s.scores.A, s.scores.B);
+        s = { ...s, cappedTarget: Math.min(leader + cap.plus, s.config.targetScore) };
+        capResolved = true;
       }
       // End-cap Option A: time reached, finish this point, game over.
       if (s.timeCapReached && cap.kind === 'none') return finishGame(s);
 
       // Win by target (possibly capped)
       if (newScore >= effectiveTarget(s)) return finishGame(s);
+
+      // Half cap (by time): the capped half target is the leading score now that the
+      // point in progress has finished, plus the cap, never beyond the configured half
+      // score. Resolved here rather than when the horn sounded so that point counts —
+      // 4-5 at the horn finishing 4-6 puts the half at 7, not 6.
+      const halfCapRule = s.config.halfCap;
+      let halfCapResolved = false;
+      if (
+        s.halfTimeCapReached &&
+        halfCapRule.kind === 'cap' &&
+        s.halfCappedTarget === null &&
+        !s.halftimePlayed &&
+        s.half === 1
+      ) {
+        const leader = Math.max(s.scores.A, s.scores.B);
+        s = {
+          ...s,
+          halfCappedTarget: Math.min(leader + halfCapRule.plus, s.config.halfScore),
+        };
+        halfCapResolved = true;
+      }
 
       // Half-time never fires mid-point: it can only ever be reached here, when a
       // point finishes (a goal is scored). A point runs from one goal to the next, so
@@ -395,11 +466,26 @@ export function gameReducer(state: GameState, action: Action): GameState {
         (newScore >= effectiveHalfTarget(s) ||
           (s.halfTimeCapReached && s.config.halfCap.kind === 'none'));
 
-      // One point short of half — whether that threshold comes from the plain
-      // halfScore or a halfCap that already kicked in by time, effectiveHalfTarget
-      // covers both, so this fires the same way "no matter if it is by time or points".
-      const halfPointAway =
-        !reachHalf && !s.halftimePlayed && s.half === 1 && newScore === effectiveHalfTarget(s) - 1;
+      // First time a team is one goal short of half, name where the half actually is
+      // rather than how far away it is. "One point from half" was misleading: at 7-0
+      // with half at 8, the next point is just as likely to be 7-1. The target is a
+      // fact whoever scores next, and it reads the same whether it came from the plain
+      // halfScore or from a cap (effectiveHalfTarget covers both).
+      //
+      // Said once per game: both teams can reach one short of the target, and a cap
+      // resolving already announced the number itself.
+      const announceHalf =
+        !reachHalf &&
+        !s.halftimePlayed &&
+        !s.halfAnnounced &&
+        !halfCapResolved &&
+        s.half === 1 &&
+        newScore === effectiveHalfTarget(s) - 1;
+
+      // The same, one goal short of the game target. Deliberately NOT suppressed on a
+      // universe point: that shout is the more urgent one and wins the bar below, but
+      // the target has still become known, which is what puts the chip on screen.
+      const announceGame = !s.gameAnnounced && !capResolved && newScore === effectiveTarget(s) - 1;
 
       const universePoint = !reachHalf && isUniversePoint(s);
 
@@ -419,13 +505,23 @@ export function gameReducer(state: GameState, action: Action): GameState {
         pointStartSeconds: null,
         nextRatio,
         secondary: reachHalf ? null : { kind: 'pull', seconds: 0, total: 75 },
+        // A resolved half cap announces the new half target itself, so it stands in
+        // for the one-time "half at N" call-out.
         assist: reachHalf
           ? 'goHalftime'
           : universePoint
             ? 'universePoint'
-            : halfPointAway
-              ? 'halfPointAway'
-              : 'goalScored',
+            : capResolved
+              ? 'capReached'
+              : halfCapResolved
+                ? 'halfCapReached'
+                : announceGame
+                  ? 'gameAt'
+                  : announceHalf
+                    ? 'halfAt'
+                    : 'goalScored',
+        halfAnnounced: s.halfAnnounced || announceHalf || halfCapResolved,
+        gameAnnounced: s.gameAnnounced || announceGame || capResolved,
       };
       if (reachHalf) {
         s = log(s, 'halftimeStart');
@@ -446,12 +542,27 @@ export function gameReducer(state: GameState, action: Action): GameState {
     case 'UNDO_GOAL': {
       if (!canUndo(state, action.team).ok) return state;
       const prev = state.history[state.history.length - 1];
-      const s = log(
-        { ...state, history: state.history.slice(0, -1) },
-        'undo',
-        action.team,
-        `${prev.scores.A}-${prev.scores.B}`,
-      );
+      // A goal that reaches the half appends a 'halftimeStart' entry right after its
+      // own 'goal' entry — an automatic side effect of the goal, not something the
+      // scorekeeper separately recorded, so it doesn't count as "something logged in
+      // between" and is dropped along with the goal.
+      const trailingHalftimeStart = state.log[state.log.length - 1]?.type === 'halftimeStart';
+      const goalLogIdx = trailingHalftimeStart ? state.log.length - 2 : state.log.length - 1;
+      const goalLog = state.log[goalLogIdx];
+      // If nothing else has been recorded since the goal itself, this undo is just the
+      // scorekeeper correcting a mis-tap — drop the goal entry (and the halftimeStart
+      // it triggered, if any) rather than leaving both and a correction note in the
+      // log. Once something else has been logged in between, fall back to a visible
+      // correction entry instead.
+      const s =
+        goalLog !== undefined && goalLog.type === 'goal' && goalLog.team === action.team
+          ? { ...state, history: state.history.slice(0, -1), log: state.log.slice(0, goalLogIdx) }
+          : log(
+              { ...state, history: state.history.slice(0, -1) },
+              'undo',
+              action.team,
+              `${prev.scores.A}-${prev.scores.B}`,
+            );
       return {
         ...s,
         scores: { ...prev.scores },
@@ -465,6 +576,9 @@ export function gameReducer(state: GameState, action: Action): GameState {
         points: state.points.slice(0, -1),
         cappedTarget: prev.cappedTarget,
         halfCappedTarget: prev.halfCappedTarget,
+        halftimePlayed: prev.halftimePlayed,
+        halfAnnounced: prev.halfAnnounced,
+        gameAnnounced: prev.gameAnnounced,
         status: prev.status,
         pointStartSeconds: prev.pointStartSeconds,
         secondary: null,
@@ -474,6 +588,13 @@ export function gameReducer(state: GameState, action: Action): GameState {
 
     case 'REVEAL_NEXT_RATIO':
       return state.nextRatio ? { ...state, assist: 'nextRatio' } : state;
+
+    // Manual re-show of the gender signal, triggered by tapping the ratio chip.
+    // Bumps ratioSignalId so the signal card re-keys and re-arms even when assist
+    // is already 'nextRatio' (e.g. it already auto-showed and dismissed itself).
+    case 'SHOW_RATIO_SIGNAL':
+      if (!state.ratio && !state.nextRatio) return state;
+      return { ...state, assist: 'nextRatio', ratioSignalId: state.ratioSignalId + 1 };
 
     case 'TIMEOUT_START': {
       if (!timeoutAvailability(state, action.team).ok) return state;
@@ -632,6 +753,11 @@ export function gameReducer(state: GameState, action: Action): GameState {
     case 'TICK': {
       if (state.phase !== 'game') return state;
       let s = state;
+      // Scheduled kickoff reached: open the pull exactly as START_GAME would have
+      // if no starting time had been configured.
+      if (s.status === 'awaitingStart' && s.startingAtMs !== null && Date.now() >= s.startingAtMs) {
+        s = beginPlay(s);
+      }
       // Game clock only stops for an SOTG stoppage (status 'paused');
       // halftime and timeouts don't stop it.
       const clockRuns =

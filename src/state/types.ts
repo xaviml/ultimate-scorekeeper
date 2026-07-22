@@ -18,6 +18,17 @@ export interface TimeoutConfig {
   disallowLastFiveMinutes: boolean;
 }
 
+/**
+ * Optional scheduled kickoff. When enabled, START_GAME does not open the pull
+ * immediately — it waits (status 'awaitingStart') until `time` (today, "HH:MM",
+ * local) actually arrives. Per-game, like the coin toss results: never saved in a
+ * template.
+ */
+export interface StartingTimeConfig {
+  enabled: boolean;
+  time: string; // "HH:MM", 24h, local time, today
+}
+
 export interface TeamConfig {
   name: string;
   color: string;
@@ -53,6 +64,7 @@ export interface GameConfig {
   endCap: EndCapRule;
   halfCap: HalfCapRule;
   timeouts: TimeoutConfig;
+  startingTime: StartingTimeConfig;
   /**
    * When true, every player-attributable event (goal, assist, turnover, defense,
    * injury) prompts for who was involved. When false the events are still logged,
@@ -62,8 +74,30 @@ export interface GameConfig {
   players: Record<TeamId, PlayerInfo[]>;
 }
 
+/**
+ * Rule settings a template can carry — everything except the per-game choices
+ * templates must not touch: teams, coin toss results, players, trackPlayers.
+ */
+export type TemplateSettings = Omit<
+  GameConfig,
+  | 'teams'
+  | 'startingOffense'
+  | 'startingSide'
+  | 'startingRatio'
+  | 'trackPlayers'
+  | 'players'
+  | 'startingTime'
+>;
+
+/** A named bundle of rule settings, saved from the config screen (see templates.ts). */
+export interface SavedTemplate {
+  name: string;
+  settings: TemplateSettings;
+}
+
 export type GameStatus =
   | 'notStarted' // config done, waiting for first pull
+  | 'awaitingStart' // scheduled kickoff configured, real-world clock hasn't reached it yet
   | 'awaitingPull' // between points: score frozen until the pull is thrown
   | 'live' // disc in play
   | 'paused' // SOTG stoppage
@@ -168,6 +202,9 @@ export interface GoalSnapshot {
   pointStartSeconds: number | null;
   cappedTarget: number | null;
   halfCappedTarget: number | null;
+  halftimePlayed: boolean;
+  halfAnnounced: boolean;
+  gameAnnounced: boolean;
 }
 
 export interface GameState {
@@ -190,6 +227,8 @@ export interface GameState {
    */
   possessionTeam: TeamId | null;
   gameSeconds: number; // elapsed game clock
+  /** Epoch ms of the scheduled kickoff, while status is 'awaitingStart'; null otherwise. */
+  startingAtMs: number | null;
   pointStartSeconds: number | null; // gameSeconds when the current pull was thrown
   secondary: {
     kind: 'pull' | 'timeout' | 'halftime';
@@ -205,6 +244,14 @@ export interface GameState {
   timeCapReached: boolean;
   halfTimeCapReached: boolean;
   halftimePlayed: boolean;
+  /**
+   * The one-time "half at N" call-out has already been made. Both teams can reach
+   * one short of the half target, so without this it would be shouted twice. It is
+   * also what puts the half target on screen: the chip appears when it is announced.
+   */
+  halfAnnounced: boolean;
+  /** The same, for the game target — see `halfAnnounced`. */
+  gameAnnounced: boolean;
   /** Open call awaiting an accepted/contested/retracted answer, or null. */
   pendingCall: PendingCall | null;
   points: PointRecord[];
@@ -213,6 +260,8 @@ export interface GameState {
   nextLogId: number;
   /** Transient hint key for the Assistance Message Bar. */
   assist: string;
+  /** Bumped by SHOW_RATIO_SIGNAL so re-tapping the ratio chip re-keys the signal card even while assist is still 'nextRatio'. */
+  ratioSignalId: number;
 }
 
 export type Action =
@@ -221,6 +270,7 @@ export type Action =
   | { type: 'GOAL'; team: TeamId }
   | { type: 'UNDO_GOAL'; team: TeamId }
   | { type: 'REVEAL_NEXT_RATIO' }
+  | { type: 'SHOW_RATIO_SIGNAL' }
   | { type: 'TIMEOUT_START'; team: TeamId }
   | { type: 'TIMEOUT_END' }
   | { type: 'INJURY'; team?: TeamId; playerId?: string }

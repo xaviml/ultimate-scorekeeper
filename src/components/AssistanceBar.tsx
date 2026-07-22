@@ -19,7 +19,8 @@ const SAY: Record<string, string> = {
   secondHalfPull: 'say_secondHalf',
   secondHalfNoSwap: 'say_secondHalf',
   goalScored: 'say_score',
-  halfPointAway: 'say_halfPointAway',
+  halfAt: 'say_halfAt',
+  gameAt: 'say_gameAt',
   nextRatio: 'say_ratio',
   undoDone: 'say_scoreCorrection',
   resumed: 'say_discIn',
@@ -30,9 +31,10 @@ const SAY: Record<string, string> = {
   goHalftime: 'say_halftime',
   capReached: 'say_timeCap',
   capNoneFinishPoint: 'say_timeCapFinish',
-  capConditional: 'say_timeCapPending',
+  capPending: 'say_timeCapPending',
   halfCapReached: 'say_halfCap',
   halfCapNone: 'say_halfCapNone',
+  halfCapPending: 'say_halfCapPending',
   gameOver: 'say_gameOver',
   universePoint: 'say_universePoint',
   travel: 'say_travel',
@@ -73,6 +75,8 @@ function statusKey(state: GameState): string {
   switch (state.status) {
     case 'notStarted':
       return 'now_setup';
+    case 'awaitingStart':
+      return 'now_awaitingStart';
     case 'awaitingPull':
       return 'now_awaitingPull';
     case 'timeout':
@@ -110,7 +114,11 @@ function assistVars(state: GameState) {
           : state.possessionTeam !== null
             ? state.config.teams[state.possessionTeam].name
             : state.config.teams[state.pullingTeam].name,
-    n: state.cappedTarget ?? state.halfCappedTarget ?? state.config.targetScore,
+    // Strictly the game target. It used to fall back to halfCappedTarget, which would
+    // print the half's number in a message about the game.
+    n: state.cappedTarget ?? state.config.targetScore,
+    // And the half target, for the messages about the half.
+    halfN: state.halfCappedTarget ?? state.config.halfScore,
     gender,
   };
 }

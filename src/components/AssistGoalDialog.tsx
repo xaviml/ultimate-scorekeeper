@@ -44,7 +44,7 @@ export function AssistGoalDialog({
         <div className="space-y-2">
           <p className="text-xs uppercase tracking-wide text-chalk/60">{t('whoScored')}</p>
           <PlayerPicker
-            players={players}
+            players={players.filter((p) => p.id !== assistId)}
             selected={scorerId}
             onSelect={setScorerId}
             onRemove={removePlayer}
@@ -56,7 +56,7 @@ export function AssistGoalDialog({
         <div className="space-y-2">
           <p className="text-xs uppercase tracking-wide text-chalk/60">{t('whoAssisted')}</p>
           <PlayerPicker
-            players={players}
+            players={players.filter((p) => p.id !== scorerId)}
             selected={assistId}
             onSelect={setAssistId}
             onRemove={removePlayer}
