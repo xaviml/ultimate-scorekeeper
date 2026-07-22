@@ -59,7 +59,7 @@ function log(
   detail?: string,
   extra?: Pick<
     LogEntry,
-    'turnoverId' | 'defenseId' | 'callKind' | 'resolution' | 'resolutionSeconds'
+    'turnoverId' | 'defenseId' | 'callKind' | 'resolution' | 'resolutionSeconds' | 'stoppageKind'
   >,
 ): GameState {
   return {
@@ -99,6 +99,7 @@ export function createInitialState(config: GameConfig = defaultConfig): GameStat
     config,
     status: 'notStarted',
     statusBeforePause: null,
+    pauseSilent: false,
     half: 1,
     scores: { A: 0, B: 0 },
     // Rule B leaves the ratio to the end zone the teams are playing into — the
@@ -123,6 +124,7 @@ export function createInitialState(config: GameConfig = defaultConfig): GameStat
     halfAnnounced: false,
     gameAnnounced: false,
     pendingCall: null,
+    pendingStoppage: null,
     points: [],
     log: [],
     history: [],
@@ -157,20 +159,31 @@ export function canTurnover(state: GameState): { ok: boolean; reason?: string } 
 }
 
 /**
- * May a bookkeeping-only event (injury, travel, a call, a free-text note) be
+ * May a bookkeeping-only event (a stoppage, travel, a call, a free-text note) be
  * recorded right now?
  *
  * More permissive than canScore in one respect only: an SOTG pause doesn't block
  * it — a foul called as the teams line up is still a foul. But a timeout or
  * half-time is a break in play, not a pause mid-dispute, so recording waits for
  * the game to resume, same as scoring does.
+ *
+ * `requiresPull` narrows this further to events that only make sense once the
+ * disc is actually live: a travel, a stoppage, any of the six calls (off-side
+ * included — nothing has happened yet for the marker to call). A free-text
+ * note is the one recorded event that never passes it: it isn't about the
+ * play, so there's nothing about the pull it needs to wait for.
  */
-export function canRecordEvent(state: GameState): { ok: boolean; reason?: string } {
+export function canRecordEvent(
+  state: GameState,
+  opts?: { requiresPull?: boolean },
+): { ok: boolean; reason?: string } {
   if (state.phase !== 'game' || state.status === 'awaitingStart')
     return { ok: false, reason: 'gameNotStarted' };
   if (state.status === 'finished') return { ok: false, reason: 'gameFinished' };
   if (state.status === 'timeout') return { ok: false, reason: 'timeoutActive' };
   if (state.status === 'halftime') return { ok: false, reason: 'halftimeActive' };
+  if (opts?.requiresPull && state.status === 'awaitingPull')
+    return { ok: false, reason: 'pullNotThrown' };
   return { ok: true };
 }
 
@@ -642,16 +655,45 @@ export function gameReducer(state: GameState, action: Action): GameState {
       };
     }
 
-    case 'INJURY': {
-      // Logged but the game clock is NOT affected. Optionally records the injured player.
-      if (!canRecordEvent(state).ok) return state;
-      const injured = action.team
-        ? findPlayer(state.config.players[action.team], action.playerId)
-        : undefined;
+    case 'STOPPAGE': {
+      // Logged but the game clock is NOT affected. An injury optionally records the
+      // injured player; a technical stoppage is never attributed to a player.
+      if (!canRecordEvent(state, { requiresPull: true }).ok) return state;
+      // One open stoppage at a time — the "play can resume" button answers exactly
+      // one question, same shape as CALL_MADE/CALL_RESOLVED.
+      if (state.pendingStoppage !== null) return state;
+      const injured =
+        action.kind === 'injury' && action.team
+          ? findPlayer(state.config.players[action.team], action.playerId)
+          : undefined;
+      const s = log(state, 'stoppage', action.team, injured ? playerLabel(injured) : undefined, {
+        stoppageKind: action.kind,
+      });
       return {
-        ...log(state, 'injury', action.team, injured ? playerLabel(injured) : undefined),
-        assist: 'injury',
+        ...s,
+        pendingStoppage: {
+          kind: action.kind,
+          team: action.team,
+          playerId: action.kind === 'injury' ? action.playerId : undefined,
+          startedAtSeconds: s.gameSeconds,
+        },
+        assist: action.kind === 'injury' ? 'stoppageInjury' : 'stoppageTechnical',
       };
+    }
+
+    case 'STOPPAGE_RESOLVED': {
+      const pending = state.pendingStoppage;
+      if (pending === null) return state;
+      // Measured on the game clock, same as a call resolution — the clock was never
+      // stopped for the stoppage in the first place, so this just records how long
+      // it took, not a correction to the clock.
+      const s = log(state, 'stoppageResolved', pending.team, undefined, {
+        stoppageKind: pending.kind,
+        resolutionSeconds: Math.max(0, state.gameSeconds - pending.startedAtSeconds),
+      });
+      // Same call-out as coming back from an SOTG pause: the marker signals and
+      // play is live again.
+      return { ...s, pendingStoppage: null, assist: 'resumed' };
     }
 
     case 'TURNOVER': {
@@ -671,12 +713,12 @@ export function gameReducer(state: GameState, action: Action): GameState {
       // thrower by the marker, and chasing down which player it was is more than a
       // volunteer can follow. Unlike the six CALL_MADE kinds, there's no dispute to
       // resolve, so it registers in one step with no pendingCall.
-      if (!canRecordEvent(state).ok) return state;
+      if (!canRecordEvent(state, { requiresPull: true }).ok) return state;
       return { ...log(state, 'travel', action.team), assist: 'travel' };
     }
 
     case 'CALL_MADE': {
-      if (!canRecordEvent(state).ok) return state;
+      if (!canRecordEvent(state, { requiresPull: true }).ok) return state;
       // One open call at a time — the resolution buttons answer exactly one question,
       // and a second call would have no way to say which of the two it settled.
       if (state.pendingCall !== null) return state;
@@ -713,17 +755,24 @@ export function gameReducer(state: GameState, action: Action): GameState {
 
     case 'SOTG_TOGGLE': {
       if (state.status === 'paused' && state.statusBeforePause !== null) {
-        const s = log(state, 'sotgEnd');
+        const s = log(state, state.pauseSilent ? 'pauseEnd' : 'sotgEnd');
         return {
           ...s,
           status: s.statusBeforePause ?? 'live',
           statusBeforePause: null,
+          pauseSilent: false,
           assist: 'resumed',
         };
       }
       if (state.status !== 'live' && state.status !== 'awaitingPull') return state;
-      const s = log(state, 'sotgStart');
-      return { ...s, status: 'paused', statusBeforePause: state.status, assist: 'sotg' };
+      const s = log(state, action.silent ? 'pauseStart' : 'sotgStart');
+      return {
+        ...s,
+        status: 'paused',
+        statusBeforePause: state.status,
+        pauseSilent: !!action.silent,
+        assist: action.silent ? 'pauseStart' : 'sotg',
+      };
     }
 
     case 'HALFTIME_END': {

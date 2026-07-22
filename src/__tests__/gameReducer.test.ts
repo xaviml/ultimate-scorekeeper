@@ -951,6 +951,32 @@ describe('recorded events (travel, calls, notes)', () => {
     ).toBe(false);
   });
 
+  it('blocks travel, stoppage and every call before the pull is thrown', () => {
+    // The disc isn't in play yet, so there's no play for these to describe —
+    // off-side included, since nothing has happened yet for the marker to call.
+    const s = started();
+    expect(s.status).toBe('awaitingPull');
+    expect(canRecordEvent(s, { requiresPull: true }).ok).toBe(false);
+    expect(canRecordEvent(s, { requiresPull: true }).reason).toBe('pullNotThrown');
+
+    const afterTravel = gameReducer(s, { type: 'TRAVEL', team: 'A' });
+    expect(afterTravel.log.some((e) => e.type === 'travel')).toBe(false);
+
+    const afterStoppage = gameReducer(s, { type: 'STOPPAGE', kind: 'injury', team: 'A' });
+    expect(afterStoppage.log.some((e) => e.type === 'stoppage')).toBe(false);
+
+    for (const kind of ['foul', 'stallOut', 'pick', 'offside', 'discDown', 'generic'] as const) {
+      const after = gameReducer(s, { type: 'CALL_MADE', kind, team: 'A' });
+      expect(after.pendingCall).toBeNull();
+    }
+
+    // A note and an SOTG stoppage are the only things still recordable while the
+    // teams are lining up for the pull.
+    expect(
+      gameReducer(s, { type: 'NOTE', text: 'lining up' }).log.some((e) => e.type === 'note'),
+    ).toBe(true);
+  });
+
   it('records nothing before the game starts or after it ends', () => {
     for (const s of [createInitialState(cfg()), gameReducer(live(), { type: 'END_GAME' })]) {
       expect(canRecordEvent(s).ok).toBe(false);
@@ -959,9 +985,11 @@ describe('recorded events (travel, calls, notes)', () => {
         { type: 'TRAVEL', team: 'A' },
         { type: 'CALL_MADE', kind: 'foul', team: 'A' },
         { type: 'NOTE', text: 'nope' },
+        { type: 'STOPPAGE', kind: 'injury', team: 'A' },
       );
       expect(after.log.length).toBe(s.log.length);
       expect(after.pendingCall).toBeNull();
+      expect(after.pendingStoppage).toBeNull();
     }
   });
 
@@ -1002,6 +1030,65 @@ describe('recorded events (travel, calls, notes)', () => {
   it('ignores a resolution when no call is open', () => {
     const s = live();
     expect(gameReducer(s, { type: 'CALL_RESOLVED', resolution: 'accepted' })).toBe(s);
+  });
+
+  it('opens an injury without touching the clock, and logs how long the check took', () => {
+    let s = gameReducer(live(), { type: 'STOPPAGE', kind: 'injury', team: 'B' });
+    expect(s.pendingStoppage).toEqual({
+      kind: 'injury',
+      team: 'B',
+      playerId: undefined,
+      startedAtSeconds: 0,
+    });
+    expect(lastLog(s)).toMatchObject({ type: 'stoppage', team: 'B', stoppageKind: 'injury' });
+    expect(s.assist).toBe('stoppageInjury');
+
+    s = ticks(s, 30);
+    const before = s.gameSeconds;
+    s = gameReducer(s, { type: 'STOPPAGE_RESOLVED' });
+
+    expect(s.pendingStoppage).toBeNull();
+    expect(lastLog(s)).toMatchObject({
+      type: 'stoppageResolved',
+      team: 'B',
+      stoppageKind: 'injury',
+      resolutionSeconds: 30,
+    });
+    expect(s.assist).toBe('resumed');
+    // Stoppages never touch the clock, resolving them included.
+    expect(s.gameSeconds).toBe(before);
+  });
+
+  it('opens a technical stoppage attributed to a team, never a player', () => {
+    const s = gameReducer(live(), {
+      type: 'STOPPAGE',
+      kind: 'technical',
+      team: 'A',
+      playerId: 'p1',
+    });
+    expect(s.pendingStoppage).toEqual({
+      kind: 'technical',
+      team: 'A',
+      playerId: undefined,
+      startedAtSeconds: 0,
+    });
+    expect(lastLog(s)).toMatchObject({ type: 'stoppage', team: 'A', stoppageKind: 'technical' });
+    expect(s.assist).toBe('stoppageTechnical');
+  });
+
+  it('refuses a second stoppage until the open one is resolved', () => {
+    const first = gameReducer(live(), { type: 'STOPPAGE', kind: 'injury', team: 'A' });
+    const second = gameReducer(first, { type: 'STOPPAGE', kind: 'technical', team: 'B' });
+    expect(second).toBe(first);
+
+    const resolved = gameReducer(first, { type: 'STOPPAGE_RESOLVED' });
+    const next = gameReducer(resolved, { type: 'STOPPAGE', kind: 'technical', team: 'B' });
+    expect(next.pendingStoppage).toMatchObject({ kind: 'technical', team: 'B' });
+  });
+
+  it('ignores a resolution when no stoppage is open', () => {
+    const s = live();
+    expect(gameReducer(s, { type: 'STOPPAGE_RESOLVED' })).toBe(s);
   });
 
   it('logs a note as free text and stays silent about it', () => {

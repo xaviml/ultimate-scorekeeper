@@ -88,6 +88,25 @@ export function callDetail(e: LogEntry, t: TFunc): string {
   return `${kind} — ${how} (${took})`;
 }
 
+/**
+ * Detail suffix for the two stoppage log entries, e.g. "Injury — #7 Alex" when
+ * it is logged (the player, if any, comes from `e.detail` — an injury is the
+ * only stoppage kind that ever carries one) and "Technical — resolved in 42s"
+ * when it is resolved. Returns '' for every other entry type so it can be
+ * dropped straight into the log table.
+ *
+ * This is the one place `e.detail` gets rendered for a stoppage entry — see
+ * GameLogTable/ReportScreen, which skip their own generic `e.detail` output for
+ * these entries so the player name isn't printed twice.
+ */
+export function stoppageDetail(e: LogEntry, t: TFunc): string {
+  if (!e.stoppageKind) return '';
+  const kind = t(`stoppageKind_${e.stoppageKind}` as never);
+  if (e.type === 'stoppage') return e.detail ? `${kind} — ${e.detail}` : kind;
+  if (e.type !== 'stoppageResolved') return '';
+  return `${kind} — ${t('callResolvedIn', { n: e.resolutionSeconds ?? 0 })}`;
+}
+
 export function formatClock(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;

@@ -304,6 +304,7 @@ export default function ConfigScreen() {
                 label={id === 'A' ? t('teamA') : t('teamB')}
                 value={cfg.teams[id].name}
                 savedTeams={savedTeams}
+                otherTeamName={cfg.teams[id === 'A' ? 'B' : 'A'].name}
                 onChangeText={(name) => setTeam(id, { name })}
                 onSelectTeam={(team) => selectSavedTeam(id, team)}
                 onDeleteTeam={removeSavedTeam}

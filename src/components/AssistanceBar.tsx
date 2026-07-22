@@ -12,7 +12,7 @@ const SAY_MS = 7000;
  *
  * These are transient: they show for SAY_MS and then give way to the ambient
  * status line. Anything not listed here has nothing to announce — a turnover, a
- * disc-in-play, a logged injury are bookkeeping, so they never take over the bar.
+ * disc-in-play are bookkeeping, so they never take over the bar.
  */
 const SAY: Record<string, string> = {
   firstPull: 'say_gameOn',
@@ -26,7 +26,8 @@ const SAY: Record<string, string> = {
   resumed: 'say_discIn',
   timeoutRunning: 'say_timeout',
   timeoutOver: 'say_timeIn',
-  injury: 'say_injury',
+  stoppageInjury: 'say_injury',
+  stoppageTechnical: 'say_technicalStoppage',
   sotg: 'say_spirit',
   goHalftime: 'say_halftime',
   capReached: 'say_timeCap',

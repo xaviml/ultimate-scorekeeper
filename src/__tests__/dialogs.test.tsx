@@ -8,11 +8,11 @@ import { AssistGoalDialog } from '../components/AssistGoalDialog';
 import { ConfirmEndGameDialog } from '../components/ConfirmEndGameDialog';
 import { GameLog } from '../components/GameLog';
 import { CallTeamDialog } from '../components/CallTeamDialog';
-import { InjuryDialog } from '../components/InjuryDialog';
 import { Modal } from '../components/Modal';
 import { NoteDialog } from '../components/NoteDialog';
 import { PlayersDialog } from '../components/PlayersDialog';
 import { RecordEventDialog } from '../components/RecordEventDialog';
+import { StoppageDialog } from '../components/StoppageDialog';
 import { TravelTeamDialog } from '../components/TravelTeamDialog';
 import { TurnoverDialog } from '../components/TurnoverDialog';
 
@@ -97,10 +97,29 @@ describe('dialogs render through the shared Modal', () => {
     expect(screen.getByText('Team B')).toBeInTheDocument();
   });
 
-  it('InjuryDialog renders both teams and cancel/save', () => {
-    renderWithProviders(<InjuryDialog onClose={noop} />);
+  it('StoppageDialog asks injury vs. technical first', () => {
+    renderWithProviders(<StoppageDialog onClose={noop} />);
+    expect(screen.getByText('Injury')).toBeInTheDocument();
+    expect(screen.getByText('Technical')).toBeInTheDocument();
     expect(screen.getByText('Cancel')).toBeInTheDocument();
+  });
+
+  it('StoppageDialog shows the player picker after choosing Injury when tracking players', () => {
+    const state = createInitialState();
+    state.config.trackPlayers = true;
+    sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
+
+    renderWithProviders(<StoppageDialog onClose={noop} />);
+    fireEvent.click(screen.getByText('Injury'));
     expect(screen.getByText('Save')).toBeInTheDocument();
+    expect(screen.getByText('Team A')).toBeInTheDocument();
+    expect(screen.getByText('Team B')).toBeInTheDocument();
+  });
+
+  it('StoppageDialog shows a team picker with a skip option after choosing Technical', () => {
+    renderWithProviders(<StoppageDialog onClose={noop} />);
+    fireEvent.click(screen.getByText('Technical'));
+    expect(screen.getByText('No team')).toBeInTheDocument();
   });
 
   it('TurnoverDialog asks both sides and can be saved with no one picked', () => {

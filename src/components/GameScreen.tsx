@@ -20,12 +20,13 @@ import { AssistanceBar } from './AssistanceBar';
 import { AssistGoalDialog } from './AssistGoalDialog';
 import { CallTeamDialog } from './CallTeamDialog';
 import { ConfirmEndGameDialog } from './ConfirmEndGameDialog';
+import { ConfirmPauseGameDialog } from './ConfirmPauseGameDialog';
 import { GameLog } from './GameLog';
-import { InjuryDialog } from './InjuryDialog';
 import { NoteDialog } from './NoteDialog';
 import { PlayersDialog } from './PlayersDialog';
 import { RecordEventDialog, type RecordEventChoice } from './RecordEventDialog';
 import { SignalCard } from './SignalCard';
+import { StoppageDialog } from './StoppageDialog';
 import { TravelTeamDialog } from './TravelTeamDialog';
 import { TurnoverDialog } from './TurnoverDialog';
 import { contrastText } from './ui';
@@ -177,6 +178,33 @@ function LogIcon() {
   );
 }
 
+function PauseIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="w-4 h-4 lscape:w-3 lscape:h-3"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <rect x="6" y="5" width="4" height="14" rx="1" />
+      <rect x="14" y="5" width="4" height="14" rx="1" />
+    </svg>
+  );
+}
+
+function PlayIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="w-4 h-4 lscape:w-3 lscape:h-3"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M7 5v14l12-7z" />
+    </svg>
+  );
+}
+
 function PlayersIcon() {
   return (
     <svg
@@ -292,6 +320,33 @@ function CallResolutionRow() {
   );
 }
 
+/**
+ * The one answer to an open stoppage, parked next to the call resolution row
+ * above the clocks. Rendered only while a stoppage (injury or technical) is
+ * awaiting resolution; tapping it logs how long the stoppage took and clears it.
+ */
+function StoppageResolutionRow() {
+  const state = useGame();
+  const dispatch = useGameDispatch();
+  const { t } = useT();
+  if (!state.pendingStoppage) return null;
+  const kind = t(`stoppageKind_${state.pendingStoppage.kind}` as never);
+
+  return (
+    <div className="space-y-1 lscape:space-y-0.5">
+      <p className="text-[10px] lscape:text-[8px] uppercase tracking-widest text-signal">
+        {t('stoppagePending' as never, { kind })}
+      </p>
+      <button
+        className="w-full rounded-lg bg-signal/20 border border-signal text-signal px-2 py-2 lscape:px-1 lscape:py-1 text-xs sm:text-sm lscape:text-[9px] font-board uppercase tracking-wide active:scale-95"
+        onClick={() => dispatch({ type: 'STOPPAGE_RESOLVED' })}
+      >
+        {t('btnStoppageResolved')}
+      </button>
+    </div>
+  );
+}
+
 function ratioLabel(
   state: GameState,
   t: (k: never, v?: Record<string, string | number>) => string,
@@ -310,6 +365,46 @@ function pullLabel(state: GameState, t: (k: never, v?: Record<string, string | n
   return t('pullChip' as never, { team, side });
 }
 
+/**
+ * While a call, a stoppage or an SOTG stoppage is open, the secondary clock box
+ * gives up its usual pull/timeout/half-time role and counts up instead — how long
+ * the wait has been so far, labelled with what's being waited on. The number
+ * shown is exactly the one that gets logged once it resolves.
+ *
+ * SOTG is measured on the wall clock (via the most recent 'sotgStart' log entry's
+ * `atMs`) rather than the game clock: it's the one status that actually stops
+ * gameSeconds, so a game-clock diff would be stuck at 0 for its whole duration.
+ * Calls and stoppages never stop the clock, so their own startedAtSeconds against
+ * the still-running gameSeconds is the right measure.
+ */
+function secondaryOverride(
+  state: GameState,
+  now: Date,
+  t: (k: never, v?: Record<string, string | number>) => string,
+): { label: string; seconds: number } | null {
+  if (state.pendingCall) {
+    return {
+      label: t(`callKind_${state.pendingCall.kind}` as never),
+      seconds: Math.max(0, state.gameSeconds - state.pendingCall.startedAtSeconds),
+    };
+  }
+  if (state.pendingStoppage) {
+    return {
+      label: t(`stoppageKind_${state.pendingStoppage.kind}` as never),
+      seconds: Math.max(0, state.gameSeconds - state.pendingStoppage.startedAtSeconds),
+    };
+  }
+  if (state.status === 'paused') {
+    const logType = state.pauseSilent ? 'pauseStart' : 'sotgStart';
+    const start = [...state.log].reverse().find((e) => e.type === logType);
+    return {
+      label: t((state.pauseSilent ? 'pauseLabel' : 'signal_sotg') as never),
+      seconds: start ? Math.max(0, Math.floor((now.getTime() - start.atMs) / 1000)) : 0,
+    };
+  }
+  return null;
+}
+
 export default function GameScreen() {
   const state = useGame();
   const dispatch = useGameDispatch();
@@ -317,7 +412,8 @@ export default function GameScreen() {
   const now = useNow();
   const [showLog, setShowLog] = useState(false);
   const [showPlayers, setShowPlayers] = useState(false);
-  const [showInjury, setShowInjury] = useState(false);
+  const [showStoppage, setShowStoppage] = useState(false);
+  const [showPauseConfirm, setShowPauseConfirm] = useState(false);
   const [showRecordEvent, setShowRecordEvent] = useState(false);
   const [showNote, setShowNote] = useState(false);
   const [showTravel, setShowTravel] = useState(false);
@@ -386,7 +482,20 @@ export default function GameScreen() {
   const target = state.cappedTarget ?? state.config.targetScore;
   const isMixed = state.config.division === 'mixed';
   const paused = state.status === 'paused';
+  // Mirrors the SOTG_TOGGLE guard in the reducer: pausing only makes sense once the
+  // disc is live (or about to be pulled); resuming is always available while paused.
+  const canTogglePause = paused || state.status === 'live' || state.status === 'awaitingPull';
+  const togglePause = () => {
+    if (paused) {
+      dispatch({ type: 'SOTG_TOGGLE' });
+      return;
+    }
+    setShowPauseConfirm(true);
+  };
   const timeoutsOn = timeoutsConfigured(state.config.timeouts);
+  // A call, a stoppage or an SOTG stoppage takes over the secondary clock box while
+  // it's open — see secondaryOverride for why each is measured differently.
+  const stoppage = secondaryOverride(state, now, t as never);
 
   // Scheduled kickoff not yet reached: the game clock counts down to it instead of
   // up from it (see the header dot and the clock label below), and TICK in the
@@ -416,12 +525,11 @@ export default function GameScreen() {
     dispatch({ type: 'TIMEOUT_START', team });
   };
 
-  // Injury and turnover only prompt for players when the game is tracking them;
-  // otherwise the event is logged straight away, with no dialog in the way.
-  const tryInjury = () => {
-    if (state.config.trackPlayers) setShowInjury(true);
-    else dispatch({ type: 'INJURY' });
-  };
+  // Turnover only prompts for players when the game is tracking them; otherwise
+  // it is logged straight away, with no dialog in the way. A stoppage always
+  // opens its dialog — it needs to ask injury vs. technical either way, and
+  // StoppageDialog itself skips the player picker when rosters aren't in use.
+  const tryStoppage = () => setShowStoppage(true);
 
   const tryTurnover = () => {
     const check = canTurnover(state);
@@ -434,7 +542,7 @@ export default function GameScreen() {
   };
 
   // The Record event menu closes on every choice; what happens next depends on the
-  // choice. Turnover and injury keep their own guards and player prompts, so they
+  // choice. Turnover and stoppage keep their own guards and player prompts, so they
   // behave exactly as they did when they were dashboard buttons.
   const recordEvent = (choice: RecordEventChoice) => {
     setShowRecordEvent(false);
@@ -445,8 +553,8 @@ export default function GameScreen() {
     switch (choice.type) {
       case 'turnover':
         return tryTurnover();
-      case 'injury':
-        return tryInjury();
+      case 'stoppage':
+        return tryStoppage();
       case 'note':
         return setShowNote(true);
       case 'travel':
@@ -465,14 +573,16 @@ export default function GameScreen() {
     setShowRecordEvent(true);
   };
 
-  // Whether the Record event launcher itself should be disabled: a call awaiting
-  // resolution, an SOTG stoppage in progress (its own dedicated "Resume game"
-  // button is the one way out), or any other record-event flow already open —
-  // none of these should be interrupted by starting a second one on top.
+  // Whether the Record event launcher itself should be disabled: a call or a
+  // stoppage awaiting resolution, an SOTG stoppage in progress (its own dedicated
+  // "Resume game" button is the one way out), or any other record-event flow
+  // already open — none of these should be interrupted by starting a second one
+  // on top.
   const recordEventBusy =
     state.pendingCall !== null ||
+    state.pendingStoppage !== null ||
     paused ||
-    showInjury ||
+    showStoppage ||
     showNote ||
     showTravel ||
     callKind !== null ||
@@ -621,8 +731,11 @@ export default function GameScreen() {
 
       {/* Clocks + actions */}
       <div className="flex flex-col gap-2 lscape:gap-1 px-3 lscape:px-2 py-2 lscape:py-0.5 bg-panel border-t border-line shrink-0">
-        {/* Answer to an open call, above the clocks — nothing else matters until it's given. */}
+        {/* Answer to an open call or stoppage, above the clocks — nothing else matters
+            until it's given. Mutually exclusive in practice: recordEventBusy blocks
+            starting either kind while the other is still open. */}
         <CallResolutionRow />
+        <StoppageResolutionRow />
 
         {/* Both clocks side by side. */}
         <div className="grid grid-cols-2 gap-2 lscape:gap-1">
@@ -630,35 +743,53 @@ export default function GameScreen() {
             <div className="text-[10px] lscape:text-[8px] uppercase tracking-widest text-chalk/50">
               {countdownSeconds !== null ? t('timeBeforeGame') : t('gameClock')}
             </div>
-            <div
-              className={`font-clock text-3xl lscape:text-base ${paused ? 'text-chalk/40' : 'text-chalk'}`}
-            >
-              {formatClock(countdownSeconds ?? state.gameSeconds)}
+            <div className="flex items-center justify-between gap-1">
+              <div
+                className={`font-clock text-3xl lscape:text-base ${paused ? 'text-chalk/40' : 'text-chalk'}`}
+              >
+                {formatClock(countdownSeconds ?? state.gameSeconds)}
+              </div>
+              <button
+                type="button"
+                onClick={togglePause}
+                disabled={!canTogglePause}
+                aria-label={t(paused ? 'btnResumeGame' : 'btnPauseGame')}
+                title={t(paused ? 'btnResumeGame' : 'btnPauseGame')}
+                className="shrink-0 flex items-center justify-center w-7 h-7 lscape:w-5 lscape:h-5 rounded-full border border-line text-chalk active:scale-95 disabled:opacity-30"
+              >
+                {paused ? <PlayIcon /> : <PauseIcon />}
+              </button>
             </div>
           </div>
 
           <div className="rounded-lg bg-pitch border border-line p-2 lscape:p-0.5">
             <div className="text-[10px] lscape:text-[8px] uppercase tracking-widest text-chalk/50">
-              {state.secondary?.kind === 'timeout'
-                ? t('timeoutTimer')
-                : state.secondary?.kind === 'halftime'
-                  ? t('halftimeTimer')
-                  : t('pullTimer')}
+              {stoppage
+                ? stoppage.label
+                : state.secondary?.kind === 'timeout'
+                  ? t('timeoutTimer')
+                  : state.secondary?.kind === 'halftime'
+                    ? t('halftimeTimer')
+                    : t('pullTimer')}
             </div>
             <div
               className={`font-clock text-3xl lscape:text-base ${
-                state.secondary?.kind === 'pull' && state.secondary.seconds >= 45
+                stoppage || (state.secondary?.kind === 'pull' && state.secondary.seconds >= 45)
                   ? 'text-signal'
                   : 'text-chalk'
               }`}
             >
-              {state.secondary ? formatClock(state.secondary.seconds) : '--:--'}
+              {stoppage
+                ? formatClock(stoppage.seconds)
+                : state.secondary
+                  ? formatClock(state.secondary.seconds)
+                  : '--:--'}
             </div>
           </div>
         </div>
 
         {/* Timeout (left) / Record event / Log / Players / Timeout (right), in one row
-            under both clocks. Turnover, injury and the SOTG toggle live inside Record
+            under both clocks. Turnover, stoppage and the SOTG toggle live inside Record
             event now, alongside travels, calls and free-text notes. Timeouts are
             hidden entirely when none are configured — nothing to call. Players is
             hidden unless the game is configured to track players. */}
@@ -717,7 +848,7 @@ export default function GameScreen() {
       {callKind && <CallTeamDialog kind={callKind} onClose={() => setCallKind(null)} />}
       {showNote && <NoteDialog onClose={() => setShowNote(false)} />}
       {showTravel && <TravelTeamDialog onClose={() => setShowTravel(false)} />}
-      {showInjury && <InjuryDialog onClose={() => setShowInjury(false)} />}
+      {showStoppage && <StoppageDialog onClose={() => setShowStoppage(false)} />}
       {turnoverTeam && (
         <TurnoverDialog attacking={turnoverTeam} onClose={() => setTurnoverTeam(null)} />
       )}
@@ -734,6 +865,15 @@ export default function GameScreen() {
           onConfirm={() => {
             closeEndGameConfirm();
             dispatch({ type: 'END_GAME' });
+          }}
+        />
+      )}
+      {showPauseConfirm && (
+        <ConfirmPauseGameDialog
+          onCancel={() => setShowPauseConfirm(false)}
+          onConfirm={() => {
+            setShowPauseConfirm(false);
+            dispatch({ type: 'SOTG_TOGGLE', silent: true });
           }}
         />
       )}

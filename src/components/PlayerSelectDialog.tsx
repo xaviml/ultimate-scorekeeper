@@ -22,7 +22,7 @@ export interface PlayerSelectSection {
  * Attribution is always optional: Save with no one picked records the event with no
  * names attached, so the volunteer is never blocked by a roster they don't know.
  * Cancel is the odd one out — it takes no action at all, so the caller must not have
- * dispatched the event before this dialog opened (see InjuryDialog / TurnoverDialog).
+ * dispatched the event before this dialog opened (see StoppageDialog / TurnoverDialog).
  */
 export function PlayerSelectDialog({
   title,

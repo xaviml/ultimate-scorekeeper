@@ -100,7 +100,7 @@ export type GameStatus =
   | 'awaitingStart' // scheduled kickoff configured, real-world clock hasn't reached it yet
   | 'awaitingPull' // between points: score frozen until the pull is thrown
   | 'live' // disc in play
-  | 'paused' // SOTG stoppage
+  | 'paused' // clock manually stopped — an SOTG stoppage, or a generic pause via the clock button
   | 'timeout' // team timeout running
   | 'halftime'
   | 'finished';
@@ -117,13 +117,21 @@ export type CallKind = 'foul' | 'stallOut' | 'pick' | 'offside' | 'discDown' | '
 
 export type CallResolution = 'accepted' | 'contested' | 'retracted';
 
+/**
+ * A stoppage covers anything that halts play without a call to dispute: `injury`
+ * can be attributed to a player, `technical` (equipment, outside interference, ...)
+ * can only be attributed to a team.
+ */
+export type StoppageKind = 'injury' | 'technical';
+
 export type LogType =
   | 'gameStart'
   | 'goal'
   | 'undo'
   | 'timeout'
   | 'timeoutEnd'
-  | 'injury'
+  | 'stoppage'
+  | 'stoppageResolved'
   | 'turnover'
   | 'travel'
   | 'call'
@@ -131,6 +139,8 @@ export type LogType =
   | 'note'
   | 'sotgStart'
   | 'sotgEnd'
+  | 'pauseStart'
+  | 'pauseEnd'
   | 'halftimeStart'
   | 'halftimeEnd'
   | 'timeCap'
@@ -156,8 +166,10 @@ export interface LogEntry {
   callKind?: CallKind;
   /** `callResolved` entries only. */
   resolution?: CallResolution;
-  /** `callResolved` entries only: game-clock seconds the call took to settle. */
+  /** `callResolved` and `stoppageResolved` entries only: game-clock seconds the call/stoppage took to settle. */
   resolutionSeconds?: number;
+  /** `stoppage` and `stoppageResolved` entries only. */
+  stoppageKind?: StoppageKind;
 }
 
 /**
@@ -169,6 +181,20 @@ export interface PendingCall {
   kind: CallKind;
   team: TeamId; // team that made the call
   /** Game clock when the call was logged; the resolution duration counts from here. */
+  startedAtSeconds: number;
+}
+
+/**
+ * A stoppage that has been logged but not yet resolved. While one is open the
+ * game screen shows the "Play can resume" button above the clocks, and no second
+ * stoppage can be logged — same one-open-question shape as PendingCall.
+ */
+export interface PendingStoppage {
+  kind: StoppageKind;
+  team?: TeamId;
+  /** `injury` only — a technical stoppage is never attributed to a player. */
+  playerId?: string;
+  /** Game clock when the stoppage was logged; the resolution duration counts from here. */
   startedAtSeconds: number;
 }
 
@@ -212,6 +238,8 @@ export interface GameState {
   config: GameConfig;
   status: GameStatus;
   statusBeforePause: GameStatus | null;
+  /** True while the open pause was started silently (the clock button, not the SOTG record-event entry) — decides the wording used when it closes. */
+  pauseSilent: boolean;
   half: 1 | 2;
   scores: Record<TeamId, number>;
   /** Gender ratio for the point currently being played (mixed only). */
@@ -254,6 +282,8 @@ export interface GameState {
   gameAnnounced: boolean;
   /** Open call awaiting an accepted/contested/retracted answer, or null. */
   pendingCall: PendingCall | null;
+  /** Open stoppage awaiting resolution, or null. */
+  pendingStoppage: PendingStoppage | null;
   points: PointRecord[];
   log: LogEntry[];
   history: GoalSnapshot[]; // undo stack for goals
@@ -273,13 +303,15 @@ export type Action =
   | { type: 'SHOW_RATIO_SIGNAL' }
   | { type: 'TIMEOUT_START'; team: TeamId }
   | { type: 'TIMEOUT_END' }
-  | { type: 'INJURY'; team?: TeamId; playerId?: string }
+  | { type: 'STOPPAGE'; kind: StoppageKind; team?: TeamId; playerId?: string }
+  | { type: 'STOPPAGE_RESOLVED' }
   | { type: 'TURNOVER'; turnoverId?: string; defenseId?: string }
   | { type: 'TRAVEL'; team: TeamId }
   | { type: 'CALL_MADE'; kind: CallKind; team: TeamId }
   | { type: 'CALL_RESOLVED'; resolution: CallResolution }
   | { type: 'NOTE'; text: string }
-  | { type: 'SOTG_TOGGLE' }
+  /** `silent` pauses the clock without the SOTG call-out/signal — the generic pause button covers reasons (technical, weather, prolonged stoppage) that aren't spirit-related. */
+  | { type: 'SOTG_TOGGLE'; silent?: boolean }
   | { type: 'HALFTIME_END' }
   | { type: 'TICK' } // 1 s of real time while clocks run
   | { type: 'END_GAME' }

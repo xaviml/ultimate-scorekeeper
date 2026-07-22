@@ -54,7 +54,8 @@ function currentSignal(state: GameState): Signal | null {
   const map: Record<string, SignalArt> = {
     goalScored: { file: 'goal', caption: 'signal_goal' },
     timeoutRunning: { file: 'timeout', caption: 'signal_timeout' },
-    injury: { file: 'stoppage', caption: 'signal_stoppage' },
+    stoppageInjury: { file: 'stoppage', caption: 'signal_stoppage' },
+    stoppageTechnical: { file: 'stoppage', caption: 'signal_stoppage' },
     sotg: { file: 'sotg', caption: 'signal_sotg' },
     universePoint: { file: 'match-point', caption: 'signal_universePoint' },
     // Recorded events. Each call shows the infraction when it is made, and one of
@@ -82,7 +83,7 @@ function currentSignal(state: GameState): Signal | null {
     halfCapPending: WHISTLE,
   };
   const art = map[state.assist];
-  // Log counter in the key so a repeat of the same event (two injuries in a row)
+  // Log counter in the key so a repeat of the same event (two stoppages in a row)
   // re-shows the dialog instead of being mistaken for the one already dismissed.
   return art ? { key: `${state.assist}:${state.nextLogId}`, ...art } : null;
 }

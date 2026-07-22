@@ -10,6 +10,7 @@ export function TeamNameCombobox({
   label,
   value,
   savedTeams,
+  otherTeamName,
   onChangeText,
   onSelectTeam,
   onDeleteTeam,
@@ -17,6 +18,7 @@ export function TeamNameCombobox({
   label: string;
   value: string;
   savedTeams: SavedTeam[];
+  otherTeamName: string;
   onChangeText: (name: string) => void;
   onSelectTeam: (team: SavedTeam) => void;
   onDeleteTeam: (name: string) => void;
@@ -35,7 +37,11 @@ export function TeamNameCombobox({
     return () => document.removeEventListener('mousedown', onMouseDown);
   }, [open]);
 
-  const matches = savedTeams.filter((team) => normalize(team.name).includes(normalize(value)));
+  const matches = savedTeams.filter(
+    (team) =>
+      normalize(team.name).includes(normalize(value)) &&
+      normalize(team.name) !== normalize(otherTeamName),
+  );
   const hasExactMatch = savedTeams.some((team) => normalize(team.name) === normalize(value));
   const showAddAsNew = value.trim() !== '' && !hasExactMatch;
   const showPanel = open && (matches.length > 0 || showAddAsNew);

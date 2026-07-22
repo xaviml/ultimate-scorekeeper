@@ -1,6 +1,12 @@
 import { useT } from '../i18n/useT';
 import { useGame } from '../state/gameHooks';
-import { callDetail, formatClock, goalPlayersDetail, turnoverPlayersDetail } from '../state/stats';
+import {
+  callDetail,
+  formatClock,
+  goalPlayersDetail,
+  stoppageDetail,
+  turnoverPlayersDetail,
+} from '../state/stats';
 
 /**
  * The event history table, shared by the in-game log dialog and the end-of-game
@@ -32,10 +38,13 @@ export function GameLogTable({ order = 'asc' }: { order?: 'asc' | 'desc' }) {
               {e.team ? ` — ${state.config.teams[e.team].name}` : ''}
             </td>
             <td className="py-1 text-chalk/60">
-              {e.detail ?? ''}
+              {/* stoppageDetail renders e.detail itself (the injured player, if any),
+                  so it's left out here to avoid printing it twice. */}
+              {e.stoppageKind ? '' : (e.detail ?? '')}
               {goalPlayersDetail(state, e, t)}
               {turnoverPlayersDetail(state, e, t)}
               {callDetail(e, t)}
+              {stoppageDetail(e, t)}
             </td>
           </tr>
         ))}

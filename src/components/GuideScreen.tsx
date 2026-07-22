@@ -272,7 +272,7 @@ export default function GuideScreen({ onBack }: { onBack: () => void }) {
           <Bullet body={t('guideStep9Calls')} />
           <Bullet body={t('guideStep9Travel')} />
           <Bullet body={t('guideStep9Turn')} />
-          <Bullet body={t('guideStep9Injury')} />
+          <Bullet body={t('guideStep9Stoppage')} />
           <Bullet body={t('guideStep9Sotg')} />
           <Bullet body={t('guideStep9Note')} />
         </ul>
