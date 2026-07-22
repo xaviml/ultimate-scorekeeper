@@ -227,6 +227,7 @@ export const en = {
   signal_retracted: 'Retracted',
 
   // Call-outs (green) — the exact words to shout, shown briefly with the signal
+  say_startSoon: '"One minute to start!"',
   say_gameOn: '"Game on!"',
   say_secondHalf: '"Second half — game on!"',
   say_score: '"{a} {as}, {b} {bs}!"',
@@ -236,7 +237,8 @@ export const en = {
   say_scoreCorrection: '"Score correction — {a} {as}, {b} {bs}!"',
   say_discIn: '"Disc in!"',
   say_timeout: '"Timeout, {team}!"',
-  say_timeIn: '"Time in — 20 seconds!"',
+  say_timeIn: '"Time in — pull clock restarts!"',
+  say_playRestart: '"Play on — disc live!"',
   say_injury: '"Injury — stop play!"',
   say_technicalStoppage: '"Stoppage of play!"',
   say_spirit: '"Spirit stoppage!"',
@@ -267,8 +269,15 @@ export const en = {
   now_awaitingPull: 'Teams are lining up. Press "Pull thrown" the moment the disc is thrown.',
   now_discInPlay: "Disc in play. Tap a team's panel when they score in the opposite end zone.",
   now_timeout: 'Timeout running. It ends on its own, or press "End timeout".',
+  now_toReady30: 'Timeout ending — 30 seconds until the offence must be set. One whistle at 30.',
+  now_toReady15: '15 seconds until the offence must be set. Two whistles when the time is up.',
+  now_toReady0: 'Offence should be set — three whistles and the disc goes live.',
   now_halftime:
     'Half-time break. Resumes automatically when the clock runs out, or press "End half-time" if both teams are ready sooner.',
+  now_halftimeWarn:
+    'One minute until the second half. One whistle — teams should be getting ready.',
+  now_callWait:
+    'Call still unresolved — three whistles now, and again every 15 seconds until it is settled.',
   now_paused: 'Spirit stoppage. Clock paused — press "Resume game" to continue.',
   now_pauseManual: 'Game paused. Clock stopped — press "Resume game" to continue.',
   now_stoppageClockStopped:
@@ -421,6 +430,8 @@ export const en = {
   guideTour6:
     'Timeouts for each team, with the number they have left. In the middle: record an event, open the log, and the player list when player tracking is on.',
   guideTour7: 'The assistance bar — what to shout and what to do. See step 6.',
+  guideTour8:
+    'The small pause button next to the game clock. Everything else — a timeout, half-time, a call — already runs without stopping it; only tap this for the extraordinary cases the confirmation asks about: an SOTG stoppage, a tournament technical stoppage, a prolonged stoppage, or bad weather. The clock stops the moment you confirm, and stays stopped until you resume.',
 
   guideStep5Title: 'Playing a point',
   guideStep5Body:
@@ -448,6 +459,22 @@ export const en = {
   guideStep6Signal: 'The picture that pops up',
   guideStep6SignalBody:
     'A small card over the score panels shows the official hand signal to make while you announce. It disappears on its own, and it can never swallow a tap meant for the panel underneath.',
+
+  guideSignalsTitle: 'When the app whistles',
+  guideSignalsIntro:
+    'The whistle is how you keep the players aware of time. The app blows it for you — and shows the whistle card at the same moment — in exactly these four situations, and nowhere else. Blow your own whistle to match, the number of blasts it tells you.',
+  guideSignalHalf: 'The start of a half',
+  guideSignalHalfBody:
+    'One whistle the instant a half begins — the first pull of the game, and the start of the second half. As a heads-up you also get one whistle a minute before, but only when there is a wait to warn about: a scheduled kickoff, or a half-time break of two minutes or more.',
+  guideSignalPoint: 'Before each pull',
+  guideSignalPointBody:
+    'After a goal, while the teams line up: one whistle at 45 seconds, two at 60, and three at 75 — the pull must be thrown now.',
+  guideSignalTimeout: 'The end of a timeout',
+  guideSignalTimeoutBody:
+    'A timeout called before the pull: one whistle when it ends, then the normal 45/60/75 pull count starts fresh. A timeout called after the pull: a countdown back to live play — a heads-up 30 seconds out, one whistle at 15, two when the offence should be set, and three when the disc goes live.',
+  guideSignalCall: 'A call that drags on',
+  guideSignalCallBody:
+    'When a foul, pick, travel, stall-out, off-side, disc-down or generic call — or an injury or technical stoppage — is still being sorted out after 45 seconds: three whistles, then three more every 15 seconds until it is resolved.',
 
   guideStep7Title: 'Gender ratio (mixed games only)',
   guideStep7Body:

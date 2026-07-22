@@ -15,9 +15,11 @@ const SAY_MS = 7000;
  * disc-in-play are bookkeeping, so they never take over the bar.
  */
 const SAY: Record<string, string> = {
+  startWarning: 'say_startSoon',
   firstPull: 'say_gameOn',
   secondHalfPull: 'say_secondHalf',
   secondHalfNoSwap: 'say_secondHalf',
+  timeoutRestart: 'say_playRestart',
   goalScored: 'say_score',
   halfAt: 'say_halfAt',
   gameAt: 'say_gameAt',
@@ -67,6 +69,38 @@ function statusKey(state: GameState): string {
     if (s >= 60) return 'now_pull60';
     if (s >= 45) return 'now_pull45';
   }
+  // After-pull timeout: the disc must go live again on a fixed schedule (see
+  // currentWhistle), so the ambient counts it down. Remaining maps to the milestone
+  // just as the whistles do — 45→"30s until ready", 30→"15s", 15→"offence set".
+  if (
+    state.status === 'timeout' &&
+    state.secondary?.kind === 'timeout' &&
+    state.secondary.afterPull
+  ) {
+    const r = state.secondary.seconds;
+    if (r <= 15) return 'now_toReady0';
+    if (r <= 30) return 'now_toReady15';
+    if (r <= 45) return 'now_toReady30';
+  }
+  // One minute to the second half, when the break is long enough to warn (see
+  // currentWhistle) — otherwise the plain "half-time" line.
+  if (state.status === 'halftime') {
+    const sec = state.secondary;
+    if (sec?.kind === 'halftime' && (sec.total ?? 0) >= 120 && sec.seconds <= 60) {
+      return 'now_halftimeWarn';
+    }
+    return 'now_halftime';
+  }
+  // An unresolved call or stoppage that has dragged past 45 s: the app is whistling
+  // every 15 s until it settles, so say so. Excluded once a stoppage has run long
+  // enough to auto-stop the clock (status 'paused'), where the more specific
+  // clock-stopped line below takes over.
+  if (
+    state.status !== 'paused' &&
+    (state.pendingCall?.elapsedSeconds ?? state.pendingStoppage?.elapsedSeconds ?? 0) >= 45
+  ) {
+    return 'now_callWait';
+  }
   // Universe point holds for the whole point it applies to (not just the moment it
   // starts), so it overrides the ambient line for as long as the condition is true —
   // unlike the pull whistle above, which the ambient falls back to inside its own window.
@@ -82,8 +116,6 @@ function statusKey(state: GameState): string {
       return 'now_awaitingPull';
     case 'timeout':
       return 'now_timeout';
-    case 'halftime':
-      return 'now_halftime';
     case 'paused':
       // A stoppage left open too long auto-stops the clock (see TICK in the
       // reducer) and takes priority here — it's a distinct reason from either a

@@ -26,7 +26,7 @@ describe('the secondary clock while a call, stoppage or SOTG stoppage is open', 
     state.phase = 'game';
     state.status = 'live';
     state.gameSeconds = 37;
-    state.pendingCall = { kind: 'foul', team: 'A', startedAtSeconds: 10 };
+    state.pendingCall = { kind: 'foul', team: 'A', startedAtSeconds: 10, elapsedSeconds: 27 };
     mountWith(state);
 
     expect(screen.getByText('Foul')).toBeInTheDocument();

@@ -586,21 +586,40 @@ describe('timeouts', () => {
     expect(ticks(sotg, 10).gameSeconds).toBe(0);
   });
 
-  it('resumes the pull timer where it left off after a timeout called mid-pull', () => {
-    let s = gameReducer(live(), { type: 'GOAL', team: 'A' }); // back to awaitingPull, secondary pull timer resets to 0
+  it('restarts the pull clock at 0 after a before-pull timeout ends', () => {
+    let s = gameReducer(live(), { type: 'GOAL', team: 'A' }); // back to awaitingPull, pull clock at 0
     expect(s.status).toBe('awaitingPull');
     s = ticks(s, 27);
     expect(s.secondary).toMatchObject({ kind: 'pull', seconds: 27 });
 
     s = gameReducer(s, { type: 'TIMEOUT_START', team: 'A' });
     expect(s.status).toBe('timeout');
-    s = ticks(s, 5);
-    s = gameReducer(s, { type: 'TIMEOUT_END' });
+    // Before the pull, the timeout runs its plain configured duration (no +15).
+    expect(s.secondary).toMatchObject({ kind: 'timeout', afterPull: false, total: 75 });
 
+    s = gameReducer(s, { type: 'TIMEOUT_END' });
     expect(s.status).toBe('awaitingPull');
-    expect(s.secondary).toMatchObject({ kind: 'pull', seconds: 27 });
+    expect(s.assist).toBe('timeoutOver');
+    // The pull count restarts from 0 (WFDF: the standard pre-pull limits recommence),
+    // NOT resumed at the 27 it had reached before the timeout.
+    expect(s.secondary).toMatchObject({ kind: 'pull', seconds: 0 });
     s = ticks(s, 1);
-    expect(s.secondary).toMatchObject({ kind: 'pull', seconds: 28 });
+    expect(s.secondary).toMatchObject({ kind: 'pull', seconds: 1 });
+  });
+
+  it('runs an after-pull timeout for duration + 15 and restarts play live', () => {
+    let s = gameReducer(live(), { type: 'TIMEOUT_START', team: 'A' });
+    expect(s.status).toBe('timeout');
+    // After the pull, the disc stays dead for the configured duration plus a 15 s
+    // "offence set" window before it goes live again (a 75 s timeout → 90 s).
+    expect(s.secondary).toMatchObject({ kind: 'timeout', afterPull: true, total: 90, seconds: 90 });
+
+    s = ticks(s, 90);
+    expect(s.secondary).toMatchObject({ seconds: 0 });
+    s = gameReducer(s, { type: 'TIMEOUT_END' });
+    expect(s.status).toBe('live'); // disc back in play, not awaiting a pull
+    expect(s.assist).toBe('timeoutRestart');
+    expect(s.secondary).toBeNull();
   });
 });
 
@@ -1022,7 +1041,12 @@ describe('recorded events (travel, calls, notes)', () => {
 
   it('opens a call against the team that made it, and shows its own signal', () => {
     const s = gameReducer(live(), { type: 'CALL_MADE', kind: 'foul', team: 'B' });
-    expect(s.pendingCall).toEqual({ kind: 'foul', team: 'B', startedAtSeconds: 0 });
+    expect(s.pendingCall).toEqual({
+      kind: 'foul',
+      team: 'B',
+      startedAtSeconds: 0,
+      elapsedSeconds: 0,
+    });
     expect(lastLog(s)).toMatchObject({ type: 'call', team: 'B', callKind: 'foul' });
     expect(s.assist).toBe('call_foul');
     expect(s.possessionTeam).toBe('A'); // a call never hands the disc over
@@ -1225,5 +1249,44 @@ describe('scheduled kickoff', () => {
     const s = started();
     expect(s.status).toBe('awaitingPull');
     expect(s.startingAtMs).toBeNull();
+  });
+
+  it('blows the one-minute warning once, exactly a minute before a scheduled start', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2024-06-01T10:00:00'));
+    const config = cfg({ startingTime: { enabled: true, time: '10:05' } });
+    let s = gameReducer(createInitialState(config), { type: 'START_GAME', config });
+    expect(s.startWarned).toBe(false);
+
+    // More than a minute out: no warning yet.
+    vi.setSystemTime(new Date('2024-06-01T10:03:59'));
+    s = gameReducer(s, { type: 'TICK' });
+    expect(s.startWarned).toBe(false);
+    expect(s.assist).not.toBe('startWarning');
+
+    // Exactly a minute out: the warning fires and latches.
+    vi.setSystemTime(new Date('2024-06-01T10:04:00'));
+    s = gameReducer(s, { type: 'TICK' });
+    expect(s.startWarned).toBe(true);
+    expect(s.assist).toBe('startWarning');
+
+    // It never fires twice — a later tick leaves an unrelated assist alone.
+    s = { ...s, assist: 'goalScored' };
+    vi.setSystemTime(new Date('2024-06-01T10:04:30'));
+    s = gameReducer(s, { type: 'TICK' });
+    expect(s.assist).toBe('goalScored');
+  });
+
+  it('skips the one-minute warning when the scheduled start is already under a minute away', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2024-06-01T10:04:30')); // 30 s before 10:05
+    const config = cfg({ startingTime: { enabled: true, time: '10:05' } });
+    let s = gameReducer(createInitialState(config), { type: 'START_GAME', config });
+    expect(s.status).toBe('awaitingStart');
+    expect(s.startWarned).toBe(true); // seeded — too close for a one-minute warning
+
+    vi.setSystemTime(new Date('2024-06-01T10:04:45'));
+    s = gameReducer(s, { type: 'TICK' });
+    expect(s.assist).not.toBe('startWarning');
   });
 });

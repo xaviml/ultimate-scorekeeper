@@ -120,6 +120,7 @@ async function main() {
     await marker(gameClockBox, dash, 0.95, 0.18),
     await marker(page.getByRole('button', { name: 'Record event' }), dash, 1.12),
     await marker(page.locator('div[aria-live=assertive]'), dash, 0.92),
+    await marker(page.getByRole('button', { name: 'Pause game' }), dash, 1.4, 0.5),
   ];
 
   // Play a point so the "score / undo" figure shows a real scoreline.

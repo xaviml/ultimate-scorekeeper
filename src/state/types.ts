@@ -183,6 +183,12 @@ export interface PendingCall {
   team: TeamId; // team that made the call
   /** Game clock when the call was logged; the resolution duration counts from here. */
   startedAtSeconds: number;
+  /**
+   * Seconds since the call was logged, incremented every TICK regardless of whether
+   * the game clock is running (an SOTG pause mid-dispute must not stall it) — drives
+   * the 45 s / every-15 s "still unresolved" whistle, same shape as PendingStoppage.
+   */
+  elapsedSeconds: number;
 }
 
 /**
@@ -274,9 +280,20 @@ export interface GameState {
     kind: 'pull' | 'timeout' | 'halftime';
     seconds: number;
     total: number | null;
+    /**
+     * Timeout only: true when the timeout was called after the pull (disc live), so
+     * the WFDF restart sequence applies — it counts down `duration + 15` and blows
+     * 1/2/3 at 15/0-remaining before the disc goes live again. A before-pull timeout
+     * (false/undefined) just runs the plain duration, then the pull clock restarts.
+     */
+    afterPull?: boolean;
   } | null;
-  /** Pull-timer seconds banked when a timeout interrupts the pull count, so it can resume afterward. */
-  pausedPullSeconds: number | null;
+  /**
+   * True once the one-minute-to-scheduled-start whistle has fired (or was skipped
+   * because the kickoff was already under a minute away at START_GAME), so it is
+   * blown at most once.
+   */
+  startWarned: boolean;
   timeoutsUsed: Record<TeamId, { half1: number; half2: number }>;
   timeoutTeam: TeamId | null;
   cappedTarget: number | null; // target score after end-game cap applied

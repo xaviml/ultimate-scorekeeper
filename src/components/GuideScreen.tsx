@@ -19,7 +19,7 @@ const FIG_SETUP: readonly Marker[] = [
   [6.9, 48.9],
   [5.8, 59.1],
   [10.1, 84.9],
-  [30.5, 94.6],
+  [29.6, 94.6],
 ];
 const FIG_TOSS: readonly Marker[] = [
   [5.1, 41.8],
@@ -29,11 +29,12 @@ const FIG_TOSS: readonly Marker[] = [
 const FIG_DASHBOARD: readonly Marker[] = [
   [28, 3.1],
   [89, 53],
-  [32.1, 12.3],
+  [32.2, 12.3],
   [10.6, 70.1],
   [46.7, 76.4],
   [51.6, 86.3],
   [92, 96.7],
+  [49.5, 79.9],
 ];
 const FIG_PLAY: readonly Marker[] = [
   [10.6, 70.1],
@@ -224,6 +225,7 @@ export default function GuideScreen({ onBack }: { onBack: () => void }) {
           <Numbered n={5} body={t('guideTour5')} />
           <Numbered n={6} body={t('guideTour6')} />
           <Numbered n={7} body={t('guideTour7')} />
+          <Numbered n={8} body={t('guideTour8')} />
         </ol>
       </Card>
 
@@ -247,6 +249,16 @@ export default function GuideScreen({ onBack }: { onBack: () => void }) {
           <Bullet label={t('guideStep6Green')} body={t('guideStep6GreenBody')} />
           <Bullet label={t('guideStep6Amber')} body={t('guideStep6AmberBody')} />
           <Bullet label={t('guideStep6Signal')} body={t('guideStep6SignalBody')} />
+        </ul>
+      </Card>
+
+      <Card title={t('guideSignalsTitle')}>
+        <Para k="guideSignalsIntro" />
+        <ul className="space-y-2">
+          <Bullet label={t('guideSignalHalf')} body={t('guideSignalHalfBody')} />
+          <Bullet label={t('guideSignalPoint')} body={t('guideSignalPointBody')} />
+          <Bullet label={t('guideSignalTimeout')} body={t('guideSignalTimeoutBody')} />
+          <Bullet label={t('guideSignalCall')} body={t('guideSignalCallBody')} />
         </ul>
       </Card>
 

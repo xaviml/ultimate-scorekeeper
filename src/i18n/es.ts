@@ -228,6 +228,7 @@ export const es: typeof en = {
   signal_retracted: 'Retirada',
 
   // Mensajes a gritar (verde) — las palabras exactas, junto a la señal
+  say_startSoon: '«¡Un minuto para empezar!»',
   say_gameOn: '«¡Game on!»',
   say_secondHalf: '«¡Segunda parte — game on!»',
   say_score: '«¡{a} {as}, {b} {bs}!»',
@@ -237,7 +238,8 @@ export const es: typeof en = {
   say_scoreCorrection: '«¡Corrección — {a} {as}, {b} {bs}!»',
   say_discIn: '«¡Disco dentro!»',
   say_timeout: '«¡Tiempo muerto, {team}!»',
-  say_timeIn: '«¡Tiempo — 20 segundos!»',
+  say_timeIn: '«¡Tiempo — se reinicia la cuenta del saque!»',
+  say_playRestart: '«¡Juego — disco en juego!»',
   say_injury: '«¡Lesión — paren el juego!»',
   say_technicalStoppage: '«¡Parada de juego!»',
   say_spirit: '«¡Parada de espíritu!»',
@@ -269,8 +271,16 @@ export const es: typeof en = {
     'Los equipos se están alineando. Pulsa «Pull lanzado» en el momento del lanzamiento.',
   now_discInPlay: 'Disco en juego. Toca el panel del equipo cuando anote en la zona contraria.',
   now_timeout: 'Tiempo muerto en curso. Termina solo, o pulsa «Fin del tiempo muerto».',
+  now_toReady30:
+    'El tiempo muerto acaba — 30 segundos para que el ataque esté listo. Un silbato a los 30.',
+  now_toReady15: '15 segundos para que el ataque esté listo. Dos silbatos al agotarse el tiempo.',
+  now_toReady0: 'El ataque debería estar listo — tres silbatos y el disco entra en juego.',
   now_halftime:
     'Descanso. Se reanuda solo cuando termine el tiempo, o pulsa «Fin del descanso» si ambos equipos están listos antes.',
+  now_halftimeWarn:
+    'Un minuto para la segunda parte. Un silbato — los equipos deberían ir preparándose.',
+  now_callWait:
+    'Jugada sin resolver — tres silbatos ahora, y otra vez cada 15 segundos hasta que se resuelva.',
   now_paused: 'Parada de espíritu. Reloj pausado — pulsa «Reanudar partido» para continuar.',
   now_pauseManual: 'Partido pausado. Reloj detenido — pulsa «Reanudar partido» para continuar.',
   now_stoppageClockStopped:
@@ -420,6 +430,8 @@ export const es: typeof en = {
   guideTour6:
     'Los tiempos muertos de cada equipo, con los que les quedan. En el centro: registrar un evento, abrir el historial y la lista de jugadores si el registro de jugadores está activado.',
   guideTour7: 'La barra de ayuda: qué cantar y qué hacer. Ver el paso 6.',
+  guideTour8:
+    'El pequeño botón de pausa junto al reloj del partido. Todo lo demás —un tiempo muerto, el half, una falta— ya funciona sin pararlo; pulsa esto solo para los casos extraordinarios que pregunta la confirmación: una parada de SOTG, una parada técnica del torneo, una parada prolongada o mal tiempo. El reloj se para en cuanto confirmas, y sigue parado hasta que reanudas.',
 
   guideStep5Title: 'Jugar un punto',
   guideStep5Body:
@@ -447,6 +459,22 @@ export const es: typeof en = {
   guideStep6Signal: 'El dibujo que aparece',
   guideStep6SignalBody:
     'Una tarjeta pequeña sobre los paneles del marcador muestra la señal oficial que hay que hacer con las manos mientras anuncias. Desaparece sola y nunca se traga un toque destinado al panel de debajo.',
+
+  guideSignalsTitle: 'Cuándo pita la app',
+  guideSignalsIntro:
+    'El silbato es como mantienes a los jugadores al tanto del tiempo. La app pita por ti — y muestra la tarjeta de silbato en ese mismo momento — exactamente en estas cuatro situaciones, y en ninguna más. Pita tú también para acompañar, con el número de pitidos que te indica.',
+  guideSignalHalf: 'El inicio de una parte',
+  guideSignalHalfBody:
+    'Un pitido en el instante en que empieza una parte — el primer pull del partido y el inicio de la segunda parte. Como aviso, también pitas una vez un minuto antes, pero solo cuando hay una espera de la que avisar: una hora de inicio programada o un descanso de dos minutos o más.',
+  guideSignalPoint: 'Antes de cada pull',
+  guideSignalPointBody:
+    'Tras un gol, mientras los equipos se colocan: un pitido a los 45 segundos, dos a los 60 y tres a los 75 — el pull debe lanzarse ya.',
+  guideSignalTimeout: 'El final de un tiempo muerto',
+  guideSignalTimeoutBody:
+    'Un tiempo muerto pedido antes del pull: un pitido cuando termina, y luego arranca de cero la cuenta normal de 45/60/75. Un tiempo muerto pedido después del pull: una cuenta atrás hasta volver al juego — un aviso 30 segundos antes, un pitido a los 15, dos cuando el ataque debería estar listo y tres cuando el disco entra en juego.',
+  guideSignalCall: 'Una jugada que se alarga',
+  guideSignalCallBody:
+    'Cuando una falta, un pick, un travel, un stall, un fuera de juego, un disco caído o una jugada genérica — o una lesión o parada técnica — sigue sin resolverse a los 45 segundos: tres pitidos, y tres más cada 15 segundos hasta que se resuelva.',
 
   guideStep7Title: 'Ratio de género (solo en mixto)',
   guideStep7Body:

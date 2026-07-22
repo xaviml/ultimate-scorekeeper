@@ -227,6 +227,7 @@ export const ca: typeof en = {
   signal_retracted: 'Retirada',
 
   // Missatges per cridar (verd) — les paraules exactes, junt amb el senyal
+  say_startSoon: '«Un minut per començar!»',
   say_gameOn: '«Game on!»',
   say_secondHalf: '«Segona part — game on!»',
   say_score: '«{a} {as}, {b} {bs}!»',
@@ -236,7 +237,8 @@ export const ca: typeof en = {
   say_scoreCorrection: '«Correcció — {a} {as}, {b} {bs}!»',
   say_discIn: '«Disc dins!»',
   say_timeout: '«Temps mort, {team}!»',
-  say_timeIn: '«Temps — 20 segons!»',
+  say_timeIn: '«Temps — es reinicia el compte del servei!»',
+  say_playRestart: '«Joc — disc en joc!»',
   say_injury: '«Lesió — atureu el joc!»',
   say_technicalStoppage: '«Aturada de joc!»',
   say_spirit: "«Aturada d'esperit!»",
@@ -266,8 +268,15 @@ export const ca: typeof en = {
   now_awaitingPull: "Els equips s'estan alineant. Prem «Pull llançat» en el moment del llançament.",
   now_discInPlay: "Disc en joc. Toca el panell de l'equip quan anoti a la zona contrària.",
   now_timeout: 'Temps mort en curs. Acaba sol, o prem «Fi del temps mort».',
+  now_toReady30: "El temps mort s'acaba — 30 segons perquè l'atac estigui llest. Un xiulet als 30.",
+  now_toReady15: "15 segons perquè l'atac estigui llest. Dos xiulets quan s'esgoti el temps.",
+  now_toReady0: "L'atac hauria d'estar llest — tres xiulets i el disc entra en joc.",
   now_halftime:
     "Descans. Es reprèn sol quan s'acabi el temps, o prem «Fi del descans» si tots dos equips estan llestos abans.",
+  now_halftimeWarn:
+    "Un minut per a la segona part. Un xiulet — els equips haurien d'anar-se preparant.",
+  now_callWait:
+    'Jugada sense resoldre — tres xiulets ara, i un altre cop cada 15 segons fins que es resolgui.',
   now_paused: "Aturada d'esperit. Rellotge en pausa — prem «Reprendre partit» per continuar.",
   now_pauseManual: 'Partit en pausa. Rellotge aturat — prem «Reprendre partit» per continuar.',
   now_stoppageClockStopped:
@@ -415,6 +424,8 @@ export const ca: typeof en = {
   guideTour6:
     'Els temps morts de cada equip, amb els que els queden. Al mig: registrar un esdeveniment, obrir el registre i la llista de jugadors si el registre de jugadors està activat.',
   guideTour7: "La barra d'ajuda: què cantar i què fer. Mira el pas 6.",
+  guideTour8:
+    "El petit botó de pausa al costat del rellotge del partit. Tota la resta —un temps mort, el half, una falta— ja funciona sense aturar-lo; prem això només per als casos extraordinaris que pregunta la confirmació: una aturada de SOTG, una aturada tècnica del torneig, una aturada prolongada o mal temps. El rellotge s'atura en el moment que confirmes, i queda aturat fins que reprens.",
 
   guideStep5Title: 'Jugar un punt',
   guideStep5Body:
@@ -442,6 +453,22 @@ export const ca: typeof en = {
   guideStep6Signal: 'El dibuix que apareix',
   guideStep6SignalBody:
     "Una targeta petita sobre els panells del marcador mostra el senyal oficial que has de fer amb les mans mentre anuncies. Desapareix sola i mai no s'empassa un toc destinat al panell de sota.",
+
+  guideSignalsTitle: "Quan xiula l'app",
+  guideSignalsIntro:
+    "El xiulet és com mantens els jugadors al corrent del temps. L'app xiula per tu — i mostra la targeta de xiulet en aquell mateix moment — exactament en aquestes quatre situacions, i en cap més. Xiula tu també per acompanyar, amb el nombre de xiulets que t'indica.",
+  guideSignalHalf: "L'inici d'una part",
+  guideSignalHalfBody:
+    "Un xiulet en l'instant en què comença una part — el primer pull del partit i l'inici de la segona part. Com a avís, també xiules un cop un minut abans, però només quan hi ha una espera de la qual avisar: una hora d'inici programada o un descans de dos minuts o més.",
+  guideSignalPoint: 'Abans de cada pull',
+  guideSignalPointBody:
+    "Després d'un gol, mentre els equips es col·loquen: un xiulet als 45 segons, dos als 60 i tres als 75 — el pull s'ha de llançar ja.",
+  guideSignalTimeout: "El final d'un temps mort",
+  guideSignalTimeoutBody:
+    "Un temps mort demanat abans del pull: un xiulet quan acaba, i després arrenca de zero el compte normal de 45/60/75. Un temps mort demanat després del pull: un compte enrere fins a tornar al joc — un avís 30 segons abans, un xiulet als 15, dos quan l'atac hauria d'estar llest i tres quan el disc entra en joc.",
+  guideSignalCall: "Una jugada que s'allarga",
+  guideSignalCallBody:
+    'Quan una falta, un pick, un travel, un stall, un fora de joc, un disc caigut o una jugada genèrica — o una lesió o aturada tècnica — segueix sense resoldre als 45 segons: tres xiulets, i tres més cada 15 segons fins que es resolgui.',
 
   guideStep7Title: 'Ràtio de gènere (només en mixt)',
   guideStep7Body:

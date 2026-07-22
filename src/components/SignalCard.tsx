@@ -1,6 +1,7 @@
 import { useT } from '../i18n/useT';
 import { useTransientKey } from '../hooks/useTransientKey';
 import { useGame } from '../state/gameHooks';
+import { currentWhistle } from '../state/whistleSignal';
 import type { GameState } from '../state/types';
 
 type SignalArt = { file: string; caption: string };
@@ -17,19 +18,12 @@ const VISIBLE_MS = 7000;
  * message — or `null` when that message has no signal to make.
  *
  * Only messages that map to a real WFDF pictogram return one. Plenty don't: a
- * turnover, a pull, a score correction, a game start etc. are recorded or
- * announced but never hand-signalled by a scorekeeper, so they show no picture.
- * `file` is a basename under `public/signals/`; `caption` is an i18n key.
+ * turnover, a score correction, a cap etc. are recorded or announced but never
+ * hand-signalled by a scorekeeper, so they show no picture. Every *whistle* comes
+ * from `currentWhistle` (see SignalCard below), so this handles only the non-whistle
+ * signals. `file` is a basename under `public/signals/`; `caption` is an i18n key.
  */
 function currentSignal(state: GameState): Signal | null {
-  // The app blows the whistle during the pull countdown (1/2/3 blasts at 45/60/75s);
-  // cue the volunteer to whistle too. Keyed per blast so each one re-shows the dialog.
-  if (state.status === 'awaitingPull' && state.secondary?.kind === 'pull') {
-    const s = state.secondary.seconds;
-    const blast = s >= 75 ? 75 : s >= 60 ? 60 : s >= 45 ? 45 : null;
-    if (blast !== null) return { key: `pull${blast}`, ...WHISTLE };
-  }
-
   // Mixed gender ratio: WFDF has a distinct signal per composition — hands behind
   // head for the 4-men point, arms out to the sides for the 4-women point.
   if (state.assist === 'nextRatio') {
@@ -72,15 +66,10 @@ function currentSignal(state: GameState): Signal | null {
     resolution_accepted: { file: 'uncontested', caption: 'signal_accepted' },
     resolution_contested: { file: 'contest', caption: 'signal_contested' },
     resolution_retracted: { file: 'retracted', caption: 'signal_retracted' },
-    // Half-time has no WFDF hand signal — it's announced verbally only.
-    // The app also whistles to restart after a timeout and on every cap.
-    timeoutOver: WHISTLE,
-    capReached: WHISTLE,
-    capNoneFinishPoint: WHISTLE,
-    capPending: WHISTLE,
-    halfCapReached: WHISTLE,
-    halfCapNone: WHISTLE,
-    halfCapPending: WHISTLE,
+    // No entries for caps or half-time: a cap is announced in the bar but is not a
+    // whistle scenario (no sound, no sign), and half-time has no WFDF hand signal.
+    // Every whistle-and-sign moment (pull, starts, timeout ends, unresolved calls)
+    // is handled by currentWhistle in SignalCard, not from this map.
   };
   const art = map[state.assist];
   // Log counter in the key so a repeat of the same event (two stoppages in a row)
@@ -96,7 +85,13 @@ function currentSignal(state: GameState): Signal | null {
 export function SignalCard() {
   const state = useGame();
   const { t } = useT();
-  const signal = currentSignal(state);
+  // A due whistle always shows its whistle picture (that is the whole point of
+  // sharing currentWhistle with the audio); otherwise fall back to the non-whistle
+  // hand signals. Whichever it is carries an occurrence key for the transient.
+  const whistleNow = currentWhistle(state);
+  const signal: Signal | null = whistleNow
+    ? { key: whistleNow.key, ...WHISTLE }
+    : currentSignal(state);
   // Same lifetime, and the same kind of key, as the call-out in AssistanceBar,
   // so a signal and the words that go with it come and go together.
   const fresh = useTransientKey(signal?.key ?? null, VISIBLE_MS);

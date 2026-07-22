@@ -2,6 +2,7 @@ import { useEffect, useReducer, useRef, type ReactNode } from 'react';
 import { createInitialState, gameReducer } from './gameReducer';
 import { DispatchCtx, StateCtx } from './gameHooks';
 import { whistle } from '../audio/whistle';
+import { currentWhistle } from './whistleSignal';
 import { loadPersistedState, persistState } from './persistence';
 import { saveTeam } from './rosterStorage';
 
@@ -64,54 +65,30 @@ export function GameProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(id);
   }, [state.phase]);
 
-  // Scheduled-kickoff whistle: a single blast the moment a configured starting
-  // time arrives and the reducer auto-opens the pull. A game started directly
-  // (no starting time, or PULL_THROWN reachable right away) never passes through
-  // 'awaitingStart', so it never gets this whistle.
-  const wasAwaitingStart = useRef(state.status === 'awaitingStart');
+  // Every whistle the app blows comes from one place — currentWhistle — so the audio
+  // here and the hand-signal in SignalCard can never drift apart (each whistle is
+  // guaranteed to show its sign). It returns an occurrence key that is stable while a
+  // blast is current and changes when a new one falls due; the ref plays each once.
+  // The baseline is seeded from the mounted state's key, not null, so a reload from
+  // sessionStorage mid-occurrence (e.g. mid-pull-window) doesn't replay a stale blast.
+  const lastWhistleKey = useRef(currentWhistle(state)?.key ?? null);
   useEffect(() => {
-    if (wasAwaitingStart.current && state.status !== 'awaitingStart') whistle(1);
-    wasAwaitingStart.current = state.status === 'awaitingStart';
-  }, [state.status]);
+    const w = currentWhistle(state);
+    if (w && w.key !== lastWhistleKey.current) whistle(w.blasts);
+    lastWhistleKey.current = w?.key ?? null;
+  }, [state]);
 
-  // Pull-time whistle sequence: 1x @45s, 2x @60s, 3x @75s.
-  const pullSec = state.secondary?.kind === 'pull' ? state.secondary.seconds : null;
-  useEffect(() => {
-    if (pullSec === 45) whistle(1);
-    if (pullSec === 60) whistle(2);
-    if (pullSec === 75) whistle(3);
-  }, [pullSec]);
-
-  // Timeout / half-time end whistle + auto-resume when the break timer hits 0.
+  // Auto-resume when a break timer hits 0. Re-running on every status change is
+  // deliberate: it retries ending the break if it ran out while the game was paused.
+  // The whistle for the restart is handled by currentWhistle above, not here.
   const breakDone =
     (state.secondary?.kind === 'timeout' || state.secondary?.kind === 'halftime') &&
     state.secondary.seconds === 0;
-  // Re-running on every status change is deliberate: it retries ending the break if
-  // it ran out while the game was paused. But the whistle must not retry with it, so
-  // it is latched to fire once per break and re-armed when the next one starts.
-  const breakWhistled = useRef(false);
   useEffect(() => {
-    if (!breakDone) {
-      breakWhistled.current = false;
-      return;
-    }
-    if (!breakWhistled.current) {
-      whistle(2);
-      breakWhistled.current = true;
-    }
+    if (!breakDone) return;
     if (state.status === 'timeout') dispatch({ type: 'TIMEOUT_END' });
     if (state.status === 'halftime') dispatch({ type: 'HALFTIME_END' });
   }, [breakDone, state.status]);
-
-  // Cap whistles. The baseline is whatever the provider mounted with, not 0: state is
-  // restored from sessionStorage, so a reload of a game whose caps have already fired
-  // would otherwise replay their whistle. Only a cap reached during play whistles.
-  const capCount = (state.timeCapReached ? 1 : 0) + (state.halfTimeCapReached ? 1 : 0);
-  const prevCaps = useRef(capCount);
-  useEffect(() => {
-    if (state.phase === 'game' && capCount > prevCaps.current) whistle(3);
-    prevCaps.current = capCount;
-  }, [capCount, state.phase]);
 
   // Keep the screen awake during a game: locking the phone suspends timers and
   // audio, silently breaking the pull/timeout/cap whistles. The lock is released

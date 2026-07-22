@@ -26,9 +26,10 @@ export function whistle(times: 1 | 2 | 3): void {
   const blast = () => {
     const a = audio();
     a.currentTime = 0;
-    a.play().catch(() => {
-      /* placeholder URL / autoplay policy: fail silently */
-    });
+    // Older browsers (and jsdom in tests) return undefined instead of a Promise, so
+    // guard before calling .catch. Autoplay policy / placeholder URL: fail silently.
+    const p = a.play() as Promise<void> | undefined;
+    if (p && typeof p.catch === 'function') p.catch(() => {});
     played += 1;
     pending = played < times ? setTimeout(blast, 700) : null;
   };

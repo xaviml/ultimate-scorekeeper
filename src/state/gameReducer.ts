@@ -116,7 +116,7 @@ export function createInitialState(config: GameConfig = defaultConfig): GameStat
     startingAtMs: null,
     pointStartSeconds: null,
     secondary: null,
-    pausedPullSeconds: null,
+    startWarned: false,
     timeoutsUsed: { A: { half1: 0, half2: 0 }, B: { half1: 0, half2: 0 } },
     timeoutTeam: null,
     cappedTarget: null,
@@ -391,7 +391,16 @@ export function gameReducer(state: GameState, action: Action): GameState {
       // should prevent this, but the wall clock keeps moving while it's open)
       // starts play immediately instead of waiting forever.
       if (startingAtMs !== null && startingAtMs > Date.now()) {
-        return { ...init, status: 'awaitingStart', startingAtMs, assist: 'awaitingGameStart' };
+        // A kickoff already under a minute away is too soon for the one-minute-to-start
+        // whistle (scenario 1a) to be meaningful — seed startWarned so it never fires.
+        const startWarned = startingAtMs - Date.now() <= 60_000;
+        return {
+          ...init,
+          status: 'awaitingStart',
+          startingAtMs,
+          startWarned,
+          assist: 'awaitingGameStart',
+        };
       }
       return beginPlay(init);
     }
@@ -629,41 +638,38 @@ export function gameReducer(state: GameState, action: Action): GameState {
       else u.half2 += 1;
       used[action.team] = u;
       const s = log(state, 'timeout', action.team);
-      const pausedPullSeconds =
-        state.status === 'awaitingPull' && state.secondary?.kind === 'pull'
-          ? state.secondary.seconds
-          : state.pausedPullSeconds;
+      // A timeout taken after the pull (disc live) follows the WFDF restart sequence:
+      // it runs the configured duration PLUS 15 s, blowing the graduated warnings on
+      // the way (see currentWhistle), before the disc goes live again. Taken before
+      // the pull, it just runs the plain duration; the pull clock then restarts at 0.
+      const afterPull = state.status === 'live';
+      const duration = state.config.timeouts.durationSeconds;
+      const total = afterPull ? duration + 15 : duration;
       return {
         ...s,
         status: 'timeout',
         statusBeforePause: state.status,
         timeoutTeam: action.team,
         timeoutsUsed: used,
-        pausedPullSeconds,
-        secondary: {
-          kind: 'timeout',
-          seconds: state.config.timeouts.durationSeconds,
-          total: state.config.timeouts.durationSeconds,
-        },
+        secondary: { kind: 'timeout', seconds: total, total, afterPull },
         assist: 'timeoutRunning',
       };
     }
 
     case 'TIMEOUT_END': {
       if (state.status !== 'timeout') return state;
-      const back = state.statusBeforePause ?? 'live';
       const s = log(state, 'timeoutEnd', state.timeoutTeam ?? undefined);
+      // After-pull: the disc goes straight back into play (3-whistle restart).
+      // Before-pull: back to awaiting the pull, and the pull clock RESTARTS at 0 so
+      // the standard 45/60/75 pre-pull sequence runs fresh (1-whistle "time in").
+      const beforePull = state.statusBeforePause === 'awaitingPull';
       return {
         ...s,
-        status: back,
+        status: beforePull ? 'awaitingPull' : 'live',
         statusBeforePause: null,
         timeoutTeam: null,
-        pausedPullSeconds: null,
-        secondary:
-          back === 'awaitingPull'
-            ? { kind: 'pull', seconds: state.pausedPullSeconds ?? 0, total: 75 }
-            : null,
-        assist: 'timeoutOver',
+        secondary: beforePull ? { kind: 'pull', seconds: 0, total: 75 } : null,
+        assist: beforePull ? 'timeoutOver' : 'timeoutRestart',
       };
     }
 
@@ -752,7 +758,12 @@ export function gameReducer(state: GameState, action: Action): GameState {
       const s = log(state, 'call', action.team, undefined, { callKind: action.kind });
       return {
         ...s,
-        pendingCall: { kind: action.kind, team: action.team, startedAtSeconds: s.gameSeconds },
+        pendingCall: {
+          kind: action.kind,
+          team: action.team,
+          startedAtSeconds: s.gameSeconds,
+          elapsedSeconds: 0,
+        },
         assist: `call_${action.kind}`,
       };
     }
@@ -829,6 +840,18 @@ export function gameReducer(state: GameState, action: Action): GameState {
     case 'TICK': {
       if (state.phase !== 'game') return state;
       let s = state;
+      // One-minute-to-start whistle for a scheduled kickoff (scenario 1a). Skipped
+      // when the kickoff was already under a minute away at START_GAME (startWarned
+      // seeded true there), so a near-immediate start never warns.
+      if (
+        s.status === 'awaitingStart' &&
+        s.startingAtMs !== null &&
+        !s.startWarned &&
+        Date.now() >= s.startingAtMs - 60_000 &&
+        Date.now() < s.startingAtMs
+      ) {
+        s = { ...s, startWarned: true, assist: 'startWarning' };
+      }
       // Scheduled kickoff reached: open the pull exactly as START_GAME would have
       // if no starting time had been configured.
       if (s.status === 'awaitingStart' && s.startingAtMs !== null && Date.now() >= s.startingAtMs) {
@@ -889,6 +912,16 @@ export function gameReducer(state: GameState, action: Action): GameState {
             assist: 'stoppageClockStopped',
           };
         }
+      }
+      // Pending call bookkeeping: elapsedSeconds counts every tick independent of the
+      // game clock (an SOTG pause mid-dispute must not stall it), driving the 45 s /
+      // every-15 s "still unresolved" whistle. The resolution duration shown in the
+      // log is measured separately off the game clock in CALL_RESOLVED.
+      if (s.pendingCall !== null) {
+        s = {
+          ...s,
+          pendingCall: { ...s.pendingCall, elapsedSeconds: s.pendingCall.elapsedSeconds + 1 },
+        };
       }
       // Secondary timer
       if (s.secondary) {
