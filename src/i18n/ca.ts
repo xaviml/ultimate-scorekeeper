@@ -364,7 +364,7 @@ export const ca: typeof en = {
     "El marcador objectiu i quants minuts dura el partit. El rellotge corre des del primer pull fins al final i no s'atura ni als temps morts ni al half.",
   guideStep3Cap: 'CAP',
   guideStep3CapBody:
-    'Què passa quan s\'acaba el temps. "CAP +1" fixa un objectiu nou un punt per sobre del que va guanyant: amb 9–7, el partit passa a ser a 10. "Sense CAP" simplement acaba el punt que s\'està jugant. El CAP condicional només afegeix aquest punt extra si els equips segueixen a prop. No ho has de calcular mai tu: l\'aplicació xiula, mostra l\'objectiu nou i et dóna les paraules que has de cantar.',
+    "Què passa quan s'acaba el temps, i mai passa a mig punt. Suposem que el marcador va 9–7 quan s'arriba al límit de temps: el punt que s'està jugant s'acaba primer, exactament com si no hi hagués CAP. Només quan aquell punt acaba s'aplica el CAP, sobre el marcador que hi hagi en aquell moment. Si acaba 10–7, \"CAP +1\" fixa l'objectiu en el marcador nou del que va guanyant més un: un partit a 11, no a 10. \"Sense CAP\" simplement acaba el partit allà, en 10–7. El CAP condicional només afegeix aquest punt extra si els dos marcadors segueixen prou a prop un cop acabat el punt. No ho has de calcular mai tu: l'aplicació xiula quan s'acaba el temps, espera que acabi el punt i llavors et mostra l'objectiu nou i et dóna les paraules que has de cantar.",
   guideStep3Half: 'Half',
   guideStep3HalfBody:
     'Les mateixes tres coses per a la primera part: el marcador que activa el half, el seu propi límit de temps i el seu propi CAP, a més de quant dura el descans.',
@@ -432,7 +432,7 @@ export const ca: typeof en = {
     "L'aplicació canta el half sola tan bon punt un equip arriba al marcador del half, i mai al mig d'un punt. El descans és un compte enrere; prem \"Fi del descans\" si els dos equips estan llestos abans. Després els equips canvien de banda i l'aplicació t'ho diu.",
   guideStep8Cap: 'CAP',
   guideStep8CapBody:
-    "Quan s'arriba al límit de temps l'aplicació xiula, calcula l'objectiu nou, el mostra en una etiqueta i et dóna la frase que has de cantar. No hi ha res a calcular.",
+    "Quan s'arriba al límit de temps l'aplicació xiula, però l'objectiu encara no es fixa: el punt que s'està jugant s'acaba primer, exactament com si no hi hagués CAP. Només llavors calcula l'objectiu nou a partir d'aquell marcador ja acabat, el mostra en una etiqueta i et dóna la frase que has de cantar. No hi ha res a calcular.",
   guideStep8Universe: 'Punt universal',
   guideStep8UniverseBody:
     'Quan el gol següent guanya el partit, apareix un avís i la barra et dóna el cant. Anuncia-ho: els dos equips ho volen saber.',

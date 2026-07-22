@@ -370,7 +370,7 @@ export const en = {
     'The target score, and how many minutes the game lasts. The clock runs from the first pull to the end of the game and does not stop for timeouts or half-time.',
   guideStep3Cap: 'CAP',
   guideStep3CapBody:
-    'What happens when the time runs out. "CAP +1" sets a new target one point above the leader: at 9–7 the game becomes a game to 10. "No CAP" just finishes the point being played. The conditional CAP only adds the extra point if the teams are still close. You never have to work this out yourself — the app whistles, shows the new target and gives you the words to shout.',
+    'What happens when time runs out — and it never happens mid-point. Say the score is 9–7 when the time limit is reached: the point already in progress is played to its finish first, exactly as if there were no cap. Only once that point ends does the cap apply, to whatever the score is by then. If it finishes 10–7, "CAP +1" sets the target to the leader\'s new score plus one — a game to 11, not 10. "No CAP" just ends the game there, at 10–7. The conditional CAP only adds that extra point if the two scores are still close enough once the point is over. You never have to work this out yourself — the app whistles when time is up, waits for the point to finish, then shows the new target and gives you the words to shout.',
   guideStep3Half: 'Half-time',
   guideStep3HalfBody:
     'The same three things again for the first half: the score that triggers half-time, its own time limit and its own cap, plus how long the break lasts.',
@@ -440,7 +440,7 @@ export const en = {
     'The app calls half-time by itself as soon as a team reaches the half score, and never in the middle of a point. The break is a countdown; press "End half-time" if both teams are ready sooner. Afterwards the teams swap ends and the app tells you so.',
   guideStep8Cap: 'Caps',
   guideStep8CapBody:
-    'When the time limit is reached the app whistles, works out the new target, shows it as a chip and gives you the sentence to shout. There is nothing to calculate.',
+    'When the time limit is reached the app whistles, but the target is not fixed yet — the point already being played finishes first, exactly as if there were no cap. Only then does the app work out the new target from that finished score, show it as a chip and give you the sentence to shout. There is nothing to calculate.',
   guideStep8Universe: 'Universe point',
   guideStep8UniverseBody:
     'When the next goal wins the game, a badge says so and the bar gives you the call. Announce it — both teams want to know.',

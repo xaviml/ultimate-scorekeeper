@@ -367,7 +367,7 @@ export const es: typeof en = {
     'El marcador objetivo y cuántos minutos dura el partido. El reloj corre desde el primer pull hasta el final y no se para ni en los tiempos muertos ni en el half.',
   guideStep3Cap: 'CAP',
   guideStep3CapBody:
-    'Qué pasa cuando se acaba el tiempo. "CAP +1" fija un objetivo nuevo un punto por encima del que va ganando: con 9–7, el partido pasa a ser a 10. "Sin CAP" simplemente termina el punto que se está jugando. El CAP condicional solo añade ese punto extra si los equipos siguen cerca. Nunca tienes que calcularlo tú: la aplicación pita, muestra el objetivo nuevo y te da las palabras que cantar.',
+    'Qué pasa cuando se acaba el tiempo, y nunca pasa a mitad de un punto. Supón que el marcador va 9–7 cuando se llega al límite de tiempo: el punto que se está jugando se termina primero, exactamente como si no hubiera CAP. Solo cuando ese punto acaba se aplica el CAP, sobre el marcador que haya en ese momento. Si acaba 10–7, "CAP +1" fija el objetivo en el marcador nuevo del que va ganando más uno: un partido a 11, no a 10. "Sin CAP" simplemente termina el partido ahí, en 10–7. El CAP condicional solo añade ese punto extra si los dos marcadores siguen lo bastante cerca una vez terminado el punto. Nunca tienes que calcularlo tú: la aplicación pita cuando se acaba el tiempo, espera a que termine el punto y entonces te muestra el objetivo nuevo y te da las palabras que cantar.',
   guideStep3Half: 'Half',
   guideStep3HalfBody:
     'Las mismas tres cosas para la primera parte: el marcador que activa el half, su propio límite de tiempo y su propio CAP, además de cuánto dura el descanso.',
@@ -437,7 +437,7 @@ export const es: typeof en = {
     'La aplicación canta el half sola en cuanto un equipo llega al marcador del half, y nunca en mitad de un punto. El descanso es una cuenta atrás; pulsa "Fin del descanso" si los dos equipos están listos antes. Después los equipos cambian de lado y la aplicación te lo dice.',
   guideStep8Cap: 'CAP',
   guideStep8CapBody:
-    'Cuando se llega al límite de tiempo la aplicación pita, calcula el objetivo nuevo, lo muestra en una etiqueta y te da la frase que cantar. No hay nada que calcular.',
+    'Cuando se llega al límite de tiempo la aplicación pita, pero el objetivo aún no se fija: el punto que se está jugando termina primero, exactamente como si no hubiera CAP. Solo entonces calcula el objetivo nuevo a partir de ese marcador ya terminado, lo muestra en una etiqueta y te da la frase que cantar. No hay nada que calcular.',
   guideStep8Universe: 'Punto universal',
   guideStep8UniverseBody:
     'Cuando el siguiente gol gana el partido, aparece un aviso y la barra te da el cántico. Anúncialo: los dos equipos quieren saberlo.',
