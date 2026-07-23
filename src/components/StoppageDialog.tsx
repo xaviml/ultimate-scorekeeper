@@ -9,17 +9,28 @@ import { contrastText, secondaryButton } from './ui';
 type Step = 'kind' | 'injuryPlayers' | 'technicalTeam';
 
 /**
- * "Stoppage" groups the two things that halt play without a call to dispute: an
- * injury (optionally attributed to a player) and a technical stoppage — equipment,
- * outside interference and the like (optionally attributed to a team, but never a
- * player: nobody caused it). This dialog asks which kind first, then only shows
- * the attribution step that kind actually needs.
+ * The three answers to "play is halting, why?": an injury (optionally attributed
+ * to a player), a technical stoppage — equipment, outside interference and the
+ * like (optionally attributed to a team, but never a player: nobody caused it) —
+ * and an SOTG stoppage. This dialog asks which kind first, then only shows the
+ * attribution step that kind actually needs; SOTG needs none and dispatches on
+ * the spot.
+ *
+ * SOTG is the odd one of the three in that it stops the game clock immediately,
+ * while an injury or technical stoppage leaves it running until the reducer's
+ * two-minute rule auto-pauses it. They are grouped anyway because from the
+ * volunteer's side the question is the same one, and the hint says which is which.
  */
 export function StoppageDialog({ onClose }: { onClose: () => void }) {
   const state = useGame();
   const dispatch = useGameDispatch();
   const { t } = useT();
   const [step, setStep] = useState<Step>('kind');
+  // Nothing has happened yet for an injury or a technical stoppage to describe
+  // while the teams are still lining up — the reducer refuses both before the
+  // pull (canRecordEvent's requiresPull). SOTG is exempt: the two teams can call
+  // a spirit stoppage between points, and SOTG_TOGGLE allows it.
+  const pullBlocked = state.status === 'awaitingPull';
   // Exactly one player is injured, so a pick in one team's section clears the other's.
   const [selected, setSelected] = useState<{ team: TeamId; playerId: string } | null>(null);
 
@@ -46,6 +57,13 @@ export function StoppageDialog({ onClose }: { onClose: () => void }) {
       team: selected?.team,
       playerId: selected?.playerId,
     });
+    onClose();
+  };
+
+  // SOTG attributes nothing to anyone — it is a stoppage the two teams call on
+  // themselves — so there is no second step to show.
+  const chooseSotg = () => {
+    dispatch({ type: 'SOTG_TOGGLE' });
     onClose();
   };
 
@@ -106,14 +124,26 @@ export function StoppageDialog({ onClose }: { onClose: () => void }) {
   return (
     <Modal title={t('stoppageDialogTitle')} onClose={onClose} size="sm">
       <p className="text-xs text-chalk/50">{t('stoppageDialogHint')}</p>
-      <div className="grid grid-cols-2 gap-3">
-        <button className={secondaryButton} onClick={() => chooseKind('injury')}>
+      <div className="grid grid-cols-3 gap-3">
+        <button
+          className={secondaryButton}
+          disabled={pullBlocked}
+          onClick={() => chooseKind('injury')}
+        >
           {t('stoppageKind_injury')}
         </button>
-        <button className={secondaryButton} onClick={() => chooseKind('technical')}>
+        <button
+          className={secondaryButton}
+          disabled={pullBlocked}
+          onClick={() => chooseKind('technical')}
+        >
           {t('stoppageKind_technical')}
         </button>
+        <button className={secondaryButton} onClick={chooseSotg}>
+          {t('btnSotg')}
+        </button>
       </div>
+      {pullBlocked && <p className="text-xs text-signal">{t('stoppageBlockedPull')}</p>}
       <button className={`${secondaryButton} w-full`} onClick={onClose}>
         {t('btnCancel')}
       </button>

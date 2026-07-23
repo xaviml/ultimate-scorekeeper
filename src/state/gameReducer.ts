@@ -183,16 +183,24 @@ export function canTurnover(state: GameState): { ok: boolean; reason?: string } 
  * included — nothing has happened yet for the marker to call). A free-text
  * note is the one recorded event that never passes it: it isn't about the
  * play, so there's nothing about the pull it needs to wait for.
+ *
+ * `allowDuringBreaks` widens it the other way, and for the same reason: a note
+ * is not about the play, so a timeout or half-time is no reason to refuse it —
+ * a break is exactly when a volunteer has a free hand to jot something down.
+ * Only the note passes this; everything else describes play and still waits for
+ * play to resume.
  */
 export function canRecordEvent(
   state: GameState,
-  opts?: { requiresPull?: boolean },
+  opts?: { requiresPull?: boolean; allowDuringBreaks?: boolean },
 ): { ok: boolean; reason?: string } {
   if (state.phase !== 'game' || state.status === 'awaitingStart' || state.status === 'notStarted')
     return { ok: false, reason: 'gameNotStarted' };
   if (state.status === 'finished') return { ok: false, reason: 'gameFinished' };
-  if (state.status === 'timeout') return { ok: false, reason: 'timeoutActive' };
-  if (state.status === 'halftime') return { ok: false, reason: 'halftimeActive' };
+  if (!opts?.allowDuringBreaks) {
+    if (state.status === 'timeout') return { ok: false, reason: 'timeoutActive' };
+    if (state.status === 'halftime') return { ok: false, reason: 'halftimeActive' };
+  }
   if (opts?.requiresPull && state.status === 'awaitingPull')
     return { ok: false, reason: 'pullNotThrown' };
   return { ok: true };
@@ -804,7 +812,10 @@ export function gameReducer(state: GameState, action: Action): GameState {
     }
 
     case 'NOTE': {
-      if (!canRecordEvent(state).ok) return state;
+      // A note is the one recorded event a break in play doesn't block — see
+      // canRecordEvent. It is written from the log dialog, which stays reachable
+      // throughout, so refusing here would silently swallow what was just typed.
+      if (!canRecordEvent(state, { allowDuringBreaks: true }).ok) return state;
       const text = action.text.trim();
       if (!text) return state;
       // A note is written down and nothing more: no signal, no call-out. `assist` still

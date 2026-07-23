@@ -187,18 +187,35 @@ describe('undo', () => {
     expect(s.scores).toEqual({ A: 0, B: 1 });
   });
 
-  it('cannot pick up a stray correction entry from the break, since recording is blocked during half-time', () => {
+  it('undoes the goal cleanly when nothing was recorded during the break', () => {
     const config = cfg({ halfScore: 1 });
     let s = gameReducer(live(config), { type: 'GOAL', team: 'A' });
     expect(s.status).toBe('halftime');
-    const attempted = gameReducer(s, { type: 'NOTE', text: 'checked in with captains' });
-    expect(attempted.log).toBe(s.log); // rejected outright, nothing appended
-    s = gameReducer(attempted, { type: 'UNDO_GOAL', team: 'A' });
-    // Nothing was actually recorded during the break, so this is the same clean
-    // removal as when nothing happens at all between the goal and the undo.
+    s = gameReducer(s, { type: 'UNDO_GOAL', team: 'A' });
     expect(s.log.some((e) => e.type === 'goal')).toBe(false);
     expect(s.log.some((e) => e.type === 'halftimeStart')).toBe(false);
     expect(s.log.some((e) => e.type === 'undo')).toBe(false);
+    expect(s.status).toBe('live');
+    expect(s.halftimePlayed).toBe(false);
+  });
+
+  it('falls back to a visible correction when a note was written during the break', () => {
+    const config = cfg({ halfScore: 1 });
+    let s = gameReducer(live(config), { type: 'GOAL', team: 'A' });
+    expect(s.status).toBe('halftime');
+    // A note is the one thing recordable during a break — the volunteer has a
+    // free hand exactly then, so it must not be swallowed.
+    s = gameReducer(s, { type: 'NOTE', text: 'checked in with captains' });
+    expect(s.log.some((e) => e.type === 'note')).toBe(true);
+
+    s = gameReducer(s, { type: 'UNDO_GOAL', team: 'A' });
+    // Something was logged in between, so this is no longer a silent mis-tap fix:
+    // the goal stays and the undo is recorded on top of it, the same fallback a
+    // timeout called after the goal already produces.
+    expect(s.log.some((e) => e.type === 'undo')).toBe(true);
+    expect(s.log.some((e) => e.type === 'note')).toBe(true);
+    // The score and the half are still rewound — only the log is more talkative.
+    expect(s.scores).toEqual({ A: 0, B: 0 });
     expect(s.status).toBe('live');
     expect(s.halftimePlayed).toBe(false);
   });
@@ -1277,6 +1294,34 @@ describe('recorded events (travel, calls, notes)', () => {
   it('drops an empty note instead of logging a blank row', () => {
     const s = live();
     expect(gameReducer(s, { type: 'NOTE', text: '   ' })).toBe(s);
+  });
+
+  it('records a note during a timeout and half-time, unlike every other event', () => {
+    // A break in play is exactly when a volunteer has a free hand to write
+    // something down, and a note is not about the play, so nothing about the
+    // break makes it premature. Everything else still waits for play to resume.
+    const timeout = gameReducer(live(), { type: 'TIMEOUT_START', team: 'A' });
+    expect(timeout.status).toBe('timeout');
+
+    const noted = gameReducer(timeout, { type: 'NOTE', text: 'sub for #4' });
+    expect(lastLog(noted)).toMatchObject({ type: 'note', detail: 'sub for #4' });
+
+    const halftime = gameReducer(live(cfg({ halfScore: 1 })), { type: 'GOAL', team: 'A' });
+    expect(halftime.status).toBe('halftime');
+    expect(
+      gameReducer(halftime, { type: 'NOTE', text: 'captains talked' }).log.some(
+        (e) => e.type === 'note',
+      ),
+    ).toBe(true);
+
+    // The rest of the recorded events are unchanged: a break is still a break.
+    for (const action of [
+      { type: 'TRAVEL', team: 'A' },
+      { type: 'CALL_MADE', kind: 'foul', team: 'A' },
+      { type: 'STOPPAGE', kind: 'injury', team: 'A' },
+    ] as const) {
+      expect(gameReducer(timeout, action).log).toBe(timeout.log);
+    }
   });
 });
 

@@ -68,8 +68,10 @@ describe('phone back button in a game', () => {
   it('goes straight back to setup with no prompt when the game has not started yet', () => {
     seedNotStartedGame();
     renderApp();
-    // The pre-game screen is up (its bottom control is "Back to setup", not "End game").
-    expect(screen.getByText('Back to setup')).toBeInTheDocument();
+    // The pre-game screen is up: the header's leave control is the back arrow
+    // ("Back to setup"), not the cross it becomes once the game is real.
+    expect(screen.getByLabelText('Back to setup')).toBeInTheDocument();
+    expect(screen.queryByLabelText('End game')).toBeNull();
 
     pressPhoneBack();
 

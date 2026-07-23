@@ -70,39 +70,39 @@ describe('config screen players section', () => {
     renderConfigScreen();
 
     expect(screen.queryByText(TRACK_PLAYERS_LABEL)).toBeNull();
-    expect(screen.getByRole('button', { name: 'Expand Players' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Expand Roster' })).toBeInTheDocument();
   });
 
   it('expands on toggle, showing the roster editors', () => {
     renderConfigScreen();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Players' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
 
     expect(screen.getByText(TRACK_PLAYERS_LABEL)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Collapse Players' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Collapse Roster' })).toBeInTheDocument();
   });
 
   it('stays collapsed on a fresh reload even if it was left expanded last time', () => {
     const { unmount } = renderConfigScreen();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Players' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
     unmount();
 
     // A new render with no BACK_TO_CONFIG in between simulates a reload.
     renderConfigScreen();
 
     expect(screen.queryByText(TRACK_PLAYERS_LABEL)).toBeNull();
-    expect(screen.getByRole('button', { name: 'Expand Players' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Expand Roster' })).toBeInTheDocument();
   });
 
   it('reopens expanded when coming back from the game screen, not a reload', () => {
     renderGameThenBackToConfig();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Players' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
 
     fireEvent.click(screen.getByText('start game'));
     fireEvent.click(screen.getByText('back to config'));
 
     expect(screen.getByText(TRACK_PLAYERS_LABEL)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Collapse Players' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Collapse Roster' })).toBeInTheDocument();
   });
 
   it('stays collapsed coming back from the game screen if it was never expanded', () => {
@@ -112,6 +112,6 @@ describe('config screen players section', () => {
     fireEvent.click(screen.getByText('back to config'));
 
     expect(screen.queryByText(TRACK_PLAYERS_LABEL)).toBeNull();
-    expect(screen.getByRole('button', { name: 'Expand Players' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Expand Roster' })).toBeInTheDocument();
   });
 });

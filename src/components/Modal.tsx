@@ -13,6 +13,7 @@ export function Modal({
   onClose,
   size = 'lg',
   showClose = false,
+  headerAction,
   children,
 }: {
   title?: string;
@@ -20,6 +21,8 @@ export function Modal({
   size?: keyof typeof WIDTHS;
   /** Render an explicit ✕ in the header; backdrop dismissal works either way. */
   showClose?: boolean;
+  /** Control rendered in the header, to the left of the ✕. */
+  headerAction?: ReactNode;
   children: ReactNode;
 }) {
   const { t } = useT();
@@ -46,18 +49,17 @@ export function Modal({
       <div
         className={`bg-panel border border-line rounded-t-2xl sm:rounded-2xl w-full ${WIDTHS[size]} max-h-[85dvh] overflow-y-auto p-5 space-y-4`}
       >
-        {(title || showClose) && (
+        {(title || showClose || headerAction) && (
           <div className="flex justify-between items-center gap-2">
             <h2 className={sectionTitle}>{title}</h2>
-            {showClose && (
-              <button
-                className="text-chalk/60 px-2 shrink-0"
-                onClick={onClose}
-                aria-label={t('close')}
-              >
-                ✕
-              </button>
-            )}
+            <div className="flex items-center gap-1 shrink-0">
+              {headerAction}
+              {showClose && (
+                <button className="text-chalk/60 px-2" onClick={onClose} aria-label={t('close')}>
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
         )}
         {children}

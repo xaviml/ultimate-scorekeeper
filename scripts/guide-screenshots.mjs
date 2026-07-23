@@ -101,6 +101,12 @@ async function main() {
 
   // --- Dashboard ----------------------------------------------------------
   await page.getByRole('button', { name: 'Start game' }).click();
+  // The dashboard opens on 'notStarted' and offers its own Start game button
+  // (BEGIN_PLAY) — leaving the config screen no longer starts the clock, so this
+  // is two taps, not one. Wait for the score panels before the second, or it can
+  // land on the config screen's button again before React has swapped screens.
+  await page.waitForSelector(`button[aria-label^="${TEAM_A}:"]`);
+  await page.getByRole('button', { name: 'Start game' }).click();
   await page.waitForSelector('text=Pull thrown');
   await sleep(1200); // let the pull clock move off 00:00, keep the call-out on screen
 
@@ -116,9 +122,10 @@ async function main() {
     await marker(page.getByRole('button', { name: 'Pull thrown' }), dash, 0.08),
     // The clock row and the button row are wall-to-wall, so these two sit in the
     // only free space each has: the end of the clock's label line, and the gutter
-    // between two buttons.
+    // between two buttons. The action row is pointed at through Call, which sits
+    // in it rather than at either end — the caption names the whole row.
     await marker(gameClockBox, dash, 0.95, 0.18),
-    await marker(page.getByRole('button', { name: 'Record event' }), dash, 1.12),
+    await marker(page.getByRole('button', { name: 'What was called?' }), dash, 1.12),
     await marker(page.locator('div[aria-live=assertive]'), dash, 0.92),
     await marker(page.getByRole('button', { name: 'Pause game' }), dash, 1.4, 0.5),
   ];
@@ -139,10 +146,11 @@ async function main() {
     await marker(panelA, dash, 0.85, 0.8),
   ];
 
-  // --- Record event dialog ------------------------------------------------
+  // --- Call dialog --------------------------------------------------------
+  // Calls are blocked until the pull is thrown, so this has to come after it.
   await page.getByRole('button', { name: 'Pull thrown' }).click();
   await sleep(400);
-  await page.getByRole('button', { name: 'Record event' }).click();
+  await page.getByRole('button', { name: 'What was called?' }).click();
   await page.waitForSelector('text=Stall out');
   await sleep(300);
   await shot('record.png', { clip: dash });

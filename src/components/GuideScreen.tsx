@@ -19,7 +19,7 @@ const FIG_SETUP: readonly Marker[] = [
   [6.9, 48.9],
   [5.8, 59.1],
   [10.1, 84.9],
-  [29.6, 94.6],
+  [28.1, 94.6],
 ];
 const FIG_TOSS: readonly Marker[] = [
   [5.1, 41.8],
@@ -27,19 +27,19 @@ const FIG_TOSS: readonly Marker[] = [
   [5.1, 85.3],
 ];
 const FIG_DASHBOARD: readonly Marker[] = [
-  [28, 3.1],
-  [89, 53],
-  [32.2, 12.3],
-  [10.6, 70.1],
-  [46.7, 76.4],
-  [51.6, 86.3],
+  [28, 2.8],
+  [89, 54.9],
+  [32.1, 11.7],
+  [10.6, 72.6],
+  [46.7, 79],
+  [75.6, 89.5],
   [92, 96.7],
-  [49.5, 79.9],
+  [49.5, 82.5],
 ];
 const FIG_PLAY: readonly Marker[] = [
-  [10.6, 70.1],
-  [15, 23],
-  [42.5, 54.2],
+  [10.6, 72.6],
+  [15, 23.3],
+  [42.5, 56.1],
 ];
 
 /** Public/ assets: built via BASE_URL so they survive the GitHub Pages base path. */
@@ -286,9 +286,11 @@ export default function GuideScreen({ onBack }: { onBack: () => void }) {
           <Bullet body={t('guideStep9Turn')} />
           <Bullet body={t('guideStep9Stoppage')} />
           <Bullet body={t('guideStep9Sotg')} />
-          <Bullet body={t('guideStep9Note')} />
         </ul>
+        {/* Log before Event: the event control lives inside the log dialog, so the
+            list has to be introduced before the thing that sits in its header. */}
         <Para k="guideStep9Log" />
+        <Para k="guideStep9Note" />
       </Card>
 
       <Card step={10} title={t('guideStep10Title')}>

@@ -45,7 +45,7 @@ describe('config screen saved teams', () => {
   it('keeps the roster when a loaded saved team is renamed', () => {
     seedSavedTeams([RAVENS]);
     renderConfigScreen();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Players' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
     loadRavensIntoTeamA();
     expect(screen.getByText('#7 Ana')).toBeInTheDocument();
 
@@ -57,7 +57,7 @@ describe('config screen saved teams', () => {
 
   it('saves the team as soon as "add as a new team" is clicked, without starting a game', () => {
     renderConfigScreen();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Players' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
     fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'Foxes' } });
     fireEvent.change(screen.getAllByPlaceholderText('#')[0], { target: { value: '9' } });
     fireEvent.change(screen.getAllByPlaceholderText('Name')[0], { target: { value: 'Sam' } });
@@ -79,7 +79,7 @@ describe('config screen saved teams', () => {
   it('keeps roster edits to a saved team when the field is switched away and back', () => {
     seedSavedTeams([RAVENS]);
     renderConfigScreen();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Players' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
     // A brand new team, saved from the combobox with an empty roster...
     fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'Foxes' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add "Foxes" as a new team' }));
@@ -101,7 +101,7 @@ describe('config screen saved teams', () => {
 
   it('does not write a roster edit into a team that was never saved', () => {
     renderConfigScreen();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Players' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
     fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'Foxes' } });
     fireEvent.change(screen.getAllByPlaceholderText('#')[0], { target: { value: '9' } });
     fireEvent.change(screen.getAllByPlaceholderText('Name')[0], { target: { value: 'Sam' } });

@@ -19,14 +19,23 @@ import { useLongPress } from '../hooks/useLongPress';
 import type { CallKind, CallResolution, GameState, TeamId } from '../state/types';
 import { AssistanceBar } from './AssistanceBar';
 import { AssistGoalDialog } from './AssistGoalDialog';
+import { CallDialog, type CallChoice } from './CallDialog';
 import { CallTeamDialog } from './CallTeamDialog';
 import { ConfirmEndGameDialog } from './ConfirmEndGameDialog';
 import { ConfirmLeaveGameDialog } from './ConfirmLeaveGameDialog';
 import { ConfirmPauseGameDialog } from './ConfirmPauseGameDialog';
 import { GameLog } from './GameLog';
+import {
+  ArrowBackIcon,
+  CallIcon,
+  CrossIcon,
+  LogIcon,
+  PlayersIcon,
+  StoppageIcon,
+  TurnIcon,
+} from './icons';
 import { NoteDialog } from './NoteDialog';
 import { PlayersDialog } from './PlayersDialog';
-import { RecordEventDialog, type RecordEventChoice } from './RecordEventDialog';
 import { SignalCard } from './SignalCard';
 import { StoppageDialog } from './StoppageDialog';
 import { TravelTeamDialog } from './TravelTeamDialog';
@@ -115,68 +124,48 @@ function timeoutsLeft(state: GameState, team: TeamId): number {
 const utility =
   'rounded-lg bg-panel border border-line px-2 py-2 lscape:px-1 lscape:py-1 text-xs sm:text-sm lscape:text-[9px] font-board uppercase tracking-wide active:scale-95 disabled:opacity-40';
 
-// Tailwind's scanner needs each class name to appear literally in source, so the
-// action row's column count (2 to 5, depending on whether timeouts and player
-// tracking are configured) is looked up rather than interpolated.
-const ACTION_GRID_COLS: Record<number, string> = {
-  2: 'grid-cols-2',
-  3: 'grid-cols-3',
-  4: 'grid-cols-4',
-  5: 'grid-cols-5',
-};
-
-const iconButton = `${utility} flex items-center justify-center`;
-
-// Shared by Log and Record event: the latter is the same list glyph with a
-// "+" badge overlapping its bottom-right corner, since recording an event
-// adds an entry to that same log.
-const LIST_GLYPH_PATH =
-  'M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0z';
-
-function RecordEventIcon() {
+/**
+ * One action-row button: a glyph with a micro-label — a 9px uppercase word small
+ * enough to read as part of the icon rather than as a caption, the same treatment
+ * the clock tile headings already use.
+ *
+ * The two orientations stack it differently on purpose. Portrait is narrow
+ * (~60px a button at 360px wide) and tall, so the label goes underneath.
+ * Landscape is the reverse — `lscape:` is capped on *height*, not width, and
+ * gives each button ~160px — so there the label sits beside the glyph, spending
+ * the axis that is actually free and costing the row no extra height.
+ *
+ * `label` is optional: the stoppage button leaves it off because no single short
+ * word covers injury, technical and SOTG without misleading, so it carries its
+ * meaning in `aria-label`/`title` alone.
+ */
+function ActionButton({
+  icon,
+  label,
+  name,
+  onClick,
+  disabled,
+}: {
+  icon: React.ReactNode;
+  label?: string;
+  /** Accessible name — the full wording, which the micro-label abbreviates. */
+  name: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
   return (
-    <span className="relative inline-flex w-5 h-5 lscape:w-4 lscape:h-4">
-      <svg
-        viewBox="0 0 24 24"
-        className="w-full h-full"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <path d={LIST_GLYPH_PATH} />
-      </svg>
-      <svg
-        viewBox="0 0 24 24"
-        className="absolute -bottom-1 -right-1 w-3 h-3 lscape:w-2.5 lscape:h-2.5 rounded-full bg-panel"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-        aria-hidden="true"
-      >
-        <path d="M12 5v14M5 12h14" />
-      </svg>
-    </span>
-  );
-}
-
-function LogIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="w-5 h-5 lscape:w-4 lscape:h-4"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
+    <button
+      className={`${utility} flex flex-col lscape:flex-row items-center justify-center gap-0.5 lscape:gap-1.5`}
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={name}
+      title={name}
     >
-      <path d={LIST_GLYPH_PATH} />
-    </svg>
+      {icon}
+      {label && (
+        <span className="text-[9px] lscape:text-[10px] leading-none tracking-wide">{label}</span>
+      )}
+    </button>
   );
 }
 
@@ -207,28 +196,20 @@ function PlayIcon() {
   );
 }
 
-function PlayersIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="w-5 h-5 lscape:w-4 lscape:h-4"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0z" />
-    </svg>
-  );
-}
-
 /**
- * Timeout caller, sitting in the action row under the clocks alongside Record event
- * and Log. Tinted with the team colour and showing timeouts remaining — number and
- * icon ordered so the icon always sits toward the middle of the row, the number
- * toward the outer edge.
+ * Timeout caller, parked in the top outer corner of its own team's score panel:
+ * each team's timeout now sits on that team's side of the board, so there is
+ * nothing to work out about which button belongs to whom.
+ *
+ * It is a sibling of the score panels rather than a child, absolutely positioned
+ * over them — ScorePanel is itself a `<button>`, and a button inside a button is
+ * invalid. That also means it does swallow taps in its corner, unlike SignalCard
+ * which is pointer-events-none: intended here, since it *is* a control, which is
+ * why it stays small and hugs the outer edge, well away from where a thumb goes
+ * for the score.
+ *
+ * The remaining count is unchanged from when this lived under the clocks, still
+ * ordered so the icon sits inboard and the number outboard.
  */
 function TimeoutButton({
   team,
@@ -267,8 +248,9 @@ function TimeoutButton({
       disabled={state.status === 'finished'}
       aria-label={label}
       title={label}
-      className={`${utility} flex items-center justify-center gap-1`}
-      style={{ color: cfg.color }}
+      className={`absolute top-2 lscape:top-1 ${
+        side === 'left' ? 'left-2 lscape:left-1' : 'right-2 lscape:right-1'
+      } z-10 flex items-center justify-center gap-1 rounded-lg bg-black/60 border border-white/25 px-2 py-1.5 lscape:px-1.5 lscape:py-1 text-chalk active:scale-95 disabled:opacity-40`}
     >
       {side === 'left' ? (
         <>
@@ -424,10 +406,10 @@ export default function GameScreen() {
   const [showPlayers, setShowPlayers] = useState(false);
   const [showStoppage, setShowStoppage] = useState(false);
   const [showPauseConfirm, setShowPauseConfirm] = useState(false);
-  const [showRecordEvent, setShowRecordEvent] = useState(false);
+  const [showCall, setShowCall] = useState(false);
   const [showNote, setShowNote] = useState(false);
   const [showTravel, setShowTravel] = useState(false);
-  // The call kind chosen in the Record event dialog, waiting on "who called it?".
+  // The call kind chosen in the Call dialog, waiting on "who called it?".
   const [callKind, setCallKind] = useState<CallKind | null>(null);
   // Attacking team captured when the turnover dialog opens, since recording the
   // turnover is what flips possession.
@@ -604,9 +586,16 @@ export default function GameScreen() {
 
   // Turnover only prompts for players when the game is tracking them; otherwise
   // it is logged straight away, with no dialog in the way. A stoppage always
-  // opens its dialog — it needs to ask injury vs. technical either way, and
-  // StoppageDialog itself skips the player picker when rosters aren't in use.
-  const tryStoppage = () => setShowStoppage(true);
+  // opens its dialog — it needs to ask injury vs. technical vs. SOTG either way,
+  // and StoppageDialog itself skips the player picker when rosters aren't in use.
+  const tryStoppage = () => {
+    const check = canRecordEvent(state);
+    if (!check.ok) {
+      flashHint(t(`assist_blocked_${check.reason}` as never));
+      return;
+    }
+    setShowStoppage(true);
+  };
 
   const tryTurnover = () => {
     const check = canTurnover(state);
@@ -618,44 +607,28 @@ export default function GameScreen() {
     else dispatch({ type: 'TURNOVER' });
   };
 
-  // The Record event menu closes on every choice; what happens next depends on the
-  // choice. Turnover and stoppage keep their own guards and player prompts, so they
-  // behave exactly as they did when they were dashboard buttons.
-  const recordEvent = (choice: RecordEventChoice) => {
-    setShowRecordEvent(false);
-    if (choice.type === 'call') {
-      setCallKind(choice.kind);
-      return;
-    }
-    switch (choice.type) {
-      case 'turnover':
-        return tryTurnover();
-      case 'stoppage':
-        return tryStoppage();
-      case 'note':
-        return setShowNote(true);
-      case 'travel':
-        return setShowTravel(true);
-      case 'sotg':
-        return dispatch({ type: 'SOTG_TOGGLE' });
-    }
+  // The Call menu closes on every choice; both branches then ask "who called it?".
+  const chooseCall = (choice: CallChoice) => {
+    setShowCall(false);
+    if (choice.type === 'call') setCallKind(choice.kind);
+    else setShowTravel(true);
   };
 
-  const openRecordEvent = () => {
+  const openCall = () => {
     const check = canRecordEvent(state);
     if (!check.ok) {
       flashHint(t(`assist_blocked_${check.reason}` as never));
       return;
     }
-    setShowRecordEvent(true);
+    setShowCall(true);
   };
 
-  // Whether the Record event launcher itself should be disabled: a call or a
-  // stoppage awaiting resolution, an SOTG stoppage in progress (its own dedicated
-  // "Resume game" button is the one way out), the game having finished, or any
-  // other record-event flow already open — none of these should be interrupted by
-  // starting a second one on top.
-  const recordEventBusy =
+  // Shared by every action-row button that starts a new recorded event: a call or
+  // a stoppage awaiting resolution, an SOTG stoppage in progress (its own
+  // dedicated "Resume game" button is the one way out), the game having finished,
+  // or one of these flows already open — none should be interrupted by starting a
+  // second one on top. Log and Roster are exempt: they only read.
+  const recordBusy =
     state.pendingCall !== null ||
     state.pendingStoppage !== null ||
     paused ||
@@ -663,25 +636,71 @@ export default function GameScreen() {
     showStoppage ||
     showNote ||
     showTravel ||
+    showCall ||
     callKind !== null ||
     turnoverTeam !== null;
+
+  // Between points, nothing has happened yet for a call or a turnover to be about,
+  // so both are disabled outright rather than opening a menu whose every button is
+  // dimmed. The raised hand stays live: an injury and a technical stoppage are
+  // blocked too (StoppageDialog dims them), but an SOTG stoppage can be called
+  // while the teams line up, and it is the one way to stop the clock from here.
+  const pullNotThrown = state.status === 'awaitingPull';
 
   return (
     <div className="h-dvh flex flex-col bg-pitch text-chalk overflow-y-auto">
       {/* Header */}
       <header className="grid grid-cols-3 items-center px-3 py-1.5 lscape:py-0.5 text-sm lscape:text-[11px] bg-panel border-b border-line shrink-0">
-        <span className="font-board text-signal justify-self-start">
-          {t('field', { n: state.config.fieldNumber })}
+        <span className="flex items-center gap-2 justify-self-start min-w-0">
+          {/* Leaving the game, moved up here out of the old full-width row at the
+              bottom — that row cost the score panels a line of height on every
+              screen for a button pressed once a game. The glyph says which of the
+              two things it does: an arrow back while nothing has been played and
+              there is nothing to lose, a cross once the game is real. It stays put
+              once the game is finished, where it goes straight to the report — the
+              game is already over, so there is nothing left to confirm. */}
+          <button
+            className="shrink-0 flex items-center justify-center w-7 h-7 lscape:w-6 lscape:h-6 rounded-lg border border-line text-chalk/70 active:scale-95"
+            onClick={
+              state.status === 'finished'
+                ? () => leaveGameTo({ type: 'OPEN_REPORT' })
+                : gameStarted
+                  ? openEndGameConfirm
+                  : () => leaveGameTo({ type: 'BACK_TO_CONFIG' })
+            }
+            aria-label={t(
+              state.status === 'finished'
+                ? 'openReport'
+                : gameStarted
+                  ? 'btnEndGame'
+                  : 'btnBackToSetup',
+            )}
+            title={t(
+              state.status === 'finished'
+                ? 'openReport'
+                : gameStarted
+                  ? 'btnEndGame'
+                  : 'btnBackToSetup',
+            )}
+          >
+            {gameStarted ? (
+              <CrossIcon size="w-4 h-4 lscape:w-3.5 lscape:h-3.5" />
+            ) : (
+              <ArrowBackIcon size="w-4 h-4 lscape:w-3.5 lscape:h-3.5" />
+            )}
+          </button>
+          <span className="font-board text-signal truncate">
+            {t('field', { n: state.config.fieldNumber })}
+          </span>
         </span>
         <span className="font-clock justify-self-center">
           {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </span>
-        <span className="font-board justify-self-end">
-          {state.half === 1 ? t('half1') : t('half2')}
-          {' · '}
+        <span className="font-board justify-self-end flex flex-col items-end leading-tight">
+          <span>{state.half === 1 ? t('half1') : t('half2')}</span>
           {/* Always the target actually in force: the configured score until a cap
               lowers it, and the capped one from then on. */}
-          {t('target', { n: target })}
+          <span>{t('target', { n: target })}</span>
         </span>
       </header>
 
@@ -698,6 +717,14 @@ export default function GameScreen() {
       <div className="flex flex-1 min-h-0 relative">
         <ScorePanel team={left} side="left" />
         <ScorePanel team={right} side="right" />
+        {/* Each team's timeout, in the top outer corner of that team's own panel.
+            Siblings of the panels, not children — see TimeoutButton. */}
+        {timeoutsOn && (
+          <>
+            <TimeoutButton team={left} side="left" onCall={tryTimeout} />
+            <TimeoutButton team={right} side="right" onCall={tryTimeout} />
+          </>
+        )}
         {/* Hand signal for the current message, floating over the bottom-left corner. */}
         <SignalCard />
         {/* Once finished, none of these chips mean anything any more (no more pulls,
@@ -832,123 +859,122 @@ export default function GameScreen() {
         <CallResolutionRow />
         <StoppageResolutionRow />
 
-        {/* Both clocks side by side. */}
-        <div className="grid grid-cols-2 gap-2 lscape:gap-1">
-          <div className="rounded-lg bg-pitch border border-line p-2 lscape:p-0.5">
-            <div className="text-[10px] lscape:text-[8px] uppercase tracking-widest text-chalk/50">
-              {countdownSeconds !== null ? t('timeBeforeGame') : t('gameClock')}
-            </div>
-            <div className="flex items-center justify-between gap-1">
-              <div
-                className={`font-clock text-3xl lscape:text-base ${paused ? 'text-chalk/40' : 'text-chalk'}`}
-              >
-                {formatClock(countdownSeconds ?? displayGameSeconds)}
+        {/* Clocks and action buttons stack in portrait; landscape has the height to
+            spare but not the width, so they share one row instead — clocks first,
+            then buttons, each keeping its own internal grid. */}
+        <div className="flex flex-col gap-2 lscape:flex-row lscape:items-stretch lscape:gap-1.5">
+          {/* Both clocks side by side. */}
+          <div className="grid grid-cols-2 gap-2 lscape:gap-1 lscape:flex-none lscape:basis-[38%]">
+            <div className="rounded-lg bg-pitch border border-line p-2 lscape:p-0.5">
+              <div className="text-[10px] lscape:text-[8px] uppercase tracking-widest text-chalk/50">
+                {countdownSeconds !== null ? t('timeBeforeGame') : t('gameClock')}
               </div>
-              {gameStarted && state.status !== 'finished' && (
-                <button
-                  type="button"
-                  onClick={togglePause}
-                  disabled={!canTogglePause}
-                  aria-label={t(paused ? 'btnResumeGame' : 'btnPauseGame')}
-                  title={t(paused ? 'btnResumeGame' : 'btnPauseGame')}
-                  className="shrink-0 flex items-center justify-center w-7 h-7 lscape:w-5 lscape:h-5 rounded-full border border-line text-chalk active:scale-95 disabled:opacity-30"
+              <div className="flex items-center justify-between gap-1">
+                <div
+                  className={`font-clock text-3xl lscape:text-base ${paused ? 'text-chalk/40' : 'text-chalk'}`}
                 >
-                  {paused ? <PlayIcon /> : <PauseIcon />}
-                </button>
-              )}
+                  {formatClock(countdownSeconds ?? displayGameSeconds)}
+                </div>
+                {gameStarted && state.status !== 'finished' && (
+                  <button
+                    type="button"
+                    onClick={togglePause}
+                    disabled={!canTogglePause}
+                    aria-label={t(paused ? 'btnResumeGame' : 'btnPauseGame')}
+                    title={t(paused ? 'btnResumeGame' : 'btnPauseGame')}
+                    className="shrink-0 flex items-center justify-center w-7 h-7 lscape:w-5 lscape:h-5 rounded-full border border-line text-chalk active:scale-95 disabled:opacity-30"
+                  >
+                    {paused ? <PlayIcon /> : <PauseIcon />}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-pitch border border-line p-2 lscape:p-0.5">
+              <div className="text-[10px] lscape:text-[8px] uppercase tracking-widest text-chalk/50">
+                {stoppage
+                  ? stoppage.label
+                  : state.secondary?.kind === 'timeout'
+                    ? t('timeoutTimer')
+                    : state.secondary?.kind === 'halftime'
+                      ? t('halftimeTimer')
+                      : t('pullTimer')}
+              </div>
+              <div
+                className={`font-clock text-3xl lscape:text-base ${
+                  stoppage || (state.secondary?.kind === 'pull' && state.secondary.seconds >= 45)
+                    ? 'text-signal'
+                    : 'text-chalk'
+                }`}
+              >
+                {stoppage
+                  ? formatClock(stoppage.seconds)
+                  : state.secondary
+                    ? formatClock(state.secondary.seconds)
+                    : '--:--'}
+              </div>
             </div>
           </div>
 
-          <div className="rounded-lg bg-pitch border border-line p-2 lscape:p-0.5">
-            <div className="text-[10px] lscape:text-[8px] uppercase tracking-widest text-chalk/50">
-              {stoppage
-                ? stoppage.label
-                : state.secondary?.kind === 'timeout'
-                  ? t('timeoutTimer')
-                  : state.secondary?.kind === 'halftime'
-                    ? t('halftimeTimer')
-                    : t('pullTimer')}
-            </div>
-            <div
-              className={`font-clock text-3xl lscape:text-base ${
-                stoppage || (state.secondary?.kind === 'pull' && state.secondary.seconds >= 45)
-                  ? 'text-signal'
-                  : 'text-chalk'
-              }`}
-            >
-              {stoppage
-                ? formatClock(stoppage.seconds)
-                : state.secondary
-                  ? formatClock(state.secondary.seconds)
-                  : '--:--'}
-            </div>
+          {/* Roster / Log / Stoppage / Call / Turn, ordered from the surfaces that only
+            read (left) to the ones that record something (right), so the thumb's
+            reach matches how consequential the button is. Timeouts left this row
+            for the score panels; Roster is hidden unless the game tracks players,
+            leaving four. */}
+          <div
+            className={`grid ${state.config.trackPlayers ? 'grid-cols-5' : 'grid-cols-4'} gap-2 lscape:gap-1 lscape:flex-1`}
+          >
+            {state.config.trackPlayers && (
+              <ActionButton
+                icon={<PlayersIcon />}
+                label={t('lblRoster')}
+                name={t('btnPlayers')}
+                onClick={() => setShowPlayers(true)}
+              />
+            )}
+            <ActionButton
+              icon={<LogIcon />}
+              label={t('lblLog')}
+              name={t('btnLog')}
+              onClick={() => setShowLog(true)}
+            />
+            <ActionButton
+              icon={<StoppageIcon />}
+              name={t('btnStoppageSotg')}
+              onClick={tryStoppage}
+              disabled={recordBusy}
+            />
+            <ActionButton
+              icon={<CallIcon />}
+              label={t('lblCall')}
+              name={t('callDialogTitle')}
+              onClick={openCall}
+              disabled={recordBusy || pullNotThrown}
+            />
+            <ActionButton
+              icon={<TurnIcon />}
+              label={t('lblTurn')}
+              name={t('btnTurnover')}
+              onClick={tryTurnover}
+              disabled={recordBusy || pullNotThrown}
+            />
           </div>
-        </div>
-
-        {/* Timeout (left) / Record event / Log / Players / Timeout (right), in one row
-            under both clocks. Turnover, stoppage and the SOTG toggle live inside Record
-            event now, alongside travels, calls and free-text notes. Timeouts are
-            hidden entirely when none are configured — nothing to call. Players is
-            hidden unless the game is configured to track players. */}
-        <div
-          className={`grid ${ACTION_GRID_COLS[2 + (timeoutsOn ? 2 : 0) + (state.config.trackPlayers ? 1 : 0)]} gap-2 lscape:gap-1`}
-        >
-          {timeoutsOn && <TimeoutButton team={left} side="left" onCall={tryTimeout} />}
-          <button
-            className={iconButton}
-            onClick={openRecordEvent}
-            disabled={recordEventBusy}
-            aria-label={t('btnRecordEvent')}
-            title={t('btnRecordEvent')}
-          >
-            <RecordEventIcon />
-          </button>
-          <button
-            className={iconButton}
-            onClick={() => setShowLog(true)}
-            aria-label={t('btnLog')}
-            title={t('btnLog')}
-          >
-            <LogIcon />
-          </button>
-          {state.config.trackPlayers && (
-            <button
-              className={iconButton}
-              onClick={() => setShowPlayers(true)}
-              aria-label={t('btnPlayers')}
-              title={t('btnPlayers')}
-            >
-              <PlayersIcon />
-            </button>
-          )}
-          {timeoutsOn && <TimeoutButton team={right} side="right" onCall={tryTimeout} />}
         </div>
       </div>
 
-      {/* Utility row — hidden once the game is finished: "Open report" above already
-          does the same job as "End game" did, and there is nothing left for "Back to
-          setup" to mean while a finished game is still sitting here awaiting either
-          that tap or an undo of the goal that finished it. */}
-      {state.status !== 'finished' && (
-        <div className="px-3 lscape:px-2 pb-1 bg-panel shrink-0">
-          <button
-            className="w-full mt-1 text-[11px] lscape:text-[9px] uppercase tracking-widest text-chalk/40 py-1 lscape:py-0.5"
-            onClick={
-              gameStarted ? openEndGameConfirm : () => leaveGameTo({ type: 'BACK_TO_CONFIG' })
-            }
-          >
-            {t(gameStarted ? 'btnEndGame' : 'btnBackToSetup')}
-          </button>
-        </div>
-      )}
-
       <AssistanceBar />
 
-      {showLog && <GameLog onClose={() => setShowLog(false)} />}
-      {showPlayers && <PlayersDialog onClose={() => setShowPlayers(false)} />}
-      {showRecordEvent && (
-        <RecordEventDialog onClose={() => setShowRecordEvent(false)} onChoose={recordEvent} />
+      {showLog && (
+        <GameLog
+          onClose={() => setShowLog(false)}
+          onAddEvent={() => {
+            setShowLog(false);
+            setShowNote(true);
+          }}
+        />
       )}
+      {showPlayers && <PlayersDialog onClose={() => setShowPlayers(false)} />}
+      {showCall && <CallDialog onClose={() => setShowCall(false)} onChoose={chooseCall} />}
       {callKind && <CallTeamDialog kind={callKind} onClose={() => setCallKind(null)} />}
       {showNote && <NoteDialog onClose={() => setShowNote(false)} />}
       {showTravel && <TravelTeamDialog onClose={() => setShowTravel(false)} />}

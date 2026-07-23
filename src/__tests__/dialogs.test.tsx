@@ -11,7 +11,7 @@ import { CallTeamDialog } from '../components/CallTeamDialog';
 import { Modal } from '../components/Modal';
 import { NoteDialog } from '../components/NoteDialog';
 import { PlayersDialog } from '../components/PlayersDialog';
-import { RecordEventDialog } from '../components/RecordEventDialog';
+import { CallDialog } from '../components/CallDialog';
 import { StoppageDialog } from '../components/StoppageDialog';
 import { TravelTeamDialog } from '../components/TravelTeamDialog';
 import { TurnoverDialog } from '../components/TurnoverDialog';
@@ -85,23 +85,59 @@ describe('dialogs render through the shared Modal', () => {
   const noop = () => {};
 
   it('GameLog shows the history heading and column headers', () => {
-    renderWithProviders(<GameLog onClose={noop} />);
+    renderWithProviders(<GameLog onClose={noop} onAddEvent={noop} />);
     expect(screen.getByText('Game history')).toBeInTheDocument();
-    expect(screen.getByText('Event')).toBeInTheDocument();
+    // Twice over: the table's own column header, and the header button that adds one.
+    expect(screen.getAllByText('Event')).toHaveLength(2);
+  });
+
+  it('GameLog routes its header button to the add-event flow', () => {
+    const state = createInitialState();
+    state.phase = 'game';
+    state.status = 'live';
+    sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
+
+    const onAddEvent = vi.fn();
+    renderWithProviders(<GameLog onClose={noop} onAddEvent={onAddEvent} />);
+    fireEvent.click(screen.getByLabelText('Event'));
+    expect(onAddEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it('GameLog still offers the add-event button during a timeout', () => {
+    const state = createInitialState();
+    state.phase = 'game';
+    state.status = 'timeout';
+    sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
+
+    renderWithProviders(<GameLog onClose={noop} onAddEvent={noop} />);
+    expect(screen.getByLabelText('Event')).not.toBeDisabled();
+  });
+
+  it('GameLog disables the add-event button before the game has started', () => {
+    renderWithProviders(<GameLog onClose={noop} onAddEvent={noop} />);
+    expect(screen.getByLabelText('Event')).toBeDisabled();
   });
 
   it('PlayersDialog lists both team rosters', () => {
     renderWithProviders(<PlayersDialog onClose={noop} />);
-    expect(screen.getByText('Players')).toBeInTheDocument();
+    expect(screen.getByText('Roster')).toBeInTheDocument();
     expect(screen.getByText('Team A')).toBeInTheDocument();
     expect(screen.getByText('Team B')).toBeInTheDocument();
   });
 
-  it('StoppageDialog asks injury vs. technical first', () => {
+  it('StoppageDialog asks injury vs. technical vs. SOTG first', () => {
     renderWithProviders(<StoppageDialog onClose={noop} />);
     expect(screen.getByText('Injury')).toBeInTheDocument();
     expect(screen.getByText('Technical')).toBeInTheDocument();
+    expect(screen.getByText('SOTG')).toBeInTheDocument();
     expect(screen.getByText('Cancel')).toBeInTheDocument();
+  });
+
+  it('StoppageDialog records SOTG in one step, with no attribution to ask for', () => {
+    const onClose = vi.fn();
+    renderWithProviders(<StoppageDialog onClose={onClose} />);
+    fireEvent.click(screen.getByText('SOTG'));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('StoppageDialog shows the player picker after choosing Injury when tracking players', () => {
@@ -149,18 +185,27 @@ describe('dialogs render through the shared Modal', () => {
     expect(screen.getAllByText('#7 Alex')).toHaveLength(2);
   });
 
-  it('RecordEventDialog routes each choice back to its caller', () => {
+  it('CallDialog routes the six calls and travel back to its caller', () => {
     const onChoose = vi.fn();
-    renderWithProviders(<RecordEventDialog onClose={noop} onChoose={onChoose} />);
-
-    fireEvent.click(screen.getByText('Turn'));
-    expect(onChoose).toHaveBeenCalledWith({ type: 'turnover' });
+    renderWithProviders(<CallDialog onClose={noop} onChoose={onChoose} />);
 
     fireEvent.click(screen.getByText('Foul'));
     expect(onChoose).toHaveBeenCalledWith({ type: 'call', kind: 'foul' });
 
-    fireEvent.click(screen.getByText('Event'));
-    expect(onChoose).toHaveBeenCalledWith({ type: 'note' });
+    fireEvent.click(screen.getByText('Stall out'));
+    expect(onChoose).toHaveBeenCalledWith({ type: 'call', kind: 'stallOut' });
+
+    fireEvent.click(screen.getByText('Travel'));
+    expect(onChoose).toHaveBeenCalledWith({ type: 'travel' });
+  });
+
+  it('CallDialog holds nothing that is not a call', () => {
+    renderWithProviders(<CallDialog onClose={noop} onChoose={noop} />);
+    // Turnovers, stoppages, SOTG and free-text events all moved elsewhere.
+    expect(screen.queryByText('Turn')).toBeNull();
+    expect(screen.queryByText('Stoppage')).toBeNull();
+    expect(screen.queryByText('SOTG')).toBeNull();
+    expect(screen.queryByText('Event')).toBeNull();
   });
 
   it('CallTeamDialog offers both teams as the way to record who called it', () => {

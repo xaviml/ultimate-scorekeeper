@@ -99,7 +99,7 @@ export const ca: typeof en = {
   btnInstall: 'Instal·lar',
   dismissBanner: 'Descartar',
 
-  playersTitle: 'Jugadors',
+  playersTitle: 'Roster',
   collapseSection: 'Replegar {title}',
   expandSection: 'Desplegar {title}',
   trackPlayers:
@@ -111,12 +111,13 @@ export const ca: typeof en = {
   duplicatePlayer: 'Aquest jugador ja és a la plantilla',
   close: 'Tancar',
   noPlayersYet: "Encara no s'han afegit jugadors.",
-  btnPlayers: 'Jugadors',
+  btnPlayers: 'Roster',
   assistDialogTitle: 'Qui ha anotat per {team}?',
   whoScored: 'Anotador',
   whoAssisted: 'Assistència',
   stoppageDialogTitle: 'Què ha aturat el joc?',
-  stoppageDialogHint: "Tria de quin tipus d'aturada es tracta.",
+  stoppageDialogHint:
+    'Les aturades per lesió o tècniques no aturen el rellotge de bon principi. El SOTG sí.',
   stoppageKind_injury: 'Lesió',
   stoppageKind_technical: 'Tècnica',
   injuryDialogTitle: "Qui s'ha lesionat?",
@@ -153,11 +154,19 @@ export const ca: typeof en = {
   btnPauseGameConfirm: 'Pausar partit',
   btnStoppage: 'Aturada',
   btnTurnover: 'Pèrdua',
-  btnRecordEvent: 'Registrar',
+  btnStoppageSotg: 'Aturada o SOTG',
   btnSotg: 'SOTG',
   btnEndHalftime: 'Fi del descans',
   btnSettings: 'Ajustos',
   btnLog: 'Registre',
+
+  // Microetiquetes de la fila d'accions: en anglès en tots els idiomes a posta —
+  // el vocabulari d'Ultimate ja és anglès a les pistes catalanes i espanyoles, i
+  // així l'amplada dels botons és idèntica en els tres.
+  lblTurn: 'Turn',
+  lblCall: 'Call',
+  lblLog: 'Log',
+  lblRoster: 'Roster',
   btnEndGame: 'Fi del partit',
   btnBackToSetup: 'Tornar a la configuració',
   btnEndTimeout: 'Fi del temps mort',
@@ -185,10 +194,11 @@ export const ca: typeof en = {
   target: 'Objectiu: {n}',
   universePointBadge: 'Universal',
 
-  // Registrar esdeveniment — el diàleg darrere el botó «Registrar» i tot el que s'hi obre.
-  // Res d'això canvia el marcador, el rellotge ni la possessió.
-  recordEventTitle: 'Registrar esdeveniment',
-  recordEventHint: "Registra el que acaba de passar. Res d'això canvia el marcador ni el rellotge.",
+  // Calls — el diàleg darrere el botó del globus de diàleg. Tot el que hi ha dins
+  // respon a una sola pregunta («què s'ha cantat?»), i per això el travel hi va i
+  // les pèrdues, les aturades i els esdeveniments no.
+  callDialogTitle: "Què s'ha cantat?",
+  callDialogHint: 'Registrar un call no canvia el marcador ni el rellotge.',
   btnTravel: 'Travel',
   btnNote: 'Esdeveniment',
   callKind_foul: 'Falta',
@@ -207,8 +217,9 @@ export const ca: typeof en = {
   callResolution_retracted: 'Retirada',
   callResolvedIn: 'resolta en {n}s',
   callBlockedPending: 'Resol primer el call en curs.',
-  recordEventBlockedPull:
-    'Pèrdua, aturada, travel i els calls necessiten que es llenci el pull abans.',
+  callBlockedPull: 'Els calls necessiten que es llenci el pull abans.',
+  stoppageBlockedPull:
+    'Les aturades per lesió o tècniques necessiten que es llenci el pull abans. El SOTG no.',
   stoppagePending: "{kind} — el joc encara no s'ha reprès.",
   btnStoppageResolved: 'El joc pot continuar',
   noteTitle: 'Esdeveniment',
@@ -389,7 +400,7 @@ export const ca: typeof en = {
   guideStep1Teams: 'Noms i colors dels equips',
   guideStep1TeamsBody:
     'Escriu cada nom, o tria un equip que hagis desat abans. Tria un color semblant al de les samarretes de cada equip: els panells del marcador van pintats amb aquests colors tot el partit, així no has de recordar mai quina banda és quina.',
-  guideStep1Players: 'Jugadors',
+  guideStep1Players: 'Roster',
   guideStep1PlayersBody:
     'Opcional. Si afegeixes les plantilles i marques "Registrar activitat dels jugadors", l\'aplicació et pregunta qui ha anotat i qui ha assistit després de cada gol. Deixa-ho sense marcar si estàs sol: el marcador, els rellotges i l\'informe funcionen igual sense això.',
   guideStep1Time: "Hora d'inici prevista",
@@ -430,7 +441,8 @@ export const ca: typeof en = {
   guideStep4Body:
     "És l'única pantalla que faràs servir durant el partit. Res del que hi ha aquí es pot prémer sense voler de manera irreversible.",
   guideTour1: "Número de camp, l'hora, en quina part som i el marcador al qual es juga el partit.",
-  guideTour2: "Un panell per equip, pintat amb el color de l'equip. Aquí és on sumes gols (pas 5).",
+  guideTour2:
+    "Un panell per equip, pintat amb el color de l'equip. Aquí és on sumes gols (pas 5), i el botó de temps mort de cada equip és al cantó superior exterior del seu propi panell.",
   guideTour3:
     "Recordatoris del punt que està a punt de començar: qui fa el pull i des de quina banda, la ràtio de gènere i l'objectiu un cop anunciat.",
   guideTour4:
@@ -438,7 +450,7 @@ export const ca: typeof en = {
   guideTour5:
     "El rellotge del partit i, al costat, el segon rellotge: els segons des de l'últim gol entre punt i punt, o el compte enrere del temps mort o del half.",
   guideTour6:
-    'Els temps morts de cada equip, amb els que els queden. Al mig: registrar un esdeveniment, obrir el registre i la llista de jugadors si el registre de jugadors està activat.',
+    'Els botons que escriuen al registre: el roster (si el registre de jugadors està activat), el registre, una aturada, un call i una pèrdua.',
   guideTour7: "La barra d'ajuda: què cantar i què fer. Mira el pas 6.",
   guideTour8:
     "El petit botó de pausa al costat del rellotge del partit. Tota la resta —un temps mort, el half, una falta— ja funciona sense aturar-lo; prem això només per als casos extraordinaris que pregunta la confirmació: una aturada de SOTG, una aturada tècnica del torneig, una aturada prolongada o mal temps. El rellotge s'atura en el moment que confirmes, i queda aturat fins que reprens.",
@@ -497,7 +509,7 @@ export const ca: typeof en = {
   guideStep8Title: 'Temps morts, half i CAP',
   guideStep8Timeout: 'Temps mort',
   guideStep8TimeoutBody:
-    "Quan un equip en demana un, prem el botó del color d'aquell equip sota els rellotges; el número que hi ha al costat són els que li queden. Comença un compte enrere i l'aplicació xiula quan s'acaba. El rellotge del partit segueix corrent tota l'estona: és normal.",
+    "Quan un equip en demana un, prem el botó petit del cantó superior del panell d'aquell equip; el número que hi ha al costat són els que li queden. Comença un compte enrere i l'aplicació xiula quan s'acaba. El rellotge del partit segueix corrent tota l'estona: és normal.",
   guideStep8Half: 'Half',
   guideStep8HalfBody:
     "L'aplicació canta el half sola tan bon punt un equip arriba al marcador del half, i mai al mig d'un punt. El descans és un compte enrere; prem \"Fi del descans\" si els dos equips estan llestos abans. Després els equips canvien de banda i l'aplicació t'ho diu.",
@@ -510,7 +522,7 @@ export const ca: typeof en = {
 
   guideStep9Title: 'Apuntar el que passa',
   guideStep9Body:
-    'El botó "Registrar" (la llista amb un +) apunta qualsevol cosa que valgui la pena recordar. Res del que hi ha darrere d\'aquest botó canvia el marcador, la possessió ni el rellotge: només escriu al registre i et diu què anunciar.',
+    "La fila que hi ha sota els rellotges apunta qualsevol cosa que valgui la pena recordar: el globus de diàleg per a un call, la mà aixecada per a una aturada, les dues fletxes per a una pèrdua. Cap d'ells canvia el marcador ni l'objectiu: escriuen al registre i et diuen què anunciar.",
   guideStep9Calls:
     "Falta, Stall out, Pick, Off-side, Disc a terra, Call: alguna cosa que ha cantat un jugador. Tria qui ho ha cantat i apareixen tres botons sobre els rellotges: Acceptada, Discutida, Retirada. Pregunta als jugadors com ha acabat i prem el que correspongui; l'aplicació registra quant ha durat la discussió.",
   guideStep9Travel:
@@ -518,16 +530,17 @@ export const ca: typeof en = {
   guideStep9Turn:
     "Pèrdua: el disc ha caigut, s'ha llançat fora o l'han interceptat, i ara el té l'altre equip.",
   guideStep9Stoppage:
-    "Aturada: lesió o tècnica (material, interferència externa...). El rellotge del partit segueix corrent. Quan el joc pugui continuar, prem «El joc pot continuar» per registrar quant ha durat l'aturada.",
+    "Mà aixecada: lesió o tècnica (material, interferència externa...). El rellotge del partit segueix corrent. Quan el joc pugui continuar, prem «El joc pot continuar» per registrar quant ha durat l'aturada.",
   guideStep9Sotg:
-    'SOTG: una aturada d\'esperit. És l\'única cosa que pausa el rellotge del partit; prem "Reprendre partit" quan es reprengui el joc.',
-  guideStep9Note: "Esdeveniment: text lliure per a qualsevol altra cosa que vulguis a l'informe.",
+    "SOTG: una aturada d'esperit, darrere d'aquesta mateixa mà aixecada. És l'única de les tres que pausa el rellotge del partit; prem \"Reprendre partit\" quan es reprengui el joc.",
   guideStep9Log:
-    "El botó de llista senzilla que hi ha al costat obre tot el que s'ha registrat fins ara, en ordre, perquè puguis comprovar què has apuntat.",
+    "El botó de llista obre tot el que s'ha registrat fins ara, en ordre, perquè puguis comprovar què has apuntat.",
+  guideStep9Note:
+    'Dins d\'aquesta llista, "Esdeveniment" afegeix text lliure per a qualsevol altra cosa que vulguis a l\'informe.',
 
   guideStep10Title: 'Final del partit',
   guideStep10Body:
-    "L'aplicació acaba el partit sola quan un equip arriba a l'objectiu. Si l'has d'aturar abans, prem \"Fi del partit\" al final del panell i confirma.",
+    "L'aplicació acaba el partit sola quan un equip arriba a l'objectiu. Si l'has d'aturar abans, prem la ✕ del cantó superior esquerre, al costat del número de camp, i confirma.",
   guideStep10Report:
     'Llavors apareix l\'informe: el marcador final, unes quantes estadístiques de cada equip i l\'historial complet del partit. "Copiar al porta-retalls" el converteix en text pla que pots enganxar en un missatge o en un full de càlcul; fes-ho abans de sortir de la pantalla. "Nou partit" et torna a la configuració per al següent.',
 
@@ -552,7 +565,7 @@ export const ca: typeof en = {
   guideFigTossAlt: 'La secció del sorteig de la pantalla de configuració',
   guideFigGameAlt: 'El panell entre punt i punt, esperant el pull',
   guideFigScoreAlt: 'El panell amb el disc en joc',
-  guideFigRecordAlt: 'El diàleg de registrar esdeveniment',
+  guideFigRecordAlt: 'El diàleg de calls',
   guideFigRulesAlt:
     'Les seccions de condicions de victòria, half i temps morts de la pantalla de configuració',
   guideFigReportAlt: "La pantalla de l'informe final",

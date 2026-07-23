@@ -99,7 +99,7 @@ export const es: typeof en = {
   btnInstall: 'Instalar',
   dismissBanner: 'Descartar',
 
-  playersTitle: 'Jugadores',
+  playersTitle: 'Roster',
   collapseSection: 'Contraer {title}',
   expandSection: 'Expandir {title}',
   trackPlayers:
@@ -111,12 +111,13 @@ export const es: typeof en = {
   duplicatePlayer: 'Este jugador ya está en la plantilla',
   close: 'Cerrar',
   noPlayersYet: 'Todavía no se han añadido jugadores.',
-  btnPlayers: 'Jugadores',
+  btnPlayers: 'Roster',
   assistDialogTitle: '¿Quién anotó por {team}?',
   whoScored: 'Anotador',
   whoAssisted: 'Asistencia',
   stoppageDialogTitle: '¿Qué ha parado el juego?',
-  stoppageDialogHint: 'Elige de qué tipo de parada se trata.',
+  stoppageDialogHint:
+    'Las paradas por lesión o técnicas no detienen el reloj de entrada. El SOTG sí.',
   stoppageKind_injury: 'Lesión',
   stoppageKind_technical: 'Técnica',
   injuryDialogTitle: '¿Quién se lesionó?',
@@ -153,11 +154,19 @@ export const es: typeof en = {
   btnPauseGameConfirm: 'Pausar partido',
   btnStoppage: 'Parada',
   btnTurnover: 'Pérdida',
-  btnRecordEvent: 'Registrar',
+  btnStoppageSotg: 'Parada o SOTG',
   btnSotg: 'SOTG',
   btnEndHalftime: 'Fin del descanso',
   btnSettings: 'Ajustes',
   btnLog: 'Registro',
+
+  // Micro-etiquetas de la fila de acciones: en inglés en todos los idiomas a
+  // propósito — el vocabulario de Ultimate ya es inglés en las pistas españolas y
+  // catalanas, y así el ancho de los botones es idéntico en los tres.
+  lblTurn: 'Turn',
+  lblCall: 'Call',
+  lblLog: 'Log',
+  lblRoster: 'Roster',
   btnEndGame: 'Fin del partido',
   btnBackToSetup: 'Volver a la configuración',
   btnEndTimeout: 'Fin del tiempo muerto',
@@ -185,10 +194,11 @@ export const es: typeof en = {
   target: 'Objetivo: {n}',
   universePointBadge: 'Universal',
 
-  // Registrar evento — el diálogo tras el botón «Registrar» y todo lo que se abre
-  // desde él. Nada de esto cambia el marcador, el reloj ni la posesión.
-  recordEventTitle: 'Registrar evento',
-  recordEventHint: 'Registra lo que acaba de pasar. Nada de esto cambia el marcador ni el reloj.',
+  // Llamadas — el diálogo tras el botón del bocadillo. Todo lo que hay dentro
+  // responde a una sola pregunta («¿qué se ha llamado?»), y por eso el travel va
+  // aquí y las pérdidas, las paradas y los eventos no.
+  callDialogTitle: '¿Qué se ha llamado?',
+  callDialogHint: 'Registrar una llamada no cambia el marcador ni el reloj.',
   btnTravel: 'Travel',
   btnNote: 'Evento',
   callKind_foul: 'Falta',
@@ -207,8 +217,9 @@ export const es: typeof en = {
   callResolution_retracted: 'Retirada',
   callResolvedIn: 'resuelta en {n}s',
   callBlockedPending: 'Resuelve primero la llamado en curso.',
-  recordEventBlockedPull:
-    'Pérdida, parada, travel y las llamadas necesitan que se lance el pull primero.',
+  callBlockedPull: 'Las llamadas necesitan que se lance el pull primero.',
+  stoppageBlockedPull:
+    'Las paradas por lesión o técnicas necesitan que se lance el pull primero. El SOTG no.',
   stoppagePending: '{kind} — el juego aún no se ha reanudado.',
   btnStoppageResolved: 'El juego puede continuar',
   noteTitle: 'Evento',
@@ -392,7 +403,7 @@ export const es: typeof en = {
   guideStep1Teams: 'Nombres y colores de los equipos',
   guideStep1TeamsBody:
     'Escribe cada nombre, o elige un equipo que guardaste antes. Elige un color parecido al de las camisetas de cada equipo: los paneles del marcador van pintados con esos colores todo el partido, así nunca tienes que recordar qué lado es cuál.',
-  guideStep1Players: 'Jugadores',
+  guideStep1Players: 'Roster',
   guideStep1PlayersBody:
     'Opcional. Si añades las plantillas y marcas "Registrar actividad de jugadores", la aplicación te pregunta quién anotó y quién asistió después de cada gol. Déjalo sin marcar si estás solo: el marcador, los relojes y el informe funcionan igual sin ello.',
   guideStep1Time: 'Hora de inicio prevista',
@@ -435,7 +446,7 @@ export const es: typeof en = {
   guideTour1:
     'Número de campo, la hora, en qué parte vamos y el marcador al que se juega el partido.',
   guideTour2:
-    'Un panel por equipo, pintado con el color del equipo. Aquí es donde sumas goles (paso 5).',
+    'Un panel por equipo, pintado con el color del equipo. Aquí es donde sumas goles (paso 5), y el botón de tiempo muerto de cada equipo está en la esquina superior exterior de su propio panel.',
   guideTour3:
     'Recordatorios del punto que va a empezar: quién hace el pull y desde qué lado, la ratio de género y el objetivo una vez anunciado.',
   guideTour4:
@@ -443,7 +454,7 @@ export const es: typeof en = {
   guideTour5:
     'El reloj del partido y, al lado, el segundo reloj: los segundos desde el último gol entre punto y punto, o la cuenta atrás del tiempo muerto o del half.',
   guideTour6:
-    'Los tiempos muertos de cada equipo, con los que les quedan. En el centro: registrar un evento, abrir el historial y la lista de jugadores si el registro de jugadores está activado.',
+    'Los botones que escriben en el historial: el roster (si el registro de jugadores está activado), el historial, una parada, un llamado y una pérdida.',
   guideTour7: 'La barra de ayuda: qué cantar y qué hacer. Ver el paso 6.',
   guideTour8:
     'El pequeño botón de pausa junto al reloj del partido. Todo lo demás —un tiempo muerto, el half, una falta— ya funciona sin pararlo; pulsa esto solo para los casos extraordinarios que pregunta la confirmación: una parada de SOTG, una parada técnica del torneo, una parada prolongada o mal tiempo. El reloj se para en cuanto confirmas, y sigue parado hasta que reanudas.',
@@ -502,7 +513,7 @@ export const es: typeof en = {
   guideStep8Title: 'Tiempos muertos, half y CAP',
   guideStep8Timeout: 'Tiempo muerto',
   guideStep8TimeoutBody:
-    'Cuando un equipo pide uno, pulsa el botón del color de ese equipo debajo de los relojes; el número que hay al lado son los que le quedan. Empieza una cuenta atrás y la aplicación pita cuando se acaba. El reloj del partido sigue corriendo todo el rato: es normal.',
+    'Cuando un equipo pide uno, pulsa el botón pequeño de la esquina superior del panel de ese equipo; el número que hay al lado son los que le quedan. Empieza una cuenta atrás y la aplicación pita cuando se acaba. El reloj del partido sigue corriendo todo el rato: es normal.',
   guideStep8Half: 'Half',
   guideStep8HalfBody:
     'La aplicación canta el half sola en cuanto un equipo llega al marcador del half, y nunca en mitad de un punto. El descanso es una cuenta atrás; pulsa "Fin del descanso" si los dos equipos están listos antes. Después los equipos cambian de lado y la aplicación te lo dice.',
@@ -515,7 +526,7 @@ export const es: typeof en = {
 
   guideStep9Title: 'Apuntar lo que pasa',
   guideStep9Body:
-    'El botón "Registrar" (la lista con un +) apunta cualquier cosa que merezca la pena recordar. Nada de lo que hay detrás de ese botón cambia el marcador, la posesión ni el reloj: solo escribe en el historial y te dice qué anunciar.',
+    'La fila que hay bajo los relojes apunta cualquier cosa que merezca la pena recordar: el bocadillo para un llamado, la mano levantada para una parada, las dos flechas para una pérdida. Ninguno cambia el marcador ni el objetivo: escriben en el historial y te dicen qué anunciar.',
   guideStep9Calls:
     'Falta, Stall out, Pick, Off-side, Disco al suelo, Llamado: algo que ha cantado un jugador. Elige quién lo ha cantado y aparecen tres botones sobre los relojes: Aceptada, Discutida, Retirada. Pregunta a los jugadores cómo ha acabado y pulsa el que corresponda; la aplicación registra cuánto ha durado la discusión.',
   guideStep9Travel:
@@ -523,16 +534,17 @@ export const es: typeof en = {
   guideStep9Turn:
     'Turn: una pérdida. El disco se ha caído, se ha lanzado fuera o lo han interceptado, y ahora lo tiene el otro equipo.',
   guideStep9Stoppage:
-    'Parada: lesión o técnica (material, interferencia externa...). El reloj del partido sigue corriendo. Cuando el juego pueda continuar, pulsa «El juego puede continuar» para registrar cuánto duró la parada.',
+    'Mano levantada: lesión o técnica (material, interferencia externa...). El reloj del partido sigue corriendo. Cuando el juego pueda continuar, pulsa «El juego puede continuar» para registrar cuánto duró la parada.',
   guideStep9Sotg:
-    'SOTG: una parada de espíritu. Es lo único que pausa el reloj del partido; pulsa "Reanudar partido" cuando se reanude el juego.',
-  guideStep9Note: 'Evento: texto libre para cualquier otra cosa que quieras en el informe.',
+    'SOTG: una parada de espíritu, detrás de esa misma mano levantada. Es la única de las tres que pausa el reloj del partido; pulsa "Reanudar partido" cuando se reanude el juego.',
   guideStep9Log:
-    'El botón de lista sencilla que hay al lado abre todo lo registrado hasta ahora, en orden, para que puedas comprobar lo que has apuntado.',
+    'El botón de lista abre todo lo registrado hasta ahora, en orden, para que puedas comprobar lo que has apuntado.',
+  guideStep9Note:
+    'Dentro de esa lista, "Evento" añade texto libre para cualquier otra cosa que quieras en el informe.',
 
   guideStep10Title: 'Final del partido',
   guideStep10Body:
-    'La aplicación termina el partido sola cuando un equipo llega al objetivo. Si tienes que pararlo antes, pulsa "Fin del partido" al final del panel y confirma.',
+    'La aplicación termina el partido sola cuando un equipo llega al objetivo. Si tienes que pararlo antes, pulsa la ✕ de la esquina superior izquierda, al lado del número de campo, y confirma.',
   guideStep10Report:
     'Entonces aparece el informe: el marcador final, unas cuantas estadísticas de cada equipo y el historial completo del partido. "Copiar al portapapeles" lo convierte en texto plano que puedes pegar en un mensaje o en una hoja de cálculo; hazlo antes de salir de la pantalla. "Nuevo partido" te devuelve a la configuración para el siguiente.',
 
@@ -557,7 +569,7 @@ export const es: typeof en = {
   guideFigTossAlt: 'La sección del sorteo de la pantalla de configuración',
   guideFigGameAlt: 'El panel entre punto y punto, esperando el pull',
   guideFigScoreAlt: 'El panel con el disco en juego',
-  guideFigRecordAlt: 'El diálogo de registrar evento',
+  guideFigRecordAlt: 'El diálogo de llamadas',
   guideFigRulesAlt:
     'Las secciones de condiciones de victoria, half y tiempos muertos de la pantalla de configuración',
   guideFigReportAlt: 'La pantalla del informe final',

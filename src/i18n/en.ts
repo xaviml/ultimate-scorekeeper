@@ -100,7 +100,7 @@ export const en = {
   dismissBanner: 'Dismiss',
 
   // Players / rosters
-  playersTitle: 'Players',
+  playersTitle: 'Roster',
   collapseSection: 'Collapse {title}',
   expandSection: 'Expand {title}',
   trackPlayers: 'Track player activity (goals, assists, turnovers, defense, injuries)',
@@ -111,12 +111,13 @@ export const en = {
   duplicatePlayer: 'This player is already on the roster',
   close: 'Close',
   noPlayersYet: 'No players added yet.',
-  btnPlayers: 'Players',
+  btnPlayers: 'Roster',
   assistDialogTitle: 'Who scored for {team}?',
   whoScored: 'Scorer',
   whoAssisted: 'Assist',
   stoppageDialogTitle: 'What stopped play?',
-  stoppageDialogHint: 'Pick which kind of stoppage this is.',
+  stoppageDialogHint:
+    'Injury and technical stoppages keep the clock running at first. SOTG stops it.',
   stoppageKind_injury: 'Injury',
   stoppageKind_technical: 'Technical',
   injuryDialogTitle: 'Who got injured?',
@@ -154,11 +155,24 @@ export const en = {
   btnPauseGameConfirm: 'Pause game',
   btnStoppage: 'Stoppage',
   btnTurnover: 'Turn',
-  btnRecordEvent: 'Record event',
+  // Accessible name for the raised-hand button, which is the one action-row
+  // control with no visible micro-label: "Stop" read as a command rather than a
+  // question, and neither "Stoppage" nor "SOTG" covers what the other opens.
+  btnStoppageSotg: 'Stoppage or SOTG',
   btnSotg: 'SOTG',
   btnEndHalftime: 'End half-time',
   btnSettings: 'Settings',
   btnLog: 'Log',
+
+  // Action-row micro-labels: rendered uppercase under the glyph in portrait and
+  // beside it in landscape, so they have to stay short enough for a 60px button
+  // (~7 characters at 9px). Deliberately English in every dictionary — Ultimate
+  // vocabulary is English on Spanish and Catalan fields too, and it keeps the
+  // widths identical across languages.
+  lblTurn: 'Turn',
+  lblCall: 'Call',
+  lblLog: 'Log',
+  lblRoster: 'Roster',
   btnEndGame: 'End game',
   btnBackToSetup: 'Back to setup',
   btnEndTimeout: 'End timeout',
@@ -185,10 +199,11 @@ export const en = {
   target: 'Target: {n}',
   universePointBadge: 'Universe point',
 
-  // Record event — the dialog behind the "Record event" button, and everything
-  // reachable from it. None of these change the score, the clock or possession.
-  recordEventTitle: 'Record event',
-  recordEventHint: 'Log what just happened. Nothing here changes the score or the clock.',
+  // Calls — the dialog behind the shout-bubble button. Everything in it is one
+  // answer to one question ("what was called?"), which is why travel belongs here
+  // and turnovers, stoppages and notes do not.
+  callDialogTitle: 'What was called?',
+  callDialogHint: 'Recording a call does not change the score or the clock.',
   btnTravel: 'Travel',
   btnNote: 'Event',
   callKind_foul: 'Foul',
@@ -207,7 +222,8 @@ export const en = {
   callResolution_retracted: 'Retracted',
   callResolvedIn: 'resolved in {n}s',
   callBlockedPending: 'Resolve the call in progress first.',
-  recordEventBlockedPull: 'Turn, stoppage, travel and calls need the pull thrown first.',
+  callBlockedPull: 'Calls need the pull thrown first.',
+  stoppageBlockedPull: 'Injury and technical stoppages need the pull thrown first. SOTG does not.',
   stoppagePending: '{kind} — play has not resumed yet.',
   btnStoppageResolved: 'Play can resume',
   noteTitle: 'Event',
@@ -393,7 +409,7 @@ export const en = {
   guideStep1Teams: 'Team names and colours',
   guideStep1TeamsBody:
     'Type each name, or pick a team you saved earlier. Choose a colour close to the shirts each team is wearing: the score panels are painted in those colours all game, so you never have to remember which side is which.',
-  guideStep1Players: 'Players',
+  guideStep1Players: 'Roster',
   guideStep1PlayersBody:
     'Optional. If you add the rosters and tick "Track player activity", the app asks who scored and who assisted after each goal. Leave it off if you are on your own — the score, the clocks and the report all work without it.',
   guideStep1Time: 'Scheduled starting time',
@@ -436,7 +452,7 @@ export const en = {
   guideTour1:
     'Field number, the time of day, which half it is and the score the game is played to.',
   guideTour2:
-    'One panel per team, painted in the team colour. This is where you add goals (step 5).',
+    'One panel per team, painted in the team colour. This is where you add goals (step 5), and each team\u2019s timeout button sits in the top outer corner of its own panel.',
   guideTour3:
     'Reminders for the point about to be played: who pulls and from which end, the gender ratio, and the target once it has been announced.',
   guideTour4:
@@ -444,7 +460,7 @@ export const en = {
   guideTour5:
     'The game clock, and next to it the second clock: the seconds since the last goal between points, or the timeout or half-time countdown.',
   guideTour6:
-    'Timeouts for each team, with the number they have left. In the middle: record an event, open the log, and the player list when player tracking is on.',
+    'The buttons that write to the log: the roster (when player tracking is on), the log itself, a stoppage, a call and a turnover.',
   guideTour7: 'The assistance bar — what to shout and what to do. See step 6.',
   guideTour8:
     'The small pause button next to the game clock. Everything else — a timeout, half-time, a call — already runs without stopping it; only tap this for the extraordinary cases the confirmation asks about: an SOTG stoppage, a tournament technical stoppage, a prolonged stoppage, or bad weather. The clock stops the moment you confirm, and stays stopped until you resume.',
@@ -503,7 +519,7 @@ export const en = {
   guideStep8Title: 'Timeouts, half-time and caps',
   guideStep8Timeout: 'Timeout',
   guideStep8TimeoutBody:
-    "When a team calls one, press the button in that team's colour under the clocks; the number beside it is how many they have left. A countdown starts and the app whistles when time is up. The game clock keeps running throughout — that is normal.",
+    "When a team calls one, press the small button in the top corner of that team's own score panel; the number beside it is how many they have left. A countdown starts and the app whistles when time is up. The game clock keeps running throughout — that is normal.",
   guideStep8Half: 'Half-time',
   guideStep8HalfBody:
     'The app calls half-time by itself as soon as a team reaches the half score, and never in the middle of a point. The break is a countdown; press "End half-time" if both teams are ready sooner. Afterwards the teams swap ends and the app tells you so.',
@@ -516,7 +532,7 @@ export const en = {
 
   guideStep9Title: 'Writing down what happens',
   guideStep9Body:
-    'The "Record event" button (the list with a +) logs anything worth remembering. Nothing behind that button changes the score, the possession or the clock — it only writes to the log, and tells you what to announce.',
+    'The row under the clocks logs anything worth remembering: the speech bubble for a call, the raised hand for a stoppage, the two arrows for a turnover. None of them change the score or the target — they write to the log, and tell you what to announce.',
   guideStep9Calls:
     'Foul, Stall out, Pick, Off-side, Disc down, Call — something a player called. Pick who called it, and three buttons appear above the clocks: Accepted, Contested, Retracted. Ask the players how it ended and press the matching one; the app records how long the discussion took.',
   guideStep9Travel:
@@ -524,16 +540,17 @@ export const en = {
   guideStep9Turn:
     'Turn — a turnover: the disc was dropped, thrown away or intercepted, and the other team now has it.',
   guideStep9Stoppage:
-    'Stoppage — injury or technical (equipment, outside interference, ...). The game clock keeps running. Once play can resume, press "Play can resume" to log how long the stoppage took.',
+    'Raised hand — injury or technical (equipment, outside interference, ...). The game clock keeps running. Once play can resume, press "Play can resume" to log how long the stoppage took.',
   guideStep9Sotg:
-    'SOTG — a spirit stoppage. This is the only thing that pauses the game clock; press "Resume game" when play restarts.',
-  guideStep9Note: 'Event — free text for anything else you want in the report.',
+    'SOTG — a spirit stoppage, behind the same raised hand. This is the only one of the three that pauses the game clock; press "Resume game" when play restarts.',
   guideStep9Log:
-    'The plain list button next to it opens everything recorded so far, in order, so you can check what you logged.',
+    'The list button opens everything recorded so far, in order, so you can check what you logged.',
+  guideStep9Note:
+    'Inside that list, "Event" adds free text for anything else you want in the report.',
 
   guideStep10Title: 'End of the game',
   guideStep10Body:
-    'The app ends the game on its own when a team reaches the target. If you have to stop earlier, press "End game" at the very bottom of the dashboard and confirm.',
+    'The app ends the game on its own when a team reaches the target. If you have to stop earlier, press the ✕ in the top-left corner, next to the field number, and confirm.',
   guideStep10Report:
     'You then get the report: the final score, a few statistics for each team and the full history of the game. "Copy to clipboard" turns it into plain text you can paste into a message or a spreadsheet — do that before you leave the screen. "New game" takes you back to setup for the next match.',
 
@@ -557,7 +574,7 @@ export const en = {
   guideFigTossAlt: 'The coin toss and win conditions sections of the setup screen',
   guideFigGameAlt: 'The dashboard between points, waiting for the pull',
   guideFigScoreAlt: 'The dashboard with the disc in play',
-  guideFigRecordAlt: 'The record event dialog',
+  guideFigRecordAlt: 'The call dialog',
   guideFigRulesAlt: 'The win conditions, half-time and timeout sections of the setup screen',
   guideFigReportAlt: 'The final report screen',
 };
