@@ -222,7 +222,11 @@ export const en = {
   signal_sotg: 'Spirit stoppage',
   signal_ratioMale: 'Ratio: Men',
   signal_ratioFemale: 'Ratio: Women',
-  signal_whistle: 'Whistle',
+  // One caption per blast count — the badge on the picture says how many, and the
+  // caption doubles as the image's alt text, so it has to say it too.
+  signal_whistle1: 'Single whistle',
+  signal_whistle2: 'Double whistle',
+  signal_whistle3: 'Triple whistle',
   signal_universePoint: 'Universe point',
   signal_travel: 'Travel',
   signal_foul: 'Foul',
@@ -286,8 +290,10 @@ export const en = {
     'Half-time break. Resumes automatically when the clock runs out, or press "End half-time" if both teams are ready sooner.',
   now_halftimeWarn:
     'One minute until the second half. One whistle — teams should be getting ready.',
+  now_callPending:
+    '{kind} called by {team}. Play is stopped and the score is locked — tap "Accepted", "Contested" or "Retracted" above the clock once the players have decided.',
   now_callWait:
-    'Call still unresolved — three whistles now, and again every 15 seconds until it is settled.',
+    'Still unresolved after 45 seconds — three whistles now, and three more at 60. Resolve it above the clock as soon as the players have decided.',
   now_paused: 'Spirit stoppage. Clock paused — press "Resume game" to continue.',
   now_pauseManual: 'Game paused. Clock stopped — press "Resume game" to continue.',
   now_stoppageClockStopped:
@@ -484,7 +490,7 @@ export const en = {
     "Only if timeouts were switched on at setup — that is also where each team's allowance and the length of a timeout are set, so a break may run longer or shorter than the app's default. A timeout called before the pull: one whistle the moment the break ends, then the normal 45/60/75 pull count starts fresh. A timeout called after the pull, with the disc already live, winds back into play with a countdown near the end: one whistle 30 seconds before the offence must be set, two at 15, and three when the disc goes live.",
   guideSignalCall: 'A call that drags on',
   guideSignalCallBody:
-    'When a foul, pick, travel, stall-out, off-side, disc-down or generic call — or an injury or technical stoppage — is still being sorted out after 45 seconds: three whistles, then three more every 15 seconds until it is resolved.',
+    'When a foul, pick, travel, stall-out, off-side, disc-down or generic call — or an injury or technical stoppage — is still being sorted out after 45 seconds: three whistles, and three more at 60 seconds. Nothing after that — the app keeps counting the wait, but stops whistling.',
 
   guideStep7Title: 'Gender ratio (mixed games only)',
   guideStep7Body:

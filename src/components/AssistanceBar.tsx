@@ -91,15 +91,18 @@ function statusKey(state: GameState): string {
     }
     return 'now_halftime';
   }
-  // An unresolved call or stoppage that has dragged past 45 s: the app is whistling
-  // every 15 s until it settles, so say so. Excluded once a stoppage has run long
-  // enough to auto-stop the clock (status 'paused'), where the more specific
-  // clock-stopped line below takes over.
-  if (
-    state.status !== 'paused' &&
-    (state.pendingCall?.elapsedSeconds ?? state.pendingStoppage?.elapsedSeconds ?? 0) >= 45
-  ) {
-    return 'now_callWait';
+  // An open call or stoppage. Excluded once a stoppage has run long enough to
+  // auto-stop the clock (status 'paused'), where the more specific clock-stopped
+  // line below takes over.
+  if (state.status !== 'paused') {
+    // Past 45 s it has dragged on and the app whistles it, so say that.
+    if ((state.pendingCall?.elapsedSeconds ?? state.pendingStoppage?.elapsedSeconds ?? 0) >= 45) {
+      return 'now_callWait';
+    }
+    // Before that, an open call still needs its own line: `canScore` rejects while
+    // one is pending, so the default "tap a panel when they score" would be a lie.
+    // (A stoppage doesn't lock the score, so it keeps the ordinary status line.)
+    if (state.pendingCall) return 'now_callPending';
   }
   // Universe point holds for the whole point it applies to (not just the moment it
   // starts), so it overrides the ambient line for as long as the condition is true —
@@ -197,6 +200,9 @@ export function AssistanceBar() {
   const vars = assistVars(state);
   const genderLabel =
     vars.gender === 'male' ? t('ratioMale') : vars.gender === 'female' ? t('ratioFemale') : '';
+  // The open call's kind, for the lines that name it. Translated here rather than in
+  // assistVars, which has no `t` — empty when there is no call, where it goes unused.
+  const kind = state.pendingCall ? t(`callKind_${state.pendingCall.kind}` as never) : '';
   const key = say ? sayKey : statusKey(state);
 
   return (
@@ -214,7 +220,7 @@ export function AssistanceBar() {
             : 'text-sm sm:text-base lscape:text-xs'
         }`}
       >
-        {t(key as never, { ...vars, gender: genderLabel } as never)}
+        {t(key as never, { ...vars, gender: genderLabel, kind } as never)}
       </p>
     </div>
   );

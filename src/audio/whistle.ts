@@ -1,37 +1,47 @@
-// A public/ asset: build the URL via BASE_URL so it keeps working under the
-// GitHub Pages base path (a plain "/whistle.mp3" would not).
-const WHISTLE_URL = `${import.meta.env.BASE_URL}whistle.mp3`;
+// One pre-rendered file per blast count, rather than one file re-triggered on a
+// timer. The timer version was fine on Chrome but lost blasts on Safari: each
+// blast restarted the *same* element with `currentTime = 0` while the previous
+// play() promise was still pending, and Safari resolves that race by aborting —
+// so a double or triple whistle came out as a single one. A sequence is now a
+// single uninterrupted play() of a single file, which no browser can drop
+// halfway. The gap between blasts (700 ms onset to onset) is baked into the
+// audio — all three files are rendered from one blast by scripts/whistle-audio.mjs.
+//
+// public/ assets: the URL goes through BASE_URL so it survives the GitHub Pages
+// base path (a plain "/whistle2.mp3" would not).
+const SRC: Record<1 | 2 | 3, string> = {
+  1: `${import.meta.env.BASE_URL}whistle1.mp3`,
+  2: `${import.meta.env.BASE_URL}whistle2.mp3`,
+  3: `${import.meta.env.BASE_URL}whistle3.mp3`,
+};
 
-let el: HTMLAudioElement | null = null;
-function audio(): HTMLAudioElement {
-  if (!el) el = new Audio(WHISTLE_URL);
-  return el;
+// Built eagerly, all three, with preload="auto". The service worker only
+// pre-caches the app shell and picks up everything else on first fetch, so an
+// element created lazily would mean the first triple whistle of an offline game
+// is the one that has to go to the network. Fetching all three at startup puts
+// them in the cache before they are ever needed.
+const els = new Map<1 | 2 | 3, HTMLAudioElement>();
+for (const times of [1, 2, 3] as const) {
+  const el = new Audio(SRC[times]);
+  el.preload = 'auto';
+  els.set(times, el);
 }
 
-/** Timer for the next blast of the sequence currently playing, if any. */
-let pending: ReturnType<typeof setTimeout> | null = null;
+/** The sequence currently sounding, if any. */
+let playing: HTMLAudioElement | null = null;
 
 /** Play n short whistle blasts in a row (1 = single, 2 = double, 3 = triple). */
 export function whistle(times: 1 | 2 | 3): void {
-  // A new sequence supersedes one still in flight. Every blast restarts the same
-  // single audio element, so two overlapping chains would cut each other off mid-
-  // blast and keep re-triggering — two short bursts turning into one long ragged
-  // run of whistles. This can happen for real: a cap fires on the same second a
-  // pull timer crosses 45/60/75.
-  if (pending !== null) {
-    clearTimeout(pending);
-    pending = null;
-  }
-  let played = 0;
-  const blast = () => {
-    const a = audio();
-    a.currentTime = 0;
-    // Older browsers (and jsdom in tests) return undefined instead of a Promise, so
-    // guard before calling .catch. Autoplay policy / placeholder URL: fail silently.
-    const p = a.play() as Promise<void> | undefined;
-    if (p && typeof p.catch === 'function') p.catch(() => {});
-    played += 1;
-    pending = played < times ? setTimeout(blast, 700) : null;
-  };
-  blast();
+  const el = els.get(times)!;
+  // A new sequence supersedes one still sounding — otherwise two runs overlap
+  // into one ragged mess of whistles. This happens for real: a cap can fire on
+  // the same second a pull timer crosses 45/60/75.
+  if (playing && playing !== el) playing.pause();
+  playing = el;
+  el.currentTime = 0;
+  // Older browsers (and jsdom in tests) return undefined instead of a Promise, so
+  // guard before calling .catch. Autoplay policy, or an abort from the restart
+  // above: fail silently.
+  const p = el.play() as Promise<void> | undefined;
+  if (p && typeof p.catch === 'function') p.catch(() => {});
 }

@@ -224,7 +224,9 @@ export const es: typeof en = {
   signal_sotg: 'Parada de espíritu',
   signal_ratioMale: 'Ratio: Chicos',
   signal_ratioFemale: 'Ratio: Chicas',
-  signal_whistle: 'Silbato',
+  signal_whistle1: 'Un pitido',
+  signal_whistle2: 'Dos pitidos',
+  signal_whistle3: 'Tres pitidos',
   signal_universePoint: 'Universal',
   signal_travel: 'Travel',
   signal_foul: 'Falta',
@@ -290,8 +292,10 @@ export const es: typeof en = {
     'Descanso. Se reanuda solo cuando termine el tiempo, o pulsa «Fin del descanso» si ambos equipos están listos antes.',
   now_halftimeWarn:
     'Un minuto para la segunda parte. Un silbato — los equipos deberían ir preparándose.',
+  now_callPending:
+    '{kind} — la ha pedido {team}. El juego está parado y el marcador bloqueado: pulsa «Aceptada», «Discutida» o «Retirada» encima del reloj cuando los jugadores lo decidan.',
   now_callWait:
-    'Jugada sin resolver — tres silbatos ahora, y otra vez cada 15 segundos hasta que se resuelva.',
+    'Sigue sin resolverse a los 45 segundos — tres silbatos ahora, y tres más a los 60. Resuélvela encima del reloj en cuanto los jugadores lo decidan.',
   now_paused: 'Parada de espíritu. Reloj pausado — pulsa «Reanudar partido» para continuar.',
   now_pauseManual: 'Partido pausado. Reloj detenido — pulsa «Reanudar partido» para continuar.',
   now_stoppageClockStopped:
@@ -485,7 +489,7 @@ export const es: typeof en = {
     'Solo si los tiempos muertos se activaron en la configuración — ahí también se fija cuántos tiene cada equipo y lo que dura uno, así que un tiempo muerto puede ser más largo o más corto que el valor por defecto de la app. Un tiempo muerto pedido antes del pull: un pitido en el momento en que termina, y luego arranca de cero la cuenta normal de 45/60/75. Un tiempo muerto pedido después del pull, con el disco ya en juego, vuelve al juego con una cuenta atrás al final: un pitido 30 segundos antes de que el ataque deba estar listo, dos a los 15 y tres cuando el disco entra en juego.',
   guideSignalCall: 'Una jugada que se alarga',
   guideSignalCallBody:
-    'Cuando una falta, un pick, un travel, un stall, un fuera de juego, un disco caído o una jugada genérica — o una lesión o parada técnica — sigue sin resolverse a los 45 segundos: tres pitidos, y tres más cada 15 segundos hasta que se resuelva.',
+    'Cuando una falta, un pick, un travel, un stall, un fuera de juego, un disco caído o una jugada genérica — o una lesión o parada técnica — sigue sin resolverse a los 45 segundos: tres pitidos, y tres más a los 60 segundos. Después nada — la app sigue contando la espera, pero deja de pitar.',
 
   guideStep7Title: 'Ratio de género (solo en mixto)',
   guideStep7Body:

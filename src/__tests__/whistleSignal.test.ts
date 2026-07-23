@@ -79,12 +79,17 @@ describe('currentWhistle — the single source for every whistle-and-sign', () =
     expect(currentWhistle(ticks(short, 30))).toBeNull();
   });
 
-  it('blows three at 45 s of an unresolved call, then every 15 s', () => {
+  it('blows three at 45 s and 60 s of an unresolved call, and no more', () => {
     const s = gameReducer(live(), { type: 'CALL_MADE', kind: 'foul', team: 'A' });
     expect(currentWhistle(ticks(s, 44))).toBeNull();
     expect(currentWhistle(ticks(s, 45))).toMatchObject({ key: 'callWait:45', blasts: 3 });
     expect(currentWhistle(ticks(s, 46))).toBeNull();
     expect(currentWhistle(ticks(s, 60))).toMatchObject({ key: 'callWait:60', blasts: 3 });
+    // The cadence stops there, however long the call drags on.
+    expect(currentWhistle(ticks(s, 61))).toBeNull();
+    expect(currentWhistle(ticks(s, 75))).toBeNull();
+    expect(currentWhistle(ticks(s, 90))).toBeNull();
+    expect(currentWhistle(ticks(s, 120))).toBeNull();
   });
 
   it('the same cadence applies to an unresolved stoppage', () => {

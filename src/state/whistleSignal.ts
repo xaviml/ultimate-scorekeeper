@@ -64,11 +64,14 @@ export function currentWhistle(state: GameState): WhistleSignal | null {
     return { key: 'halfWarn60', blasts: 1 };
   }
 
-  // Scenario 4 — an unresolved call or stoppage: three blasts at 45 s, then every
-  // 15 s until it is settled. elapsedSeconds is ticked independent of the game clock.
+  // Scenario 4 — an unresolved call or stoppage: three blasts at 45 s and three more
+  // at 60 s, and that is all. elapsedSeconds is ticked independent of the game clock.
+  // Deliberately not a repeating cadence: a dispute that is still going at 75 s is
+  // one the whistle cannot hurry along, and a blast every 15 s from then on is noise
+  // the scorekeeper has to sit through with no action to take.
   const elapsed =
     state.pendingCall?.elapsedSeconds ?? state.pendingStoppage?.elapsedSeconds ?? null;
-  if (elapsed !== null && elapsed >= 45 && (elapsed - 45) % 15 === 0) {
+  if (elapsed === 45 || elapsed === 60) {
     return { key: `callWait:${elapsed}`, blasts: 3 };
   }
 

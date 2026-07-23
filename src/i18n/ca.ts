@@ -223,7 +223,9 @@ export const ca: typeof en = {
   signal_sotg: "Aturada d'esperit",
   signal_ratioMale: 'Ràtio: Nois',
   signal_ratioFemale: 'Ràtio: Noies',
-  signal_whistle: 'Xiulet',
+  signal_whistle1: 'Un xiulet',
+  signal_whistle2: 'Dos xiulets',
+  signal_whistle3: 'Tres xiulets',
   signal_universePoint: 'Universal',
   signal_travel: 'Travel',
   signal_foul: 'Falta',
@@ -287,8 +289,10 @@ export const ca: typeof en = {
     "Descans. Es reprèn sol quan s'acabi el temps, o prem «Fi del descans» si tots dos equips estan llestos abans.",
   now_halftimeWarn:
     "Un minut per a la segona part. Un xiulet — els equips haurien d'anar-se preparant.",
+  now_callPending:
+    "{kind} — l'ha demanada {team}. El joc està aturat i el marcador bloquejat: prem «Acceptada», «Discutida» o «Retirada» sobre el rellotge quan els jugadors ho decideixin.",
   now_callWait:
-    'Jugada sense resoldre — tres xiulets ara, i un altre cop cada 15 segons fins que es resolgui.',
+    'Segueix sense resoldre als 45 segons — tres xiulets ara, i tres més als 60. Resol-la sobre el rellotge tan bon punt els jugadors ho decideixin.',
   now_paused: "Aturada d'esperit. Rellotge en pausa — prem «Reprendre partit» per continuar.",
   now_pauseManual: 'Partit en pausa. Rellotge aturat — prem «Reprendre partit» per continuar.',
   now_stoppageClockStopped:
@@ -480,7 +484,7 @@ export const ca: typeof en = {
     "Només si els temps morts s'han activat a la configuració — allà també es fixa quants en té cada equip i quant dura un, així que un temps mort pot ser més llarg o més curt que el valor per defecte de l'app. Un temps mort demanat abans del pull: un xiulet en el moment que acaba, i després arrenca de zero el compte normal de 45/60/75. Un temps mort demanat després del pull, amb el disc ja en joc, torna al joc amb un compte enrere al final: un xiulet 30 segons abans que l'atac hagi d'estar llest, dos als 15 i tres quan el disc entra en joc.",
   guideSignalCall: "Una jugada que s'allarga",
   guideSignalCallBody:
-    'Quan una falta, un pick, un travel, un stall, un fora de joc, un disc caigut o una jugada genèrica — o una lesió o aturada tècnica — segueix sense resoldre als 45 segons: tres xiulets, i tres més cada 15 segons fins que es resolgui.',
+    "Quan una falta, un pick, un travel, un stall, un fora de joc, un disc caigut o una jugada genèrica — o una lesió o aturada tècnica — segueix sense resoldre als 45 segons: tres xiulets, i tres més als 60 segons. Després res — l'app segueix comptant l'espera, però deixa de xiular.",
 
   guideStep7Title: 'Ràtio de gènere (només en mixt)',
   guideStep7Body:

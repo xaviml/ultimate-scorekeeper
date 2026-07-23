@@ -3,7 +3,7 @@ import { useT, type Lang } from '../i18n/useT';
 import { defaultConfig } from '../state/gameReducer';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import { useBackGuard } from '../hooks/useBackGuard';
-import { deleteTeam, loadSavedTeams } from '../state/rosterStorage';
+import { deleteTeam, loadSavedTeams, saveTeam } from '../state/rosterStorage';
 import {
   BEACH_TEMPLATE,
   GRASS_TEMPLATE,
@@ -12,7 +12,7 @@ import {
   loadSavedTemplates,
   saveTemplate,
 } from '../state/templates';
-import type { GameConfig, SavedTeam, SavedTemplate, TeamId } from '../state/types';
+import type { GameConfig, PlayerInfo, SavedTeam, SavedTemplate, TeamId } from '../state/types';
 import { loadPlayersSectionCollapsed, savePlayersSectionCollapsed } from '../state/uiPreferences';
 import { AboutDialog } from './AboutDialog';
 import { ConfirmDeleteTemplateDialog } from './ConfirmDeleteTemplateDialog';
@@ -154,8 +154,49 @@ export default function ConfigScreen() {
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const [pendingDeleteTemplate, setPendingDeleteTemplate] = useState<string | null>(null);
 
+  // Whatever is currently typed into a numeric field, while it is being typed.
+  // Clamping on every keystroke (what this screen used to do) makes the fields
+  // unusable on a phone: emptying one to retype it snaps it straight back to the
+  // old value, and the "1" on the way to "15" is instantly rewritten to the
+  // minimum. So the raw text is shown as-is and the clamp is deferred to blur —
+  // an in-range number still commits as you type, an out-of-range or half-typed
+  // one just waits.
+  const [numberDrafts, setNumberDrafts] = useState<Record<string, string>>({});
+  const numberFieldProps = (
+    key: string,
+    value: number,
+    min: number,
+    max: number,
+    // `final` is true only for the blur commit, i.e. once the number is the one
+    // the user meant — the moment for any knock-on clamp of another field.
+    commit: (n: number, final: boolean) => void,
+  ) => ({
+    className: inputClass,
+    inputMode: 'numeric' as const,
+    value: numberDrafts[key] ?? String(value),
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+      const raw = e.target.value;
+      setNumberDrafts((d) => ({ ...d, [key]: raw }));
+      const n = parseInt(raw, 10);
+      if (Number.isFinite(n) && n >= min && n <= max) commit(n, false);
+    },
+    onBlur: () => {
+      const n = parseInt(numberDrafts[key] ?? '', 10);
+      // An emptied field falls back to the value it had, not to the minimum.
+      commit(Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : value, true);
+      setNumberDrafts((d) => {
+        const rest = { ...d };
+        delete rest[key];
+        return rest;
+      });
+    },
+  });
+
   const applyTemplateChoice = (key: string) => {
     setSelectedTemplateKey(key);
+    // A template rewrites these fields wholesale, so any half-typed value in one
+    // of them is stale — drop the drafts rather than let them mask the new value.
+    setNumberDrafts({});
     if (key === 'predefined:grass') setCfg((c) => ({ ...c, ...PREDEFINED_TEMPLATES.grass }));
     else if (key === 'predefined:beach') setCfg((c) => ({ ...c, ...PREDEFINED_TEMPLATES.beach }));
     else if (key.startsWith('custom:')) {
@@ -168,6 +209,10 @@ export default function ConfigScreen() {
     ? selectedTemplateKey.slice('custom:'.length)
     : null;
 
+  const normalizeTeamName = (n: string) => n.trim().toLowerCase();
+  const isSavedTeamName = (name: string) =>
+    savedTeams.some((team) => normalizeTeamName(team.name) === normalizeTeamName(name));
+
   const set = <K extends keyof GameConfig>(key: K, value: GameConfig[K]) =>
     setCfg((c) => ({ ...c, [key]: value }));
   const setTeam = (id: TeamId, patch: Partial<GameConfig['teams'][TeamId]>) =>
@@ -178,43 +223,41 @@ export default function ConfigScreen() {
       teams: { ...c.teams, [id]: { name: team.name, color: team.color } },
       players: { ...c.players, [id]: team.players.map((p) => ({ ...p, id: uid() })) },
     }));
-  // Typing away from a name that matched a loaded saved team means the user is
-  // now building a different team, so its roster shouldn't carry over.
-  const changeTeamName = (id: TeamId, name: string) => {
-    const normalize = (n: string) => n.trim().toLowerCase();
-    const current = cfg.teams[id].name;
-    const wasLoadedSavedTeam = savedTeams.some(
-      (team) => normalize(team.name) === normalize(current),
-    );
-    setCfg((c) => ({
-      ...c,
-      teams: { ...c.teams, [id]: { ...c.teams[id], name } },
-      players:
-        wasLoadedSavedTeam && normalize(name) !== normalize(current)
-          ? { ...c.players, [id]: [] }
-          : c.players,
-    }));
+  // Renaming never touches the roster: turning a loaded "Ravens" into "Ravens B"
+  // is the common way to build a second squad out of the first, and silently
+  // emptying the list would throw away exactly what the user meant to keep. The
+  // saved "Ravens" is untouched either way — the store is only written by
+  // addSavedTeam below and by the roster sync once a game starts.
+  const changeTeamName = (id: TeamId, name: string) => setTeam(id, { name });
+  // "Add <name> as a new team" writes to the saved-teams store there and then,
+  // with whatever name, colour and roster the form currently holds, instead of
+  // waiting for START_GAME. So a team can be set up (and reused next time) even
+  // if this game never gets played.
+  const addSavedTeam = (id: TeamId, name: string) => {
+    saveTeam({ name, color: cfg.teams[id].color, players: cfg.players[id] });
+    setSavedTeams(loadSavedTeams());
+    setTeam(id, { name });
+  };
+  // Every roster edit is written back to the saved-teams store immediately, so a
+  // roster survives the combobox being switched to another team and back — that
+  // reload reads from the store, and waiting for START_GAME to write meant it
+  // still held the roster as it was when the team was first saved (usually
+  // empty). Only teams already in the store are synced: a name that was never
+  // added stays local until "add as a new team" or the game start says otherwise.
+  const setPlayers = (id: TeamId, players: PlayerInfo[]) => {
+    setCfg((c) => ({ ...c, players: { ...c.players, [id]: players } }));
+    const name = cfg.teams[id].name.trim();
+    if (!isSavedTeamName(name)) return;
+    saveTeam({ name, color: cfg.teams[id].color, players });
+    setSavedTeams(loadSavedTeams());
   };
   const addPlayer = (id: TeamId, number: string, name: string) =>
-    setCfg((c) => ({
-      ...c,
-      players: {
-        ...c.players,
-        [id]: [...c.players[id], { id: uid(), number: number.trim(), name: name.trim() }],
-      },
-    }));
+    setPlayers(id, [...cfg.players[id], { id: uid(), number: number.trim(), name: name.trim() }]);
   const removePlayer = (id: TeamId, playerId: string) =>
-    setCfg((c) => ({
-      ...c,
-      players: { ...c.players, [id]: c.players[id].filter((p) => p.id !== playerId) },
-    }));
-
-  const num = (v: string, fallback: number, min = 0, max = Number.MAX_SAFE_INTEGER) => {
-    const n = parseInt(v, 10);
-    if (!Number.isFinite(n)) return fallback;
-    return Math.min(max, Math.max(min, n));
-  };
-  const normalizeTeamName = (n: string) => n.trim().toLowerCase();
+    setPlayers(
+      id,
+      cfg.players[id].filter((p) => p.id !== playerId),
+    );
 
   // Phone back button on the guide: same as tapping its own "back to setup" —
   // it's a screen reached from a link, not an external page, so the gesture
@@ -357,6 +400,7 @@ export default function ConfigScreen() {
                 otherTeamName={cfg.teams[id === 'A' ? 'B' : 'A'].name}
                 onChangeText={(name) => changeTeamName(id, name)}
                 onSelectTeam={(team) => selectSavedTeam(id, team)}
+                onAddAsNewTeam={(name) => addSavedTeam(id, name)}
                 onDeleteTeam={removeSavedTeam}
                 maxLength={40}
               />
@@ -484,26 +528,31 @@ export default function ConfigScreen() {
           <div>
             <label className={fieldLabel}>{t('targetScore')}</label>
             <input
-              className={inputClass}
-              inputMode="numeric"
-              value={cfg.targetScore}
-              onChange={(e) => set('targetScore', num(e.target.value, cfg.targetScore, 1, 99))}
+              {...numberFieldProps('targetScore', cfg.targetScore, 1, 99, (targetScore) =>
+                set('targetScore', targetScore),
+              )}
             />
           </div>
           <div>
             <label className={fieldLabel}>{t('timeLimit')}</label>
             <input
-              className={inputClass}
-              inputMode="numeric"
-              value={cfg.timeLimitMinutes}
-              onChange={(e) => {
-                const timeLimitMinutes = num(e.target.value, cfg.timeLimitMinutes, 1, 180);
-                setCfg((c) => ({
-                  ...c,
-                  timeLimitMinutes,
-                  halfTimeLimitMinutes: Math.min(c.halfTimeLimitMinutes, timeLimitMinutes),
-                }));
-              }}
+              {...numberFieldProps(
+                'timeLimit',
+                cfg.timeLimitMinutes,
+                1,
+                180,
+                // The half-time limit can't outlive the game, but it is only pulled
+                // down once this field is finished: cascading per keystroke would
+                // collapse a 55 to 4 on the way to typing 40, and leave it there.
+                (timeLimitMinutes, final) =>
+                  setCfg((c) => ({
+                    ...c,
+                    timeLimitMinutes,
+                    halfTimeLimitMinutes: final
+                      ? Math.min(c.halfTimeLimitMinutes, timeLimitMinutes)
+                      : c.halfTimeLimitMinutes,
+                  })),
+              )}
             />
           </div>
         </div>
@@ -577,35 +626,35 @@ export default function ConfigScreen() {
           <div>
             <label className={fieldLabel}>{t('halfScore')}</label>
             <input
-              className={inputClass}
-              inputMode="numeric"
-              value={cfg.halfScore}
-              onChange={(e) => set('halfScore', num(e.target.value, cfg.halfScore, 1, 99))}
+              {...numberFieldProps('halfScore', cfg.halfScore, 1, 99, (halfScore) =>
+                set('halfScore', halfScore),
+              )}
             />
           </div>
           <div>
             <label className={fieldLabel}>{t('halfTimeLimit')}</label>
             <input
-              className={inputClass}
-              inputMode="numeric"
-              value={cfg.halfTimeLimitMinutes}
-              onChange={(e) =>
-                set(
-                  'halfTimeLimitMinutes',
-                  num(e.target.value, cfg.halfTimeLimitMinutes, 1, cfg.timeLimitMinutes),
-                )
-              }
+              {...numberFieldProps(
+                'halfTimeLimit',
+                cfg.halfTimeLimitMinutes,
+                1,
+                cfg.timeLimitMinutes,
+                (halfTimeLimitMinutes) => set('halfTimeLimitMinutes', halfTimeLimitMinutes),
+              )}
             />
           </div>
           <div>
             <label className={fieldLabel}>{t('halfTimeBreak')}</label>
             <input
-              className={inputClass}
-              inputMode="numeric"
-              value={cfg.halfTimeBreakSeconds}
-              onChange={(e) =>
-                set('halfTimeBreakSeconds', num(e.target.value, cfg.halfTimeBreakSeconds, 30, 1800))
-              }
+              {...numberFieldProps(
+                'halfTimeBreak',
+                cfg.halfTimeBreakSeconds,
+                // 0 is a legal setting, not a slip: the Beach template ships with
+                // no half-time break at all.
+                0,
+                1800,
+                (halfTimeBreakSeconds) => set('halfTimeBreakSeconds', halfTimeBreakSeconds),
+              )}
             />
           </div>
         </div>
@@ -637,19 +686,21 @@ export default function ConfigScreen() {
           <div>
             <label className={fieldLabel}>{t('timeoutsCount')}</label>
             <input
-              className={inputClass}
-              inputMode="numeric"
+              {...numberFieldProps(
+                'timeoutsCount',
+                cfg.timeouts.perHalf ?? cfg.timeouts.perGame ?? 0,
+                0,
+                10,
+                (count) => {
+                  const perHalf = cfg.timeouts.perGame === null;
+                  set('timeouts', {
+                    ...cfg.timeouts,
+                    perHalf: perHalf ? count : null,
+                    perGame: perHalf ? null : count,
+                  });
+                },
+              )}
               disabled={!cfg.timeouts.enabled}
-              value={cfg.timeouts.perHalf ?? cfg.timeouts.perGame ?? 0}
-              onChange={(e) => {
-                const count = num(e.target.value, 0, 0, 10);
-                const perHalf = cfg.timeouts.perGame === null;
-                set('timeouts', {
-                  ...cfg.timeouts,
-                  perHalf: perHalf ? count : null,
-                  perGame: perHalf ? null : count,
-                });
-              }}
             />
           </div>
           <div>
@@ -675,16 +726,14 @@ export default function ConfigScreen() {
           <div>
             <label className={fieldLabel}>{t('timeoutDuration')}</label>
             <input
-              className={inputClass}
-              inputMode="numeric"
+              {...numberFieldProps(
+                'timeoutDuration',
+                cfg.timeouts.durationSeconds,
+                15,
+                300,
+                (durationSeconds) => set('timeouts', { ...cfg.timeouts, durationSeconds }),
+              )}
               disabled={!cfg.timeouts.enabled}
-              value={cfg.timeouts.durationSeconds}
-              onChange={(e) =>
-                set('timeouts', {
-                  ...cfg.timeouts,
-                  durationSeconds: num(e.target.value, cfg.timeouts.durationSeconds, 15, 300),
-                })
-              }
             />
           </div>
           <label className="flex items-center gap-2 col-span-2">

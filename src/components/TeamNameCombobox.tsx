@@ -13,6 +13,7 @@ export function TeamNameCombobox({
   otherTeamName,
   onChangeText,
   onSelectTeam,
+  onAddAsNewTeam,
   onDeleteTeam,
   maxLength,
 }: {
@@ -22,6 +23,8 @@ export function TeamNameCombobox({
   otherTeamName: string;
   onChangeText: (name: string) => void;
   onSelectTeam: (team: SavedTeam) => void;
+  /** Saves the typed name as a saved team immediately — no need to start the game. */
+  onAddAsNewTeam: (name: string) => void;
   onDeleteTeam: (name: string) => void;
   maxLength?: number;
 }) {
@@ -111,7 +114,10 @@ export function TeamNameCombobox({
               <button
                 type="button"
                 className="w-full px-3 py-2 text-left text-sm text-signal hover:bg-pitch"
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  onAddAsNewTeam(value.trim());
+                  setOpen(false);
+                }}
               >
                 {t('addAsNewTeam', { name: value.trim() })}
               </button>
