@@ -14,6 +14,7 @@ export function TeamNameCombobox({
   onChangeText,
   onSelectTeam,
   onDeleteTeam,
+  maxLength,
 }: {
   label: string;
   value: string;
@@ -22,6 +23,7 @@ export function TeamNameCombobox({
   onChangeText: (name: string) => void;
   onSelectTeam: (team: SavedTeam) => void;
   onDeleteTeam: (name: string) => void;
+  maxLength?: number;
 }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
@@ -51,8 +53,9 @@ export function TeamNameCombobox({
       <div className="relative" ref={containerRef}>
         <input
           aria-label={label}
-          className={inputClass}
+          className={`${inputClass} ${value ? 'pr-9' : ''}`}
           value={value}
+          maxLength={maxLength}
           onChange={(e) => {
             onChangeText(e.target.value);
             setOpen(true);
@@ -60,6 +63,19 @@ export function TeamNameCombobox({
           onFocus={() => setOpen(true)}
           onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}
         />
+        {value && (
+          <button
+            type="button"
+            aria-label={t('clearTeamNameAria', { name: label })}
+            className="absolute right-2 top-1/2 -translate-y-1/2 px-1 py-1 text-chalk/60 hover:text-chalk"
+            onClick={() => {
+              onChangeText('');
+              setOpen(true);
+            }}
+          >
+            ✕
+          </button>
+        )}
         {showPanel && (
           <div className="absolute z-10 mt-1 w-full rounded-lg bg-panel border border-line max-h-56 overflow-y-auto">
             {matches.map((team) => (

@@ -20,6 +20,11 @@ function fieldInput(labelText: string): HTMLInputElement {
   return label.parentElement!.querySelector('input') as HTMLInputElement;
 }
 
+function fieldSelect(labelText: string): HTMLSelectElement {
+  const label = screen.getByText(labelText);
+  return label.parentElement!.querySelector('select') as HTMLSelectElement;
+}
+
 beforeEach(() => {
   sessionStorage.clear();
   localStorage.clear();
@@ -31,7 +36,8 @@ describe('config screen template picker', () => {
 
     expect((screen.getByLabelText('Template') as HTMLSelectElement).value).toBe('predefined:grass');
     expect(fieldInput('break (seconds)').value).toBe('420');
-    expect(fieldInput('Per team, per half').value).toBe('2');
+    expect(fieldInput('Per team').value).toBe('2');
+    expect(fieldSelect('Allowance').value).toBe('half');
   });
 
   it('applies the Beach preset: no half-time break, 1 timeout per game', () => {
@@ -42,8 +48,8 @@ describe('config screen template picker', () => {
     });
 
     expect(fieldInput('break (seconds)').value).toBe('0');
-    expect(fieldInput('Per team, per game').value).toBe('1');
-    expect(fieldInput('Per team, per half').value).toBe('');
+    expect(fieldInput('Per team').value).toBe('1');
+    expect(fieldSelect('Allowance').value).toBe('game');
   });
 
   it('applies the Grass preset: 7-minute half-time break, 2 timeouts per half', () => {
@@ -54,8 +60,8 @@ describe('config screen template picker', () => {
     });
 
     expect(fieldInput('break (seconds)').value).toBe('420');
-    expect(fieldInput('Per team, per half').value).toBe('2');
-    expect(fieldInput('Per team, per game').value).toBe('');
+    expect(fieldInput('Per team').value).toBe('2');
+    expect(fieldSelect('Allowance').value).toBe('half');
   });
 
   it('does not touch team names when a preset is applied', () => {
@@ -119,6 +125,7 @@ describe('save / delete a custom template', () => {
     // showing "Grass" selected while Beach's numbers linger would be worse than
     // showing nothing at all.
     expect(fieldInput('break (seconds)').value).toBe('420');
-    expect(fieldInput('Per team, per half').value).toBe('2');
+    expect(fieldInput('Per team').value).toBe('2');
+    expect(fieldSelect('Allowance').value).toBe('half');
   });
 });

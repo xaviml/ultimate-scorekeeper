@@ -14,12 +14,14 @@ import {
   timeoutsConfigured,
 } from '../state/gameReducer';
 import { formatClock } from '../state/stats';
+import { useBackGuard } from '../hooks/useBackGuard';
 import { useLongPress } from '../hooks/useLongPress';
 import type { CallKind, CallResolution, GameState, TeamId } from '../state/types';
 import { AssistanceBar } from './AssistanceBar';
 import { AssistGoalDialog } from './AssistGoalDialog';
 import { CallTeamDialog } from './CallTeamDialog';
 import { ConfirmEndGameDialog } from './ConfirmEndGameDialog';
+import { ConfirmLeaveGameDialog } from './ConfirmLeaveGameDialog';
 import { ConfirmPauseGameDialog } from './ConfirmPauseGameDialog';
 import { GameLog } from './GameLog';
 import { NoteDialog } from './NoteDialog';
@@ -435,17 +437,57 @@ export default function GameScreen() {
     () => sessionStorage.getItem(END_GAME_CONFIRM_KEY) === '1',
   );
 
-  // The action row (Pull thrown / Resume game / End timeout / End halftime) only
-  // exists in the DOM while one of these statuses is active, which shrinks the
-  // score panels above to make room for it the instant it appears. A goal is the
-  // most common way into it, so the button materialises exactly where the
-  // volunteer's finger already was tapping to score — see the min-height reserved
-  // on its container below, which keeps the score panels a constant size instead.
+  // Nothing that touches the score, the clock or possession is allowed before the
+  // volunteer taps "Start game" — see the action row button and the hidden
+  // pause/play toggle below.
+  const gameStarted = state.status !== 'notStarted' && state.status !== 'awaitingStart';
+
+  // Phone back button while a game is running: same intent as the beforeunload
+  // guard in GameContext, but that only fires on an actual page unload, which a
+  // back-gesture in an installed PWA skips entirely. This traps it and asks first.
+  // A script can't force a real app exit on confirm (browsers reserve that for a
+  // direct user gesture), so confirming instead abandons back to setup — a real,
+  // one-tap, always-working in-app transition, same as BACK_TO_CONFIG elsewhere.
+  //
+  // Before the game has started there's nothing to lose, so the press just goes
+  // straight back to setup (the same as the "Back to setup" button) with no
+  // confirmation — only once play is under way does it stop to ask.
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const resolveBack = useBackGuard(true, ({ stay }) => {
+    if (!gameStarted) {
+      // Nothing to lose yet — the gesture already popped our guard entry, so
+      // just drop back to setup, exactly like the "Back to setup" button.
+      dispatch({ type: 'BACK_TO_CONFIG' });
+      return;
+    }
+    // Absorb the press and keep guarding while the dialog is up, so a second
+    // back can't slip past it.
+    stay();
+    setShowLeaveConfirm(true);
+  });
+  // Every path that unmounts the game screen to another screen consumes the
+  // trapped history entry first, so nothing dead is left on the stack for the
+  // destination's own back button to swallow.
+  const leaveGameTo = (action: Parameters<typeof dispatch>[0]) => {
+    resolveBack();
+    dispatch(action);
+  };
+
+  // The action row (Start game / Pull thrown / Resume game / End timeout / End
+  // halftime) only exists in the DOM while one of these statuses is active, which
+  // shrinks the score panels above to make room for it the instant it appears. A
+  // goal is the most common way into it, so the button materialises exactly where
+  // the volunteer's finger already was tapping to score — see the min-height
+  // reserved on its container below, which keeps the score panels a constant size
+  // instead.
   const actionRowStatus =
+    state.status === 'notStarted' ||
+    state.status === 'awaitingStart' ||
     state.status === 'awaitingPull' ||
     state.status === 'paused' ||
     state.status === 'timeout' ||
-    state.status === 'halftime'
+    state.status === 'halftime' ||
+    state.status === 'finished'
       ? state.status
       : null;
 
@@ -522,6 +564,22 @@ export default function GameScreen() {
       ? Math.max(0, Math.round((state.startingAtMs - now.getTime()) / 1000))
       : null;
 
+  // Once finished, gameSeconds keeps advancing underneath (see TICK) so an undo of
+  // the finishing goal resumes from the right elapsed time — but the clock reads as
+  // stopped, so the displayed number is frozen at whatever it showed the moment the
+  // game finished, not the live value ticking on behind it. State rather than a
+  // ref so that undoing the goal (status leaving 'finished') repaints the correct,
+  // caught-up number right away instead of waiting on the next TICK to re-render.
+  const [frozenGameSeconds, setFrozenGameSeconds] = useState<number | null>(null);
+  useEffect(() => {
+    if (state.status === 'finished') {
+      setFrozenGameSeconds((prev) => prev ?? state.gameSeconds);
+    } else {
+      setFrozenGameSeconds(null);
+    }
+  }, [state.status, state.gameSeconds]);
+  const displayGameSeconds = frozenGameSeconds ?? state.gameSeconds;
+
   const flashHint = (message: string) => {
     setActionHint(message);
     setTimeout(() => setActionHint(null), 2500);
@@ -594,13 +652,14 @@ export default function GameScreen() {
 
   // Whether the Record event launcher itself should be disabled: a call or a
   // stoppage awaiting resolution, an SOTG stoppage in progress (its own dedicated
-  // "Resume game" button is the one way out), or any other record-event flow
-  // already open — none of these should be interrupted by starting a second one
-  // on top.
+  // "Resume game" button is the one way out), the game having finished, or any
+  // other record-event flow already open — none of these should be interrupted by
+  // starting a second one on top.
   const recordEventBusy =
     state.pendingCall !== null ||
     state.pendingStoppage !== null ||
     paused ||
+    state.status === 'finished' ||
     showStoppage ||
     showNote ||
     showTravel ||
@@ -614,14 +673,7 @@ export default function GameScreen() {
         <span className="font-board text-signal justify-self-start">
           {t('field', { n: state.config.fieldNumber })}
         </span>
-        <span className="font-clock justify-self-center flex items-center gap-1.5">
-          {state.status === 'awaitingStart' && (
-            <span
-              aria-label={t('awaitingStartDotLabel')}
-              title={t('awaitingStartDotLabel')}
-              className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse"
-            />
-          )}
+        <span className="font-clock justify-self-center">
           {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </span>
         <span className="font-board justify-self-end">
@@ -648,63 +700,71 @@ export default function GameScreen() {
         <ScorePanel team={right} side="right" />
         {/* Hand signal for the current message, floating over the bottom-left corner. */}
         <SignalCard />
-        <div className="absolute left-1/2 top-2 -translate-x-1/2 flex flex-col items-center gap-1">
-          {isUniversePoint(state) && (
+        {/* Once finished, none of these chips mean anything any more (no more pulls,
+            no more universe point, targets already reached) — hidden along with the
+            rest of the blocked UI, and back the moment an undo of the finishing goal
+            un-finishes the game. */}
+        {state.status !== 'finished' && (
+          <div className="absolute left-1/2 top-2 -translate-x-1/2 flex flex-col items-center gap-1">
+            {isUniversePoint(state) && (
+              <div
+                aria-live="polite"
+                className="rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border border-signal text-signal animate-pulse"
+              >
+                {t('universePointBadge' as never)}
+              </div>
+            )}
+            {/* Each target goes on screen at the moment it is first announced — one goal
+                short of it, or when a cap fixes a new one — and stays as the standing
+                reminder of what was just shouted. Highlighted while it is a capped value,
+                since that is the number nobody can infer. The half chip also retires once
+                the half score stops deciding anything. */}
+            {state.halfAnnounced && halfTargetApplies(state) && (
+              <div
+                aria-live="polite"
+                className={`rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border ${
+                  state.halfCappedTarget !== null
+                    ? 'border-signal text-signal'
+                    : 'border-line text-chalk'
+                }`}
+              >
+                {t('halfCapChip', { n: effectiveHalfTarget(state) })}
+              </div>
+            )}
+            {state.gameAnnounced && (
+              <div
+                aria-live="polite"
+                className={`rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border ${
+                  state.cappedTarget !== null
+                    ? 'border-signal text-signal'
+                    : 'border-line text-chalk'
+                }`}
+              >
+                {t('gameCapChip', { n: target })}
+              </div>
+            )}
+            {isMixed && (state.ratio || state.nextRatio) && (
+              <button
+                type="button"
+                aria-live="polite"
+                onClick={() => dispatch({ type: 'SHOW_RATIO_SIGNAL' })}
+                className={`rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border active:scale-95 ${
+                  state.nextRatio
+                    ? 'border-signal text-signal animate-pulse'
+                    : 'border-line text-chalk'
+                }`}
+              >
+                {ratioLabel(state, t as never)}
+              </button>
+            )}
             <div
               aria-live="polite"
-              className="rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border border-signal text-signal animate-pulse"
+              className="rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border border-line text-chalk"
             >
-              {t('universePointBadge' as never)}
+              {pullLabel(state, t as never)}
             </div>
-          )}
-          {/* Each target goes on screen at the moment it is first announced — one goal
-              short of it, or when a cap fixes a new one — and stays as the standing
-              reminder of what was just shouted. Highlighted while it is a capped value,
-              since that is the number nobody can infer. The half chip also retires once
-              the half score stops deciding anything. */}
-          {state.halfAnnounced && halfTargetApplies(state) && (
-            <div
-              aria-live="polite"
-              className={`rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border ${
-                state.halfCappedTarget !== null
-                  ? 'border-signal text-signal'
-                  : 'border-line text-chalk'
-              }`}
-            >
-              {t('halfCapChip', { n: effectiveHalfTarget(state) })}
-            </div>
-          )}
-          {state.gameAnnounced && (
-            <div
-              aria-live="polite"
-              className={`rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border ${
-                state.cappedTarget !== null ? 'border-signal text-signal' : 'border-line text-chalk'
-              }`}
-            >
-              {t('gameCapChip', { n: target })}
-            </div>
-          )}
-          {isMixed && (state.ratio || state.nextRatio) && (
-            <button
-              type="button"
-              aria-live="polite"
-              onClick={() => dispatch({ type: 'SHOW_RATIO_SIGNAL' })}
-              className={`rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border active:scale-95 ${
-                state.nextRatio
-                  ? 'border-signal text-signal animate-pulse'
-                  : 'border-line text-chalk'
-              }`}
-            >
-              {ratioLabel(state, t as never)}
-            </button>
-          )}
-          <div
-            aria-live="polite"
-            className="rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border border-line text-chalk"
-          >
-            {pullLabel(state, t as never)}
           </div>
-        </div>
+        )}
       </div>
 
       {/* Timeout / pull / halftime action. Height is reserved (min-h) rather than
@@ -714,6 +774,14 @@ export default function GameScreen() {
           volunteer's finger already was tapping to score. A fixed-height slot
           keeps the score panel boundary stable so that never happens. */}
       <div className="min-h-16 lscape:min-h-10 px-3 lscape:px-2 py-2 lscape:py-1 bg-panel border-t border-line shrink-0 flex items-center">
+        {(actionRowStatus === 'notStarted' || actionRowStatus === 'awaitingStart') && (
+          <button
+            className="w-full rounded-lg bg-signal text-pitch px-3 py-3 lscape:py-1.5 font-board font-bold text-base lscape:text-xs animate-pulse"
+            onClick={() => dispatch({ type: 'BEGIN_PLAY' })}
+          >
+            {t('startGame')}
+          </button>
+        )}
         {actionRowStatus === 'awaitingPull' && (
           <button
             className="w-full rounded-lg bg-signal text-pitch px-3 py-3 lscape:py-1.5 font-board font-bold text-base lscape:text-xs animate-pulse"
@@ -746,6 +814,14 @@ export default function GameScreen() {
             {t('btnEndHalftime')}
           </button>
         )}
+        {actionRowStatus === 'finished' && (
+          <button
+            className="w-full rounded-lg bg-signal text-pitch px-3 py-3 lscape:py-1.5 font-board font-bold text-base lscape:text-xs animate-pulse"
+            onClick={() => leaveGameTo({ type: 'OPEN_REPORT' })}
+          >
+            {t('openReport')}
+          </button>
+        )}
       </div>
 
       {/* Clocks + actions */}
@@ -766,18 +842,20 @@ export default function GameScreen() {
               <div
                 className={`font-clock text-3xl lscape:text-base ${paused ? 'text-chalk/40' : 'text-chalk'}`}
               >
-                {formatClock(countdownSeconds ?? state.gameSeconds)}
+                {formatClock(countdownSeconds ?? displayGameSeconds)}
               </div>
-              <button
-                type="button"
-                onClick={togglePause}
-                disabled={!canTogglePause}
-                aria-label={t(paused ? 'btnResumeGame' : 'btnPauseGame')}
-                title={t(paused ? 'btnResumeGame' : 'btnPauseGame')}
-                className="shrink-0 flex items-center justify-center w-7 h-7 lscape:w-5 lscape:h-5 rounded-full border border-line text-chalk active:scale-95 disabled:opacity-30"
-              >
-                {paused ? <PlayIcon /> : <PauseIcon />}
-              </button>
+              {gameStarted && state.status !== 'finished' && (
+                <button
+                  type="button"
+                  onClick={togglePause}
+                  disabled={!canTogglePause}
+                  aria-label={t(paused ? 'btnResumeGame' : 'btnPauseGame')}
+                  title={t(paused ? 'btnResumeGame' : 'btnPauseGame')}
+                  className="shrink-0 flex items-center justify-center w-7 h-7 lscape:w-5 lscape:h-5 rounded-full border border-line text-chalk active:scale-95 disabled:opacity-30"
+                >
+                  {paused ? <PlayIcon /> : <PauseIcon />}
+                </button>
+              )}
             </div>
           </div>
 
@@ -847,15 +925,22 @@ export default function GameScreen() {
         </div>
       </div>
 
-      {/* Utility row */}
-      <div className="px-3 lscape:px-2 pb-1 bg-panel shrink-0">
-        <button
-          className="w-full mt-1 text-[11px] lscape:text-[9px] uppercase tracking-widest text-chalk/40 py-1 lscape:py-0.5"
-          onClick={openEndGameConfirm}
-        >
-          {t('btnEndGame')}
-        </button>
-      </div>
+      {/* Utility row — hidden once the game is finished: "Open report" above already
+          does the same job as "End game" did, and there is nothing left for "Back to
+          setup" to mean while a finished game is still sitting here awaiting either
+          that tap or an undo of the goal that finished it. */}
+      {state.status !== 'finished' && (
+        <div className="px-3 lscape:px-2 pb-1 bg-panel shrink-0">
+          <button
+            className="w-full mt-1 text-[11px] lscape:text-[9px] uppercase tracking-widest text-chalk/40 py-1 lscape:py-0.5"
+            onClick={
+              gameStarted ? openEndGameConfirm : () => leaveGameTo({ type: 'BACK_TO_CONFIG' })
+            }
+          >
+            {t(gameStarted ? 'btnEndGame' : 'btnBackToSetup')}
+          </button>
+        </div>
+      )}
 
       <AssistanceBar />
 
@@ -893,6 +978,15 @@ export default function GameScreen() {
           onConfirm={() => {
             setShowPauseConfirm(false);
             dispatch({ type: 'SOTG_TOGGLE', silent: true });
+          }}
+        />
+      )}
+      {showLeaveConfirm && (
+        <ConfirmLeaveGameDialog
+          onCancel={() => setShowLeaveConfirm(false)}
+          onConfirm={() => {
+            setShowLeaveConfirm(false);
+            leaveGameTo({ type: 'BACK_TO_CONFIG' });
           }}
         />
       )}

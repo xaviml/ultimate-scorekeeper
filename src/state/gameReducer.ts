@@ -188,7 +188,7 @@ export function canRecordEvent(
   state: GameState,
   opts?: { requiresPull?: boolean },
 ): { ok: boolean; reason?: string } {
-  if (state.phase !== 'game' || state.status === 'awaitingStart')
+  if (state.phase !== 'game' || state.status === 'awaitingStart' || state.status === 'notStarted')
     return { ok: false, reason: 'gameNotStarted' };
   if (state.status === 'finished') return { ok: false, reason: 'gameFinished' };
   if (state.status === 'timeout') return { ok: false, reason: 'timeoutActive' };
@@ -200,13 +200,13 @@ export function canRecordEvent(
 
 export function canUndo(state: GameState, team: TeamId): { ok: boolean; reason?: string } {
   // Deliberately does not reuse canScore: a goal leaves the game in 'awaitingPull'
-  // until the next pull is thrown, or in 'halftime' if it reached the half score —
-  // either way that shouldn't block undoing the goal that just put it there (halftime
-  // is only ever entered straight out of a goal, so it's always that same goal).
-  // Every other non-live status still blocks undo.
+  // until the next pull is thrown, in 'halftime' if it reached the half score, or in
+  // 'finished' if it reached the game's end — every one of those shouldn't block
+  // undoing the goal that just put it there (each is only ever entered straight out
+  // of a goal, so it's always that same goal). Every other non-live status still
+  // blocks undo.
   if (state.phase !== 'game' || state.status === 'notStarted' || state.status === 'awaitingStart')
     return { ok: false, reason: 'gameNotStarted' };
-  if (state.status === 'finished') return { ok: false, reason: 'gameFinished' };
   if (state.status === 'paused') return { ok: false, reason: 'gamePaused' };
   if (state.status === 'timeout') return { ok: false, reason: 'timeoutActive' };
   if (state.scores[team] <= 0) return { ok: false, reason: 'minScoreZero' }; // never below 0
@@ -354,9 +354,17 @@ function applyHalfCap(state: GameState): GameState {
   return { ...s, assist: 'halfCapPending' };
 }
 
+/**
+ * Stays in phase 'game', status 'finished': the score panels, record event, timeouts
+ * and pause are all blocked from here (see the various can* guards), but the game
+ * screen stays mounted with everything blocked so the goal that finished it can still
+ * be undone (see canUndo) before the volunteer taps "Open report" (OPEN_REPORT), the
+ * only way from here into phase 'report'. END_GAME (manually ending the game) is the
+ * one caller that immediately overrides phase to 'report' anyway — see its case below.
+ */
 function finishGame(state: GameState): GameState {
   const s = log(state, 'gameEnd');
-  return { ...s, status: 'finished', phase: 'report', secondary: null, assist: 'gameOver' };
+  return { ...s, status: 'finished', secondary: null, assist: 'gameOver' };
 }
 
 /** Epoch ms for a configured kickoff time (today, local), or null if none is set. */
@@ -369,7 +377,11 @@ function startingTimeMs(config: GameConfig): number | null {
   return d.getTime();
 }
 
-/** Opens the pull, whether that happens right at START_GAME or once a scheduled kickoff arrives. */
+/**
+ * Opens the pull: whether that happens via a manual "Start game" tap (BEGIN_PLAY,
+ * from 'notStarted' or early from 'awaitingStart'), or automatically once a
+ * scheduled kickoff arrives (TICK).
+ */
 function beginPlay(state: GameState): GameState {
   const s = log({ ...state, startingAtMs: null }, 'gameStart');
   return {
@@ -387,9 +399,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
       const startingAtMs = startingTimeMs(action.config);
       // A kickoff time set for the future holds the game at 'awaitingStart' rather
       // than opening the pull right away; TICK below promotes it once the wall
-      // clock actually reaches it. A time already in the past (the config screen
-      // should prevent this, but the wall clock keeps moving while it's open)
-      // starts play immediately instead of waiting forever.
+      // clock actually reaches it (or BEGIN_PLAY promotes it early, on a manual tap).
       if (startingAtMs !== null && startingAtMs > Date.now()) {
         // A kickoff already under a minute away is too soon for the one-minute-to-start
         // whistle (scenario 1a) to be meaningful — seed startWarned so it never fires.
@@ -402,11 +412,20 @@ export function gameReducer(state: GameState, action: Action): GameState {
           assist: 'awaitingGameStart',
         };
       }
-      return beginPlay(init);
+      // No scheduled kickoff, or one already in the past (the config screen should
+      // prevent this, but the wall clock keeps moving while it's open): the game
+      // never opens the pull on its own — it waits for the volunteer to tap
+      // "Start game" (BEGIN_PLAY below).
+      return { ...init, status: 'notStarted', assist: 'awaitingGameStart' };
+    }
+
+    case 'BEGIN_PLAY': {
+      if (state.status !== 'notStarted' && state.status !== 'awaitingStart') return state;
+      return beginPlay(state);
     }
 
     case 'PULL_THROWN': {
-      if (state.status !== 'awaitingPull' && state.status !== 'notStarted') return state;
+      if (state.status !== 'awaitingPull') return state;
       const s = state;
       return {
         ...s,
@@ -576,12 +595,15 @@ export function gameReducer(state: GameState, action: Action): GameState {
     case 'UNDO_GOAL': {
       if (!canUndo(state, action.team).ok) return state;
       const prev = state.history[state.history.length - 1];
-      // A goal that reaches the half appends a 'halftimeStart' entry right after its
-      // own 'goal' entry — an automatic side effect of the goal, not something the
-      // scorekeeper separately recorded, so it doesn't count as "something logged in
-      // between" and is dropped along with the goal.
-      const trailingHalftimeStart = state.log[state.log.length - 1]?.type === 'halftimeStart';
-      const goalLogIdx = trailingHalftimeStart ? state.log.length - 2 : state.log.length - 1;
+      // A goal that reaches the half appends a 'halftimeStart' entry, and one that
+      // finishes the game appends a 'gameEnd' entry, right after its own 'goal' entry
+      // — both are automatic side effects of the goal, not something the scorekeeper
+      // separately recorded, so neither counts as "something logged in between" and
+      // both are dropped along with the goal. A goal can trigger at most one of the two.
+      const trailingAutoEntry =
+        state.log[state.log.length - 1]?.type === 'halftimeStart' ||
+        state.log[state.log.length - 1]?.type === 'gameEnd';
+      const goalLogIdx = trailingAutoEntry ? state.log.length - 2 : state.log.length - 1;
       const goalLog = state.log[goalLogIdx];
       // If nothing else has been recorded since the goal itself, this undo is just the
       // scorekeeper correcting a mis-tap — drop the goal entry (and the halftimeStart
@@ -859,26 +881,34 @@ export function gameReducer(state: GameState, action: Action): GameState {
       }
       // Game clock only stops for a pause (status 'paused') — manual, SOTG, or
       // auto-triggered by a prolonged stoppage below; halftime and timeouts don't
-      // stop it.
+      // stop it. 'finished' doesn't stop it either: the screen shows it frozen (see
+      // GameScreen) but it keeps advancing underneath so that undoing the goal that
+      // finished the game (see canUndo) resumes from the time that would have
+      // elapsed, not from a clock that lost however long the review took.
       const clockRuns =
         s.status === 'live' ||
         s.status === 'awaitingPull' ||
         s.status === 'timeout' ||
-        s.status === 'halftime';
+        s.status === 'halftime' ||
+        s.status === 'finished';
       if (clockRuns) {
         s = { ...s, gameSeconds: s.gameSeconds + 1 };
-        // Half-time cap
-        if (
-          !s.halfTimeCapReached &&
-          !s.halftimePlayed &&
-          s.half === 1 &&
-          s.gameSeconds >= s.config.halfTimeLimitMinutes * 60
-        ) {
-          s = applyHalfCap(s);
-        }
-        // End-game time cap
-        if (!s.timeCapReached && s.gameSeconds >= s.config.timeLimitMinutes * 60) {
-          s = applyEndCap(s);
+        // Caps only ever matter to a game still being decided — once finished, the
+        // time limit has nothing left to cap.
+        if (s.status !== 'finished') {
+          // Half-time cap
+          if (
+            !s.halfTimeCapReached &&
+            !s.halftimePlayed &&
+            s.half === 1 &&
+            s.gameSeconds >= s.config.halfTimeLimitMinutes * 60
+          ) {
+            s = applyHalfCap(s);
+          }
+          // End-game time cap
+          if (!s.timeCapReached && s.gameSeconds >= s.config.timeLimitMinutes * 60) {
+            s = applyEndCap(s);
+          }
         }
       }
       // Pending stoppage bookkeeping: elapsedSeconds keeps counting every tick for
@@ -940,7 +970,16 @@ export function gameReducer(state: GameState, action: Action): GameState {
     }
 
     case 'END_GAME':
-      return finishGame(state);
+      // Manually ending the game (as opposed to reaching it via a goal) is a
+      // deliberate, confirmed choice to stop right now — there is no "goal that
+      // just did this" for the volunteer to reconsider, so it skips the blocked
+      // review screen finishGame otherwise leaves the game on and goes straight
+      // to the report, same as it always has.
+      return { ...finishGame(state), phase: 'report' };
+
+    case 'OPEN_REPORT':
+      if (state.status !== 'finished') return state;
+      return { ...state, phase: 'report' };
 
     case 'BACK_TO_CONFIG':
       return createInitialState(state.config);

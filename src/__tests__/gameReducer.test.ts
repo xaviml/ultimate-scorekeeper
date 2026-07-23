@@ -23,7 +23,8 @@ function run(state: GameState, ...actions: Action[]): GameState {
   return actions.reduce(gameReducer, state);
 }
 function started(config = cfg()): GameState {
-  return gameReducer(createInitialState(config), { type: 'START_GAME', config });
+  const s = gameReducer(createInitialState(config), { type: 'START_GAME', config });
+  return gameReducer(s, { type: 'BEGIN_PLAY' });
 }
 function live(config = cfg()): GameState {
   return run(started(config), { type: 'PULL_THROWN' });
@@ -523,6 +524,82 @@ describe('universe point', () => {
     const s = gameReducer(live(config), { type: 'GOAL', team: 'A' });
     expect(s.status).toBe('finished');
     expect(isUniversePoint(s)).toBe(false);
+  });
+});
+
+describe('game finish', () => {
+  it('stays in phase game, status finished, once the target is reached', () => {
+    const config = cfg({ targetScore: 1 });
+    const s = gameReducer(live(config), { type: 'GOAL', team: 'A' });
+    expect(s.phase).toBe('game');
+    expect(s.status).toBe('finished');
+  });
+
+  it('blocks scoring, timeouts and record events once finished', () => {
+    const config = cfg({ targetScore: 1 });
+    const s = gameReducer(live(config), { type: 'GOAL', team: 'A' });
+    expect(canScore(s).reason).toBe('gameFinished');
+    expect(canRecordEvent(s).reason).toBe('gameFinished');
+    expect(timeoutAvailability(s, 'A').ok).toBe(false);
+    expect(timeoutAvailability(s, 'B').ok).toBe(false);
+  });
+
+  it('keeps the game clock running underneath while finished, but stops applying caps', () => {
+    const config = cfg({ targetScore: 1, timeLimitMinutes: 1 });
+    let s = gameReducer(live(config), { type: 'GOAL', team: 'A' });
+    expect(s.status).toBe('finished');
+    const before = s.gameSeconds;
+    s = ticks(s, 60);
+    expect(s.gameSeconds).toBe(before + 60);
+    // The time limit was blown right through, but a finished game has nothing left
+    // for the end-game cap to do.
+    expect(s.timeCapReached).toBe(false);
+  });
+
+  it('allows undoing the goal that finished the game, resuming with the elapsed clock', () => {
+    const config = cfg({ targetScore: 1 });
+    let s = gameReducer(live(config), { type: 'GOAL', team: 'A' });
+    expect(s.status).toBe('finished');
+    expect(canUndo(s, 'A').ok).toBe(true);
+    s = ticks(s, 10); // reviewing the finished screen for a while
+    s = gameReducer(s, { type: 'UNDO_GOAL', team: 'A' });
+    expect(s.phase).toBe('game');
+    expect(s.status).toBe('live');
+    expect(s.scores.A).toBe(0);
+    // Undo never touches the game clock — it kept advancing while finished, so the
+    // resumed game picks up from there rather than losing the review time.
+    expect(s.gameSeconds).toBe(10);
+    // Nothing else was recorded in between, so both the goal and the automatic
+    // gameEnd entry it triggered are dropped rather than left dangling.
+    expect(s.log.some((e) => e.type === 'goal')).toBe(false);
+    expect(s.log.some((e) => e.type === 'gameEnd')).toBe(false);
+  });
+
+  it('re-finishes once the corrected goal is replayed', () => {
+    const config = cfg({ targetScore: 1 });
+    let s = gameReducer(live(config), { type: 'GOAL', team: 'A' }); // mis-tap
+    s = gameReducer(s, { type: 'UNDO_GOAL', team: 'A' });
+    s = gameReducer(s, { type: 'GOAL', team: 'B' }); // actual scorer
+    expect(s.status).toBe('finished');
+    expect(s.scores).toEqual({ A: 0, B: 1 });
+  });
+
+  it('OPEN_REPORT only moves to the report phase once the game has finished', () => {
+    let s = live(cfg({ targetScore: 1 }));
+    s = gameReducer(s, { type: 'OPEN_REPORT' });
+    expect(s.phase).toBe('game'); // no-op: game not finished yet
+    s = gameReducer(s, { type: 'GOAL', team: 'A' });
+    expect(s.status).toBe('finished');
+    s = gameReducer(s, { type: 'OPEN_REPORT' });
+    expect(s.phase).toBe('report');
+  });
+
+  it('END_GAME (manually ending it) skips the blocked review screen and opens the report right away', () => {
+    // Unlike a goal finishing the game, there is no "goal that just did this" for the
+    // volunteer to reconsider, so a manual end goes straight to the report.
+    const s = gameReducer(live(), { type: 'END_GAME' });
+    expect(s.status).toBe('finished');
+    expect(s.phase).toBe('report');
   });
 });
 
@@ -1235,14 +1312,49 @@ describe('scheduled kickoff', () => {
     expect(canScore({ ...s, status: 'live' }).ok).toBe(true);
   });
 
-  it('starts immediately if the configured time has already passed by the time Start game is pressed', () => {
+  it('waits for a manual "Start game" tap if the configured time has already passed', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2024-06-01T10:10:00'));
     const config = cfg({ startingTime: { enabled: true, time: '10:05' } });
 
     const s = gameReducer(createInitialState(config), { type: 'START_GAME', config });
-    expect(s.status).toBe('awaitingPull');
+    expect(s.status).toBe('notStarted');
     expect(s.startingAtMs).toBeNull();
+
+    const opened = gameReducer(s, { type: 'BEGIN_PLAY' });
+    expect(opened.status).toBe('awaitingPull');
+  });
+
+  it('waits for a manual "Start game" tap when no kickoff is scheduled', () => {
+    const config = cfg();
+    const s = gameReducer(createInitialState(config), { type: 'START_GAME', config });
+    expect(s.phase).toBe('game');
+    expect(s.status).toBe('notStarted');
+    expect(s.startingAtMs).toBeNull();
+    expect(canScore(s).reason).toBe('gameNotStarted');
+    expect(canRecordEvent(s).reason).toBe('gameNotStarted');
+    expect(canUndo(s, 'A').reason).toBe('gameNotStarted');
+    // A goal attempt, or any TICK, changes nothing before "Start game" is tapped.
+    expect(gameReducer(s, { type: 'GOAL', team: 'A' }).scores.A).toBe(0);
+    expect(gameReducer(s, { type: 'TICK' }).status).toBe('notStarted');
+
+    const opened = gameReducer(s, { type: 'BEGIN_PLAY' });
+    expect(opened.status).toBe('awaitingPull');
+    expect(opened.assist).toBe('firstPull');
+  });
+
+  it('lets the volunteer tap "Start game" early to override a scheduled kickoff', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2024-06-01T10:00:00'));
+    const config = cfg({ startingTime: { enabled: true, time: '10:05' } });
+    const s = gameReducer(createInitialState(config), { type: 'START_GAME', config });
+    expect(s.status).toBe('awaitingStart');
+
+    // Tapped well before the scheduled time — opens the pull right away instead of
+    // waiting for TICK to reach startingAtMs.
+    const opened = gameReducer(s, { type: 'BEGIN_PLAY' });
+    expect(opened.status).toBe('awaitingPull');
+    expect(opened.startingAtMs).toBeNull();
   });
 
   it('starts immediately when no starting time is configured, as before', () => {
@@ -1288,5 +1400,10 @@ describe('scheduled kickoff', () => {
     vi.setSystemTime(new Date('2024-06-01T10:04:45'));
     s = gameReducer(s, { type: 'TICK' });
     expect(s.assist).not.toBe('startWarning');
+  });
+
+  it('ignores a "Start game" tap once the game is already under way', () => {
+    const s = live();
+    expect(gameReducer(s, { type: 'BEGIN_PLAY' })).toBe(s);
   });
 });

@@ -18,12 +18,22 @@ export function PlayerRosterEditor({
   const { t } = useT();
   const [number, setNumber] = useState('');
   const [name, setName] = useState('');
+  const [error, setError] = useState(false);
 
   const add = () => {
     if (!number.trim() && !name.trim()) return;
+    const normalize = (s: string) => s.trim().toLowerCase();
+    const isDuplicate = players.some(
+      (p) => normalize(p.number) === normalize(number) && normalize(p.name) === normalize(name),
+    );
+    if (isDuplicate) {
+      setError(true);
+      return;
+    }
     onAdd(number, name);
     setNumber('');
     setName('');
+    setError(false);
   };
 
   return (
@@ -56,15 +66,23 @@ export function PlayerRosterEditor({
         <input
           className={inputClass}
           inputMode="numeric"
+          maxLength={3}
           placeholder={t('playerNumber')}
           value={number}
-          onChange={(e) => setNumber(e.target.value)}
+          onChange={(e) => {
+            setNumber(e.target.value.replace(/\D/g, '').slice(0, 3));
+            setError(false);
+          }}
         />
         <input
           className={inputClass}
+          maxLength={40}
           placeholder={t('playerName')}
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            setName(e.target.value);
+            setError(false);
+          }}
           onKeyDown={(e) => e.key === 'Enter' && add()}
         />
         <button
@@ -75,6 +93,7 @@ export function PlayerRosterEditor({
           {t('addPlayer')}
         </button>
       </div>
+      {error && <p className="text-sm text-chalk/60">{t('duplicatePlayer')}</p>}
     </div>
   );
 }

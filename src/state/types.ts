@@ -12,7 +12,9 @@ export type HalfCapRule = { kind: 'none' } | { kind: 'cap'; plus: 1 };
 
 export interface TimeoutConfig {
   enabled: boolean; // when false, timeouts are unavailable regardless of the budgets below
-  perHalf: number | null; // null = use perGame; both null = no timeouts (same as 0)
+  // Exactly one of these carries the budget; the other is null (the config UI
+  // enforces this). perHalf wins if both are somehow set; both null = no timeouts.
+  perHalf: number | null;
   perGame: number | null;
   durationSeconds: number; // break duration
   disallowLastFiveMinutes: boolean;
@@ -21,8 +23,8 @@ export interface TimeoutConfig {
 /**
  * Optional scheduled kickoff. When enabled, START_GAME does not open the pull
  * immediately — it waits (status 'awaitingStart') until `time` (today, "HH:MM",
- * local) actually arrives. Per-game, like the coin toss results: never saved in a
- * template.
+ * local) actually arrives, or until the volunteer taps "Start game" early
+ * (BEGIN_PLAY). Per-game, like the coin toss results: never saved in a template.
  */
 export interface StartingTimeConfig {
   enabled: boolean;
@@ -96,8 +98,8 @@ export interface SavedTemplate {
 }
 
 export type GameStatus =
-  | 'notStarted' // config done, waiting for first pull
-  | 'awaitingStart' // scheduled kickoff configured, real-world clock hasn't reached it yet
+  | 'notStarted' // config done, no kickoff scheduled: waiting for "Start game" (BEGIN_PLAY)
+  | 'awaitingStart' // scheduled kickoff configured, real-world clock hasn't reached it yet (or "Start game" hasn't been tapped early)
   | 'awaitingPull' // between points: score frozen until the pull is thrown
   | 'live' // disc in play
   | 'paused' // clock manually stopped — an SOTG stoppage, or a generic pause via the clock button
@@ -325,6 +327,8 @@ export interface GameState {
 
 export type Action =
   | { type: 'START_GAME'; config: GameConfig }
+  /** Manual "Start game" tap: opens the pull from 'notStarted', or early from 'awaitingStart' before the scheduled kickoff arrives. */
+  | { type: 'BEGIN_PLAY' }
   | { type: 'PULL_THROWN' }
   | { type: 'GOAL'; team: TeamId }
   | { type: 'UNDO_GOAL'; team: TeamId }
@@ -344,6 +348,8 @@ export type Action =
   | { type: 'HALFTIME_END' }
   | { type: 'TICK' } // 1 s of real time while clocks run
   | { type: 'END_GAME' }
+  /** "Open report" tap once the game has finished: the only way from 'finished' to phase 'report'. */
+  | { type: 'OPEN_REPORT' }
   | { type: 'BACK_TO_CONFIG' }
   | { type: 'ADD_PLAYER'; team: TeamId; number: string; name: string }
   | { type: 'REMOVE_PLAYER'; team: TeamId; id: string }

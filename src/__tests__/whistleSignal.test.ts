@@ -8,7 +8,8 @@ function run(state: GameState, ...actions: Action[]): GameState {
   return actions.reduce(gameReducer, state);
 }
 function started(config = cfg()): GameState {
-  return gameReducer(createInitialState(config), { type: 'START_GAME', config });
+  const s = gameReducer(createInitialState(config), { type: 'START_GAME', config });
+  return gameReducer(s, { type: 'BEGIN_PLAY' });
 }
 function live(config = cfg()): GameState {
   return run(started(config), { type: 'PULL_THROWN' });

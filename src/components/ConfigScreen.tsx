@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useT, type Lang } from '../i18n/useT';
 import { defaultConfig } from '../state/gameReducer';
 import { useGame, useGameDispatch } from '../state/gameHooks';
+import { useBackGuard } from '../hooks/useBackGuard';
 import { deleteTeam, loadSavedTeams } from '../state/rosterStorage';
 import {
   BEACH_TEMPLATE,
@@ -111,7 +112,16 @@ export default function ConfigScreen() {
           // never has to hand-compute the next quarter-hour themselves.
           startingTime: { enabled: false, time: suggestedStartingTime() },
         }
-      : state.config,
+      : // Coming back to config (e.g. BACK_TO_CONFIG) carries over the previous
+        // game's startingTime verbatim. If that time has already passed, refresh
+        // it to the next quarter-hour rather than showing (and blocking on) a
+        // clock time that's now in the past.
+        state.config.startingTime.enabled && !startingTimeIsFuture(state.config.startingTime.time)
+        ? {
+            ...state.config,
+            startingTime: { ...state.config.startingTime, time: suggestedStartingTime() },
+          }
+        : state.config,
   );
   const [savedTeams, setSavedTeams] = useState<SavedTeam[]>(() => loadSavedTeams());
   const [showAbout, setShowAbout] = useState(false);
@@ -168,6 +178,23 @@ export default function ConfigScreen() {
       teams: { ...c.teams, [id]: { name: team.name, color: team.color } },
       players: { ...c.players, [id]: team.players.map((p) => ({ ...p, id: uid() })) },
     }));
+  // Typing away from a name that matched a loaded saved team means the user is
+  // now building a different team, so its roster shouldn't carry over.
+  const changeTeamName = (id: TeamId, name: string) => {
+    const normalize = (n: string) => n.trim().toLowerCase();
+    const current = cfg.teams[id].name;
+    const wasLoadedSavedTeam = savedTeams.some(
+      (team) => normalize(team.name) === normalize(current),
+    );
+    setCfg((c) => ({
+      ...c,
+      teams: { ...c.teams, [id]: { ...c.teams[id], name } },
+      players:
+        wasLoadedSavedTeam && normalize(name) !== normalize(current)
+          ? { ...c.players, [id]: [] }
+          : c.players,
+    }));
+  };
   const addPlayer = (id: TeamId, number: string, name: string) =>
     setCfg((c) => ({
       ...c,
@@ -182,17 +209,39 @@ export default function ConfigScreen() {
       players: { ...c.players, [id]: c.players[id].filter((p) => p.id !== playerId) },
     }));
 
-  const num = (v: string, fallback: number) => {
+  const num = (v: string, fallback: number, min = 0, max = Number.MAX_SAFE_INTEGER) => {
     const n = parseInt(v, 10);
-    return Number.isFinite(n) && n >= 0 ? n : fallback;
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(max, Math.max(min, n));
   };
+  const normalizeTeamName = (n: string) => n.trim().toLowerCase();
 
-  if (showGuide) return <GuideScreen onBack={() => setShowGuide(false)} />;
+  // Phone back button on the guide: same as tapping its own "back to setup" —
+  // it's a screen reached from a link, not an external page, so the gesture
+  // should return here rather than exit the app. This "lands" (no stay()), so a
+  // single press drops us straight back onto the setup form, leaving nothing on
+  // the history stack behind it.
+  const resolveGuide = useBackGuard(showGuide, () => setShowGuide(false));
+
+  // Closing via the guide's own button (not the gesture) has to drop the still-
+  // pending history entry too, so the next back press doesn't hit a dead one.
+  if (showGuide)
+    return (
+      <GuideScreen
+        onBack={() => {
+          setShowGuide(false);
+          resolveGuide();
+        }}
+      />
+    );
 
   const teamsReady = cfg.teams.A.name.trim() !== '' && cfg.teams.B.name.trim() !== '';
+  const duplicateTeamNames =
+    teamsReady && normalizeTeamName(cfg.teams.A.name) === normalizeTeamName(cfg.teams.B.name);
+  const halfScoreValid = cfg.halfScore < cfg.targetScore;
   const startingTimeReady =
     !cfg.startingTime.enabled || startingTimeIsFuture(cfg.startingTime.time);
-  const canStart = teamsReady && startingTimeReady;
+  const canStart = teamsReady && !duplicateTeamNames && halfScoreValid && startingTimeReady;
 
   return (
     <div className="min-h-dvh bg-pitch text-chalk p-4 pb-10 max-w-2xl mx-auto space-y-4">
@@ -290,6 +339,7 @@ export default function ConfigScreen() {
             <label className={fieldLabel}>{t('fieldNumber')}</label>
             <input
               className={inputClass}
+              maxLength={20}
               value={cfg.fieldNumber}
               onChange={(e) => set('fieldNumber', e.target.value)}
             />
@@ -305,9 +355,10 @@ export default function ConfigScreen() {
                 value={cfg.teams[id].name}
                 savedTeams={savedTeams}
                 otherTeamName={cfg.teams[id === 'A' ? 'B' : 'A'].name}
-                onChangeText={(name) => setTeam(id, { name })}
+                onChangeText={(name) => changeTeamName(id, name)}
                 onSelectTeam={(team) => selectSavedTeam(id, team)}
                 onDeleteTeam={removeSavedTeam}
+                maxLength={40}
               />
             </div>
             <div>
@@ -436,7 +487,7 @@ export default function ConfigScreen() {
               className={inputClass}
               inputMode="numeric"
               value={cfg.targetScore}
-              onChange={(e) => set('targetScore', num(e.target.value, cfg.targetScore))}
+              onChange={(e) => set('targetScore', num(e.target.value, cfg.targetScore, 1, 99))}
             />
           </div>
           <div>
@@ -445,7 +496,14 @@ export default function ConfigScreen() {
               className={inputClass}
               inputMode="numeric"
               value={cfg.timeLimitMinutes}
-              onChange={(e) => set('timeLimitMinutes', num(e.target.value, cfg.timeLimitMinutes))}
+              onChange={(e) => {
+                const timeLimitMinutes = num(e.target.value, cfg.timeLimitMinutes, 1, 180);
+                setCfg((c) => ({
+                  ...c,
+                  timeLimitMinutes,
+                  halfTimeLimitMinutes: Math.min(c.halfTimeLimitMinutes, timeLimitMinutes),
+                }));
+              }}
             />
           </div>
         </div>
@@ -522,7 +580,7 @@ export default function ConfigScreen() {
               className={inputClass}
               inputMode="numeric"
               value={cfg.halfScore}
-              onChange={(e) => set('halfScore', num(e.target.value, cfg.halfScore))}
+              onChange={(e) => set('halfScore', num(e.target.value, cfg.halfScore, 1, 99))}
             />
           </div>
           <div>
@@ -532,7 +590,10 @@ export default function ConfigScreen() {
               inputMode="numeric"
               value={cfg.halfTimeLimitMinutes}
               onChange={(e) =>
-                set('halfTimeLimitMinutes', num(e.target.value, cfg.halfTimeLimitMinutes))
+                set(
+                  'halfTimeLimitMinutes',
+                  num(e.target.value, cfg.halfTimeLimitMinutes, 1, cfg.timeLimitMinutes),
+                )
               }
             />
           </div>
@@ -543,7 +604,7 @@ export default function ConfigScreen() {
               inputMode="numeric"
               value={cfg.halfTimeBreakSeconds}
               onChange={(e) =>
-                set('halfTimeBreakSeconds', num(e.target.value, cfg.halfTimeBreakSeconds))
+                set('halfTimeBreakSeconds', num(e.target.value, cfg.halfTimeBreakSeconds, 30, 1800))
               }
             />
           </div>
@@ -574,36 +635,42 @@ export default function ConfigScreen() {
           aria-disabled={!cfg.timeouts.enabled}
         >
           <div>
-            <label className={fieldLabel}>{t('timeoutsPerHalf')}</label>
+            <label className={fieldLabel}>{t('timeoutsCount')}</label>
             <input
               className={inputClass}
               inputMode="numeric"
               disabled={!cfg.timeouts.enabled}
-              value={cfg.timeouts.perHalf ?? ''}
-              placeholder="—"
-              onChange={(e) =>
+              value={cfg.timeouts.perHalf ?? cfg.timeouts.perGame ?? 0}
+              onChange={(e) => {
+                const count = num(e.target.value, 0, 0, 10);
+                const perHalf = cfg.timeouts.perGame === null;
                 set('timeouts', {
                   ...cfg.timeouts,
-                  perHalf: e.target.value === '' ? null : num(e.target.value, 0),
-                })
-              }
+                  perHalf: perHalf ? count : null,
+                  perGame: perHalf ? null : count,
+                });
+              }}
             />
           </div>
           <div>
-            <label className={fieldLabel}>{t('timeoutsPerGame')}</label>
-            <input
+            <label className={fieldLabel}>{t('timeoutsScope')}</label>
+            <select
               className={inputClass}
-              inputMode="numeric"
               disabled={!cfg.timeouts.enabled}
-              value={cfg.timeouts.perGame ?? ''}
-              placeholder="—"
-              onChange={(e) =>
+              value={cfg.timeouts.perGame === null ? 'half' : 'game'}
+              onChange={(e) => {
+                const count = cfg.timeouts.perHalf ?? cfg.timeouts.perGame ?? 0;
+                const perHalf = e.target.value === 'half';
                 set('timeouts', {
                   ...cfg.timeouts,
-                  perGame: e.target.value === '' ? null : num(e.target.value, 0),
-                })
-              }
-            />
+                  perHalf: perHalf ? count : null,
+                  perGame: perHalf ? null : count,
+                });
+              }}
+            >
+              <option value="half">{t('timeoutsScopeHalf')}</option>
+              <option value="game">{t('timeoutsScopeGame')}</option>
+            </select>
           </div>
           <div>
             <label className={fieldLabel}>{t('timeoutDuration')}</label>
@@ -615,7 +682,7 @@ export default function ConfigScreen() {
               onChange={(e) =>
                 set('timeouts', {
                   ...cfg.timeouts,
-                  durationSeconds: num(e.target.value, cfg.timeouts.durationSeconds),
+                  durationSeconds: num(e.target.value, cfg.timeouts.durationSeconds, 15, 300),
                 })
               }
             />
@@ -649,7 +716,13 @@ export default function ConfigScreen() {
         {t('startGame')}
       </button>
       {!teamsReady && <p className="text-sm text-chalk/60 text-center">{t('teamsRequired')}</p>}
-      {teamsReady && !startingTimeReady && (
+      {teamsReady && duplicateTeamNames && (
+        <p className="text-sm text-chalk/60 text-center">{t('duplicateTeamNames')}</p>
+      )}
+      {teamsReady && !duplicateTeamNames && !halfScoreValid && (
+        <p className="text-sm text-chalk/60 text-center">{t('halfScoreInvalid')}</p>
+      )}
+      {teamsReady && !duplicateTeamNames && halfScoreValid && !startingTimeReady && (
         <p className="text-sm text-chalk/60 text-center">{t('startingTimeInPast')}</p>
       )}
 
