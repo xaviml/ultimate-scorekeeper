@@ -69,8 +69,12 @@ export function currentWhistle(state: GameState): WhistleSignal | null {
   // Deliberately not a repeating cadence: a dispute that is still going at 75 s is
   // one the whistle cannot hurry along, and a blast every 15 s from then on is noise
   // the scorekeeper has to sit through with no action to take.
+  //
+  // The stoppage is read first when both are open: a stoppage raised mid-discussion
+  // takes priority and freezes the call's own counter (see playHalted), so it is the
+  // stoppage that the whistle should be chasing.
   const elapsed =
-    state.pendingCall?.elapsedSeconds ?? state.pendingStoppage?.elapsedSeconds ?? null;
+    state.pendingStoppage?.elapsedSeconds ?? state.pendingCall?.elapsedSeconds ?? null;
   if (elapsed === 45 || elapsed === 60) {
     return { key: `callWait:${elapsed}`, blasts: 3 };
   }

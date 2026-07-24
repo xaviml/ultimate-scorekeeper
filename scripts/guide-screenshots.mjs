@@ -123,9 +123,11 @@ async function main() {
     // The clock row and the button row are wall-to-wall, so these two sit in the
     // only free space each has: the end of the clock's label line, and the gutter
     // between two buttons. The action row is pointed at through Call, which sits
-    // in it rather than at either end — the caption names the whole row.
+    // in it rather than at either end — the caption names the whole row. Call is
+    // the last of the three buttons in this default (stats-off) demo, so the
+    // gutter used is the one to its left, not its right (there's nothing there).
     await marker(gameClockBox, dash, 0.95, 0.18),
-    await marker(page.getByRole('button', { name: 'What was called?' }), dash, 1.12),
+    await marker(page.getByRole('button', { name: 'What was called?' }), dash, -0.12),
     await marker(page.locator('div[aria-live=assertive]'), dash, 0.92),
     await marker(page.getByRole('button', { name: 'Pause game' }), dash, 1.4, 0.5),
   ];
@@ -158,8 +160,9 @@ async function main() {
   // Log the travel for real, so the report's history has something in it besides
   // goals. Points below are played out slowly on purpose: the report shows hold
   // times, and a game where every point lasted a second looks like a bug.
+  // Recorded straight away with no team, same as every attribution in this demo —
+  // "Track game activity" is off, the default this walkthrough demonstrates.
   await page.getByRole('button', { name: 'Travel', exact: true }).click();
-  await page.getByRole('button', { name: TEAM_B, exact: true }).click();
   await sleep(500);
 
   // --- A few more points, then the report ---------------------------------

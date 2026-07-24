@@ -33,6 +33,14 @@ function mountApp() {
   );
 }
 
+/** AssistGoalDialog has no Cancel/close button — dismissing it is a real backdrop
+ * press, same as the Modal backdrop-dismissal tests in dialogs.test.tsx. */
+function dismissAssistDialog(container: HTMLElement) {
+  const backdrop = container.querySelector('.fixed') as HTMLElement;
+  fireEvent.pointerDown(backdrop);
+  fireEvent.click(backdrop);
+}
+
 beforeEach(() => sessionStorage.clear());
 
 describe('the pull prompt survives a mid-game reload', () => {
@@ -42,7 +50,7 @@ describe('the pull prompt survives a mid-game reload', () => {
     const first = mountApp();
     // The dialog covers the pull controls until the volunteer answers it.
     expect(screen.getByText(/Who scored/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Cancel'));
+    dismissAssistDialog(first.container);
     expect(screen.queryByText(/Who scored/i)).toBeNull();
     expect(screen.getByText('Pull thrown')).toBeInTheDocument();
     first.unmount();
@@ -57,7 +65,7 @@ describe('the pull prompt survives a mid-game reload', () => {
   it('still asks for a point scored after the reload', () => {
     sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(midGameState()));
     const first = mountApp();
-    fireEvent.click(screen.getByText('Cancel'));
+    dismissAssistDialog(first.container);
     first.unmount();
 
     const next = midGameState();
@@ -75,7 +83,7 @@ describe('the pull prompt survives a mid-game reload', () => {
   it('forgets the counter when a new game starts', () => {
     sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(midGameState()));
     const first = mountApp();
-    fireEvent.click(screen.getByText('Cancel'));
+    dismissAssistDialog(first.container);
     first.unmount();
 
     // A fresh game: no points yet, so a stale counter must not suppress the next prompt.

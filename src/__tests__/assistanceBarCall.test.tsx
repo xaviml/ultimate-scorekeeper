@@ -24,12 +24,7 @@ function withOpenCall(elapsed: number): GameState {
   state.status = 'live';
   state.possessionTeam = 'B';
   state.gameSeconds = 100;
-  state.pendingCall = {
-    kind: 'foul',
-    team: 'A',
-    startedAtSeconds: 100 - elapsed,
-    elapsedSeconds: elapsed,
-  };
+  state.pendingCall = { kind: 'foul', team: 'A', elapsedSeconds: elapsed };
   return state;
 }
 
@@ -51,7 +46,24 @@ describe('the ambient assistance line while a call is open', () => {
     expect(screen.getByText(/Still unresolved after 45 seconds/)).toBeInTheDocument();
   });
 
-  it('leaves the ordinary line alone for a stoppage, which does not lock the score', () => {
+  it('drops the attribution entirely for a call logged without tracking activity', () => {
+    const state = createInitialState();
+    state.phase = 'game';
+    state.status = 'live';
+    state.possessionTeam = 'B';
+    state.gameSeconds = 100;
+    // No team: config.trackPlayers is off, so CALL_MADE logged it unattributed.
+    state.pendingCall = { kind: 'foul', elapsedSeconds: 5 };
+    mountWith(state);
+
+    // Both the resolution-row heading and the ambient line — "Foul", not "Foul — No team".
+    // (getAllByText: the secondary clock is labelled with the same bare kind.)
+    expect(screen.getAllByText('Foul').length).toBeGreaterThan(0);
+    expect(screen.getByText(/^Foul called\./)).toBeInTheDocument();
+    expect(screen.queryByText(/No team/)).not.toBeInTheDocument();
+  });
+
+  it('says what an open stoppage is holding up, since everything else waits on it', () => {
     const state = createInitialState();
     state.phase = 'game';
     state.status = 'live';
@@ -59,6 +71,20 @@ describe('the ambient assistance line while a call is open', () => {
     state.pendingStoppage = { kind: 'injury', team: 'A', elapsedSeconds: 10, clockStopped: false };
     mountWith(state);
 
-    expect(screen.getByText(/Disc in play/)).toBeInTheDocument();
+    expect(screen.getByText(/Injury stoppage/)).toBeInTheDocument();
+    expect(screen.queryByText(/Disc in play/)).toBeNull();
+  });
+
+  it('lets an open stoppage outrank an open call: it is the one that froze the other', () => {
+    const state = createInitialState();
+    state.phase = 'game';
+    state.status = 'live';
+    state.possessionTeam = 'A';
+    state.pendingCall = { kind: 'foul', team: 'A', elapsedSeconds: 12 };
+    state.pendingStoppage = { kind: 'injury', team: 'B', elapsedSeconds: 3, clockStopped: false };
+    mountWith(state);
+
+    expect(screen.getByText(/Injury stoppage/)).toBeInTheDocument();
+    expect(screen.queryByText(/^Foul called\./)).toBeNull();
   });
 });

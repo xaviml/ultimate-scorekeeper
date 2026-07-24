@@ -6,7 +6,7 @@ import { inputClass, primaryButton, secondaryButton } from './ui';
 
 /**
  * Free-text note: anything worth remembering that no other button covers — a huge
- * layout, a bird on the field. It lands in the log and nowhere else; unlike every
+ * layout, a dragon on the field. It lands in the log and nowhere else; unlike every
  * other recorded event it produces no call-out and no hand signal.
  */
 export function NoteDialog({ onClose }: { onClose: () => void }) {

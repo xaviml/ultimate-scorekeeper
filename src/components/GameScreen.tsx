@@ -4,11 +4,15 @@ import { useGame, useGameDispatch } from '../state/gameHooks';
 import {
   canRecordEvent,
   canScore,
+  canStoppage,
   canTurnover,
   canUndo,
+  canUndoTurnover,
   effectiveHalfTarget,
   halfTargetApplies,
   isUniversePoint,
+  playHalted,
+  possessionTracked,
   pullFromSide,
   timeoutAvailability,
   timeoutsConfigured,
@@ -125,6 +129,20 @@ const utility =
   'rounded-lg bg-panel border border-line px-2 py-2 lscape:px-1 lscape:py-1 text-xs sm:text-sm lscape:text-[9px] font-board uppercase tracking-wide active:scale-95 disabled:opacity-40';
 
 /**
+ * The two flavours of the wide action-row button under the score panels: the amber
+ * one that moves play on (start, pull, resume, report) and the quieter outline one
+ * that ends a break.
+ *
+ * Both fade and stop pulsing while an open stoppage blocks them — a stoppage
+ * freezes the pull/timeout/half-time clocks and the reducer refuses all three
+ * until it is resolved, so a button still inviting a tap would be lying.
+ */
+const playAdvanceButton =
+  'w-full rounded-lg bg-signal text-pitch px-3 py-3 lscape:py-1.5 font-board font-bold text-base lscape:text-xs animate-pulse disabled:opacity-40 disabled:animate-none';
+const breakEndButton =
+  'w-full rounded-lg bg-panel border border-line px-3 py-3 lscape:py-1.5 font-board text-base lscape:text-xs';
+
+/**
  * One action-row button: a glyph with a micro-label — a 9px uppercase word small
  * enough to read as part of the icon rather than as a caption, the same treatment
  * the clock tile headings already use.
@@ -138,12 +156,18 @@ const utility =
  * `label` is optional: the stoppage button leaves it off because no single short
  * word covers injury, technical and SOTG without misleading, so it carries its
  * meaning in `aria-label`/`title` alone.
+ *
+ * `onHold` is optional too, and only Turn has one: tap records a turnover, hold
+ * takes the last one back — the same tap/hold pair the score panels use for
+ * goal/undo. A button with one swaps its click handler for the press handlers
+ * rather than keeping both, or the tap would fire twice.
  */
 function ActionButton({
   icon,
   label,
   name,
   onClick,
+  onHold,
   disabled,
 }: {
   icon: React.ReactNode;
@@ -151,12 +175,16 @@ function ActionButton({
   /** Accessible name — the full wording, which the micro-label abbreviates. */
   name: string;
   onClick: () => void;
+  onHold?: () => void;
   disabled?: boolean;
 }) {
+  const press = useLongPress(onClick, onHold ?? (() => {}));
   return (
     <button
-      className={`${utility} flex flex-col lscape:flex-row items-center justify-center gap-0.5 lscape:gap-1.5`}
-      onClick={onClick}
+      {...(onHold ? press : { onClick })}
+      className={`${utility} flex flex-col lscape:flex-row items-center justify-center gap-0.5 lscape:gap-1.5 ${
+        onHold ? 'select-none touch-none' : ''
+      }`}
       disabled={disabled}
       aria-label={name}
       title={name}
@@ -252,6 +280,11 @@ function TimeoutButton({
         side === 'left' ? 'left-2 lscape:left-1' : 'right-2 lscape:right-1'
       } z-10 flex items-center justify-center gap-1 rounded-lg bg-black/60 border border-white/25 px-2 py-1.5 lscape:px-1.5 lscape:py-1 text-chalk active:scale-95 disabled:opacity-40`}
     >
+      {/* Invisible, larger-than-visible hit area: the pill itself stays small so it
+          doesn't eat into the score panel's thumb zone, but a near-miss tap should
+          still hit the timeout button rather than falling through to the goal tap
+          underneath. */}
+      <span aria-hidden="true" className="absolute -inset-3 lscape:-inset-2" />
       {side === 'left' ? (
         <>
           {count}
@@ -273,21 +306,32 @@ const RESOLUTIONS: CallResolution[] = ['accepted', 'contested', 'retracted'];
  * The three answers to an open call, parked directly above the clocks so they are
  * the first thing the thumb finds while the discussion is still going on. Rendered
  * only while a call is pending; picking one logs how long it took and clears it.
+ *
+ * A stoppage or an SOTG pause raised mid-discussion takes the row away entirely
+ * (`playHalted`), leaving only the button that clears that stoppage: the discussion
+ * itself is frozen — `pendingCall.elapsedSeconds` stops ticking — so there is
+ * nothing for the players to be deciding, and one question at a time above the
+ * clocks is the whole point of this row. It comes back untouched, with the call
+ * still open, the moment play resumes.
  */
 function CallResolutionRow() {
   const state = useGame();
   const dispatch = useGameDispatch();
   const { t } = useT();
   const pending = state.pendingCall;
-  if (!pending) return null;
+  if (!pending || playHalted(state)) return null;
 
   return (
     <div className="space-y-1 lscape:space-y-0.5">
       <p className="text-[10px] lscape:text-[8px] uppercase tracking-widest text-signal">
-        {t('callPending', {
-          kind: t(`callKind_${pending.kind}` as never),
-          team: state.config.teams[pending.team].name,
-        })}
+        {/* No team when activity isn't tracked — then the kind stands alone, rather
+            than being trailed by a "No team" that reads like a team's name. */}
+        {pending.team
+          ? t('callPending', {
+              kind: t(`callKind_${pending.kind}` as never),
+              team: state.config.teams[pending.team].name,
+            })
+          : t('callPendingNoTeam', { kind: t(`callKind_${pending.kind}` as never) })}
       </p>
       <div className="grid grid-cols-3 gap-2 lscape:gap-1">
         {RESOLUTIONS.map((resolution) => (
@@ -360,26 +404,23 @@ function pullLabel(state: GameState, t: (k: never, v?: Record<string, string | n
  * the wait has been so far, labelled with what's being waited on. The number
  * shown is exactly the one that gets logged once it resolves.
  *
- * SOTG is measured on the wall clock (via the most recent 'sotgStart' log entry's
- * `atMs`) rather than the game clock: it's the one status that actually stops
- * gameSeconds, so a game-clock diff would be stuck at 0 for its whole duration.
- * Calls never stop the clock, so their own startedAtSeconds against the still-
- * running gameSeconds is the right measure. A stoppage instead carries its own
- * `elapsedSeconds`, ticked forward every TICK regardless of the game clock — a
- * stoppage left open long enough auto-stops the game clock (see TICK in the
- * reducer), and this counter is what keeps counting through that.
+ * Ordered by priority, not by which started first: a stoppage can be raised over
+ * anything and everything else waits on it (see playHalted), then a stopped clock,
+ * then an open call — so whichever is showing is the one the volunteer has to
+ * clear next.
+ *
+ * A call and a stoppage each carry their own `elapsedSeconds`, which TICK stops
+ * advancing while play is halted; that is what makes the pull/timeout/call clocks
+ * resume where they left off rather than jumping. SOTG has no such counter, so it
+ * is measured on the wall clock (via the most recent 'sotgStart' log entry's
+ * `atMs`) — it's the one status that actually stops gameSeconds, so a game-clock
+ * diff would be stuck at 0 for its whole duration.
  */
 function secondaryOverride(
   state: GameState,
   now: Date,
   t: (k: never, v?: Record<string, string | number>) => string,
 ): { label: string; seconds: number } | null {
-  if (state.pendingCall) {
-    return {
-      label: t(`callKind_${state.pendingCall.kind}` as never),
-      seconds: Math.max(0, state.gameSeconds - state.pendingCall.startedAtSeconds),
-    };
-  }
   if (state.pendingStoppage) {
     return {
       label: t(`stoppageKind_${state.pendingStoppage.kind}` as never),
@@ -392,6 +433,12 @@ function secondaryOverride(
     return {
       label: t((state.pauseSilent ? 'pauseLabel' : 'signal_sotg') as never),
       seconds: start ? Math.max(0, Math.floor((now.getTime() - start.atMs) / 1000)) : 0,
+    };
+  }
+  if (state.pendingCall) {
+    return {
+      label: t(`callKind_${state.pendingCall.kind}` as never),
+      seconds: state.pendingCall.elapsedSeconds,
     };
   }
   return null;
@@ -514,9 +561,10 @@ export default function GameScreen() {
   const target = state.cappedTarget ?? state.config.targetScore;
   const isMixed = state.config.division === 'mixed';
   const paused = state.status === 'paused';
-  // Mirrors the SOTG_TOGGLE guard in the reducer: pausing only makes sense once the
-  // disc is live (or about to be pulled); resuming is always available while paused.
-  const canTogglePause = paused || state.status === 'live' || state.status === 'awaitingPull';
+  // Mirrors the SOTG_TOGGLE guard in the reducer: the clock can be stopped at any
+  // point of a game in progress, a timeout or half-time included; resuming is always
+  // available while paused.
+  const canTogglePause = paused || canStoppage(state).ok;
   // A stoppage left open long enough auto-stops the clock (state.pendingStoppage
   // .clockStopped) exactly like an SOTG pause — resuming from there also has to
   // resolve the stoppage, since its own small "Play can resume" button is hidden
@@ -570,26 +618,24 @@ export default function GameScreen() {
   const tryTimeout = (team: TeamId) => {
     const check = timeoutAvailability(state, team);
     if (!check.ok) {
-      flashHint(
-        check.reason === 'timeoutLastFive'
-          ? t('timeoutBlockedLastFive')
-          : check.reason === 'timeoutNoneLeft'
-            ? t('timeoutBlockedNone')
-            : check.reason === 'callPending'
-              ? t('timeoutBlockedCallPending')
-              : t('timeoutBlockedNotNow'),
-      );
+      flashHint(t(`assist_blocked_${check.reason}` as never));
       return;
     }
     dispatch({ type: 'TIMEOUT_START', team });
   };
 
-  // Turnover only prompts for players when the game is tracking them; otherwise
-  // it is logged straight away, with no dialog in the way. A stoppage always
-  // opens its dialog — it needs to ask injury vs. technical vs. SOTG either way,
-  // and StoppageDialog itself skips the player picker when rosters aren't in use.
+  // A stoppage always opens its dialog — it needs to ask injury vs. technical vs.
+  // SOTG either way, and StoppageDialog itself skips the team/player attribution
+  // steps when the game isn't tracking activity. Turn only exists as a button
+  // once tracking is on, so tryTurnover never needs the untracked branch.
+  //
+  // canStoppage, not canRecordEvent: this is the one thing that can interrupt
+  // whatever else is running. The only refusal that reaches a game in progress is
+  // "there is already one open", which the hint says rather than the button going
+  // dead — the volunteer pressing it is trying to stop play, and needs telling why
+  // that isn't the button for it.
   const tryStoppage = () => {
-    const check = canRecordEvent(state);
+    const check = canStoppage(state);
     if (!check.ok) {
       flashHint(t(`assist_blocked_${check.reason}` as never));
       return;
@@ -603,19 +649,42 @@ export default function GameScreen() {
       flashHint(t(`assist_blocked_${check.reason}` as never));
       return;
     }
-    if (state.config.trackPlayers) setTurnoverTeam(state.possessionTeam);
-    else dispatch({ type: 'TURNOVER' });
+    setTurnoverTeam(state.possessionTeam);
   };
 
-  // The Call menu closes on every choice; both branches then ask "who called it?".
+  // Long-press on the same button: the disc goes back to the team that lost it and
+  // the turnover leaves the log (or is corrected in it — see UNDO_TURNOVER). Only
+  // reachable within the point the turnover was recorded in, which is what the
+  // refusal says when it isn't.
+  const tryUndoTurnover = () => {
+    const check = canUndoTurnover(state);
+    if (!check.ok) {
+      flashHint(t(`assist_blocked_${check.reason}` as never));
+      return;
+    }
+    dispatch({ type: 'UNDO_TURNOVER' });
+  };
+
+  // The Call menu closes on every choice. Both a call and a travel then ask "who
+  // called it?" — but only when the game is tracking activity; otherwise they log
+  // straight away with no team, same as StoppageDialog does for a technical stoppage.
   const chooseCall = (choice: CallChoice) => {
     setShowCall(false);
-    if (choice.type === 'call') setCallKind(choice.kind);
-    else setShowTravel(true);
+    if (choice.type === 'call') {
+      if (state.config.trackPlayers) setCallKind(choice.kind);
+      else dispatch({ type: 'CALL_MADE', kind: choice.kind });
+    } else {
+      if (state.config.trackPlayers) setShowTravel(true);
+      else dispatch({ type: 'TRAVEL' });
+    }
   };
 
+  // Between points, nothing has happened yet for a call to be about — requiresPull
+  // catches that here, the same way canTurnover already does for tryTurnover,
+  // rather than the button going quietly dead: it stays tappable and explains
+  // itself, same as every other reason on this row.
   const openCall = () => {
-    const check = canRecordEvent(state);
+    const check = canRecordEvent(state, { requiresPull: true });
     if (!check.ok) {
       flashHint(t(`assist_blocked_${check.reason}` as never));
       return;
@@ -623,16 +692,9 @@ export default function GameScreen() {
     setShowCall(true);
   };
 
-  // Shared by every action-row button that starts a new recorded event: a call or
-  // a stoppage awaiting resolution, an SOTG stoppage in progress (its own
-  // dedicated "Resume game" button is the one way out), the game having finished,
-  // or one of these flows already open — none should be interrupted by starting a
-  // second one on top. Log and Roster are exempt: they only read.
-  const recordBusy =
-    state.pendingCall !== null ||
-    state.pendingStoppage !== null ||
-    paused ||
-    state.status === 'finished' ||
+  // One of the record flows is already on screen — starting a second one on top of
+  // it would answer a question nobody asked yet.
+  const dialogBusy =
     showStoppage ||
     showNote ||
     showTravel ||
@@ -640,12 +702,27 @@ export default function GameScreen() {
     callKind !== null ||
     turnoverTeam !== null;
 
-  // Between points, nothing has happened yet for a call or a turnover to be about,
-  // so both are disabled outright rather than opening a menu whose every button is
-  // dimmed. The raised hand stays live: an injury and a technical stoppage are
-  // blocked too (StoppageDialog dims them), but an SOTG stoppage can be called
-  // while the teams line up, and it is the one way to stop the clock from here.
-  const pullNotThrown = state.status === 'awaitingPull';
+  // Shared by the action-row buttons that record something about the play: a call
+  // or a stoppage awaiting resolution, an SOTG stoppage in progress (its own
+  // dedicated "Resume game" button is the one way out), the game having finished.
+  // Log and Roster are exempt: they only read.
+  const recordBusy =
+    state.pendingCall !== null ||
+    state.pendingStoppage !== null ||
+    paused ||
+    state.status === 'finished' ||
+    dialogBusy;
+
+  // The raised hand is deliberately NOT part of recordBusy: a stoppage interrupts
+  // whatever is running, an open call included, so the only thing that greys it out
+  // is another dialog already being up. Every other refusal is left to tryStoppage,
+  // which explains itself instead.
+  const stoppageBusy = dialogBusy;
+
+  // Nothing that advances play may run past an open stoppage: the pull, timeout and
+  // half-time clocks are frozen under one (see playHalted), and the reducer refuses
+  // all three, so the buttons say so rather than doing nothing.
+  const stoppageBlocksPlay = state.pendingStoppage !== null;
 
   return (
     <div className="h-dvh flex flex-col bg-pitch text-chalk overflow-y-auto">
@@ -784,12 +861,35 @@ export default function GameScreen() {
                 {ratioLabel(state, t as never)}
               </button>
             )}
-            <div
-              aria-live="polite"
-              className="rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border border-line text-chalk"
-            >
-              {pullLabel(state, t as never)}
-            </div>
+            {/* Who has the disc, but only in a game where that has turned out to be
+                worth following: it appears with the first turnover recorded and then
+                stands for the rest of the game (possessionTracked), and only while a
+                point is actually being played — between points the disc is dead and
+                the pull chip below already names who throws it. */}
+            {state.possessionTeam !== null && possessionTracked(state) && (
+              <div
+                aria-live="polite"
+                className="rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border border-line text-chalk"
+              >
+                {t('possessionChip', {
+                  team: state.config.teams[state.possessionTeam].name,
+                })}
+              </div>
+            )}
+            {/* Only meaningful up to the moment the pull is thrown — the same
+                window the "Pull thrown" button occupies in the action row below.
+                Leaving it up once the point is live risks reading as "this team
+                still has to pull", when the disc may since have changed hands
+                entirely (see the possession chip above, which takes over that
+                job for the rest of the point). */}
+            {state.status === 'awaitingPull' && (
+              <div
+                aria-live="polite"
+                className="rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border border-line text-chalk"
+              >
+                {pullLabel(state, t as never)}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -802,32 +902,28 @@ export default function GameScreen() {
           keeps the score panel boundary stable so that never happens. */}
       <div className="min-h-16 lscape:min-h-10 px-3 lscape:px-2 py-2 lscape:py-1 bg-panel border-t border-line shrink-0 flex items-center">
         {(actionRowStatus === 'notStarted' || actionRowStatus === 'awaitingStart') && (
-          <button
-            className="w-full rounded-lg bg-signal text-pitch px-3 py-3 lscape:py-1.5 font-board font-bold text-base lscape:text-xs animate-pulse"
-            onClick={() => dispatch({ type: 'BEGIN_PLAY' })}
-          >
+          <button className={playAdvanceButton} onClick={() => dispatch({ type: 'BEGIN_PLAY' })}>
             {t('startGame')}
           </button>
         )}
         {actionRowStatus === 'awaitingPull' && (
           <button
-            className="w-full rounded-lg bg-signal text-pitch px-3 py-3 lscape:py-1.5 font-board font-bold text-base lscape:text-xs animate-pulse"
+            className={playAdvanceButton}
+            disabled={stoppageBlocksPlay}
             onClick={() => dispatch({ type: 'PULL_THROWN' })}
           >
             {t('pullThrown')}
           </button>
         )}
         {actionRowStatus === 'paused' && (
-          <button
-            className="w-full rounded-lg bg-signal text-pitch px-3 py-3 lscape:py-1.5 font-board font-bold text-base lscape:text-xs animate-pulse"
-            onClick={resumeFromPause}
-          >
+          <button className={playAdvanceButton} onClick={resumeFromPause}>
             {t('btnResumeGame')}
           </button>
         )}
         {actionRowStatus === 'timeout' && (
           <button
-            className="w-full rounded-lg bg-panel border border-line px-3 py-3 lscape:py-1.5 font-board text-base lscape:text-xs"
+            className={`${breakEndButton} disabled:opacity-40`}
+            disabled={stoppageBlocksPlay}
             onClick={() => dispatch({ type: 'TIMEOUT_END' })}
           >
             {t('btnEndTimeout')}
@@ -835,7 +931,8 @@ export default function GameScreen() {
         )}
         {actionRowStatus === 'halftime' && (
           <button
-            className="w-full rounded-lg bg-panel border border-line px-3 py-3 lscape:py-1.5 font-board text-base lscape:text-xs"
+            className={`${breakEndButton} disabled:opacity-40`}
+            disabled={stoppageBlocksPlay}
             onClick={() => dispatch({ type: 'HALFTIME_END' })}
           >
             {t('btnEndHalftime')}
@@ -843,7 +940,7 @@ export default function GameScreen() {
         )}
         {actionRowStatus === 'finished' && (
           <button
-            className="w-full rounded-lg bg-signal text-pitch px-3 py-3 lscape:py-1.5 font-board font-bold text-base lscape:text-xs animate-pulse"
+            className={playAdvanceButton}
             onClick={() => leaveGameTo({ type: 'OPEN_REPORT' })}
           >
             {t('openReport')}
@@ -919,10 +1016,10 @@ export default function GameScreen() {
           {/* Roster / Log / Stoppage / Call / Turn, ordered from the surfaces that only
             read (left) to the ones that record something (right), so the thumb's
             reach matches how consequential the button is. Timeouts left this row
-            for the score panels; Roster is hidden unless the game tracks players,
-            leaving four. */}
+            for the score panels; Roster and Turn are both hidden unless the game is
+            tracking activity (see trackPlayers), leaving three. */}
           <div
-            className={`grid ${state.config.trackPlayers ? 'grid-cols-5' : 'grid-cols-4'} gap-2 lscape:gap-1 lscape:flex-1`}
+            className={`grid ${state.config.trackPlayers ? 'grid-cols-5' : 'grid-cols-3'} gap-2 lscape:gap-1 lscape:flex-1`}
           >
             {state.config.trackPlayers && (
               <ActionButton
@@ -942,22 +1039,25 @@ export default function GameScreen() {
               icon={<StoppageIcon />}
               name={t('btnStoppageSotg')}
               onClick={tryStoppage}
-              disabled={recordBusy}
+              disabled={stoppageBusy}
             />
             <ActionButton
               icon={<CallIcon />}
               label={t('lblCall')}
               name={t('callDialogTitle')}
               onClick={openCall}
-              disabled={recordBusy || pullNotThrown}
+              disabled={recordBusy}
             />
-            <ActionButton
-              icon={<TurnIcon />}
-              label={t('lblTurn')}
-              name={t('btnTurnover')}
-              onClick={tryTurnover}
-              disabled={recordBusy || pullNotThrown}
-            />
+            {state.config.trackPlayers && (
+              <ActionButton
+                icon={<TurnIcon />}
+                label={t('lblTurn')}
+                name={t('btnTurnoverHold')}
+                onClick={tryTurnover}
+                onHold={tryUndoTurnover}
+                disabled={recordBusy}
+              />
+            )}
           </div>
         </div>
       </div>

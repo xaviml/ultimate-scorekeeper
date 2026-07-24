@@ -103,7 +103,7 @@ export const ca: typeof en = {
   collapseSection: 'Replegar {title}',
   expandSection: 'Desplegar {title}',
   trackPlayers:
-    'Registrar activitat dels jugadors (gols, assistències, pèrdues, defenses, lesions)',
+    'Registrar activitat del partit per a estadístiques (gols, assistències, pèrdues, faltes, lesions)',
   playerNumber: '#',
   playerName: 'Nom',
   addPlayer: 'Afegir',
@@ -117,15 +117,18 @@ export const ca: typeof en = {
   whoAssisted: 'Assistència',
   stoppageDialogTitle: 'Què ha aturat el joc?',
   stoppageDialogHint:
-    'Les aturades per lesió o tècniques no aturen el rellotge de bon principi. El SOTG sí.',
+    'Les aturades per lesió o tècniques no aturen el rellotge de partit de bon principi. El SOTG sí. En tots dos casos, el rellotge del pull, del temps mort i del call esperen que el joc es reprengui.',
   stoppageKind_injury: 'Lesió',
   stoppageKind_technical: 'Tècnica',
   injuryDialogTitle: "Qui s'ha lesionat?",
-  injuryDialogHint: 'Opcional — pots ometre-ho i només registrar la lesió.',
+  injuryDialogHint:
+    "Opcional — selecciona tothom que s'hagi lesionat, de qualsevol equip, o omet-ho i registra només la lesió.",
   technicalStoppageTitle: "Aturada tècnica — qui l'ha cantada?",
   technicalStoppageHint:
     "Material, interferència externa i similars. Opcional — també pots ometre l'equip.",
   btnNoTeam: 'Sense equip',
+  sotgStoppageTitle: "Aturada de SOTG — qui l'ha cantada?",
+  sotgStoppageHint: "Obligatori per aplicar l'aturada — cancel·la per no aturar el rellotge.",
   turnoverDialogTitle: 'Pèrdua',
   turnoverDialogHint: 'Opcional — pots ometre-ho i només registrar la pèrdua.',
   whoTurnedOver: '{team} — qui ha perdut el disc? (drop, mal passi, stall)',
@@ -154,6 +157,7 @@ export const ca: typeof en = {
   btnPauseGameConfirm: 'Pausar partit',
   btnStoppage: 'Aturada',
   btnTurnover: 'Pèrdua',
+  btnTurnoverHold: 'Pèrdua — mantén premut per desfer',
   btnStoppageSotg: 'Aturada o SOTG',
   btnSotg: 'SOTG',
   btnEndHalftime: 'Fi del descans',
@@ -180,13 +184,9 @@ export const ca: typeof en = {
   btnConfirm: 'Acabar partit',
   btnDone: 'Fet',
   timeoutsLeft: '{n} temps morts restants',
-  timeoutBlockedLastFive: 'No es permeten temps morts en els últims 5 minuts',
-  timeoutBlockedNone: 'Aquest equip no té temps morts restants',
-  timeoutBlockedNotNow: 'Els temps morts només es poden demanar durant el joc',
-  timeoutBlockedCallPending:
-    'Els temps morts estan bloquejats fins que es resolgui la falta pendent',
   currentRatio: 'Ràtio: {gender}',
   pullChip: 'Pull: {team} ({side})',
+  possessionChip: 'Possessió: {team}',
   halfCapChip: 'Half a {n}',
   gameCapChip: 'Partit a {n}',
   sideLeft: 'Esquerra',
@@ -212,18 +212,18 @@ export const ca: typeof en = {
   travelTeamTitle: "Travel — qui l'ha cantat?",
   travelTeamHint: 'Es registra en triar un equip — no cal res més.',
   callPending: '{kind} — {team}',
+  callPendingNoTeam: '{kind}',
   callResolution_accepted: 'Acceptada',
   callResolution_contested: 'Discutida',
   callResolution_retracted: 'Retirada',
   callResolvedIn: 'resolta en {n}s',
   callBlockedPending: 'Resol primer el call en curs.',
   callBlockedPull: 'Els calls necessiten que es llenci el pull abans.',
-  stoppageBlockedPull:
-    'Les aturades per lesió o tècniques necessiten que es llenci el pull abans. El SOTG no.',
   stoppagePending: "{kind} — el joc encara no s'ha reprès.",
   btnStoppageResolved: 'El joc pot continuar',
   noteTitle: 'Esdeveniment',
-  noteHint: 'Qualsevol cosa digna de recordar — un layout increïble, un ocell creuant el camp...',
+  noteHint:
+    'Qualsevol cosa digna de recordar — un layout increïble, un drac sobrevolant el camp...',
   notePlaceholder: 'Què ha passat?',
 
   // Targeta de senyal (sobre el marcador) — el senyal oficial WFDF a fer
@@ -282,6 +282,12 @@ export const ca: typeof en = {
   say_callOffside: '«Off-side — {team}!»',
   say_callDiscDown: '«Disc a terra — {team}!»',
   say_callGeneric: '«Call de {team} — joc aturat!»',
+  say_callFoulNoTeam: '«Falta!»',
+  say_callStallOutNoTeam: '«Stall out!»',
+  say_callPickNoTeam: '«Pick!»',
+  say_callOffsideNoTeam: '«Off-side!»',
+  say_callDiscDownNoTeam: '«Disc a terra!»',
+  say_callGenericNoTeam: '«Call — joc aturat!»',
   say_resolutionAccepted: '«No discutida — continueu jugant!»',
   say_resolutionContested: '«Discutida — el disc torna al llançador!»',
   say_resolutionRetracted: '«Retirada — continueu jugant!»',
@@ -300,10 +306,16 @@ export const ca: typeof en = {
     "Descans. Es reprèn sol quan s'acabi el temps, o prem «Fi del descans» si tots dos equips estan llestos abans.",
   now_halftimeWarn:
     "Un minut per a la segona part. Un xiulet — els equips haurien d'anar-se preparant.",
+  now_stoppagePending:
+    'Aturada per {kind}. El rellotge del pull, del temps mort i del call estan en espera — prem «El joc pot continuar» sobre el rellotge tan bon punt el joc pugui seguir.',
   now_callPending:
     "{kind} — l'ha demanada {team}. El joc està aturat i el marcador bloquejat: prem «Acceptada», «Discutida» o «Retirada» sobre el rellotge quan els jugadors ho decideixin.",
+  now_callPendingNoTeam:
+    '{kind}. El joc està aturat i el marcador bloquejat: prem «Acceptada», «Discutida» o «Retirada» sobre el rellotge quan els jugadors ho decideixin.',
   now_callWait:
     'Segueix sense resoldre als 45 segons — tres xiulets ara, i tres més als 60. Resol-la sobre el rellotge tan bon punt els jugadors ho decideixin.',
+  now_callWaitLong:
+    'Segueix sense resoldre als 60 segons — sis xiulets fins ara, i no en sonaran més. Resol-la sobre el rellotge tan bon punt els jugadors ho decideixin.',
   now_paused: "Aturada d'esperit. Rellotge en pausa — prem «Reprendre partit» per continuar.",
   now_pauseManual: 'Partit en pausa. Rellotge aturat — prem «Reprendre partit» per continuar.',
   now_stoppageClockStopped:
@@ -314,17 +326,22 @@ export const ca: typeof en = {
   now_pull75: "Tres xiulets — 75 segons. El pull S'HA de llançar ja.",
   now_universePoint: 'Universal — {a} {as}, {b} {bs}. El proper gol acaba el partit!',
 
-  assist_blocked_gameNotStarted: 'Marcador bloquejat: el partit encara no ha començat.',
-  assist_blocked_pullNotThrown:
-    'Marcador bloquejat: prem «Pull llançat» primer — el disc no és en joc.',
+  assist_blocked_gameNotStarted: 'El partit encara no ha començat.',
+  assist_blocked_pullNotThrown: 'Prem «Pull llançat» primer — el disc no és en joc.',
   assist_blocked_gamePaused: 'Marcador bloquejat mentre el joc està en pausa.',
-  assist_blocked_timeoutActive: 'Marcador bloquejat durant un temps mort.',
-  assist_blocked_halftimeActive: 'Marcador bloquejat durant el half.',
+  assist_blocked_timeoutActive: 'No disponible durant un temps mort.',
+  assist_blocked_halftimeActive: 'No disponible durant el half.',
   assist_blocked_minScoreZero: 'El marcador no pot baixar de 0.',
   assist_blocked_notLastScorer: "Només es pot desfer l'últim gol (mantén premut aquell equip).",
   assist_blocked_gameFinished: 'El partit ha acabat.',
   assist_blocked_nothingToUndo: 'Encara no hi ha cap gol per desfer.',
-  assist_blocked_callPending: 'Marcador bloquejat: resol primer la falta pendent.',
+  assist_blocked_callPending: 'Resol primer la falta pendent.',
+  assist_blocked_stoppageInProgress:
+    'Ja hi ha una aturada en curs — resol-la abans de cantar-ne una altra.',
+  assist_blocked_timeoutLastFive: 'No es permeten temps morts en els últims 5 minuts.',
+  assist_blocked_timeoutNoneLeft: 'Aquest equip no té temps morts restants.',
+  assist_blocked_timeoutNotNow: 'Els temps morts només es poden demanar durant el joc.',
+  assist_blocked_noTurnoverToUndo: 'No hi ha cap pèrdua per desfer en aquest punt.',
 
   reportTitle: 'Informe final',
   reportStarted: 'Inici: {time}',
@@ -355,6 +372,7 @@ export const ca: typeof en = {
   event_stoppageResolved: 'Aturada resolta',
   event_stoppageClockStopped: 'Rellotge del partit aturat (parada de més de 2 min)',
   event_turnover: 'Pèrdua',
+  event_undoTurnover: 'Correcció de possessió (desfer)',
   event_travel: 'Travel',
   event_call: 'Call',
   event_callResolved: 'Call resolt',
@@ -402,7 +420,7 @@ export const ca: typeof en = {
     'Escriu cada nom, o tria un equip que hagis desat abans. Tria un color semblant al de les samarretes de cada equip: els panells del marcador van pintats amb aquests colors tot el partit, així no has de recordar mai quina banda és quina.',
   guideStep1Players: 'Roster',
   guideStep1PlayersBody:
-    'Opcional. Si afegeixes les plantilles i marques "Registrar activitat dels jugadors", l\'aplicació et pregunta qui ha anotat i qui ha assistit després de cada gol. Deixa-ho sense marcar si estàs sol: el marcador, els rellotges i l\'informe funcionen igual sense això.',
+    'Opcional, per a estadístiques. Desactivat per defecte: el marcador, els rellotges i l\'informe funcionen igual sense això, i les faltes, travellings i aturades tècniques es registren sense equip. Marca "Registrar activitat del partit" i apareixen dos botons més a la pantalla de joc, Roster i Turn: cada falta, travelling i aturada tècnica pregunta llavors quin equip, i un gol, assistència, pèrdua o lesió pregunta també quin jugador, un cop afegeixis les plantilles de sota.',
   guideStep1Time: "Hora d'inici prevista",
   guideStep1TimeBody:
     "Opcional. Marca-ho i l'aplicació fa el compte enrere fins a l'hora d'inici i desbloqueja el joc sola quan arriba.",
@@ -524,15 +542,17 @@ export const ca: typeof en = {
   guideStep9Body:
     "La fila que hi ha sota els rellotges apunta qualsevol cosa que valgui la pena recordar: el globus de diàleg per a un call, la mà aixecada per a una aturada, les dues fletxes per a una pèrdua. Cap d'ells canvia el marcador ni l'objectiu: escriuen al registre i et diuen què anunciar.",
   guideStep9Calls:
-    "Falta, Stall out, Pick, Off-side, Disc a terra, Call: alguna cosa que ha cantat un jugador. Tria qui ho ha cantat i apareixen tres botons sobre els rellotges: Acceptada, Discutida, Retirada. Pregunta als jugadors com ha acabat i prem el que correspongui; l'aplicació registra quant ha durat la discussió.",
+    "Falta, Stall out, Pick, Off-side, Disc a terra, Call: alguna cosa que ha cantat un jugador. Apareixen tres botons sobre els rellotges: Acceptada, Discutida, Retirada. Pregunta als jugadors com ha acabat i prem el que correspongui; l'aplicació registra quant ha durat la discussió.",
   guideStep9Travel:
     'Travel: es canta a qui llança i es mou de manera il·legal. Es registra en un sol pas, sense seguiment.',
   guideStep9Turn:
-    "Pèrdua: el disc ha caigut, s'ha llançat fora o l'han interceptat, i ara el té l'altre equip.",
+    "Turn: només apareix amb \"Registrar activitat del partit\" activat (pas 1): registra una pèrdua, perquè el disc canviï d'equip sense un gol. Des de la primera, una etiqueta «Possessió» al marcador indica qui té el disc durant cada punt. Mantén premut Turn per desfer l'última pèrdua del punt si l'has registrada per error.",
   guideStep9Stoppage:
     "Mà aixecada: lesió o tècnica (material, interferència externa...). El rellotge del partit segueix corrent. Quan el joc pugui continuar, prem «El joc pot continuar» per registrar quant ha durat l'aturada.",
   guideStep9Sotg:
     "SOTG: una aturada d'esperit, darrere d'aquesta mateixa mà aixecada. És l'única de les tres que pausa el rellotge del partit; prem \"Reprendre partit\" quan es reprengui el joc.",
+  guideStep9StoppageAnytime:
+    "La mà aixecada funciona en qualsevol moment del partit: entre punts, durant un temps mort o el descans, fins i tot enmig d'un call. El que estigués comptant (el pull, el temps mort, la discussió) es congela i segueix exactament on era quan el joc es reprèn. Només una aturada alhora: resol la que estigui oberta abans de cantar-ne una altra.",
   guideStep9Log:
     "El botó de llista obre tot el que s'ha registrat fins ara, en ordre, perquè puguis comprovar què has apuntat.",
   guideStep9Note:

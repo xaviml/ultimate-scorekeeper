@@ -32,7 +32,7 @@ const FIG_DASHBOARD: readonly Marker[] = [
   [32.1, 11.7],
   [10.6, 72.6],
   [46.7, 79],
-  [75.6, 89.5],
+  [63.4, 89.5],
   [92, 96.7],
   [49.5, 82.5],
 ];
@@ -286,6 +286,7 @@ export default function GuideScreen({ onBack }: { onBack: () => void }) {
           <Bullet body={t('guideStep9Turn')} />
           <Bullet body={t('guideStep9Stoppage')} />
           <Bullet body={t('guideStep9Sotg')} />
+          <Bullet body={t('guideStep9StoppageAnytime')} />
         </ul>
         {/* Log before Event: the event control lives inside the log dialog, so the
             list has to be introduced before the thing that sits in its header. */}

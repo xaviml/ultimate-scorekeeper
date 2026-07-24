@@ -65,3 +65,36 @@ export function PlayerPicker({
     </div>
   );
 }
+
+/**
+ * Same chip row, but any number of players can be active at once — each tap
+ * toggles just that one chip in or out of `selected`, rather than replacing a
+ * single answer. Used where more than one person can be attributed to the
+ * same event (e.g. an injury involving several players).
+ */
+export function PlayerMultiPicker({
+  players,
+  selected,
+  onToggle,
+  onRemove,
+}: {
+  players: PlayerInfo[];
+  selected: string[];
+  onToggle: (id: string) => void;
+  onRemove?: (id: string) => void;
+}) {
+  if (players.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {players.map((p) => (
+        <PlayerChip
+          key={p.id}
+          player={p}
+          active={selected.includes(p.id)}
+          onSelect={() => onToggle(p.id)}
+          onRemove={onRemove}
+        />
+      ))}
+    </div>
+  );
+}

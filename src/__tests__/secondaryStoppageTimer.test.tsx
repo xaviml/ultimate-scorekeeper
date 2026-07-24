@@ -26,7 +26,7 @@ describe('the secondary clock while a call, stoppage or SOTG stoppage is open', 
     state.phase = 'game';
     state.status = 'live';
     state.gameSeconds = 37;
-    state.pendingCall = { kind: 'foul', team: 'A', startedAtSeconds: 10, elapsedSeconds: 27 };
+    state.pendingCall = { kind: 'foul', team: 'A', elapsedSeconds: 27 };
     mountWith(state);
 
     expect(screen.getByText('Foul')).toBeInTheDocument();
@@ -48,6 +48,20 @@ describe('the secondary clock while a call, stoppage or SOTG stoppage is open', 
 
     expect(screen.getByText('Injury')).toBeInTheDocument();
     expect(screen.getByText('00:45')).toBeInTheDocument();
+  });
+
+  it('gives the box to the stoppage when a call is open too, since that one is frozen', () => {
+    const state = createInitialState();
+    state.phase = 'game';
+    state.status = 'live';
+    state.gameSeconds = 90;
+    state.pendingCall = { kind: 'foul', team: 'A', elapsedSeconds: 27 };
+    state.pendingStoppage = { kind: 'injury', team: 'B', elapsedSeconds: 8, clockStopped: false };
+    mountWith(state);
+
+    expect(screen.getByText('Injury')).toBeInTheDocument();
+    expect(screen.getByText('00:08')).toBeInTheDocument();
+    expect(screen.queryByText('00:27')).toBeNull();
   });
 
   it('counts up on the wall clock during an SOTG stoppage, since the game clock is frozen', () => {

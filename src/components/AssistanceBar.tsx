@@ -95,14 +95,26 @@ function statusKey(state: GameState): string {
   // auto-stop the clock (status 'paused'), where the more specific clock-stopped
   // line below takes over.
   if (state.status !== 'paused') {
-    // Past 45 s it has dragged on and the app whistles it, so say that.
-    if ((state.pendingCall?.elapsedSeconds ?? state.pendingStoppage?.elapsedSeconds ?? 0) >= 45) {
-      return 'now_callWait';
+    // Past 45 s it has dragged on and the app whistles it, so say that — the 60 s
+    // mark gets its own wording once it passes, since the "three more at 60" warning
+    // stops being true the moment those three whistles have already sounded. The
+    // stoppage is read first when both are open, same order as currentWhistle: it
+    // has priority and has frozen the call's counter anyway.
+    const callWaitElapsed =
+      state.pendingStoppage?.elapsedSeconds ?? state.pendingCall?.elapsedSeconds ?? 0;
+    if (callWaitElapsed >= 60) return 'now_callWaitLong';
+    if (callWaitElapsed >= 45) return 'now_callWait';
+    // Before that, each open question needs its own line. A stoppage comes first:
+    // it can be raised over anything, and while it is open the pull, timeout,
+    // half-time and call clocks are all waiting on it.
+    if (state.pendingStoppage) return 'now_stoppagePending';
+    // An open call: `canScore` rejects while one is pending, so the default "tap a
+    // panel when they score" would be a lie.
+    // Two wordings, because a call logged without tracking game activity has no
+    // team to name — see the NoTeam variants in the SAY map.
+    if (state.pendingCall) {
+      return state.pendingCall.team ? 'now_callPending' : 'now_callPendingNoTeam';
     }
-    // Before that, an open call still needs its own line: `canScore` rejects while
-    // one is pending, so the default "tap a panel when they score" would be a lie.
-    // (A stoppage doesn't lock the score, so it keeps the ordinary status line.)
-    if (state.pendingCall) return 'now_callPending';
   }
   // Universe point holds for the whole point it applies to (not just the moment it
   // starts), so it overrides the ambient line for as long as the condition is true —
@@ -148,14 +160,17 @@ function assistVars(state: GameState) {
     // disc, else the puller (the only one that matters between points, where
     // possession is null). An open call outranks possession because that is what
     // play has stopped for, and it is the only thing being talked about.
-    team:
-      state.pendingCall !== null
-        ? state.config.teams[state.pendingCall.team].name
-        : state.timeoutTeam !== null
-          ? state.config.teams[state.timeoutTeam].name
-          : state.possessionTeam !== null
-            ? state.config.teams[state.possessionTeam].name
-            : state.config.teams[state.pullingTeam].name,
+    //
+    // A call logged without tracking activity (see trackPlayers) has no team and
+    // falls through: every message about such a call uses a NoTeam wording that
+    // never reads `team`, so there is no "No team" to print here.
+    team: state.pendingCall?.team
+      ? state.config.teams[state.pendingCall.team].name
+      : state.timeoutTeam !== null
+        ? state.config.teams[state.timeoutTeam].name
+        : state.possessionTeam !== null
+          ? state.config.teams[state.possessionTeam].name
+          : state.config.teams[state.pullingTeam].name,
     // Strictly the game target. It used to fall back to halfCappedTarget, which would
     // print the half's number in a message about the game.
     n: state.cappedTarget ?? state.config.targetScore,
@@ -191,7 +206,14 @@ export function AssistanceBar() {
   const state = useGame();
   const { t } = useT();
 
-  const sayKey = SAY[state.assist];
+  // A call logged without a team (Track game activity off) shouts the same words
+  // minus the attribution — "Foul!", not "Foul — No team!". Only the `call_*`
+  // entries have such a variant; the outcome call-outs never name a team.
+  const sayBase = SAY[state.assist];
+  const sayKey =
+    sayBase && state.assist.startsWith('call_') && !state.pendingCall?.team
+      ? `${sayBase}NoTeam`
+      : sayBase;
   // Keyed on the assist plus the log counter so a repeat of the same event (two
   // injuries, two goals with nothing between) still counts as a new call-out.
   const fresh = useTransientKey(sayKey ? `${state.assist}:${state.nextLogId}` : null, SAY_MS);
@@ -200,9 +222,14 @@ export function AssistanceBar() {
   const vars = assistVars(state);
   const genderLabel =
     vars.gender === 'male' ? t('ratioMale') : vars.gender === 'female' ? t('ratioFemale') : '';
-  // The open call's kind, for the lines that name it. Translated here rather than in
-  // assistVars, which has no `t` — empty when there is no call, where it goes unused.
-  const kind = state.pendingCall ? t(`callKind_${state.pendingCall.kind}` as never) : '';
+  // What the open question is about, for the lines that name it. Translated here
+  // rather than in assistVars, which has no `t` — empty when nothing is open, where
+  // it goes unused. Stoppage first, matching the order statusKey resolves them in.
+  const kind = state.pendingStoppage
+    ? t(`stoppageKind_${state.pendingStoppage.kind}` as never)
+    : state.pendingCall
+      ? t(`callKind_${state.pendingCall.kind}` as never)
+      : '';
   const key = say ? sayKey : statusKey(state);
 
   return (

@@ -102,7 +102,9 @@ export function createInitialState(config: GameConfig = defaultConfig): GameStat
     config,
     status: 'notStarted',
     statusBeforePause: null,
+    statusBeforeTimeout: null,
     pauseSilent: false,
+    pauseTeam: null,
     half: 1,
     scores: { A: 0, B: 0 },
     // Rule B leaves the ratio to the end zone the teams are playing into — the
@@ -112,6 +114,7 @@ export function createInitialState(config: GameConfig = defaultConfig): GameStat
     pullingTeam: other(config.startingOffense),
     offenseTeam: config.startingOffense,
     possessionTeam: null,
+    pointTurnovers: 0,
     gameSeconds: 0,
     startingAtMs: null,
     pointStartSeconds: null,
@@ -170,8 +173,33 @@ export function canTurnover(state: GameState): { ok: boolean; reason?: string } 
 }
 
 /**
- * May a bookkeeping-only event (a stoppage, travel, a call, a free-text note) be
- * recorded right now?
+ * May the last turnover be taken back (long-press on Turn)? Same conditions as
+ * recording one — it is the same button, and possession only means anything while
+ * the disc is live — plus something to take back: only a turnover recorded in the
+ * point being played can be undone, since undoing hands the disc to the other team
+ * and on a point with no turnovers that would take it off the receiving team.
+ */
+export function canUndoTurnover(state: GameState): { ok: boolean; reason?: string } {
+  const base = canTurnover(state);
+  if (!base.ok) return base;
+  if (state.pointTurnovers === 0) return { ok: false, reason: 'noTurnoverToUndo' };
+  return { ok: true };
+}
+
+/**
+ * Whether the possession chip belongs on the scoreboard: only once a turnover has
+ * actually been recorded. Until then possession is simply the team that received
+ * the pull, which the pull chip already says — and a game where nobody presses Turn
+ * would otherwise carry a chip that never changes and is never checked.
+ */
+export function possessionTracked(state: GameState): boolean {
+  return state.log.some((e) => e.type === 'turnover');
+}
+
+/**
+ * May a bookkeeping-only event (travel, a call, a free-text note) be recorded
+ * right now? A stoppage is the exception that has its own, wider guard — see
+ * canStoppage.
  *
  * More permissive than canScore in one respect only: an SOTG pause doesn't block
  * it — a foul called as the teams line up is still a foul. But a timeout or
@@ -179,10 +207,10 @@ export function canTurnover(state: GameState): { ok: boolean; reason?: string } 
  * the game to resume, same as scoring does.
  *
  * `requiresPull` narrows this further to events that only make sense once the
- * disc is actually live: a travel, a stoppage, any of the six calls (off-side
- * included — nothing has happened yet for the marker to call). A free-text
- * note is the one recorded event that never passes it: it isn't about the
- * play, so there's nothing about the pull it needs to wait for.
+ * disc is actually live: a travel, any of the six calls (off-side included —
+ * nothing has happened yet for the marker to call). A free-text note is the one
+ * recorded event that never passes it: it isn't about the play, so there's
+ * nothing about the pull it needs to wait for.
  *
  * `allowDuringBreaks` widens it the other way, and for the same reason: a note
  * is not about the play, so a timeout or half-time is no reason to refuse it —
@@ -203,6 +231,41 @@ export function canRecordEvent(
   }
   if (opts?.requiresPull && state.status === 'awaitingPull')
     return { ok: false, reason: 'pullNotThrown' };
+  return { ok: true };
+}
+
+/**
+ * Is play halted by something that has to be cleared before anything else can
+ * happen — an open injury/technical stoppage, or a stopped clock (SOTG, the manual
+ * pause, or a stoppage that ran past two minutes)?
+ *
+ * Everything that measures a stretch of play waits on this: the pull clock, a
+ * running timeout, the half-time break and an open call's discussion timer all
+ * freeze while it is true and resume from exactly where they were (see TICK). A
+ * pause freezes them for free by leaving the status they tick under; a stoppage
+ * leaves the status alone, which is why it needs saying here.
+ */
+export function playHalted(state: GameState): boolean {
+  return state.pendingStoppage !== null || state.status === 'paused';
+}
+
+/**
+ * May a stoppage — injury, technical, or an SOTG/manual pause — be raised right now?
+ *
+ * Deliberately not canRecordEvent: a stoppage is the one thing that interrupts
+ * whatever else is running, because on the field it already has. So it is available
+ * for the whole game, between points and during a timeout, half-time or an open
+ * call included; only a game that hasn't started or has finished refuses it.
+ *
+ * The one bar is a stoppage already in progress: the buttons that resolve one
+ * answer exactly one question, so the volunteer clears that one first (the action
+ * row says as much rather than going quietly dead).
+ */
+export function canStoppage(state: GameState): { ok: boolean; reason?: string } {
+  if (state.phase !== 'game' || state.status === 'notStarted' || state.status === 'awaitingStart')
+    return { ok: false, reason: 'gameNotStarted' };
+  if (state.status === 'finished') return { ok: false, reason: 'gameFinished' };
+  if (playHalted(state)) return { ok: false, reason: 'stoppageInProgress' };
   return { ok: true };
 }
 
@@ -265,6 +328,9 @@ export function timeoutAvailability(
   if (state.status !== 'live' && state.status !== 'awaitingPull')
     return { ok: false, reason: 'timeoutNotNow' };
   if (state.pendingCall !== null) return { ok: false, reason: 'callPending' };
+  // A stoppage has priority over everything else in play (see canStoppage), and a
+  // timeout started under one would immediately be frozen by it anyway.
+  if (state.pendingStoppage !== null) return { ok: false, reason: 'stoppageInProgress' };
   if (
     timeouts.disallowLastFiveMinutes &&
     state.config.timeLimitMinutes * 60 - state.gameSeconds <= 5 * 60
@@ -289,6 +355,7 @@ function snapshot(state: GameState): GoalSnapshot {
     pullingTeam: state.pullingTeam,
     offenseTeam: state.offenseTeam,
     possessionTeam: state.possessionTeam,
+    pointTurnovers: state.pointTurnovers,
     status: state.status,
     half: state.half,
     pointStartSeconds: state.pointStartSeconds,
@@ -434,6 +501,9 @@ export function gameReducer(state: GameState, action: Action): GameState {
 
     case 'PULL_THROWN': {
       if (state.status !== 'awaitingPull') return state;
+      // The pull clock is frozen while a stoppage is open (see playHalted), and the
+      // disc can't be pulled into an injury either — resolve it, then pull.
+      if (state.pendingStoppage !== null) return state;
       const s = state;
       return {
         ...s,
@@ -441,6 +511,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         pointStartSeconds: s.gameSeconds,
         // The receiving team catches the pull, so the point opens with them on offense.
         possessionTeam: s.offenseTeam,
+        pointTurnovers: 0,
         secondary: null,
         ratio: s.nextRatio ?? s.ratio,
         nextRatio: null,
@@ -563,6 +634,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         pullingTeam: team,
         offenseTeam: other(team),
         possessionTeam: null, // disc is dead until the next pull is caught
+        pointTurnovers: 0,
         pointStartSeconds: null,
         nextRatio,
         secondary: reachHalf ? null : { kind: 'pull', seconds: 0, total: 75 },
@@ -635,6 +707,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         pullingTeam: prev.pullingTeam,
         offenseTeam: prev.offenseTeam,
         possessionTeam: prev.possessionTeam,
+        pointTurnovers: prev.pointTurnovers,
         half: prev.half,
         // A goal appends exactly one point, so dropping the last entry rewinds it.
         points: state.points.slice(0, -1),
@@ -678,7 +751,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
       return {
         ...s,
         status: 'timeout',
-        statusBeforePause: state.status,
+        statusBeforeTimeout: state.status,
         timeoutTeam: action.team,
         timeoutsUsed: used,
         secondary: { kind: 'timeout', seconds: total, total, afterPull },
@@ -688,15 +761,18 @@ export function gameReducer(state: GameState, action: Action): GameState {
 
     case 'TIMEOUT_END': {
       if (state.status !== 'timeout') return state;
+      // A stoppage freezes the timeout clock and has to be resolved first — see
+      // playHalted; ending the timeout under one would skip past it.
+      if (state.pendingStoppage !== null) return state;
       const s = log(state, 'timeoutEnd', state.timeoutTeam ?? undefined);
       // After-pull: the disc goes straight back into play (3-whistle restart).
       // Before-pull: back to awaiting the pull, and the pull clock RESTARTS at 0 so
       // the standard 45/60/75 pre-pull sequence runs fresh (1-whistle "time in").
-      const beforePull = state.statusBeforePause === 'awaitingPull';
+      const beforePull = state.statusBeforeTimeout === 'awaitingPull';
       return {
         ...s,
         status: beforePull ? 'awaitingPull' : 'live',
-        statusBeforePause: null,
+        statusBeforeTimeout: null,
         timeoutTeam: null,
         secondary: beforePull ? { kind: 'pull', seconds: 0, total: 75 } : null,
         assist: beforePull ? 'timeoutOver' : 'timeoutRestart',
@@ -704,26 +780,37 @@ export function gameReducer(state: GameState, action: Action): GameState {
     }
 
     case 'STOPPAGE': {
-      // Logged without touching the game clock at first — it only auto-stops if the
-      // stoppage runs long (see TICK). An injury optionally records the injured
-      // player; a technical stoppage is never attributed to a player.
-      if (!canRecordEvent(state, { requiresPull: true }).ok) return state;
-      // One open stoppage at a time — the "play can resume" button answers exactly
-      // one question, same shape as CALL_MADE/CALL_RESOLVED.
-      if (state.pendingStoppage !== null) return state;
-      const injured =
-        action.kind === 'injury' && action.team
-          ? findPlayer(state.config.players[action.team], action.playerId)
-          : undefined;
-      const s = log(state, 'stoppage', action.team, injured ? playerLabel(injured) : undefined, {
+      // Available for the whole game, whatever else is running — see canStoppage,
+      // which also enforces the one-open-stoppage-at-a-time rule. Logged without
+      // touching the game clock at first (it only auto-stops if the stoppage runs
+      // long, see TICK), but every other clock freezes from here (see playHalted).
+      // An injury optionally records every player hurt, from either team; a
+      // technical stoppage is never attributed to a player, only (optionally) a
+      // single team.
+      if (!canStoppage(state).ok) return state;
+      const injuredPlayers = action.kind === 'injury' ? (action.players ?? []) : [];
+      // A team badge only makes sense when every injured player is on the same
+      // side — mixed teams (or no player named at all) leave it off, and the
+      // player list in the detail string carries the attribution instead.
+      const injuredTeams = [...new Set(injuredPlayers.map((p) => p.team))];
+      const soleInjuredTeam = injuredTeams.length === 1 ? injuredTeams[0] : undefined;
+      const team = action.kind === 'technical' ? action.team : soleInjuredTeam;
+      const injuredLabel = injuredPlayers
+        .map((p) => {
+          const label = playerLabel(findPlayer(state.config.players[p.team], p.playerId));
+          return injuredTeams.length > 1 ? `${state.config.teams[p.team].name}: ${label}` : label;
+        })
+        .filter(Boolean)
+        .join(', ');
+      const s = log(state, 'stoppage', team, injuredLabel || undefined, {
         stoppageKind: action.kind,
       });
       return {
         ...s,
         pendingStoppage: {
           kind: action.kind,
-          team: action.team,
-          playerId: action.kind === 'injury' ? action.playerId : undefined,
+          team,
+          players: action.kind === 'injury' ? action.players : undefined,
           elapsedSeconds: 0,
           clockStopped: false,
         },
@@ -768,7 +855,37 @@ export function gameReducer(state: GameState, action: Action): GameState {
         turnoverId: action.turnoverId,
         defenseId: action.defenseId,
       });
-      return { ...s, possessionTeam: other(attacking), assist: 'turnover' };
+      return {
+        ...s,
+        possessionTeam: other(attacking),
+        pointTurnovers: s.pointTurnovers + 1,
+        assist: 'turnover',
+      };
+    }
+
+    case 'UNDO_TURNOVER': {
+      // Only ever the turnovers of the point being played (canUndoTurnover), so
+      // giving the disc back is just flipping possession the other way: a point
+      // starts with the receiving team and every turnover since has been undone in
+      // reverse order to get here.
+      if (!canUndoTurnover(state).ok || state.possessionTeam === null) return state;
+      const back = other(state.possessionTeam);
+      // Same split as UNDO_GOAL: if the turnover is still the last thing in the log,
+      // this is the scorekeeper correcting a mis-tap, so the entry goes rather than
+      // leaving both it and a correction behind. Once something else has been
+      // recorded since — a call, a note — the turnover is part of the history that
+      // followed it, and the correction is logged visibly instead.
+      const last = state.log[state.log.length - 1];
+      const s =
+        last !== undefined && last.type === 'turnover'
+          ? { ...state, log: state.log.slice(0, -1) }
+          : log(state, 'undoTurnover', back);
+      return {
+        ...s,
+        possessionTeam: back,
+        pointTurnovers: s.pointTurnovers - 1,
+        assist: 'turnoverUndone',
+      };
     }
 
     case 'TRAVEL': {
@@ -788,12 +905,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
       const s = log(state, 'call', action.team, undefined, { callKind: action.kind });
       return {
         ...s,
-        pendingCall: {
-          kind: action.kind,
-          team: action.team,
-          startedAtSeconds: s.gameSeconds,
-          elapsedSeconds: 0,
-        },
+        pendingCall: { kind: action.kind, team: action.team, elapsedSeconds: 0 },
         assist: `call_${action.kind}`,
       };
     }
@@ -801,12 +913,17 @@ export function gameReducer(state: GameState, action: Action): GameState {
     case 'CALL_RESOLVED': {
       const pending = state.pendingCall;
       if (pending === null) return state;
-      // Measured on the game clock, so an SOTG pause mid-discussion is not counted
-      // against the teams — the same clock every other duration in the log uses.
+      // A stoppage or a stopped clock has frozen the discussion, and takes the
+      // resolution row off the screen with it (see CallResolutionRow) — the call
+      // stays open and is answered once play resumes.
+      if (playHalted(state)) return state;
+      // elapsedSeconds counts only the time the discussion actually had: TICK stops
+      // advancing it while play is halted, so a stoppage or an SOTG pause taken
+      // mid-dispute is not counted against the teams.
       const s = log(state, 'callResolved', pending.team, undefined, {
         callKind: pending.kind,
         resolution: action.resolution,
-        resolutionSeconds: Math.max(0, state.gameSeconds - pending.startedAtSeconds),
+        resolutionSeconds: pending.elapsedSeconds,
       });
       return { ...s, pendingCall: null, assist: `resolution_${action.resolution}` };
     }
@@ -826,28 +943,42 @@ export function gameReducer(state: GameState, action: Action): GameState {
 
     case 'SOTG_TOGGLE': {
       if (state.status === 'paused' && state.statusBeforePause !== null) {
-        const s = log(state, state.pauseSilent ? 'pauseEnd' : 'sotgEnd');
+        const s = log(
+          state,
+          state.pauseSilent ? 'pauseEnd' : 'sotgEnd',
+          state.pauseTeam ?? undefined,
+        );
         return {
           ...s,
           status: s.statusBeforePause ?? 'live',
           statusBeforePause: null,
           pauseSilent: false,
+          pauseTeam: null,
           assist: 'resumed',
         };
       }
-      if (state.status !== 'live' && state.status !== 'awaitingPull') return state;
-      const s = log(state, action.silent ? 'pauseStart' : 'sotgStart');
+      // Stopping the clock is available for the whole game, same window as any other
+      // stoppage — during a timeout, half-time or an open call included, each of
+      // which freezes and resumes where it was (see playHalted). statusBeforePause
+      // is what carries the way back, kept apart from statusBeforeTimeout precisely
+      // so a pause taken during a timeout doesn't overwrite the timeout's own.
+      if (!canStoppage(state).ok) return state;
+      const s = log(state, action.silent ? 'pauseStart' : 'sotgStart', action.team);
       return {
         ...s,
         status: 'paused',
         statusBeforePause: state.status,
         pauseSilent: !!action.silent,
+        pauseTeam: action.team ?? null,
         assist: action.silent ? 'pauseStart' : 'sotg',
       };
     }
 
     case 'HALFTIME_END': {
       if (state.status !== 'halftime') return state;
+      // Same as TIMEOUT_END: the break clock is frozen under a stoppage, so the
+      // second half can't start until that stoppage is resolved.
+      if (state.pendingStoppage !== null) return state;
       const s = log(state, 'halftimeEnd');
       // Second half mirrors the opening: the team that received the first pull now
       // pulls, and the ends are the opposite of how half 1 started.
@@ -954,18 +1085,24 @@ export function gameReducer(state: GameState, action: Action): GameState {
           };
         }
       }
-      // Pending call bookkeeping: elapsedSeconds counts every tick independent of the
-      // game clock (an SOTG pause mid-dispute must not stall it), driving the 45 s /
-      // every-15 s "still unresolved" whistle. The resolution duration shown in the
-      // log is measured separately off the game clock in CALL_RESOLVED.
-      if (s.pendingCall !== null) {
+      // Everything below measures a stretch of play, so all of it waits while play is
+      // halted — an open stoppage, or a stopped clock. A pause would freeze the
+      // secondary timer for free (it leaves the status each one ticks under), but a
+      // stoppage leaves the status alone, so both go through the one check and both
+      // pick up from exactly where they were.
+      const halted = playHalted(s);
+      // Pending call bookkeeping: elapsedSeconds is how long the discussion has run,
+      // driving both the 45/60 s "still unresolved" whistle and the duration logged
+      // by CALL_RESOLVED. Independent of the game clock — a timeout doesn't stall a
+      // dispute — but not of a stoppage, which interrupts the discussion itself.
+      if (s.pendingCall !== null && !halted) {
         s = {
           ...s,
           pendingCall: { ...s.pendingCall, elapsedSeconds: s.pendingCall.elapsedSeconds + 1 },
         };
       }
-      // Secondary timer
-      if (s.secondary) {
+      // Secondary timer — the pull countdown, a timeout, the half-time break.
+      if (s.secondary && !halted) {
         const sec = s.secondary;
         if (sec.kind === 'pull' && s.status === 'awaitingPull') {
           s = { ...s, secondary: { ...sec, seconds: sec.seconds + 1 } };

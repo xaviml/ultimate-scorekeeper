@@ -113,9 +113,15 @@ describe('dialogs render through the shared Modal', () => {
     expect(screen.getByLabelText('Event')).not.toBeDisabled();
   });
 
-  it('GameLog disables the add-event button before the game has started', () => {
-    renderWithProviders(<GameLog onClose={noop} onAddEvent={noop} />);
-    expect(screen.getByLabelText('Event')).toBeDisabled();
+  it('GameLog keeps the add-event button tappable before the game has started, but explains why on tap', () => {
+    const onAddEvent = vi.fn();
+    renderWithProviders(<GameLog onClose={noop} onAddEvent={onAddEvent} />);
+    const button = screen.getByLabelText('Event');
+    expect(button).not.toBeDisabled();
+
+    fireEvent.click(button);
+    expect(onAddEvent).not.toHaveBeenCalled();
+    expect(screen.getByText(/has not started yet/)).toBeInTheDocument();
   });
 
   it('PlayersDialog lists both team rosters', () => {
@@ -152,10 +158,106 @@ describe('dialogs render through the shared Modal', () => {
     expect(screen.getByText('Team B')).toBeInTheDocument();
   });
 
-  it('StoppageDialog shows a team picker with a skip option after choosing Technical', () => {
+  it('StoppageDialog attributes an injury to players on both teams at once', () => {
+    const state = createInitialState();
+    state.phase = 'game';
+    state.status = 'awaitingPull';
+    // Cloned before mutating: createInitialState()'s config defaults to the
+    // module-level defaultConfig singleton by reference (see ConfigScreen's
+    // `state.config === defaultConfig` fresh-start check), so assigning into
+    // state.config.players directly would otherwise leak these rosters into
+    // every other test in this file that creates a "fresh" state afterward.
+    state.config = { ...state.config, players: { A: [], B: [] } };
+    state.config.trackPlayers = true;
+    state.config.players.A = [{ id: 'a1', number: '7', name: 'Alex' }];
+    state.config.players.B = [{ id: 'b1', number: '3', name: 'Sam' }];
+    sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
+
+    const onClose = vi.fn();
+    renderWithProviders(<StoppageDialog onClose={onClose} />);
+    fireEvent.click(screen.getByText('Injury'));
+
+    const alex = screen.getByText('#7 Alex');
+    fireEvent.pointerDown(alex);
+    fireEvent.pointerUp(alex);
+    const sam = screen.getByText('#3 Sam');
+    fireEvent.pointerDown(sam);
+    fireEvent.pointerUp(sam);
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    const stored = JSON.parse(sessionStorage.getItem('ultimate-scorekeeper:game-state')!);
+    expect(stored.pendingStoppage.players).toEqual(
+      expect.arrayContaining([
+        { team: 'A', playerId: 'a1' },
+        { team: 'B', playerId: 'b1' },
+      ]),
+    );
+    // Injured players span both teams, so no single team badge applies.
+    expect(stored.pendingStoppage.team).toBeUndefined();
+  });
+
+  it('StoppageDialog shows a team picker with a skip option after choosing Technical when tracking activity', () => {
+    const state = createInitialState();
+    state.config.trackPlayers = true;
+    sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
+
     renderWithProviders(<StoppageDialog onClose={noop} />);
     fireEvent.click(screen.getByText('Technical'));
     expect(screen.getByText('No team')).toBeInTheDocument();
+  });
+
+  it('StoppageDialog records Technical straight away, with no team picker, when not tracking activity', () => {
+    const state = createInitialState();
+    state.config.trackPlayers = false;
+    sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
+
+    const onClose = vi.fn();
+    renderWithProviders(<StoppageDialog onClose={onClose} />);
+    fireEvent.click(screen.getByText('Technical'));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('No team')).toBeNull();
+  });
+
+  it('StoppageDialog asks which team called the SOTG, with no skip option, when tracking activity', () => {
+    const state = createInitialState();
+    state.config.trackPlayers = true;
+    sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
+
+    const onClose = vi.fn();
+    renderWithProviders(<StoppageDialog onClose={onClose} />);
+    fireEvent.click(screen.getByText('SOTG'));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByText('Team A')).toBeInTheDocument();
+    expect(screen.getByText('Team B')).toBeInTheDocument();
+    expect(screen.queryByText('No team')).toBeNull();
+  });
+
+  it('StoppageDialog applies the SOTG stoppage once a team is picked', () => {
+    const state = createInitialState();
+    state.config.trackPlayers = true;
+    sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
+
+    const onClose = vi.fn();
+    renderWithProviders(<StoppageDialog onClose={onClose} />);
+    fireEvent.click(screen.getByText('SOTG'));
+    fireEvent.click(screen.getByText('Team A'));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('StoppageDialog leaves the SOTG stoppage unapplied when the team step is cancelled', () => {
+    const state = createInitialState();
+    state.config.trackPlayers = true;
+    sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
+
+    const onClose = vi.fn();
+    renderWithProviders(<StoppageDialog onClose={onClose} />);
+    fireEvent.click(screen.getByText('SOTG'));
+    fireEvent.click(screen.getByText('Cancel'));
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    const stored = JSON.parse(sessionStorage.getItem('ultimate-scorekeeper:game-state')!);
+    expect(stored.status).not.toBe('paused');
   });
 
   it('TurnoverDialog asks both sides and can be saved with no one picked', () => {
@@ -230,7 +332,7 @@ describe('dialogs render through the shared Modal', () => {
     const save = screen.getByText('Save') as HTMLButtonElement;
     expect(save).toBeDisabled();
     fireEvent.change(screen.getByPlaceholderText('What happened?'), {
-      target: { value: 'a bird crossed the field' },
+      target: { value: 'a dragon flew across the field' },
     });
     expect(save).not.toBeDisabled();
   });

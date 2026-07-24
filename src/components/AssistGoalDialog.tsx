@@ -5,7 +5,7 @@ import type { TeamId } from '../state/types';
 import { Modal } from './Modal';
 import { PlayerPicker } from './PlayerPicker';
 import { PlayerRosterEditor } from './PlayerRosterEditor';
-import { primaryButton, secondaryButton } from './ui';
+import { primaryButton } from './ui';
 
 export function AssistGoalDialog({
   team,
@@ -70,14 +70,9 @@ export function AssistGoalDialog({
         onAdd={(number, name) => dispatch({ type: 'ADD_PLAYER', team, number, name })}
       />
 
-      <div className="grid grid-cols-2 gap-3">
-        <button className={secondaryButton} onClick={onCancel}>
-          {t('btnCancel')}
-        </button>
-        <button className={primaryButton} onClick={save}>
-          {t('btnSave')}
-        </button>
-      </div>
+      <button className={`w-full ${primaryButton}`} onClick={save}>
+        {t('btnSave')}
+      </button>
     </Modal>
   );
 }

@@ -16,7 +16,8 @@ function renderConfigScreen() {
   );
 }
 
-const TRACK_PLAYERS_LABEL = 'Track player activity (goals, assists, turnovers, defense, injuries)';
+const TRACK_PLAYERS_LABEL =
+  'Track game activity for stats (goals, assists, turnovers, calls, injuries)';
 
 /**
  * Starts a game and immediately sends it back to the config screen (as ReportScreen's

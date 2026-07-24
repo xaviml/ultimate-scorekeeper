@@ -103,7 +103,7 @@ export const es: typeof en = {
   collapseSection: 'Contraer {title}',
   expandSection: 'Expandir {title}',
   trackPlayers:
-    'Registrar actividad de jugadores (goles, asistencias, pérdidas, defensas, lesiones)',
+    'Registrar actividad del partido para estadísticas (goles, asistencias, pérdidas, faltas, lesiones)',
   playerNumber: '#',
   playerName: 'Nombre',
   addPlayer: 'Añadir',
@@ -117,15 +117,18 @@ export const es: typeof en = {
   whoAssisted: 'Asistencia',
   stoppageDialogTitle: '¿Qué ha parado el juego?',
   stoppageDialogHint:
-    'Las paradas por lesión o técnicas no detienen el reloj de entrada. El SOTG sí.',
+    'Las paradas por lesión o técnicas no detienen el reloj de partido de entrada. El SOTG sí. En ambos casos, el reloj del pull, del tiempo muerto y de la llamada esperan a que el juego se reanude.',
   stoppageKind_injury: 'Lesión',
   stoppageKind_technical: 'Técnica',
   injuryDialogTitle: '¿Quién se lesionó?',
-  injuryDialogHint: 'Opcional — puedes omitir y solo registrar la lesión.',
+  injuryDialogHint:
+    'Opcional — selecciona a todos los lesionados, de cualquier equipo, u omite y solo registra la lesión.',
   technicalStoppageTitle: 'Parada técnica — ¿quién la llamó?',
   technicalStoppageHint:
     'Material, interferencia externa y similares. Opcional — también puedes omitir el equipo.',
   btnNoTeam: 'Sin equipo',
+  sotgStoppageTitle: 'Parada de SOTG — ¿quién la llamó?',
+  sotgStoppageHint: 'Obligatorio para aplicar la parada — cancela para no detener el reloj.',
   turnoverDialogTitle: 'Pérdida',
   turnoverDialogHint: 'Opcional — puedes omitir y solo registrar la pérdida.',
   whoTurnedOver: '{team} — ¿quién perdió el disco? (drop, mal pase, stall)',
@@ -154,6 +157,7 @@ export const es: typeof en = {
   btnPauseGameConfirm: 'Pausar partido',
   btnStoppage: 'Parada',
   btnTurnover: 'Pérdida',
+  btnTurnoverHold: 'Pérdida — mantén pulsado para deshacer',
   btnStoppageSotg: 'Parada o SOTG',
   btnSotg: 'SOTG',
   btnEndHalftime: 'Fin del descanso',
@@ -180,13 +184,9 @@ export const es: typeof en = {
   btnConfirm: 'Terminar partido',
   btnDone: 'Listo',
   timeoutsLeft: '{n} tiempos muertos restantes',
-  timeoutBlockedLastFive: 'No se permiten tiempos muertos en los últimos 5 minutos',
-  timeoutBlockedNone: 'Este equipo no tiene tiempos muertos restantes',
-  timeoutBlockedNotNow: 'Los tiempos muertos solo pueden pedirse durante el juego',
-  timeoutBlockedCallPending:
-    'Los tiempos muertos están bloqueados hasta resolver la falta pendiente',
   currentRatio: 'Ratio: {gender}',
   pullChip: 'Pull: {team} ({side})',
+  possessionChip: 'Posesión: {team}',
   halfCapChip: 'Half a {n}',
   gameCapChip: 'Partido a {n}',
   sideLeft: 'Izquierda',
@@ -212,19 +212,18 @@ export const es: typeof en = {
   travelTeamTitle: 'Travel — ¿quién lo llamó?',
   travelTeamHint: 'Se registra en cuanto eliges un equipo — no hace falta nada más.',
   callPending: '{kind} — {team}',
+  callPendingNoTeam: '{kind}',
   callResolution_accepted: 'Aceptada',
   callResolution_contested: 'Discutida',
   callResolution_retracted: 'Retirada',
   callResolvedIn: 'resuelta en {n}s',
   callBlockedPending: 'Resuelve primero la llamado en curso.',
   callBlockedPull: 'Las llamadas necesitan que se lance el pull primero.',
-  stoppageBlockedPull:
-    'Las paradas por lesión o técnicas necesitan que se lance el pull primero. El SOTG no.',
   stoppagePending: '{kind} — el juego aún no se ha reanudado.',
   btnStoppageResolved: 'El juego puede continuar',
   noteTitle: 'Evento',
   noteHint:
-    'Cualquier cosa digna de recordar — un layout increíble, un pájaro cruzando el campo...',
+    'Cualquier cosa digna de recordar — un layout increíble, un dragón sobrevolando el campo...',
   notePlaceholder: '¿Qué ha pasado?',
 
   // Tarjeta de señal (bajo el reloj de partido) — la señal oficial WFDF a hacer
@@ -283,6 +282,12 @@ export const es: typeof en = {
   say_callOffside: '«¡Off-side — {team}!»',
   say_callDiscDown: '«¡Disco al suelo — {team}!»',
   say_callGeneric: '«¡Llamado de {team} — juego detenido!»',
+  say_callFoulNoTeam: '«¡Falta!»',
+  say_callStallOutNoTeam: '«¡Stall out!»',
+  say_callPickNoTeam: '«¡Pick!»',
+  say_callOffsideNoTeam: '«¡Off-side!»',
+  say_callDiscDownNoTeam: '«¡Disco al suelo!»',
+  say_callGenericNoTeam: '«¡Llamado — juego detenido!»',
   say_resolutionAccepted: '«¡No discutida — seguid jugando!»',
   say_resolutionContested: '«¡Discutida — el disco vuelve al lanzador!»',
   say_resolutionRetracted: '«¡Retirada — seguid jugando!»',
@@ -303,10 +308,16 @@ export const es: typeof en = {
     'Descanso. Se reanuda solo cuando termine el tiempo, o pulsa «Fin del descanso» si ambos equipos están listos antes.',
   now_halftimeWarn:
     'Un minuto para la segunda parte. Un silbato — los equipos deberían ir preparándose.',
+  now_stoppagePending:
+    'Parada por {kind}. El reloj del pull, del tiempo muerto y de la llamada están en espera — pulsa «El juego puede continuar» encima del reloj en cuanto el juego pueda seguir.',
   now_callPending:
     '{kind} — la ha pedido {team}. El juego está parado y el marcador bloqueado: pulsa «Aceptada», «Discutida» o «Retirada» encima del reloj cuando los jugadores lo decidan.',
+  now_callPendingNoTeam:
+    '{kind}. El juego está parado y el marcador bloqueado: pulsa «Aceptada», «Discutida» o «Retirada» encima del reloj cuando los jugadores lo decidan.',
   now_callWait:
     'Sigue sin resolverse a los 45 segundos — tres silbatos ahora, y tres más a los 60. Resuélvela encima del reloj en cuanto los jugadores lo decidan.',
+  now_callWaitLong:
+    'Sigue sin resolverse a los 60 segundos — seis silbatos hasta ahora, y no sonarán más. Resuélvela encima del reloj en cuanto los jugadores lo decidan.',
   now_paused: 'Parada de espíritu. Reloj pausado — pulsa «Reanudar partido» para continuar.',
   now_pauseManual: 'Partido pausado. Reloj detenido — pulsa «Reanudar partido» para continuar.',
   now_stoppageClockStopped:
@@ -317,17 +328,22 @@ export const es: typeof en = {
   now_pull75: 'Tres pitidos — 75 segundos. El pull DEBE lanzarse ya.',
   now_universePoint: 'Universal — {a} {as}, {b} {bs}. ¡El próximo gol termina el partido!',
 
-  assist_blocked_gameNotStarted: 'Marcador bloqueado: el partido aún no ha empezado.',
-  assist_blocked_pullNotThrown:
-    'Marcador bloqueado: pulsa «Pull lanzado» primero — el disco no está en juego.',
+  assist_blocked_gameNotStarted: 'El partido aún no ha empezado.',
+  assist_blocked_pullNotThrown: 'Pulsa «Pull lanzado» primero — el disco no está en juego.',
   assist_blocked_gamePaused: 'Marcador bloqueado mientras el juego está pausado.',
-  assist_blocked_timeoutActive: 'Marcador bloqueado durante un tiempo muerto.',
-  assist_blocked_halftimeActive: 'Marcador bloqueado durante el half.',
+  assist_blocked_timeoutActive: 'No disponible durante un tiempo muerto.',
+  assist_blocked_halftimeActive: 'No disponible durante el half.',
   assist_blocked_minScoreZero: 'El marcador no puede bajar de 0.',
   assist_blocked_notLastScorer: 'Solo se puede deshacer el último gol (mantén pulsado ese equipo).',
   assist_blocked_gameFinished: 'El partido ha terminado.',
   assist_blocked_nothingToUndo: 'Todavía no hay ningún gol que deshacer.',
-  assist_blocked_callPending: 'Marcador bloqueado: resuelve primero la falta pendiente.',
+  assist_blocked_callPending: 'Resuelve primero la falta pendiente.',
+  assist_blocked_stoppageInProgress:
+    'Ya hay una parada en curso — resuélvela antes de llamar otra.',
+  assist_blocked_timeoutLastFive: 'No se permiten tiempos muertos en los últimos 5 minutos.',
+  assist_blocked_timeoutNoneLeft: 'Este equipo no tiene tiempos muertos restantes.',
+  assist_blocked_timeoutNotNow: 'Los tiempos muertos solo pueden pedirse durante el juego.',
+  assist_blocked_noTurnoverToUndo: 'No hay ninguna pérdida que deshacer en este punto.',
 
   reportTitle: 'Informe final',
   reportStarted: 'Inicio: {time}',
@@ -358,6 +374,7 @@ export const es: typeof en = {
   event_stoppageResolved: 'Parada resuelta',
   event_stoppageClockStopped: 'Reloj del partido detenido (parada de más de 2 min)',
   event_turnover: 'Pérdida',
+  event_undoTurnover: 'Corrección de posesión (deshacer)',
   event_travel: 'Travel',
   event_call: 'Llamado',
   event_callResolved: 'Llamado resuelto',
@@ -405,7 +422,7 @@ export const es: typeof en = {
     'Escribe cada nombre, o elige un equipo que guardaste antes. Elige un color parecido al de las camisetas de cada equipo: los paneles del marcador van pintados con esos colores todo el partido, así nunca tienes que recordar qué lado es cuál.',
   guideStep1Players: 'Roster',
   guideStep1PlayersBody:
-    'Opcional. Si añades las plantillas y marcas "Registrar actividad de jugadores", la aplicación te pregunta quién anotó y quién asistió después de cada gol. Déjalo sin marcar si estás solo: el marcador, los relojes y el informe funcionan igual sin ello.',
+    'Opcional, para estadísticas. Desactivado por defecto: el marcador, los relojes y el informe funcionan igual sin ello, y las faltas, travelling y paradas técnicas se registran sin equipo. Marca "Registrar actividad del partido" y aparecen dos botones más en la pantalla de juego, Roster y Turn: cada falta, travelling y parada técnica pregunta entonces qué equipo, y un gol, asistencia, pérdida o lesión pregunta también qué jugador, una vez añadas las plantillas de abajo.',
   guideStep1Time: 'Hora de inicio prevista',
   guideStep1TimeBody:
     'Opcional. Márcalo y la aplicación hace la cuenta atrás hasta la hora de inicio y desbloquea el juego sola cuando llega.',
@@ -528,15 +545,17 @@ export const es: typeof en = {
   guideStep9Body:
     'La fila que hay bajo los relojes apunta cualquier cosa que merezca la pena recordar: el bocadillo para un llamado, la mano levantada para una parada, las dos flechas para una pérdida. Ninguno cambia el marcador ni el objetivo: escriben en el historial y te dicen qué anunciar.',
   guideStep9Calls:
-    'Falta, Stall out, Pick, Off-side, Disco al suelo, Llamado: algo que ha cantado un jugador. Elige quién lo ha cantado y aparecen tres botones sobre los relojes: Aceptada, Discutida, Retirada. Pregunta a los jugadores cómo ha acabado y pulsa el que corresponda; la aplicación registra cuánto ha durado la discusión.',
+    'Falta, Stall out, Pick, Off-side, Disco al suelo, Llamado: algo que ha cantado un jugador. Aparecen tres botones sobre los relojes: Aceptada, Discutida, Retirada. Pregunta a los jugadores cómo ha acabado y pulsa el que corresponda; la aplicación registra cuánto ha durado la discusión.',
   guideStep9Travel:
     'Travel: se canta a quien lanza y se mueve de forma ilegal. Se registra en un solo paso, sin seguimiento.',
   guideStep9Turn:
-    'Turn: una pérdida. El disco se ha caído, se ha lanzado fuera o lo han interceptado, y ahora lo tiene el otro equipo.',
+    'Turn: solo aparece con "Registrar actividad del partido" activado (paso 1): registra una pérdida, para que el disco cambie de equipo sin un gol. Desde la primera, una etiqueta «Posesión» en el marcador indica quién tiene el disco durante cada punto. Mantén pulsado Turn para deshacer la última pérdida del punto si la registraste por error.',
   guideStep9Stoppage:
     'Mano levantada: lesión o técnica (material, interferencia externa...). El reloj del partido sigue corriendo. Cuando el juego pueda continuar, pulsa «El juego puede continuar» para registrar cuánto duró la parada.',
   guideStep9Sotg:
     'SOTG: una parada de espíritu, detrás de esa misma mano levantada. Es la única de las tres que pausa el reloj del partido; pulsa "Reanudar partido" cuando se reanude el juego.',
+  guideStep9StoppageAnytime:
+    'La mano levantada funciona en cualquier momento del partido: entre puntos, durante un tiempo muerto o el descanso, incluso en mitad de una llamada. Lo que estuviera contando (el pull, el tiempo muerto, la discusión) se congela y sigue exactamente donde estaba cuando el juego se reanuda. Solo una parada a la vez: resuelve la que esté abierta antes de llamar la siguiente.',
   guideStep9Log:
     'El botón de lista abre todo lo registrado hasta ahora, en orden, para que puedas comprobar lo que has apuntado.',
   guideStep9Note:

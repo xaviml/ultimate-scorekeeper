@@ -68,9 +68,12 @@ export interface GameConfig {
   timeouts: TimeoutConfig;
   startingTime: StartingTimeConfig;
   /**
-   * When true, every player-attributable event (goal, assist, turnover, defense,
-   * injury) prompts for who was involved. When false the events are still logged,
-   * just without names — no dialog ever interrupts the volunteer.
+   * The "Track game activity" stats toggle. When true: the Roster and Turn action-row
+   * buttons appear, a call/travel/technical stoppage asks which team was involved, and
+   * a goal/assist/turnover/injury additionally asks which player once the roster below
+   * is filled in. When false, none of that is asked and both buttons are hidden — every
+   * event is still logged, just with no team or player attached, and a turnover isn't
+   * logged at all (there is no Turn button to log one with).
    */
   trackPlayers: boolean;
   players: Record<TeamId, PlayerInfo[]>;
@@ -136,6 +139,7 @@ export type LogType =
   | 'stoppageResolved'
   | 'stoppageClockStopped'
   | 'turnover'
+  | 'undoTurnover'
   | 'travel'
   | 'call'
   | 'callResolved'
@@ -182,13 +186,13 @@ export interface LogEntry {
  */
 export interface PendingCall {
   kind: CallKind;
-  team: TeamId; // team that made the call
-  /** Game clock when the call was logged; the resolution duration counts from here. */
-  startedAtSeconds: number;
+  /** Undefined when the call was logged without tracking game activity — see trackPlayers. */
+  team?: TeamId;
   /**
-   * Seconds since the call was logged, incremented every TICK regardless of whether
-   * the game clock is running (an SOTG pause mid-dispute must not stall it) — drives
-   * the 45 s / every-15 s "still unresolved" whistle, same shape as PendingStoppage.
+   * How long the discussion has been going. Ticked every TICK except while play is
+   * halted (`playHalted`: an open stoppage, or a stopped clock) — a stoppage or an
+   * SOTG pause interrupts the discussion, so the time it eats is not the players'.
+   * This is both what the secondary clock shows and what CALL_RESOLVED logs.
    */
   elapsedSeconds: number;
 }
@@ -198,6 +202,11 @@ export interface PendingCall {
  * game screen shows the "Play can resume" button above the clocks, and no second
  * stoppage can be logged — same one-open-question shape as PendingCall.
  *
+ * It can be raised at any point of a game in progress, and everything else waits
+ * for it: the pull clock, a running timeout, the half-time break and an open
+ * call's discussion timer all freeze until it resolves and then pick up exactly
+ * where they left off (see `playHalted` in the reducer).
+ *
  * Left unresolved for two minutes, the game clock auto-stops (see TICK in the
  * reducer), same as an SOTG pause — at that point the "Resume game" action row
  * button takes over from the small "Play can resume" button, and resuming also
@@ -205,9 +214,10 @@ export interface PendingCall {
  */
 export interface PendingStoppage {
   kind: StoppageKind;
+  /** Set for `technical` (the team responsible), and derived for `injury` when every injured player is on the same team — undefined once the injury spans both. */
   team?: TeamId;
-  /** `injury` only — a technical stoppage is never attributed to a player. */
-  playerId?: string;
+  /** `injury` only — every injured player, each with their own team since an injury can involve people from both sides at once. A technical stoppage is never attributed to a player. */
+  players?: { team: TeamId; playerId: string }[];
   /**
    * Seconds since the stoppage was logged, incremented every TICK regardless of
    * whether the game clock itself is running — so the resolution duration keeps
@@ -243,6 +253,7 @@ export interface GoalSnapshot {
   pullingTeam: TeamId;
   offenseTeam: TeamId;
   possessionTeam: TeamId | null;
+  pointTurnovers: number;
   status: GameStatus;
   half: 1 | 2;
   pointStartSeconds: number | null;
@@ -257,9 +268,19 @@ export interface GameState {
   phase: 'config' | 'game' | 'report';
   config: GameConfig;
   status: GameStatus;
+  /**
+   * Status to come back to when the clock restarts, set while `status` is 'paused'
+   * (SOTG, the manual pause button, or a stoppage that ran past two minutes).
+   * Kept separate from `statusBeforeTimeout` because a pause can now happen
+   * *during* a timeout or half-time, and each has to remember its own way back.
+   */
   statusBeforePause: GameStatus | null;
+  /** Status to come back to when a timeout ends — 'awaitingPull' or 'live' (see TIMEOUT_END). */
+  statusBeforeTimeout: GameStatus | null;
   /** True while the open pause was started silently (the clock button, not the SOTG record-event entry) — decides the wording used when it closes. */
   pauseSilent: boolean;
+  /** Team that called the open SOTG pause, when `config.trackPlayers` asked — carried from `sotgStart` to `sotgEnd` the same way `pendingStoppage.team` survives to `stoppageResolved`. Null for a silent pause or when tracking is off. */
+  pauseTeam: TeamId | null;
   half: 1 | 2;
   scores: Record<TeamId, number>;
   /** Gender ratio for the point currently being played (mixed only). */
@@ -274,6 +295,13 @@ export interface GameState {
    * — this one tracks live possession and is null whenever the disc is dead.
    */
   possessionTeam: TeamId | null;
+  /**
+   * Turnovers recorded in the point currently being played, reset by every pull and
+   * every goal. Only there to tell an undo of a turnover (long-press on Turn) from a
+   * long-press on a point where nothing has been turned over yet — flipping
+   * possession then would hand the disc away from the team that received the pull.
+   */
+  pointTurnovers: number;
   gameSeconds: number; // elapsed game clock
   /** Epoch ms of the scheduled kickoff, while status is 'awaitingStart'; null otherwise. */
   startingAtMs: number | null;
@@ -336,15 +364,30 @@ export type Action =
   | { type: 'SHOW_RATIO_SIGNAL' }
   | { type: 'TIMEOUT_START'; team: TeamId }
   | { type: 'TIMEOUT_END' }
-  | { type: 'STOPPAGE'; kind: StoppageKind; team?: TeamId; playerId?: string }
+  | {
+      type: 'STOPPAGE';
+      kind: StoppageKind;
+      /** `technical` only — `injury` derives its team badge from `players` instead. */
+      team?: TeamId;
+      /** `injury` only — every player hurt, each with their own team. */
+      players?: { team: TeamId; playerId: string }[];
+    }
   | { type: 'STOPPAGE_RESOLVED' }
   | { type: 'TURNOVER'; turnoverId?: string; defenseId?: string }
-  | { type: 'TRAVEL'; team: TeamId }
-  | { type: 'CALL_MADE'; kind: CallKind; team: TeamId }
+  /** Long-press on Turn: hands the disc back to the team that lost it (see UNDO_TURNOVER). */
+  | { type: 'UNDO_TURNOVER' }
+  | { type: 'TRAVEL'; team?: TeamId }
+  | { type: 'CALL_MADE'; kind: CallKind; team?: TeamId }
   | { type: 'CALL_RESOLVED'; resolution: CallResolution }
   | { type: 'NOTE'; text: string }
-  /** `silent` pauses the clock without the SOTG call-out/signal — the generic pause button covers reasons (technical, weather, prolonged stoppage) that aren't spirit-related. */
-  | { type: 'SOTG_TOGGLE'; silent?: boolean }
+  /**
+   * `silent` pauses the clock without the SOTG call-out/signal — the generic pause
+   * button covers reasons (technical, weather, prolonged stoppage) that aren't
+   * spirit-related. `team` attributes which team called it, asked for only when
+   * `config.trackPlayers` is on; the caller (StoppageDialog) never sends it for a
+   * silent pause.
+   */
+  | { type: 'SOTG_TOGGLE'; silent?: boolean; team?: TeamId }
   | { type: 'HALFTIME_END' }
   | { type: 'TICK' } // 1 s of real time while clocks run
   | { type: 'END_GAME' }

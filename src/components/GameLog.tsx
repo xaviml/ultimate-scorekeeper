@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useT } from '../i18n/useT';
 import { useGame } from '../state/gameHooks';
 import { canRecordEvent } from '../state/gameReducer';
@@ -17,11 +18,20 @@ import { Modal } from './Modal';
 export function GameLog({ onClose, onAddEvent }: { onClose: () => void; onAddEvent: () => void }) {
   const state = useGame();
   const { t } = useT();
+  const [flash, setFlash] = useState<string | null>(null);
   // The log is readable at every moment of a game, but a note can only be written
   // during one — before the first pull and after the final goal there is nothing
-  // for it to belong to. Disabled rather than left to fail in the reducer, so the
-  // volunteer never types a note into a dialog that then throws it away.
-  const canAdd = canRecordEvent(state, { allowDuringBreaks: true }).ok;
+  // for it to belong to. Stays tappable rather than going quietly dead, same as
+  // every other blocked action elsewhere in the app: tapping it flashes why.
+  const tryAdd = () => {
+    const check = canRecordEvent(state, { allowDuringBreaks: true });
+    if (!check.ok) {
+      setFlash(check.reason ?? null);
+      setTimeout(() => setFlash(null), 1800);
+      return;
+    }
+    onAddEvent();
+  };
   return (
     <Modal
       title={t('historyTitle')}
@@ -29,9 +39,8 @@ export function GameLog({ onClose, onAddEvent }: { onClose: () => void; onAddEve
       showClose
       headerAction={
         <button
-          className="flex items-center gap-1.5 rounded-lg bg-pitch border border-line px-2 py-1.5 text-[11px] font-board uppercase tracking-wide text-chalk active:scale-95 disabled:opacity-40"
-          onClick={onAddEvent}
-          disabled={!canAdd}
+          className="flex items-center gap-1.5 rounded-lg bg-pitch border border-line px-2 py-1.5 text-[11px] font-board uppercase tracking-wide text-chalk active:scale-95"
+          onClick={tryAdd}
           aria-label={t('btnNote')}
         >
           <AddEventIcon size="w-4 h-4" />
@@ -39,6 +48,7 @@ export function GameLog({ onClose, onAddEvent }: { onClose: () => void; onAddEve
         </button>
       }
     >
+      {flash && <p className="text-xs text-signal">{t(`assist_blocked_${flash}` as never)}</p>}
       <GameLogTable order="desc" />
     </Modal>
   );

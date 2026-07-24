@@ -2,14 +2,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   canRecordEvent,
   canScore,
+  canStoppage,
   canTurnover,
   canUndo,
+  canUndoTurnover,
   createInitialState,
   defaultConfig,
   gameReducer,
   halfTargetApplies,
   isUniversePoint,
   leftEndzoneTeam,
+  possessionTracked,
   pullFromSide,
   ruleARatio,
   timeoutAvailability,
@@ -1050,6 +1053,88 @@ describe('turnovers', () => {
   });
 });
 
+describe('undoing a turnover', () => {
+  it('gives the disc back and drops the entry when the turnover is the last thing logged', () => {
+    const s = gameReducer(live(), { type: 'TURNOVER' });
+    expect(canUndoTurnover(s).ok).toBe(true);
+
+    const back = gameReducer(s, { type: 'UNDO_TURNOVER' });
+    expect(back.possessionTeam).toBe('A');
+    expect(back.log.some((e) => e.type === 'turnover')).toBe(false);
+    expect(back.log.some((e) => e.type === 'undoTurnover')).toBe(false);
+  });
+
+  it('logs a visible correction instead once something else has been recorded since', () => {
+    let s = gameReducer(live(), { type: 'TURNOVER' });
+    s = gameReducer(s, { type: 'TRAVEL', team: 'B' });
+    s = gameReducer(s, { type: 'UNDO_TURNOVER' });
+
+    expect(s.possessionTeam).toBe('A');
+    expect(s.log.filter((e) => e.type === 'turnover')).toHaveLength(1);
+    expect(s.log[s.log.length - 1]).toMatchObject({ type: 'undoTurnover', team: 'A' });
+  });
+
+  it('refuses on a point where nothing has been turned over', () => {
+    const s = live();
+    expect(canUndoTurnover(s).reason).toBe('noTurnoverToUndo');
+    expect(gameReducer(s, { type: 'UNDO_TURNOVER' })).toBe(s);
+  });
+
+  it('unwinds several turnovers one at a time, and no further', () => {
+    let s = run(live(), { type: 'TURNOVER' }, { type: 'TURNOVER' });
+    expect(s.possessionTeam).toBe('A');
+
+    s = gameReducer(s, { type: 'UNDO_TURNOVER' });
+    expect(s.possessionTeam).toBe('B');
+    s = gameReducer(s, { type: 'UNDO_TURNOVER' });
+    expect(s.possessionTeam).toBe('A');
+    expect(canUndoTurnover(s).ok).toBe(false);
+  });
+
+  it('does not reach back into the previous point', () => {
+    let s = gameReducer(live(), { type: 'TURNOVER' });
+    s = run(s, { type: 'GOAL', team: 'B' }, { type: 'PULL_THROWN' });
+    expect(s.possessionTeam).toBe('A'); // B scored, so A receives
+    expect(canUndoTurnover(s).ok).toBe(false);
+    expect(gameReducer(s, { type: 'UNDO_TURNOVER' }).possessionTeam).toBe('A');
+  });
+
+  it('comes back with the point when the goal that ended it is undone', () => {
+    let s = gameReducer(live(), { type: 'TURNOVER' });
+    s = gameReducer(s, { type: 'GOAL', team: 'B' });
+    s = gameReducer(s, { type: 'UNDO_GOAL', team: 'B' });
+
+    expect(s.possessionTeam).toBe('B');
+    expect(canUndoTurnover(s).ok).toBe(true);
+    expect(gameReducer(s, { type: 'UNDO_TURNOVER' }).possessionTeam).toBe('A');
+  });
+
+  it('is refused wherever a turnover itself would be', () => {
+    const s = gameReducer(live(), { type: 'TURNOVER' });
+    for (const action of [
+      { type: 'SOTG_TOGGLE' },
+      { type: 'TIMEOUT_START', team: 'B' },
+    ] as Action[]) {
+      const blocked = gameReducer(s, action);
+      expect(canUndoTurnover(blocked).ok).toBe(false);
+      expect(gameReducer(blocked, { type: 'UNDO_TURNOVER' }).possessionTeam).toBe('B');
+    }
+  });
+
+  it('puts the possession chip on screen with the first turnover, and only then', () => {
+    expect(possessionTracked(live())).toBe(false);
+
+    const s = gameReducer(live(), { type: 'TURNOVER' });
+    expect(possessionTracked(s)).toBe(true);
+    // Taken straight back, it never happened — and the chip goes with it.
+    expect(possessionTracked(gameReducer(s, { type: 'UNDO_TURNOVER' }))).toBe(false);
+    // Still on screen for the rest of the game, points later.
+    expect(possessionTracked(run(s, { type: 'GOAL', team: 'A' }, { type: 'PULL_THROWN' }))).toBe(
+      true,
+    );
+  });
+});
+
 describe('recorded events (travel, calls, notes)', () => {
   const lastLog = (s: GameState) => s.log[s.log.length - 1];
 
@@ -1063,6 +1148,17 @@ describe('recorded events (travel, calls, notes)', () => {
     expect(s.gameSeconds).toBe(before.gameSeconds);
     expect(s.status).toBe(before.status);
     expect(s.possessionTeam).toBe(before.possessionTeam);
+  });
+
+  it('records a travel with no team when the game is not tracking activity', () => {
+    const s = gameReducer(live(), { type: 'TRAVEL' });
+    expect(lastLog(s)).toMatchObject({ type: 'travel', team: undefined });
+  });
+
+  it('opens a pending call with no team when the game is not tracking activity', () => {
+    const s = gameReducer(live(), { type: 'CALL_MADE', kind: 'foul' });
+    expect(lastLog(s)).toMatchObject({ type: 'call', team: undefined, callKind: 'foul' });
+    expect(s.pendingCall).toMatchObject({ kind: 'foul', team: undefined });
   });
 
   it('stays available during an SOTG pause', () => {
@@ -1091,7 +1187,7 @@ describe('recorded events (travel, calls, notes)', () => {
     ).toBe(false);
   });
 
-  it('blocks travel, stoppage and every call before the pull is thrown', () => {
+  it('blocks travel and every call before the pull is thrown', () => {
     // The disc isn't in play yet, so there's no play for these to describe —
     // off-side included, since nothing has happened yet for the marker to call.
     const s = started();
@@ -1102,19 +1198,20 @@ describe('recorded events (travel, calls, notes)', () => {
     const afterTravel = gameReducer(s, { type: 'TRAVEL', team: 'A' });
     expect(afterTravel.log.some((e) => e.type === 'travel')).toBe(false);
 
-    const afterStoppage = gameReducer(s, { type: 'STOPPAGE', kind: 'injury', team: 'A' });
-    expect(afterStoppage.log.some((e) => e.type === 'stoppage')).toBe(false);
-
     for (const kind of ['foul', 'stallOut', 'pick', 'offside', 'discDown', 'generic'] as const) {
       const after = gameReducer(s, { type: 'CALL_MADE', kind, team: 'A' });
       expect(after.pendingCall).toBeNull();
     }
 
-    // A note and an SOTG stoppage are the only things still recordable while the
-    // teams are lining up for the pull.
+    // A note and a stoppage of any kind are still recordable while the teams are
+    // lining up: neither is about the disc being live.
     expect(
       gameReducer(s, { type: 'NOTE', text: 'lining up' }).log.some((e) => e.type === 'note'),
     ).toBe(true);
+    expect(canStoppage(s).ok).toBe(true);
+    expect(
+      gameReducer(s, { type: 'STOPPAGE', kind: 'injury', team: 'A' }).pendingStoppage,
+    ).toMatchObject({ kind: 'injury' });
   });
 
   it('records nothing before the game starts or after it ends', () => {
@@ -1135,12 +1232,7 @@ describe('recorded events (travel, calls, notes)', () => {
 
   it('opens a call against the team that made it, and shows its own signal', () => {
     const s = gameReducer(live(), { type: 'CALL_MADE', kind: 'foul', team: 'B' });
-    expect(s.pendingCall).toEqual({
-      kind: 'foul',
-      team: 'B',
-      startedAtSeconds: 0,
-      elapsedSeconds: 0,
-    });
+    expect(s.pendingCall).toEqual({ kind: 'foul', team: 'B', elapsedSeconds: 0 });
     expect(lastLog(s)).toMatchObject({ type: 'call', team: 'B', callKind: 'foul' });
     expect(s.assist).toBe('call_foul');
     expect(s.possessionTeam).toBe('A'); // a call never hands the disc over
@@ -1178,11 +1270,15 @@ describe('recorded events (travel, calls, notes)', () => {
   });
 
   it('opens an injury without touching the clock, and logs how long the check took', () => {
-    let s = gameReducer(live(), { type: 'STOPPAGE', kind: 'injury', team: 'B' });
+    let s = gameReducer(live(), {
+      type: 'STOPPAGE',
+      kind: 'injury',
+      players: [{ team: 'B', playerId: 'p1' }],
+    });
     expect(s.pendingStoppage).toEqual({
       kind: 'injury',
       team: 'B',
-      playerId: undefined,
+      players: [{ team: 'B', playerId: 'p1' }],
       elapsedSeconds: 0,
       clockStopped: false,
     });
@@ -1212,12 +1308,12 @@ describe('recorded events (travel, calls, notes)', () => {
       type: 'STOPPAGE',
       kind: 'technical',
       team: 'A',
-      playerId: 'p1',
+      players: [{ team: 'A', playerId: 'p1' }],
     });
     expect(s.pendingStoppage).toEqual({
       kind: 'technical',
       team: 'A',
-      playerId: undefined,
+      players: undefined,
       elapsedSeconds: 0,
       clockStopped: false,
     });
@@ -1241,7 +1337,11 @@ describe('recorded events (travel, calls, notes)', () => {
   });
 
   it('auto-stops the game clock once a stoppage runs unresolved for two minutes', () => {
-    let s = gameReducer(live(), { type: 'STOPPAGE', kind: 'injury', team: 'A' });
+    let s = gameReducer(live(), {
+      type: 'STOPPAGE',
+      kind: 'injury',
+      players: [{ team: 'A', playerId: 'p1' }],
+    });
     s = ticks(s, 119);
     expect(s.status).toBe('live');
     expect(s.gameSeconds).toBe(119);
@@ -1314,14 +1414,210 @@ describe('recorded events (travel, calls, notes)', () => {
       ),
     ).toBe(true);
 
-    // The rest of the recorded events are unchanged: a break is still a break.
+    // Travel and calls are unchanged: a break is still a break for anything that
+    // describes the play. A stoppage is the exception — see canStoppage.
     for (const action of [
       { type: 'TRAVEL', team: 'A' },
       { type: 'CALL_MADE', kind: 'foul', team: 'A' },
-      { type: 'STOPPAGE', kind: 'injury', team: 'A' },
     ] as const) {
       expect(gameReducer(timeout, action).log).toBe(timeout.log);
     }
+  });
+});
+
+/**
+ * A stoppage (injury/technical) and a clock stop (SOTG, manual pause) can be raised
+ * at any moment of a game in progress. Whatever was counting at the time freezes and
+ * picks up from exactly where it was — the pull clock, a running timeout, the
+ * half-time break, and an open call's discussion timer.
+ */
+describe('a stoppage raised over whatever else was running', () => {
+  const pullSeconds = (s: GameState) => (s.secondary?.kind === 'pull' ? s.secondary.seconds : null);
+  const breakSeconds = (s: GameState) => s.secondary?.seconds ?? null;
+  const lastLog = (s: GameState) => s.log[s.log.length - 1];
+
+  it('is available between points, during a timeout and during half-time', () => {
+    const timeout = gameReducer(live(), { type: 'TIMEOUT_START', team: 'A' });
+    const halftime = gameReducer(live(cfg({ halfScore: 1 })), { type: 'GOAL', team: 'A' });
+    expect(halftime.status).toBe('halftime');
+
+    for (const s of [started(), live(), timeout, halftime]) {
+      expect(canStoppage(s).ok).toBe(true);
+      expect(gameReducer(s, { type: 'STOPPAGE', kind: 'injury' }).pendingStoppage).not.toBeNull();
+      expect(gameReducer(s, { type: 'SOTG_TOGGLE' }).status).toBe('paused');
+    }
+  });
+
+  it('is refused before the game starts and once it has finished', () => {
+    expect(canStoppage(createInitialState(cfg())).reason).toBe('gameNotStarted');
+    // The game reached its target: still on the game screen (so the finishing goal can
+    // be undone), but nothing is left to stop.
+    const finished = gameReducer(live(cfg({ targetScore: 1 })), { type: 'GOAL', team: 'A' });
+    expect(finished.status).toBe('finished');
+    expect(canStoppage(finished).reason).toBe('gameFinished');
+  });
+
+  it('refuses a second stoppage — including an SOTG one — until the open one is resolved', () => {
+    const injury = gameReducer(live(), { type: 'STOPPAGE', kind: 'injury' });
+    expect(canStoppage(injury).reason).toBe('stoppageInProgress');
+    expect(gameReducer(injury, { type: 'SOTG_TOGGLE' })).toBe(injury);
+
+    const sotg = gameReducer(live(), { type: 'SOTG_TOGGLE' });
+    expect(canStoppage(sotg).reason).toBe('stoppageInProgress');
+    expect(gameReducer(sotg, { type: 'STOPPAGE', kind: 'technical' })).toBe(sotg);
+  });
+
+  it('freezes the pull clock between points and resumes it where it was', () => {
+    let s = ticks(started(), 20);
+    expect(pullSeconds(s)).toBe(20);
+
+    s = gameReducer(s, { type: 'STOPPAGE', kind: 'injury' });
+    s = ticks(s, 30);
+    expect(pullSeconds(s)).toBe(20); // the teams are not lining up during an injury
+    expect(s.gameSeconds).toBe(50); // ...but the game clock is untouched by a stoppage
+    // Nor can the pull be thrown into it.
+    expect(gameReducer(s, { type: 'PULL_THROWN' })).toBe(s);
+
+    s = ticks(gameReducer(s, { type: 'STOPPAGE_RESOLVED' }), 5);
+    expect(pullSeconds(s)).toBe(25);
+  });
+
+  it('freezes the pull clock AND the game clock for an SOTG stoppage', () => {
+    let s = ticks(started(), 20);
+    s = gameReducer(s, { type: 'SOTG_TOGGLE' });
+    const gameSeconds = s.gameSeconds;
+
+    s = ticks(s, 30);
+    expect(pullSeconds(s)).toBe(20);
+    expect(s.gameSeconds).toBe(gameSeconds);
+
+    s = ticks(gameReducer(s, { type: 'SOTG_TOGGLE' }), 5);
+    expect(s.status).toBe('awaitingPull');
+    expect(pullSeconds(s)).toBe(25);
+    expect(s.gameSeconds).toBe(gameSeconds + 5);
+  });
+
+  it('attributes an SOTG stoppage to a team, and carries it through to the resume log', () => {
+    let s = gameReducer(live(), { type: 'SOTG_TOGGLE', team: 'B' });
+    expect(s.pauseTeam).toBe('B');
+    expect(lastLog(s)).toMatchObject({ type: 'sotgStart', team: 'B' });
+
+    s = gameReducer(s, { type: 'SOTG_TOGGLE' });
+    expect(s.pauseTeam).toBeNull();
+    expect(lastLog(s)).toMatchObject({ type: 'sotgEnd', team: 'B' });
+  });
+
+  it('leaves no team on an SOTG stoppage when the game is not tracking activity', () => {
+    const s = gameReducer(live(), { type: 'SOTG_TOGGLE' });
+    expect(s.pauseTeam).toBeNull();
+    expect(lastLog(s)).toMatchObject({ type: 'sotgStart', team: undefined });
+  });
+
+  it('freezes a running timeout and resumes it where it was', () => {
+    let s = ticks(gameReducer(live(), { type: 'TIMEOUT_START', team: 'A' }), 10);
+    const left = breakSeconds(s);
+
+    s = ticks(gameReducer(s, { type: 'STOPPAGE', kind: 'technical' }), 30);
+    expect(breakSeconds(s)).toBe(left);
+    expect(gameReducer(s, { type: 'TIMEOUT_END' })).toBe(s); // the stoppage answers first
+
+    s = ticks(gameReducer(s, { type: 'STOPPAGE_RESOLVED' }), 5);
+    expect(s.status).toBe('timeout');
+    expect(breakSeconds(s)).toBe((left ?? 0) - 5);
+  });
+
+  it('keeps the timeout its own way back when an SOTG stoppage interrupts it', () => {
+    // statusBeforeTimeout and statusBeforePause are separate fields for exactly this:
+    // the pause remembers 'timeout', the timeout still remembers 'awaitingPull'.
+    let s = gameReducer(started(), { type: 'TIMEOUT_START', team: 'A' });
+    expect(s.statusBeforeTimeout).toBe('awaitingPull');
+
+    s = ticks(gameReducer(ticks(s, 10), { type: 'SOTG_TOGGLE' }), 30);
+    expect(s.status).toBe('paused');
+    expect(s.statusBeforePause).toBe('timeout');
+    expect(s.statusBeforeTimeout).toBe('awaitingPull');
+    expect(s.gameSeconds).toBe(10);
+
+    s = gameReducer(s, { type: 'SOTG_TOGGLE' });
+    expect(s.status).toBe('timeout');
+
+    // And the before-pull timeout still ends back on a fresh pull clock, not 'live'.
+    s = gameReducer(s, { type: 'TIMEOUT_END' });
+    expect(s.status).toBe('awaitingPull');
+    expect(s.secondary).toMatchObject({ kind: 'pull', seconds: 0 });
+  });
+
+  it('freezes the half-time break and holds the second half until it is resolved', () => {
+    let s = ticks(gameReducer(live(cfg({ halfScore: 1 })), { type: 'GOAL', team: 'A' }), 10);
+    const left = breakSeconds(s);
+
+    s = ticks(gameReducer(s, { type: 'STOPPAGE', kind: 'injury' }), 30);
+    expect(breakSeconds(s)).toBe(left);
+    expect(gameReducer(s, { type: 'HALFTIME_END' })).toBe(s);
+
+    s = gameReducer(gameReducer(s, { type: 'STOPPAGE_RESOLVED' }), { type: 'HALFTIME_END' });
+    expect(s.half).toBe(2);
+  });
+
+  it("freezes an open call's discussion timer, and logs only the time it really had", () => {
+    let s = ticks(gameReducer(live(), { type: 'CALL_MADE', kind: 'foul', team: 'A' }), 12);
+    expect(s.pendingCall).toMatchObject({ elapsedSeconds: 12 });
+
+    // The injury interrupts the discussion, so its 30 s are not the players' to answer for.
+    s = ticks(gameReducer(s, { type: 'STOPPAGE', kind: 'injury' }), 30);
+    expect(s.pendingCall).toMatchObject({ elapsedSeconds: 12 });
+    expect(s.pendingStoppage).toMatchObject({ elapsedSeconds: 30 });
+
+    s = ticks(gameReducer(s, { type: 'STOPPAGE_RESOLVED' }), 3);
+    expect(s.pendingCall).toMatchObject({ elapsedSeconds: 15 });
+
+    s = gameReducer(s, { type: 'CALL_RESOLVED', resolution: 'accepted' });
+    expect(lastLog(s)).toMatchObject({ type: 'callResolved', resolutionSeconds: 15 });
+  });
+
+  it("freezes an open call's discussion timer for an SOTG stoppage too", () => {
+    let s = ticks(gameReducer(live(), { type: 'CALL_MADE', kind: 'pick', team: 'B' }), 12);
+    s = ticks(gameReducer(s, { type: 'SOTG_TOGGLE' }), 30);
+    expect(s.pendingCall).toMatchObject({ elapsedSeconds: 12 });
+
+    s = ticks(gameReducer(s, { type: 'SOTG_TOGGLE' }), 3);
+    expect(s.pendingCall).toMatchObject({ elapsedSeconds: 15 });
+  });
+
+  it('holds the call resolution until the stoppage that froze it is cleared', () => {
+    let s = ticks(gameReducer(live(), { type: 'CALL_MADE', kind: 'foul', team: 'A' }), 12);
+    s = gameReducer(s, { type: 'STOPPAGE', kind: 'injury' });
+
+    // The three answers are off the screen (see CallResolutionRow), so the reducer
+    // refuses them too rather than leaving a path the UI no longer offers.
+    const attempted = gameReducer(s, { type: 'CALL_RESOLVED', resolution: 'accepted' });
+    expect(attempted).toBe(s);
+    expect(s.pendingCall).toMatchObject({ kind: 'foul', elapsedSeconds: 12 });
+
+    s = gameReducer(gameReducer(s, { type: 'STOPPAGE_RESOLVED' }), {
+      type: 'CALL_RESOLVED',
+      resolution: 'accepted',
+    });
+    expect(s.pendingCall).toBeNull();
+    expect(lastLog(s)).toMatchObject({ type: 'callResolved', resolutionSeconds: 12 });
+  });
+
+  it('holds the call resolution through an SOTG pause as well', () => {
+    let s = gameReducer(live(), { type: 'CALL_MADE', kind: 'pick', team: 'B' });
+    s = gameReducer(s, { type: 'SOTG_TOGGLE' });
+    expect(gameReducer(s, { type: 'CALL_RESOLVED', resolution: 'contested' })).toBe(s);
+
+    s = gameReducer(gameReducer(s, { type: 'SOTG_TOGGLE' }), {
+      type: 'CALL_RESOLVED',
+      resolution: 'contested',
+    });
+    expect(s.pendingCall).toBeNull();
+  });
+
+  it('refuses a timeout while a stoppage is open', () => {
+    const s = gameReducer(live(), { type: 'STOPPAGE', kind: 'injury' });
+    expect(timeoutAvailability(s, 'A').reason).toBe('stoppageInProgress');
+    expect(gameReducer(s, { type: 'TIMEOUT_START', team: 'A' })).toBe(s);
   });
 });
 

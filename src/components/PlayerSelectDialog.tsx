@@ -2,17 +2,33 @@ import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import type { TeamId } from '../state/types';
 import { Modal } from './Modal';
-import { PlayerPicker } from './PlayerPicker';
+import { PlayerMultiPicker, PlayerPicker } from './PlayerPicker';
 import { PlayerRosterEditor } from './PlayerRosterEditor';
 import { primaryButton, secondaryButton } from './ui';
 
-export interface PlayerSelectSection {
-  team: TeamId;
-  /** Heading above the picker — a team name, or a role like "Who turned it over?". */
-  label: string;
-  selected: string | null;
-  onSelect: (playerId: string | null) => void;
-}
+/**
+ * One team's picker within the dialog. Single-select (the default) answers
+ * one role — "who scored?", "who turned it over?" — so picking a player in
+ * one section doesn't touch another. `multi: true` switches that section to
+ * any-number-of-players, for events more than one person can be attributed to
+ * (an injury can involve several players, even from both teams).
+ */
+export type PlayerSelectSection =
+  | {
+      team: TeamId;
+      /** Heading above the picker — a team name, or a role like "Who turned it over?". */
+      label: string;
+      multi?: false;
+      selected: string | null;
+      onSelect: (playerId: string | null) => void;
+    }
+  | {
+      team: TeamId;
+      label: string;
+      multi: true;
+      selected: string[];
+      onToggle: (playerId: string) => void;
+    };
 
 /**
  * The single "which player was involved?" prompt, shared by every event that can be
@@ -48,15 +64,27 @@ export function PlayerSelectDialog({
       {sections.map((section, i) => (
         <div key={`${section.team}-${i}`} className="space-y-2">
           <p className="text-xs uppercase tracking-wide text-chalk/60">{section.label}</p>
-          <PlayerPicker
-            players={state.config.players[section.team]}
-            selected={section.selected}
-            onSelect={section.onSelect}
-            onRemove={(id) => {
-              dispatch({ type: 'REMOVE_PLAYER', team: section.team, id });
-              if (section.selected === id) section.onSelect(null);
-            }}
-          />
+          {section.multi ? (
+            <PlayerMultiPicker
+              players={state.config.players[section.team]}
+              selected={section.selected}
+              onToggle={section.onToggle}
+              onRemove={(id) => {
+                dispatch({ type: 'REMOVE_PLAYER', team: section.team, id });
+                if (section.selected.includes(id)) section.onToggle(id);
+              }}
+            />
+          ) : (
+            <PlayerPicker
+              players={state.config.players[section.team]}
+              selected={section.selected}
+              onSelect={section.onSelect}
+              onRemove={(id) => {
+                dispatch({ type: 'REMOVE_PLAYER', team: section.team, id });
+                if (section.selected === id) section.onSelect(null);
+              }}
+            />
+          )}
           <PlayerRosterEditor
             label={t('addPlayer')}
             players={[]}

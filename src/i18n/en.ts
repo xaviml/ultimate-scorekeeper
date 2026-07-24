@@ -103,7 +103,7 @@ export const en = {
   playersTitle: 'Roster',
   collapseSection: 'Collapse {title}',
   expandSection: 'Expand {title}',
-  trackPlayers: 'Track player activity (goals, assists, turnovers, defense, injuries)',
+  trackPlayers: 'Track game activity for stats (goals, assists, turnovers, calls, injuries)',
   playerNumber: '#',
   playerName: 'Name',
   addPlayer: 'Add',
@@ -117,15 +117,18 @@ export const en = {
   whoAssisted: 'Assist',
   stoppageDialogTitle: 'What stopped play?',
   stoppageDialogHint:
-    'Injury and technical stoppages keep the clock running at first. SOTG stops it.',
+    'Injury and technical stoppages keep the game clock running at first. SOTG stops it. Either way, the pull, timeout and call clocks wait until play resumes.',
   stoppageKind_injury: 'Injury',
   stoppageKind_technical: 'Technical',
   injuryDialogTitle: 'Who got injured?',
-  injuryDialogHint: 'Optional — you can skip and just log the injury.',
+  injuryDialogHint:
+    'Optional — pick everyone hurt, from either team, or skip and just log the injury.',
   technicalStoppageTitle: 'Technical stoppage — who called it?',
   technicalStoppageHint:
     'Equipment, outside interference, and the like. Optional — you can skip the team too.',
   btnNoTeam: 'No team',
+  sotgStoppageTitle: 'SOTG stoppage — who called it?',
+  sotgStoppageHint: 'Required to apply the stoppage — cancel to not stop the clock after all.',
   turnoverDialogTitle: 'Turnover',
   turnoverDialogHint: 'Optional — you can skip and just log the turnover.',
   whoTurnedOver: '{team} — who lost the disc? (drop, bad pass, stall)',
@@ -155,6 +158,10 @@ export const en = {
   btnPauseGameConfirm: 'Pause game',
   btnStoppage: 'Stoppage',
   btnTurnover: 'Turn',
+  // Accessible name/tooltip for the Turn button, which does two things: tap to
+  // record a turnover, hold to take the last one back — the same tap/hold pair the
+  // score panels use.
+  btnTurnoverHold: 'Turnover — hold to undo',
   // Accessible name for the raised-hand button, which is the one action-row
   // control with no visible micro-label: "Stop" read as a command rather than a
   // question, and neither "Stoppage" nor "SOTG" covers what the other opens.
@@ -185,12 +192,10 @@ export const en = {
   btnConfirm: 'End game',
   btnDone: 'Done',
   timeoutsLeft: '{n} timeouts left',
-  timeoutBlockedLastFive: 'Timeouts are not allowed in the last 5 minutes',
-  timeoutBlockedNone: 'No timeouts left for this team',
-  timeoutBlockedNotNow: 'Timeouts can only be called during play',
-  timeoutBlockedCallPending: 'Timeouts are blocked until the pending call is resolved',
   currentRatio: 'Ratio: {gender}',
   pullChip: 'Pull: {team} ({side})',
+  // Only on screen once a turnover has been recorded — see possessionTracked.
+  possessionChip: 'Possession: {team}',
   // Short, glanceable cap indicators — only shown once a cap has fixed a new target.
   halfCapChip: 'Half at {n}',
   gameCapChip: 'Game at {n}',
@@ -217,17 +222,17 @@ export const en = {
   travelTeamTitle: 'Travel — who called it?',
   travelTeamHint: 'Recorded as soon as you pick a team — no follow-up needed.',
   callPending: '{kind} — {team}',
+  callPendingNoTeam: '{kind}',
   callResolution_accepted: 'Accepted',
   callResolution_contested: 'Contested',
   callResolution_retracted: 'Retracted',
   callResolvedIn: 'resolved in {n}s',
   callBlockedPending: 'Resolve the call in progress first.',
   callBlockedPull: 'Calls need the pull thrown first.',
-  stoppageBlockedPull: 'Injury and technical stoppages need the pull thrown first. SOTG does not.',
   stoppagePending: '{kind} — play has not resumed yet.',
   btnStoppageResolved: 'Play can resume',
   noteTitle: 'Event',
-  noteHint: 'Anything worth remembering — a huge layout, a bird crossing the field...',
+  noteHint: 'Anything worth remembering — a huge layout, a dragon flying over the field...',
   notePlaceholder: 'What happened?',
 
   // Hand-signal dialog (floats over the score panels) — the official WFDF signal to make
@@ -288,6 +293,14 @@ export const en = {
   say_callOffside: '"Off-side — {team}!"',
   say_callDiscDown: '"Disc down — {team}!"',
   say_callGeneric: '"Call by {team} — play stopped!"',
+  // Same call-outs, minus the attribution, for a call logged without a team
+  // (Track game activity off) — "Foul!" reads far better than "Foul — No team!".
+  say_callFoulNoTeam: '"Foul!"',
+  say_callStallOutNoTeam: '"Stall out!"',
+  say_callPickNoTeam: '"Pick!"',
+  say_callOffsideNoTeam: '"Off-side!"',
+  say_callDiscDownNoTeam: '"Disc down!"',
+  say_callGenericNoTeam: '"Call — play stopped!"',
   say_resolutionAccepted: '"Uncontested — play on!"',
   say_resolutionContested: '"Contested — disc back to the thrower!"',
   say_resolutionRetracted: '"Retracted — play on!"',
@@ -306,10 +319,16 @@ export const en = {
     'Half-time break. Resumes automatically when the clock runs out, or press "End half-time" if both teams are ready sooner.',
   now_halftimeWarn:
     'One minute until the second half. One whistle — teams should be getting ready.',
+  now_stoppagePending:
+    '{kind} stoppage. The pull, timeout and call clocks are on hold — press "Play can resume" above the clock the moment play can go on.',
   now_callPending:
     '{kind} called by {team}. Play is stopped and the score is locked — tap "Accepted", "Contested" or "Retracted" above the clock once the players have decided.',
+  now_callPendingNoTeam:
+    '{kind} called. Play is stopped and the score is locked — tap "Accepted", "Contested" or "Retracted" above the clock once the players have decided.',
   now_callWait:
     'Still unresolved after 45 seconds — three whistles now, and three more at 60. Resolve it above the clock as soon as the players have decided.',
+  now_callWaitLong:
+    'Still unresolved after 60 seconds — six whistles so far, and no more coming. Resolve it above the clock as soon as the players have decided.',
   now_paused: 'Spirit stoppage. Clock paused — press "Resume game" to continue.',
   now_pauseManual: 'Game paused. Clock stopped — press "Resume game" to continue.',
   now_stoppageClockStopped:
@@ -320,17 +339,22 @@ export const en = {
   now_pull75: 'Triple whistle — 75 seconds. The pull MUST be thrown now.',
   now_universePoint: 'Universe point — {a} {as}, {b} {bs}. The next goal wins the game!',
 
-  assist_blocked_gameNotStarted: 'Score locked: the game has not started yet.',
-  assist_blocked_pullNotThrown:
-    'Score locked: press "Pull thrown" first — the disc is not in play.',
+  assist_blocked_gameNotStarted: 'The game has not started yet.',
+  assist_blocked_pullNotThrown: 'Press "Pull thrown" first — the disc is not in play.',
   assist_blocked_gamePaused: 'Score locked while the game is paused.',
-  assist_blocked_timeoutActive: 'Score locked during a timeout.',
-  assist_blocked_halftimeActive: 'Score locked during half-time.',
+  assist_blocked_timeoutActive: 'Not available during a timeout.',
+  assist_blocked_halftimeActive: 'Not available during half-time.',
   assist_blocked_minScoreZero: 'The score cannot go below 0.',
   assist_blocked_notLastScorer: 'Only the most recent goal can be undone (long-press that team).',
   assist_blocked_gameFinished: 'The game is finished.',
   assist_blocked_nothingToUndo: 'There is no goal to undo yet.',
-  assist_blocked_callPending: 'Score locked: resolve the pending call first.',
+  assist_blocked_callPending: 'Resolve the pending call first.',
+  assist_blocked_stoppageInProgress:
+    'A stoppage is already in progress — resolve that one before calling another.',
+  assist_blocked_timeoutLastFive: 'Timeouts are not allowed in the last 5 minutes.',
+  assist_blocked_timeoutNoneLeft: 'No timeouts left for this team.',
+  assist_blocked_timeoutNotNow: 'Timeouts can only be called during play.',
+  assist_blocked_noTurnoverToUndo: 'No turnover to undo in this point.',
 
   // Report
   reportTitle: 'Final report',
@@ -362,6 +386,7 @@ export const en = {
   event_stoppageResolved: 'Stoppage resolved',
   event_stoppageClockStopped: 'Game clock stopped (stoppage over 2 min)',
   event_turnover: 'Turnover',
+  event_undoTurnover: 'Possession correction (undo)',
   event_travel: 'Travel',
   event_call: 'Call made',
   event_callResolved: 'Call resolved',
@@ -411,7 +436,7 @@ export const en = {
     'Type each name, or pick a team you saved earlier. Choose a colour close to the shirts each team is wearing: the score panels are painted in those colours all game, so you never have to remember which side is which.',
   guideStep1Players: 'Roster',
   guideStep1PlayersBody:
-    'Optional. If you add the rosters and tick "Track player activity", the app asks who scored and who assisted after each goal. Leave it off if you are on your own — the score, the clocks and the report all work without it.',
+    'Optional, for stats. Off by default — the score, the clocks and the report all work without it, and calls, travels and technical stoppages are logged with no team. Tick "Track game activity" and two more buttons appear on the game screen, Roster and Turn: every call, travel and technical stoppage then asks which team, and a goal, assist, turnover or injury asks which player too, once you add the rosters below.',
   guideStep1Time: 'Scheduled starting time',
   guideStep1TimeBody:
     'Optional. Tick it and the app counts down to the kickoff and unlocks play on its own when it arrives.',
@@ -534,15 +559,17 @@ export const en = {
   guideStep9Body:
     'The row under the clocks logs anything worth remembering: the speech bubble for a call, the raised hand for a stoppage, the two arrows for a turnover. None of them change the score or the target — they write to the log, and tell you what to announce.',
   guideStep9Calls:
-    'Foul, Stall out, Pick, Off-side, Disc down, Call — something a player called. Pick who called it, and three buttons appear above the clocks: Accepted, Contested, Retracted. Ask the players how it ended and press the matching one; the app records how long the discussion took.',
+    'Foul, Stall out, Pick, Off-side, Disc down, Call — something a player called. Three buttons then appear above the clocks: Accepted, Contested, Retracted. Ask the players how it ended and press the matching one; the app records how long the discussion took.',
   guideStep9Travel:
     'Travel — called on a thrower who moves illegally. Recorded in one step, with no follow-up.',
   guideStep9Turn:
-    'Turn — a turnover: the disc was dropped, thrown away or intercepted, and the other team now has it.',
+    'Turn — only on screen once "Track game activity" is on (step 1): logs a turnover, so the disc changes hands without a goal. From the first one on, a "Possession" chip on the scoreboard says who has the disc during every point. Press and hold Turn to take back the last turnover of the point if you tapped it by mistake.',
   guideStep9Stoppage:
     'Raised hand — injury or technical (equipment, outside interference, ...). The game clock keeps running. Once play can resume, press "Play can resume" to log how long the stoppage took.',
   guideStep9Sotg:
     'SOTG — a spirit stoppage, behind the same raised hand. This is the only one of the three that pauses the game clock; press "Resume game" when play restarts.',
+  guideStep9StoppageAnytime:
+    'The raised hand works at any moment of the game — between points, during a timeout or half-time, even in the middle of a call. Whatever was counting down (the pull, the timeout, the discussion) freezes and picks up exactly where it was once play resumes. Only one stoppage at a time: resolve the open one before calling the next.',
   guideStep9Log:
     'The list button opens everything recorded so far, in order, so you can check what you logged.',
   guideStep9Note:
