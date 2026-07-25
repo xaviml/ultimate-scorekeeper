@@ -24,8 +24,8 @@ describe('predefined templates', () => {
     expect(GRASS_TEMPLATE.halfTimeBreakSeconds).toBe(420);
     expect(GRASS_TEMPLATE.timeouts).toEqual({
       enabled: true,
-      perHalf: 2,
-      perGame: null,
+      perHalf: null,
+      perGame: 2,
       durationSeconds: 75,
       disallowLastFiveMinutes: false,
     });

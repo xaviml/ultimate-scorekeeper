@@ -37,7 +37,7 @@ describe('config screen template picker', () => {
     expect((screen.getByLabelText('Template') as HTMLSelectElement).value).toBe('predefined:grass');
     expect(fieldInput('break (seconds)').value).toBe('420');
     expect(fieldInput('Per team').value).toBe('2');
-    expect(fieldSelect('Allowance').value).toBe('half');
+    expect(fieldSelect('Allowance').value).toBe('game');
   });
 
   it('applies the Beach preset: no half-time break, 1 timeout per game', () => {
@@ -52,7 +52,7 @@ describe('config screen template picker', () => {
     expect(fieldSelect('Allowance').value).toBe('game');
   });
 
-  it('applies the Grass preset: 7-minute half-time break, 2 timeouts per half', () => {
+  it('applies the Grass preset: 7-minute half-time break, 2 timeouts per game', () => {
     renderConfigScreen();
 
     fireEvent.change(screen.getByLabelText('Template'), {
@@ -61,7 +61,7 @@ describe('config screen template picker', () => {
 
     expect(fieldInput('break (seconds)').value).toBe('420');
     expect(fieldInput('Per team').value).toBe('2');
-    expect(fieldSelect('Allowance').value).toBe('half');
+    expect(fieldSelect('Allowance').value).toBe('game');
   });
 
   it('does not touch team names when a preset is applied', () => {
@@ -126,6 +126,6 @@ describe('save / delete a custom template', () => {
     // showing nothing at all.
     expect(fieldInput('break (seconds)').value).toBe('420');
     expect(fieldInput('Per team').value).toBe('2');
-    expect(fieldSelect('Allowance').value).toBe('half');
+    expect(fieldSelect('Allowance').value).toBe('game');
   });
 });
