@@ -266,7 +266,7 @@ export const ca: typeof en = {
   say_injury: '«Lesió — atureu el joc!»',
   say_technicalStoppage: '«Aturada de joc!»',
   say_spirit: "«Aturada d'esperit!»",
-  say_halftime: '«Half!»',
+  say_halftime: '«Half! Pull de {halfTeam} des de la {halfSide}!»',
   say_timeCap: '«Time cap — partit a {n}!»',
   say_timeCapFinish: "«Temps! Acabeu aquest punt — el partit s'acaba després.»",
   say_timeCapPending: '«Time cap — acabeu aquest punt!»',
@@ -303,19 +303,23 @@ export const ca: typeof en = {
   now_toReady15: "15 segons perquè l'atac estigui llest. Dos xiulets quan s'esgoti el temps.",
   now_toReady0: "L'atac hauria d'estar llest — tres xiulets i el disc entra en joc.",
   now_halftime:
-    "Descans. Es reprèn sol quan s'acabi el temps, o prem «Fi del descans» si tots dos equips estan llestos abans.",
+    "Descans — pull de {halfTeam} des de la {halfSide} per començar la segona part. Es reprèn sol quan s'acabi el temps, o prem «Fi del descans» si tots dos equips estan llestos abans.",
   now_halftimeWarn:
-    "Un minut per a la segona part. Un xiulet — els equips haurien d'anar-se preparant.",
+    "Un minut per a la segona part — pull de {halfTeam} des de la {halfSide}. Un xiulet — els equips haurien d'anar-se preparant.",
   now_stoppagePending:
     'Aturada per {kind}. El rellotge del pull, del temps mort i del call estan en espera — prem «El joc pot continuar» sobre el rellotge tan bon punt el joc pugui seguir.',
   now_callPending:
     "{kind} — l'ha demanada {team}. El joc està aturat i el marcador bloquejat: prem «Acceptada», «Discutida» o «Retirada» sobre el rellotge quan els jugadors ho decideixin.",
   now_callPendingNoTeam:
     '{kind}. El joc està aturat i el marcador bloquejat: prem «Acceptada», «Discutida» o «Retirada» sobre el rellotge quan els jugadors ho decideixin.',
+  now_callWaitCaptains:
+    "{kind} — l'ha demanada {team}, 15 segons després. Els capitans haurien d'intervenir per ajudar a resoldre-la.",
+  now_callWaitCaptainsNoTeam:
+    "{kind}, 15 segons després. Els capitans haurien d'intervenir per ajudar a resoldre-la.",
   now_callWait:
-    'Segueix sense resoldre als 45 segons — tres xiulets ara, i tres més als 60. Resol-la sobre el rellotge tan bon punt els jugadors ho decideixin.',
+    "Segueix sense resoldre als 45 segons — tres xiulets ara, i tres més als 60. La jugada s'hauria de tractar com a discutida. Resol-la sobre el rellotge tan bon punt els jugadors ho decideixin.",
   now_callWaitLong:
-    'Segueix sense resoldre als 60 segons — sis xiulets fins ara, i no en sonaran més. Resol-la sobre el rellotge tan bon punt els jugadors ho decideixin.',
+    "Segueix sense resoldre als 60 segons — sis xiulets fins ara. Repeteix la crida si el joc no s'ha reprès. Resol-la sobre el rellotge tan bon punt els jugadors ho decideixin.",
   now_paused: "Aturada d'esperit. Rellotge en pausa — prem «Reprendre partit» per continuar.",
   now_pauseManual: 'Partit en pausa. Rellotge aturat — prem «Reprendre partit» per continuar.',
   now_stoppageClockStopped:
@@ -502,7 +506,7 @@ export const ca: typeof en = {
 
   guideSignalsTitle: "Quan xiula l'app",
   guideSignalsIntro:
-    "El xiulet és com mantens els jugadors al corrent del temps. L'app xiula per tu — i mostra la targeta de xiulet en aquell mateix moment — exactament en aquestes quatre situacions, i en cap més. Xiula tu també per acompanyar, amb el nombre de xiulets que t'indica.",
+    "El xiulet és com mantens els jugadors al corrent del temps. L'app xiula per tu — i mostra la targeta de xiulet en aquell mateix moment — exactament en aquestes cinc situacions, i en cap més. Xiula tu també per acompanyar, amb el nombre de xiulets que t'indica.",
   guideSignalHalf: "L'inici d'una part",
   guideSignalHalfBody:
     "Un xiulet en l'instant en què comença una part — el primer pull del partit i l'inici de la segona part. Com a avís, també xiules un cop un minut abans, però només quan hi ha una espera de la qual avisar: una hora d'inici programada o un descans de dos minuts o més.",
@@ -515,6 +519,9 @@ export const ca: typeof en = {
   guideSignalCall: "Una jugada que s'allarga",
   guideSignalCallBody:
     "Quan una falta, un pick, un travel, un stall, un fora de joc, un disc caigut o una jugada genèrica — o una lesió o aturada tècnica — segueix sense resoldre als 45 segons: tres xiulets, i tres més als 60 segons. Després res — l'app segueix comptant l'espera, però deixa de xiular.",
+  guideSignalCap: 'Un cap, per temps',
+  guideSignalCapBody:
+    "Un xiulet en l'instant en què s'arriba al límit de temps, i un altre quan el punt en curs acaba i queda fixat el nou objectiu — pel partit i, per separat, per la part. Un objectiu que ja coneixies d'abans (per exemple, la part a 8) es continua anunciant un gol abans, però mai no se xiula — només xiula un objectiu que ha decidit el rellotge.",
 
   guideStep7Title: 'Ràtio de gènere (només en mixt)',
   guideStep7Body:

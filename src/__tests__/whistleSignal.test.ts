@@ -97,10 +97,52 @@ describe('currentWhistle — the single source for every whistle-and-sign', () =
     expect(currentWhistle(ticks(s, 45))).toMatchObject({ key: 'callWait:45', blasts: 3 });
   });
 
-  it('never whistles for a cap', () => {
-    let s = live(cfg({ timeLimitMinutes: 1 }));
+  it('blows one blast when a time cap is reached, and again once the point that follows fixes the target', () => {
+    let s = live(cfg({ timeLimitMinutes: 1 })); // default endCap: { kind: 'cap', plus: 1 }
     s = ticks(s, 60); // reaches the end-game time cap
-    expect(s.timeCapReached).toBe(true);
+    expect(s.assist).toBe('capPending');
+    expect(currentWhistle(s)).toMatchObject({ blasts: 1 });
+    expect(currentWhistle(s)?.key).toMatch(/^capPending:/);
+
+    s = gameReducer(s, { type: 'GOAL', team: 'A' }); // finishes the point, fixes the target
+    expect(s.assist).toBe('capReached');
+    expect(currentWhistle(s)).toMatchObject({ blasts: 1 });
+    expect(currentWhistle(s)?.key).toMatch(/^capReached:/);
+  });
+
+  it('blows one blast for a "no cap" time limit too — the game ends right after this point', () => {
+    const s = ticks(live(cfg({ timeLimitMinutes: 1, endCap: { kind: 'none' } })), 60);
+    expect(s.assist).toBe('capNoneFinishPoint');
+    expect(currentWhistle(s)).toMatchObject({ blasts: 1 });
+    expect(currentWhistle(s)?.key).toMatch(/^capNoneFinishPoint:/);
+  });
+
+  it('blows one blast when the half cap is reached, and again once the point that follows fixes the half target', () => {
+    let s = live(cfg({ halfTimeLimitMinutes: 1 })); // default halfCap: { kind: 'cap', plus: 1 }
+    s = ticks(s, 60); // reaches the half-time cap
+    expect(s.assist).toBe('halfCapPending');
+    expect(currentWhistle(s)).toMatchObject({ blasts: 1 });
+    expect(currentWhistle(s)?.key).toMatch(/^halfCapPending:/);
+
+    s = gameReducer(s, { type: 'GOAL', team: 'A' }); // finishes the point, fixes the half target
+    expect(s.assist).toBe('halfCapReached');
+    expect(currentWhistle(s)).toMatchObject({ blasts: 1 });
+    expect(currentWhistle(s)?.key).toMatch(/^halfCapReached:/);
+  });
+
+  it('blows one blast for a "no half cap" time limit too — half starts right after this point', () => {
+    const s = ticks(live(cfg({ halfTimeLimitMinutes: 1, halfCap: { kind: 'none' } })), 60);
+    expect(s.assist).toBe('halfCapNone');
+    expect(currentWhistle(s)).toMatchObject({ blasts: 1 });
+    expect(currentWhistle(s)?.key).toMatch(/^halfCapNone:/);
+  });
+
+  it('does not whistle a target known in advance, only one hit by time', () => {
+    // One goal short of the (plain, uncapped) half target is announced in the bar
+    // (`halfAt`) but never whistled — it was known from the start, not discovered
+    // by a clock running out.
+    const s = gameReducer(live(cfg({ halfScore: 2 })), { type: 'GOAL', team: 'A' });
+    expect(s.assist).toBe('halfAt');
     expect(currentWhistle(s)).toBeNull();
   });
 });

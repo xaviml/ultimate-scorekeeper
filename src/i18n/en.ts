@@ -277,7 +277,7 @@ export const en = {
   say_injury: '"Injury — stop play!"',
   say_technicalStoppage: '"Stoppage of play!"',
   say_spirit: '"Spirit stoppage!"',
-  say_halftime: '"Half-time!"',
+  say_halftime: '"Half-time! {halfTeam} pulls from the {halfSide}!"',
   say_timeCap: '"Time cap — game to {n}!"',
   say_timeCapFinish: '"Time! Finish this point — the game ends after it!"',
   say_timeCapPending: '"Time cap — finish this point!"',
@@ -316,19 +316,23 @@ export const en = {
   now_toReady15: '15 seconds until the offence must be set. Two whistles when the time is up.',
   now_toReady0: 'Offence should be set — three whistles and the disc goes live.',
   now_halftime:
-    'Half-time break. Resumes automatically when the clock runs out, or press "End half-time" if both teams are ready sooner.',
+    'Half-time break — {halfTeam} pulls from the {halfSide} to start the second half. Resumes automatically when the clock runs out, or press "End half-time" if both teams are ready sooner.',
   now_halftimeWarn:
-    'One minute until the second half. One whistle — teams should be getting ready.',
+    'One minute until the second half — {halfTeam} pulls from the {halfSide}. One whistle — teams should be getting ready.',
   now_stoppagePending:
     '{kind} stoppage. The pull, timeout and call clocks are on hold — press "Play can resume" above the clock the moment play can go on.',
   now_callPending:
     '{kind} called by {team}. Play is stopped and the score is locked — tap "Accepted", "Contested" or "Retracted" above the clock once the players have decided.',
   now_callPendingNoTeam:
     '{kind} called. Play is stopped and the score is locked — tap "Accepted", "Contested" or "Retracted" above the clock once the players have decided.',
+  now_callWaitCaptains:
+    '{kind} called by {team} — 15 seconds in. Captains should step in to help resolve it.',
+  now_callWaitCaptainsNoTeam:
+    '{kind} called — 15 seconds in. Captains should step in to help resolve it.',
   now_callWait:
-    'Still unresolved after 45 seconds — three whistles now, and three more at 60. Resolve it above the clock as soon as the players have decided.',
+    'Still unresolved after 45 seconds — three whistles now, and three more at 60. Play should be treated as contested. Resolve it above the clock as soon as the players have decided.',
   now_callWaitLong:
-    'Still unresolved after 60 seconds — six whistles so far, and no more coming. Resolve it above the clock as soon as the players have decided.',
+    'Still unresolved after 60 seconds — six whistles so far. Repeat the call if play has not restarted. Resolve it above the clock as soon as the players have decided.',
   now_paused: 'Spirit stoppage. Clock paused — press "Resume game" to continue.',
   now_pauseManual: 'Game paused. Clock stopped — press "Resume game" to continue.',
   now_stoppageClockStopped:
@@ -519,7 +523,7 @@ export const en = {
 
   guideSignalsTitle: 'When the app whistles',
   guideSignalsIntro:
-    'The whistle is how you keep the players aware of time. The app blows it for you — and shows the whistle card at the same moment — in exactly these four situations, and nowhere else. Blow your own whistle to match, the number of blasts it tells you.',
+    'The whistle is how you keep the players aware of time. The app blows it for you — and shows the whistle card at the same moment — in exactly these five situations, and nowhere else. Blow your own whistle to match, the number of blasts it tells you.',
   guideSignalHalf: 'The start of a half',
   guideSignalHalfBody:
     'One whistle the instant a half begins — the first pull of the game, and the start of the second half. As a heads-up you also get one whistle a minute before, but only when there is a wait to warn about: a scheduled kickoff, or a half-time break of two minutes or more.',
@@ -532,6 +536,9 @@ export const en = {
   guideSignalCall: 'A call that drags on',
   guideSignalCallBody:
     'When a foul, pick, travel, stall-out, off-side, disc-down or generic call — or an injury or technical stoppage — is still being sorted out after 45 seconds: three whistles, and three more at 60 seconds. Nothing after that — the app keeps counting the wait, but stops whistling.',
+  guideSignalCap: 'A cap, by time',
+  guideSignalCapBody:
+    'One whistle the instant the time limit lands, and one more once the point in progress ends and the new target is fixed — for the game and, separately, for the half. A target you already knew in advance (say, half at 8) is still announced a goal ahead, but never whistled — only a target the clock decided gets a whistle.',
 
   guideStep7Title: 'Gender ratio (mixed games only)',
   guideStep7Body:

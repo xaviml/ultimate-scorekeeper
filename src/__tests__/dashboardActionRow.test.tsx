@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '../i18n';
 import { GameProvider } from '../state/GameContext';
-import { createInitialState } from '../state/gameReducer';
+import { createInitialState, gameReducer, secondHalfPullSide } from '../state/gameReducer';
 import GameScreen from '../components/GameScreen';
 import type { GameState } from '../state/types';
 
@@ -209,6 +209,63 @@ describe('the possession chip', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+/**
+ * The pull chip used to hide for the whole half-time break — it only made sense
+ * from 'awaitingPull' onward. Half-time settles who pulls next, and from which
+ * side, the instant it starts (see goHalftime/secondHalfPuller/secondHalfPullSide
+ * in the reducer), so the chip and the assistance bar both name it through the
+ * break too, not just after HALFTIME_END applies it to pullingTeam/pullFromSide.
+ */
+describe('the pull chip and assistance bar through half-time', () => {
+  function reachHalftime(scoringTeam: 'A' | 'B', halfScore: number): GameState {
+    // trackPlayers explicitly false: with it on, GOAL holds the real assist back in
+    // pendingGoalAssist for the scorer dialog instead of applying it (see CLAUDE.md) —
+    // not what this test is about, and createInitialState()'s default config object is
+    // shared/mutated by other tests in this file (liveGame() flips it to true), so
+    // relying on the default here would make this test order-dependent.
+    const config = { ...createInitialState().config, halfScore, trackPlayers: false };
+    let s = gameReducer(createInitialState(config), { type: 'START_GAME', config });
+    s = gameReducer(s, { type: 'BEGIN_PLAY' });
+    s = gameReducer(s, { type: 'PULL_THROWN' });
+    s = gameReducer(s, { type: 'GOAL', team: scoringTeam });
+    s.phase = 'game';
+    return s;
+  }
+
+  it('names the second-half puller and side in the pull chip, not just from awaitingPull', () => {
+    // halfScore 1, one goal (odd first-half point count) => no physical swap,
+    // and A (startingOffense, the opening receiver) pulls the second half.
+    const state = reachHalftime('B', 1);
+    expect(state.status).toBe('halftime');
+    mount(state);
+
+    const side = secondHalfPullSide(state) === 'left' ? 'Left' : 'Right';
+    expect(screen.getByText(`Pull: Team A (${side})`)).toBeInTheDocument();
+  });
+
+  it('shows the call-out naming the next puller and the side they pull from', () => {
+    const state = reachHalftime('B', 1);
+    expect(state.assist).toBe('goHalftime');
+    mount(state);
+
+    const side = secondHalfPullSide(state) === 'left' ? 'Left' : 'Right';
+    expect(screen.getByText(`"Half-time! Team A pulls from the ${side}!"`)).toBeInTheDocument();
+  });
+
+  it('keeps naming it in the ambient line once the call-out has had its moment', () => {
+    const state = reachHalftime('B', 1);
+    // Force the amber fallback deterministically, the same way the open-call
+    // tests do, rather than fast-forwarding the 7s transient window.
+    state.assist = 'idle';
+    mount(state);
+
+    const side = secondHalfPullSide(state) === 'left' ? 'Left' : 'Right';
+    expect(
+      screen.getByText(new RegExp(`Half-time break — Team A pulls from the ${side}\\b`)),
+    ).toBeInTheDocument();
   });
 });
 

@@ -259,6 +259,7 @@ export default function GuideScreen({ onBack }: { onBack: () => void }) {
           <Bullet label={t('guideSignalPoint')} body={t('guideSignalPointBody')} />
           <Bullet label={t('guideSignalTimeout')} body={t('guideSignalTimeoutBody')} />
           <Bullet label={t('guideSignalCall')} body={t('guideSignalCallBody')} />
+          <Bullet label={t('guideSignalCap')} body={t('guideSignalCapBody')} />
         </ul>
       </Card>
 

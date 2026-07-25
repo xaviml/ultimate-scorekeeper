@@ -1,7 +1,7 @@
 import { useT } from '../i18n/useT';
 import { useTransientKey } from '../hooks/useTransientKey';
 import { useGame } from '../state/gameHooks';
-import { isUniversePoint } from '../state/gameReducer';
+import { isUniversePoint, secondHalfPuller, secondHalfPullSide } from '../state/gameReducer';
 import type { GameState } from '../state/types';
 
 /** A call-out sits on screen exactly as long as its hand signal does. */
@@ -83,7 +83,9 @@ function statusKey(state: GameState): string {
     if (r <= 45) return 'now_toReady30';
   }
   // One minute to the second half, when the break is long enough to warn (see
-  // currentWhistle) — otherwise the plain "half-time" line.
+  // currentWhistle) — otherwise the plain half-time line. Either way it names the
+  // next puller and the side they pull from (halfTeam/halfSide), same as the
+  // goHalftime call-out.
   if (state.status === 'halftime') {
     const sec = state.secondary;
     if (sec?.kind === 'halftime' && (sec.total ?? 0) >= 120 && sec.seconds <= 60) {
@@ -113,6 +115,14 @@ function statusKey(state: GameState): string {
     // Two wordings, because a call logged without tracking game activity has no
     // team to name — see the NoTeam variants in the SAY map.
     if (state.pendingCall) {
+      // WFDF's on-field discussion timing: captains are asked to step in once a
+      // call has sat unresolved for 15 s, before it reaches the 45/60 s whistles
+      // above. This is call-specific (not a stoppage) — an injury or technical
+      // stoppage has no captains-in-discussion step, so this only reads
+      // `pendingCall`, never the merged `callWaitElapsed`.
+      if (state.pendingCall.elapsedSeconds >= 15) {
+        return state.pendingCall.team ? 'now_callWaitCaptains' : 'now_callWaitCaptainsNoTeam';
+      }
       return state.pendingCall.team ? 'now_callPending' : 'now_callPendingNoTeam';
     }
   }
@@ -176,6 +186,10 @@ function assistVars(state: GameState) {
     n: state.cappedTarget ?? state.config.targetScore,
     // And the half target, for the messages about the half.
     halfN: state.halfCappedTarget ?? state.config.halfScore,
+    // Who pulls to open the second half — fixed by config alone (see
+    // secondHalfPuller), unlike `team` above which reads state.pullingTeam and
+    // during the half-time break itself still names whoever scored into it.
+    halfTeam: state.config.teams[secondHalfPuller(state)].name,
     gender,
   };
 }
@@ -230,6 +244,10 @@ export function AssistanceBar() {
     : state.pendingCall
       ? t(`callKind_${state.pendingCall.kind}` as never)
       : '';
+  // Which physical end the second-half puller throws from — named alongside
+  // halfTeam in the half-time messages, same reasoning as `kind` above: translated
+  // here rather than in assistVars, which has no `t`.
+  const halfSide = t(secondHalfPullSide(state) === 'left' ? 'sideLeft' : 'sideRight');
   const key = say ? sayKey : statusKey(state);
 
   return (
@@ -247,7 +265,7 @@ export function AssistanceBar() {
             : 'text-sm sm:text-base lscape:text-xs'
         }`}
       >
-        {t(key as never, { ...vars, gender: genderLabel, kind } as never)}
+        {t(key as never, { ...vars, gender: genderLabel, kind, halfSide } as never)}
       </p>
     </div>
   );

@@ -734,6 +734,7 @@ describe('halves and pulls', () => {
   it('second-half message: no physical swap after an odd number of first-half points', () => {
     const config = cfg({ halfScore: 1, startingOffense: 'A' });
     let s = gameReducer(live(config), { type: 'GOAL', team: 'A' }); // 1 point (odd)
+    expect(s.assist).toBe('goHalftime');
     s = gameReducer(s, { type: 'HALFTIME_END' });
     expect(s.assist).toBe('secondHalfNoSwap');
   });
@@ -747,6 +748,7 @@ describe('halves and pulls', () => {
       { type: 'GOAL', team: 'A' }, // 2 points (even)
     );
     expect(s.status).toBe('halftime');
+    expect(s.assist).toBe('goHalftime');
     s = gameReducer(s, { type: 'HALFTIME_END' });
     expect(s.assist).toBe('secondHalfPull');
   });

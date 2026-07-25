@@ -78,10 +78,10 @@ function currentSignal(state: GameState): Signal | null {
     resolution_accepted: { file: 'uncontested', caption: 'signal_accepted' },
     resolution_contested: { file: 'contest', caption: 'signal_contested' },
     resolution_retracted: { file: 'retracted', caption: 'signal_retracted' },
-    // No entries for caps or half-time: a cap is announced in the bar but is not a
-    // whistle scenario (no sound, no sign), and half-time has no WFDF hand signal.
-    // Every whistle-and-sign moment (pull, starts, timeout ends, unresolved calls)
-    // is handled by currentWhistle in SignalCard, not from this map.
+    // No entry for half-time itself: it has no WFDF hand signal. A cap, by
+    // contrast, IS a whistle scenario — handled by currentWhistle below, not here.
+    // Every whistle-and-sign moment (pull, starts, timeout ends, unresolved calls,
+    // a cap by time) is handled by currentWhistle in SignalCard, not from this map.
   };
   const art = map[state.assist];
   // Log counter in the key so a repeat of the same event (two stoppages in a row)

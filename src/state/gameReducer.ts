@@ -136,6 +136,7 @@ export function createInitialState(config: GameConfig = defaultConfig): GameStat
     history: [],
     nextLogId: 1,
     assist: 'welcome',
+    pendingGoalAssist: null,
     ratioSignalId: 0,
   };
 }
@@ -310,6 +311,35 @@ export function leftEndzoneTeam(state: GameState): TeamId {
 /** Which physical end the current/next puller pulls from. */
 export function pullFromSide(state: GameState): 'left' | 'right' {
   return state.pullingTeam === leftEndzoneTeam(state) ? 'left' : 'right';
+}
+
+/**
+ * The team that pulls to open the second half — the team that received the very
+ * first pull of the game (WFDF: the opening receiver pulls at half). Fixed by
+ * config alone, so it's the same fact whether asked the instant half-time starts,
+ * mid-break, or right as HALFTIME_END applies it.
+ */
+export function secondHalfPuller(state: GameState): TeamId {
+  return state.config.startingOffense;
+}
+
+/**
+ * Whether the teams must physically swap ends to reach the mandated second-half
+ * arrangement (see leftEndzoneTeam), from wherever they are now. Ends flip after
+ * every point, so an odd number of first-half points already leaves them mirrored
+ * from the opening — only an even count needs an actual swap. The score is fixed
+ * for the whole break (half-time never starts mid-point), so this holds steady
+ * from the moment reachHalf fires in GOAL through to HALFTIME_END.
+ */
+export function secondHalfSwapNeeded(state: GameState): boolean {
+  return (state.scores.A + state.scores.B) % 2 === 0;
+}
+
+/** Which physical end the second-half puller throws from, for display during the break. */
+export function secondHalfPullSide(state: GameState): 'left' | 'right' {
+  const currentLeft = leftEndzoneTeam(state);
+  const half2Left = secondHalfSwapNeeded(state) ? other(currentLeft) : currentLeft;
+  return secondHalfPuller(state) === half2Left ? 'left' : 'right';
 }
 
 /** Whether the configured budget allows any timeouts at all. Both budgets null is the same as 0. */
@@ -628,6 +658,27 @@ export function gameReducer(state: GameState, action: Action): GameState {
           ? ruleARatio(s.config.startingRatio, s.points.length)
           : null;
 
+      // A resolved half cap announces the new half target itself, so it stands in
+      // for the one-time "half at N" call-out.
+      const goalAssist = reachHalf
+        ? 'goHalftime'
+        : universePoint
+          ? 'universePoint'
+          : capResolved
+            ? 'capReached'
+            : halfCapResolved
+              ? 'halfCapReached'
+              : announceGame
+                ? 'gameAt'
+                : announceHalf
+                  ? 'halfAt'
+                  : 'goalScored';
+      // With player tracking on, the scorer/assist picker is about to pop up over
+      // this same goal — hold the sign/message back so it doesn't fight the dialog
+      // for the volunteer's attention, and release it (REVEAL_GOAL_ASSIST) once the
+      // dialog closes instead. The gender-ratio auto-reveal piggybacks on this for
+      // free: it only arms off `assist === 'goalScored'`, so it naturally waits too.
+      const trackingPlayers = s.config.trackPlayers;
       s = {
         ...s,
         status: reachHalf ? s.status : 'awaitingPull',
@@ -638,21 +689,8 @@ export function gameReducer(state: GameState, action: Action): GameState {
         pointStartSeconds: null,
         nextRatio,
         secondary: reachHalf ? null : { kind: 'pull', seconds: 0, total: 75 },
-        // A resolved half cap announces the new half target itself, so it stands in
-        // for the one-time "half at N" call-out.
-        assist: reachHalf
-          ? 'goHalftime'
-          : universePoint
-            ? 'universePoint'
-            : capResolved
-              ? 'capReached'
-              : halfCapResolved
-                ? 'halfCapReached'
-                : announceGame
-                  ? 'gameAt'
-                  : announceHalf
-                    ? 'halfAt'
-                    : 'goalScored',
+        assist: trackingPlayers ? s.assist : goalAssist,
+        pendingGoalAssist: trackingPlayers ? goalAssist : null,
         halfAnnounced: s.halfAnnounced || announceHalf || halfCapResolved,
         gameAnnounced: s.gameAnnounced || announceGame || capResolved,
       };
@@ -720,8 +758,14 @@ export function gameReducer(state: GameState, action: Action): GameState {
         pointStartSeconds: prev.pointStartSeconds,
         secondary: null,
         assist: 'undoDone',
+        pendingGoalAssist: null,
       };
     }
+
+    case 'REVEAL_GOAL_ASSIST':
+      return state.pendingGoalAssist !== null
+        ? { ...state, assist: state.pendingGoalAssist, pendingGoalAssist: null }
+        : state;
 
     case 'REVEAL_NEXT_RATIO':
       return state.nextRatio ? { ...state, assist: 'nextRatio' } : state;
@@ -982,13 +1026,8 @@ export function gameReducer(state: GameState, action: Action): GameState {
       const s = log(state, 'halftimeEnd');
       // Second half mirrors the opening: the team that received the first pull now
       // pulls, and the ends are the opposite of how half 1 started.
-      const puller = s.config.startingOffense;
-      // Ends flip after every point, so by the end of half 1 the teams have already
-      // swapped an odd/even number of times. The mandated half-2 arrangement is the
-      // opposite of the opening, so a real, physical swap is only needed when half 1
-      // had an even number of points (odd => they're already on the mirrored ends).
-      const half1Points = s.scores.A + s.scores.B;
-      const swapNeeded = half1Points % 2 === 0;
+      const puller = secondHalfPuller(s);
+      const swapNeeded = secondHalfSwapNeeded(s);
       return {
         ...s,
         status: 'awaitingPull',

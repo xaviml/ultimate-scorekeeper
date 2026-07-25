@@ -40,10 +40,22 @@ describe('the ambient assistance line while a call is open', () => {
     expect(screen.queryByText(/Disc in play/)).not.toBeInTheDocument();
   });
 
+  it('asks the captains to step in once a call has sat open for 15 s', () => {
+    mountWith(withOpenCall(15));
+
+    expect(screen.getByText(/15 seconds in. Captains should step in/)).toBeInTheDocument();
+  });
+
   it('switches to the dragged-on line once the whistles have gone at 45 s', () => {
     mountWith(withOpenCall(45));
 
     expect(screen.getByText(/Still unresolved after 45 seconds/)).toBeInTheDocument();
+  });
+
+  it('does not ask for captains once the 45 s line has taken over', () => {
+    mountWith(withOpenCall(45));
+
+    expect(screen.queryByText(/Captains should step in/)).not.toBeInTheDocument();
   });
 
   it('drops the attribution entirely for a call logged without tracking activity', () => {
@@ -60,6 +72,19 @@ describe('the ambient assistance line while a call is open', () => {
     // (getAllByText: the secondary clock is labelled with the same bare kind.)
     expect(screen.getAllByText('Foul').length).toBeGreaterThan(0);
     expect(screen.getByText(/^Foul called\./)).toBeInTheDocument();
+    expect(screen.queryByText(/No team/)).not.toBeInTheDocument();
+  });
+
+  it('drops the attribution from the captains line too, for an untracked call', () => {
+    const state = createInitialState();
+    state.phase = 'game';
+    state.status = 'live';
+    state.possessionTeam = 'B';
+    state.gameSeconds = 100;
+    state.pendingCall = { kind: 'foul', elapsedSeconds: 15 };
+    mountWith(state);
+
+    expect(screen.getByText(/^Foul called — 15 seconds in\. Captains/)).toBeInTheDocument();
     expect(screen.queryByText(/No team/)).not.toBeInTheDocument();
   });
 

@@ -14,6 +14,8 @@ import {
   playHalted,
   possessionTracked,
   pullFromSide,
+  secondHalfPuller,
+  secondHalfPullSide,
   timeoutAvailability,
   timeoutsConfigured,
 } from '../state/gameReducer';
@@ -102,7 +104,7 @@ function ScorePanel({ team, side }: { team: TeamId; side: 'left' | 'right' }) {
         {cfg.name}
       </span>
       <span
-        className="font-clock font-semibold text-[clamp(4rem,20vw,9rem)] lscape:text-[clamp(1.5rem,16vh,4.5rem)] leading-none drop-shadow-lg"
+        className="font-clock font-semibold text-[clamp(7.5rem,36vw,16.5rem)] lscape:text-[clamp(3rem,27vh,8.25rem)] leading-none drop-shadow-lg"
         style={{ color: ink }}
       >
         {state.scores[team]}
@@ -391,10 +393,13 @@ function ratioLabel(
 }
 
 function pullLabel(state: GameState, t: (k: never, v?: Record<string, string | number>) => string) {
-  // The pull side is the PHYSICAL end the puller pulls from, which swaps each point —
-  // not the puller's fixed spot on the scoreboard.
-  const side = pullFromSide(state) === 'left' ? t('sideLeft' as never) : t('sideRight' as never);
-  const team = state.config.teams[state.pullingTeam].name;
+  // During the half-time break itself, state.pullingTeam/pullFromSide still hold
+  // whoever scored into it — the second-half puller/side aren't applied until
+  // HALFTIME_END fires — so the chip reads the dedicated second-half helpers instead.
+  const halftime = state.status === 'halftime';
+  const rawSide = halftime ? secondHalfPullSide(state) : pullFromSide(state);
+  const side = rawSide === 'left' ? t('sideLeft' as never) : t('sideRight' as never);
+  const team = state.config.teams[halftime ? secondHalfPuller(state) : state.pullingTeam].name;
   return t('pullChip' as never, { team, side });
 }
 
@@ -540,7 +545,10 @@ export default function GameScreen() {
     state.config.trackPlayers && state.points.length > dismissedUpTo
       ? state.points[state.points.length - 1]
       : null;
-  const resolveAssistDialog = () => setDismissedUpTo(state.points.length);
+  const resolveAssistDialog = () => {
+    setDismissedUpTo(state.points.length);
+    dispatch({ type: 'REVEAL_GOAL_ASSIST' });
+  };
 
   const openEndGameConfirm = () => {
     setShowEndGameConfirm(true);
@@ -881,8 +889,10 @@ export default function GameScreen() {
                 Leaving it up once the point is live risks reading as "this team
                 still has to pull", when the disc may since have changed hands
                 entirely (see the possession chip above, which takes over that
-                job for the rest of the point). */}
-            {state.status === 'awaitingPull' && (
+                job for the rest of the point). Also shown through half-time: the
+                next pull is exactly as settled during the break as it is once
+                'awaitingPull' starts, and it's the reminder of who resumes into. */}
+            {(state.status === 'awaitingPull' || state.status === 'halftime') && (
               <div
                 aria-live="polite"
                 className="rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border border-line text-chalk"

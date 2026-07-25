@@ -15,7 +15,7 @@ export default {
     extend: {
       fontFamily: {
         board: ['"Chakra Petch"', 'system-ui', 'sans-serif'],
-        clock: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
+        clock: ['"Rajdhani"', 'ui-monospace', 'monospace'],
       },
       colors: {
         pitch: '#101418',

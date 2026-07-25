@@ -19,8 +19,8 @@ export const GRASS_TEMPLATE: Omit<TemplateSettings, 'fieldNumber'> = {
   halfCap: { kind: 'cap', plus: 1 },
   timeouts: {
     enabled: true,
-    perHalf: 2,
-    perGame: null,
+    perHalf: null,
+    perGame: 2,
     durationSeconds: 75,
     disallowLastFiveMinutes: false,
   },

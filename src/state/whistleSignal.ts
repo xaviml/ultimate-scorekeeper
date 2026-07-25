@@ -14,8 +14,8 @@ export type WhistleSignal = { key: string; blasts: 1 | 2 | 3 };
  * audio (GameContext) and the whistle hand-signal (SignalCard) consult this, which
  * is what structurally guarantees that every whistle also shows its sign.
  *
- * These are the only four WFDF time-signal scenarios the app whistles for; caps,
- * turnovers, score corrections and the like are announced in the bar but never
+ * These are the only five WFDF time-signal scenarios the app whistles for; a
+ * turnover, a score correction and the like are announced in the bar but never
  * whistled. See CLAUDE.md / the guide's "When the app whistles" card.
  */
 export function currentWhistle(state: GameState): WhistleSignal | null {
@@ -77,6 +77,23 @@ export function currentWhistle(state: GameState): WhistleSignal | null {
     state.pendingStoppage?.elapsedSeconds ?? state.pendingCall?.elapsedSeconds ?? null;
   if (elapsed === 45 || elapsed === 60) {
     return { key: `callWait:${elapsed}`, blasts: 3 };
+  }
+
+  // Scenario 5 — a cap fires by time, never by a target score known in advance
+  // (that is `halfAt`/`gameAt`, one goal early, and those stay silent). One whistle
+  // each: the moment the time limit lands (Option A ends the game/half outright, a
+  // capped rule leaves the point in progress to finish), and again once that point
+  // ends and the new target is fixed.
+  const capAssists = [
+    'capNoneFinishPoint',
+    'capPending',
+    'capReached',
+    'halfCapNone',
+    'halfCapPending',
+    'halfCapReached',
+  ];
+  if (capAssists.includes(assist)) {
+    return { key: `${assist}:${state.nextLogId}`, blasts: 1 };
   }
 
   return null;

@@ -266,7 +266,7 @@ export const es: typeof en = {
   say_injury: '«¡Lesión — paren el juego!»',
   say_technicalStoppage: '«¡Parada de juego!»',
   say_spirit: '«¡Parada de espíritu!»',
-  say_halftime: '«¡Half!»',
+  say_halftime: '«¡Half! Pull de {halfTeam} desde la {halfSide}!»',
   say_timeCap: '«¡Time cap — partido a {n}!»',
   say_timeCapFinish: '«¡Tiempo! Terminen este punto — el partido acaba después.»',
   say_timeCapPending: '«¡Time cap — terminen este punto!»',
@@ -305,19 +305,23 @@ export const es: typeof en = {
   now_toReady15: '15 segundos para que el ataque esté listo. Dos silbatos al agotarse el tiempo.',
   now_toReady0: 'El ataque debería estar listo — tres silbatos y el disco entra en juego.',
   now_halftime:
-    'Descanso. Se reanuda solo cuando termine el tiempo, o pulsa «Fin del descanso» si ambos equipos están listos antes.',
+    'Descanso — pull de {halfTeam} desde la {halfSide} para empezar la segunda parte. Se reanuda solo cuando termine el tiempo, o pulsa «Fin del descanso» si ambos equipos están listos antes.',
   now_halftimeWarn:
-    'Un minuto para la segunda parte. Un silbato — los equipos deberían ir preparándose.',
+    'Un minuto para la segunda parte — pull de {halfTeam} desde la {halfSide}. Un silbato — los equipos deberían ir preparándose.',
   now_stoppagePending:
     'Parada por {kind}. El reloj del pull, del tiempo muerto y de la llamada están en espera — pulsa «El juego puede continuar» encima del reloj en cuanto el juego pueda seguir.',
   now_callPending:
     '{kind} — la ha pedido {team}. El juego está parado y el marcador bloqueado: pulsa «Aceptada», «Discutida» o «Retirada» encima del reloj cuando los jugadores lo decidan.',
   now_callPendingNoTeam:
     '{kind}. El juego está parado y el marcador bloqueado: pulsa «Aceptada», «Discutida» o «Retirada» encima del reloj cuando los jugadores lo decidan.',
+  now_callWaitCaptains:
+    '{kind} — la ha pedido {team}, 15 segundos después. Los capitanes deberían intervenir para ayudar a resolverla.',
+  now_callWaitCaptainsNoTeam:
+    '{kind}, 15 segundos después. Los capitanes deberían intervenir para ayudar a resolverla.',
   now_callWait:
-    'Sigue sin resolverse a los 45 segundos — tres silbatos ahora, y tres más a los 60. Resuélvela encima del reloj en cuanto los jugadores lo decidan.',
+    'Sigue sin resolverse a los 45 segundos — tres silbatos ahora, y tres más a los 60. La jugada debe tratarse como discutida. Resuélvela encima del reloj en cuanto los jugadores lo decidan.',
   now_callWaitLong:
-    'Sigue sin resolverse a los 60 segundos — seis silbatos hasta ahora, y no sonarán más. Resuélvela encima del reloj en cuanto los jugadores lo decidan.',
+    'Sigue sin resolverse a los 60 segundos — seis silbatos hasta ahora. Repite la llamada si el juego no se ha reanudado. Resuélvela encima del reloj en cuanto los jugadores lo decidan.',
   now_paused: 'Parada de espíritu. Reloj pausado — pulsa «Reanudar partido» para continuar.',
   now_pauseManual: 'Partido pausado. Reloj detenido — pulsa «Reanudar partido» para continuar.',
   now_stoppageClockStopped:
@@ -505,7 +509,7 @@ export const es: typeof en = {
 
   guideSignalsTitle: 'Cuándo pita la app',
   guideSignalsIntro:
-    'El silbato es como mantienes a los jugadores al tanto del tiempo. La app pita por ti — y muestra la tarjeta de silbato en ese mismo momento — exactamente en estas cuatro situaciones, y en ninguna más. Pita tú también para acompañar, con el número de pitidos que te indica.',
+    'El silbato es como mantienes a los jugadores al tanto del tiempo. La app pita por ti — y muestra la tarjeta de silbato en ese mismo momento — exactamente en estas cinco situaciones, y en ninguna más. Pita tú también para acompañar, con el número de pitidos que te indica.',
   guideSignalHalf: 'El inicio de una parte',
   guideSignalHalfBody:
     'Un pitido en el instante en que empieza una parte — el primer pull del partido y el inicio de la segunda parte. Como aviso, también pitas una vez un minuto antes, pero solo cuando hay una espera de la que avisar: una hora de inicio programada o un descanso de dos minutos o más.',
@@ -518,6 +522,9 @@ export const es: typeof en = {
   guideSignalCall: 'Una jugada que se alarga',
   guideSignalCallBody:
     'Cuando una falta, un pick, un travel, un stall, un fuera de juego, un disco caído o una jugada genérica — o una lesión o parada técnica — sigue sin resolverse a los 45 segundos: tres pitidos, y tres más a los 60 segundos. Después nada — la app sigue contando la espera, pero deja de pitar.',
+  guideSignalCap: 'Un cap, por tiempo',
+  guideSignalCapBody:
+    'Un pitido en el instante en que se cumple el límite de tiempo, y otro más cuando el punto en curso termina y queda fijado el nuevo objetivo — para el partido y, por separado, para la parte. Un objetivo que ya conocías de antemano (por ejemplo, la parte en 8) se sigue anunciando un gol antes, pero nunca se pita — solo pita un objetivo que ha decidido el reloj.',
 
   guideStep7Title: 'Ratio de género (solo en mixto)',
   guideStep7Body:

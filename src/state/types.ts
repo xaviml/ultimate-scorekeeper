@@ -349,6 +349,13 @@ export interface GameState {
   nextLogId: number;
   /** Transient hint key for the Assistance Message Bar. */
   assist: string;
+  /**
+   * The `assist` a just-scored goal would show, held back while `config.trackPlayers`
+   * is on so the scorer/assist picker isn't fighting the goal (and gender-ratio, which
+   * only auto-reveals off `assist === 'goalScored'`) sign for the volunteer's attention.
+   * Released into `assist` by REVEAL_GOAL_ASSIST once the dialog closes (save or cancel).
+   */
+  pendingGoalAssist: string | null;
   /** Bumped by SHOW_RATIO_SIGNAL so re-tapping the ratio chip re-keys the signal card even while assist is still 'nextRatio'. */
   ratioSignalId: number;
 }
@@ -362,6 +369,8 @@ export type Action =
   | { type: 'UNDO_GOAL'; team: TeamId }
   | { type: 'REVEAL_NEXT_RATIO' }
   | { type: 'SHOW_RATIO_SIGNAL' }
+  /** Dispatched when the post-goal assist/scorer dialog closes (save or cancel): releases `pendingGoalAssist` into `assist`. */
+  | { type: 'REVEAL_GOAL_ASSIST' }
   | { type: 'TIMEOUT_START'; team: TeamId }
   | { type: 'TIMEOUT_END' }
   | {
