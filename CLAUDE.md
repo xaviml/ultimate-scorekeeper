@@ -49,7 +49,7 @@ One consequence worth knowing: a note recorded between a goal and an undo of tha
 
 ### GameContext owns all side effects
 
-`src/state/GameContext.tsx` is where impurity lives: the 1 s `TICK` heartbeat, the whistle sequences (45/60/75 s pull, timeout end, cap), the delayed next-ratio reveal, the `beforeunload` guard, and localStorage persistence. If you're adding time- or audio-driven behaviour, it belongs here, driven by derived values from state — not inside the reducer.
+`src/state/GameContext.tsx` is where impurity lives: the 1 s `TICK` heartbeat, the whistle sequences (45/60/75 s pull, timeout end, cap), the delayed next-ratio reveal, the assistance-message queue (see i18n below), the `beforeunload` guard, and localStorage persistence. If you're adding time- or audio-driven behaviour, it belongs here, driven by derived values from state — not inside the reducer.
 
 ### The guide is a screen, not a dialog
 
@@ -61,14 +61,24 @@ The figures are real screenshots (`public/guide/*.png`), captured English-only b
 
 `src/i18n/{en,es}.ts` are plain objects; `es` is typed as `typeof en`, so **a key missing from Spanish is a type error**. Three conventions are load-bearing:
 
-- `state.assist` is a bare key string set by the reducer. It is **not** rendered directly — `AssistanceBar` looks it up in its `SAY` map to decide whether there is anything to shout.
+- `state.assist` is a bare key string set by the reducer. It is **not** rendered directly — `src/state/assistOccurrence.ts` looks it up in its `SAY` map to decide whether there is anything to shout.
 - `canScore`/`canUndo` reasons render as `assist_blocked_<reason>` (the only surviving `assist_*` keys; they are flashed on the score panels, not in the bar).
 - The bar shows one of two things, and the distinction is the whole point of the copy:
-  - **`say_*` (green)** — the verbatim words to shout, quoted, with a speech icon. Transient: 7 s, then it gives way. An assist key absent from `SAY` has nothing to announce (turnover, disc-in-play, a logged injury are bookkeeping) and never takes over the bar.
+  - **`say_*` (green)** — the verbatim words to shout, quoted, with a speech icon. Transient: 7 s (4 s if it waited — see the queue below), then it gives way. An assist key absent from `SAY` has nothing to announce (turnover, disc-in-play, a logged injury are bookkeeping) and never takes over the bar.
   - **`now_*` (amber)** — the standing "what's happening and what do I do", derived from `state.status` rather than from `assist`, which is why it is always available as the fallback.
-- The hand signal to _make_ is a third concern: `SignalCard` maps a subset of assist keys → official WFDF pictograms in `public/signals/*.png`. A key with no mapping renders no picture — many messages are announced but never hand-signalled. So a new assist key means deciding, separately, whether it needs a call-out and whether it needs a signal.
-- Player calls set `assist` to `call_<kind>` when made and `resolution_<outcome>` when resolved; these appear in **both** the `SAY` map (green call-out) and the `SignalCard` map (a signal per infraction and per outcome). Stall-out has no dedicated WFDF pictogram, so it borrows `timing.png`. Log-only detail for the two call entry types is built by `callDetail` in `stats.ts` (alongside `goalPlayersDetail`/`turnoverPlayersDetail`), used by both the log table and the plain-text report.
-- `SignalCard` is a dialog floating over the bottom-left of the score panels that dismisses itself after 7 s. It is `pointer-events-none` so it can never swallow a goal tap on the panel underneath, and it keys off the _occurrence_ rather than the image, so each pull whistle (45/60/75 s) re-shows it even though all three use the same picture.
+- The hand signal to _make_ is a third concern: `assistOccurrence` maps a subset of assist keys → official WFDF pictograms in `public/signals/*.png`. A key with no mapping renders no picture — many messages are announced but never hand-signalled. So a new assist key means deciding, separately, whether it needs a call-out and whether it needs a signal.
+- Player calls set `assist` to `call_<kind>` when made and `resolution_<outcome>` when resolved; these appear in **both** the `SAY` map (green call-out) and the `SIGNAL` map (a signal per infraction and per outcome). Stall-out has no dedicated WFDF pictogram, so it borrows `timing.png`. Log-only detail for the two call entry types is built by `callDetail` in `stats.ts` (alongside `goalPlayersDetail`/`turnoverPlayersDetail`), used by both the log table and the plain-text report.
+- `SignalCard` is a dialog floating over the bottom-left of the score panels. It is `pointer-events-none` so it can never swallow a goal tap on the panel underneath. It renders no state of its own: which picture and for how long is the queue's answer, the same one the bar renders words from.
+
+#### Messages queue; they no longer overwrite each other
+
+The call-out and the signal used to be two independent transients, each keyed off current state, so **the newest event simply replaced whatever was on screen** — a call-out three seconds into its seven was gone unheard. `src/hooks/useAssistQueue.ts` (owned by `GameContext`, exposed through `AssistCtx`/`useAssist`) now holds one active message and a queue of at most 2 behind it; `src/state/assistOccurrence.ts` is the pure half that decides what is worth showing.
+
+- **One occurrence carries both halves.** `nextOccurrence` reads `state.assist` and `currentWhistle` _together_, so an assist and a whistle landing in the same update (the game-on blast and "Game on!") come out as a single item. Split in two they would queue against each other and the words would arrive four seconds after the sign. Whistle art still wins over the assist's own signal. The assist half is keyed `assist:nextLogId:ratioSignalId` — `nextLogId` so two goals in a row are two occurrences, `ratioSignalId` so re-tapping the ratio chip re-arms one.
+- **Only the tier preempts.** 2 = safety and game-state (injury, technical, SOTG, caps, game over), 1 = an infraction or open dispute (the six calls, travel, the resolutions) and every whistle, 0 = everything else. Higher tier takes the screen immediately and pushes what it interrupted back to the **front** of the queue rather than dropping it; same tier always waits its turn.
+- **`SUPERSEDES` is the one escape from queueing.** `nextRatio` replaces `goalScored` outright, because the ratio reveal is already held back 3 s by `GameContext` precisely so it lands while the goal sign is up — queueing it would undo a stagger that was deliberately timed. Nothing else belongs in that map without the same argument.
+- **`STILL_RELEVANT` is checked at dequeue, never mid-display.** A queued `call_*` whose `pendingCall` is gone is dropped silently — announcing a call that has already been resolved reads as a bug. Pulling words off the bar half-read would be worse than letting them finish, so an active message is never re-examined.
+- **None of this touches the clocks.** `pendingCall.elapsedSeconds`, the pull count, the two-minute stoppage rule and the whistle _audio_ all run off `TICK` in the reducer regardless of what is displayed. The visible consequence is that a queued call-out can briefly describe a moment the game has already left, which is why an occurrence freezes its own `vars`/`kindKey`/`halfSideKey` at build time instead of reading live state at render — the ambient `now_*` line, being about right now, still reads live state.
 
 Interpolation is `{name}` placeholders via `t(key, vars)`. Add a language by copying `es.ts`, registering it in `dicts`, and extending `detectLang` in `src/i18n/index.tsx`.
 

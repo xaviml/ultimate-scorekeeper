@@ -1,62 +1,13 @@
 import { useT } from '../i18n/useT';
-import { useTransientKey } from '../hooks/useTransientKey';
-import { useGame } from '../state/gameHooks';
-import { isUniversePoint, secondHalfPuller, secondHalfPullSide } from '../state/gameReducer';
+import { useAssist, useGame } from '../state/gameHooks';
+import {
+  assistVars,
+  halfSideKeyFor,
+  pendingKindKey,
+  type AssistVars,
+} from '../state/assistOccurrence';
+import { isUniversePoint } from '../state/gameReducer';
 import type { GameState } from '../state/types';
-
-/** A call-out sits on screen exactly as long as its hand signal does. */
-const SAY_MS = 7000;
-
-/**
- * Assist messages that are words to SHOUT, mapped to the verbatim line.
- *
- * These are transient: they show for SAY_MS and then give way to the ambient
- * status line. Anything not listed here has nothing to announce — a turnover, a
- * disc-in-play are bookkeeping, so they never take over the bar.
- */
-const SAY: Record<string, string> = {
-  startWarning: 'say_startSoon',
-  firstPull: 'say_gameOn',
-  secondHalfPull: 'say_secondHalf',
-  secondHalfNoSwap: 'say_secondHalf',
-  timeoutRestart: 'say_playRestart',
-  goalScored: 'say_score',
-  halfAt: 'say_halfAt',
-  gameAt: 'say_gameAt',
-  nextRatio: 'say_ratio',
-  undoDone: 'say_scoreCorrection',
-  resumed: 'say_discIn',
-  timeoutRunning: 'say_timeout',
-  timeoutOver: 'say_timeIn',
-  stoppageInjury: 'say_injury',
-  stoppageTechnical: 'say_technicalStoppage',
-  sotg: 'say_spirit',
-  goHalftime: 'say_halftime',
-  goWaterBreak: 'say_waterBreak',
-  waterBreakDue: 'say_waterBreakDue',
-  waterBreakOver: 'say_waterBreakOver',
-  capReached: 'say_timeCap',
-  capNoneFinishPoint: 'say_timeCapFinish',
-  capPending: 'say_timeCapPending',
-  halfCapReached: 'say_halfCap',
-  halfCapNone: 'say_halfCapNone',
-  halfCapPending: 'say_halfCapPending',
-  gameOver: 'say_gameOver',
-  universePoint: 'say_universePoint',
-  travel: 'say_travel',
-  // A call and its outcome are both shouted: the players around the disc know what
-  // was called, the rest of the field does not. `note` is the exception — a free-text
-  // note is written down only, so it is absent here and from the signal map.
-  call_foul: 'say_callFoul',
-  call_stallOut: 'say_callStallOut',
-  call_pick: 'say_callPick',
-  call_offside: 'say_callOffside',
-  call_discDown: 'say_callDiscDown',
-  call_generic: 'say_callGeneric',
-  resolution_accepted: 'say_resolutionAccepted',
-  resolution_contested: 'say_resolutionContested',
-  resolution_retracted: 'say_resolutionRetracted',
-};
 
 /**
  * The ambient "what is happening right now, and what do I do about it" line.
@@ -169,44 +120,6 @@ function statusKey(state: GameState): string {
   }
 }
 
-function assistVars(state: GameState) {
-  const a = state.config.teams.A;
-  const b = state.config.teams.B;
-  const gender = state.nextRatio ?? state.ratio ?? '';
-  return {
-    a: a.name,
-    b: b.name,
-    as: state.scores.A,
-    bs: state.scores.B,
-    // Whichever team the current message is about: the one with an unresolved call
-    // on the field, else the one that called the timeout, else whoever holds the
-    // disc, else the puller (the only one that matters between points, where
-    // possession is null). An open call outranks possession because that is what
-    // play has stopped for, and it is the only thing being talked about.
-    //
-    // A call logged without tracking activity (see trackPlayers) has no team and
-    // falls through: every message about such a call uses a NoTeam wording that
-    // never reads `team`, so there is no "No team" to print here.
-    team: state.pendingCall?.team
-      ? state.config.teams[state.pendingCall.team].name
-      : state.timeoutTeam !== null
-        ? state.config.teams[state.timeoutTeam].name
-        : state.possessionTeam !== null
-          ? state.config.teams[state.possessionTeam].name
-          : state.config.teams[state.pullingTeam].name,
-    // Strictly the game target. It used to fall back to halfCappedTarget, which would
-    // print the half's number in a message about the game.
-    n: state.cappedTarget ?? state.config.targetScore,
-    // And the half target, for the messages about the half.
-    halfN: state.halfCappedTarget ?? state.config.halfScore,
-    // Who pulls to open the second half — fixed by config alone (see
-    // secondHalfPuller), unlike `team` above which reads state.pullingTeam and
-    // during the half-time break itself still names whoever scored into it.
-    halfTeam: state.config.teams[secondHalfPuller(state)].name,
-    gender,
-  };
-}
-
 function SpeechIcon() {
   return (
     <svg
@@ -231,37 +144,40 @@ function SpeechIcon() {
  */
 export function AssistanceBar() {
   const state = useGame();
+  const occurrence = useAssist();
   const { t } = useT();
 
-  // A call logged without a team (Track game activity off) shouts the same words
-  // minus the attribution — "Foul!", not "Foul — No team!". Only the `call_*`
-  // entries have such a variant; the outcome call-outs never name a team.
-  const sayBase = SAY[state.assist];
-  const sayKey =
-    sayBase && state.assist.startsWith('call_') && !state.pendingCall?.team
-      ? `${sayBase}NoTeam`
-      : sayBase;
-  // Keyed on the assist plus the log counter so a repeat of the same event (two
-  // injuries, two goals with nothing between) still counts as a new call-out.
-  const fresh = useTransientKey(sayKey ? `${state.assist}:${state.nextLogId}` : null, SAY_MS);
-  const say = Boolean(sayKey) && fresh;
+  // The queue decides whether there are words to shout and whose turn it is; the
+  // ambient line is what shows the rest of the time.
+  //
+  // A call-out renders from the values frozen when it was queued — by the time it
+  // reaches the screen the call may be resolved or the score moved on, and it should
+  // still read as the announcement it was. The ambient line is about right now, so it
+  // reads live state instead.
+  const source: { key: string; vars: AssistVars; kindKey: string | null; halfSideKey: string } =
+    occurrence?.sayKey
+      ? {
+          key: occurrence.sayKey,
+          vars: occurrence.vars,
+          kindKey: occurrence.kindKey,
+          halfSideKey: occurrence.halfSideKey,
+        }
+      : {
+          key: statusKey(state),
+          vars: assistVars(state),
+          kindKey: pendingKindKey(state),
+          halfSideKey: halfSideKeyFor(state),
+        };
+  const say = Boolean(occurrence?.sayKey);
 
-  const vars = assistVars(state);
+  const vars = source.vars;
   const genderLabel =
     vars.gender === 'male' ? t('ratioMale') : vars.gender === 'female' ? t('ratioFemale') : '';
-  // What the open question is about, for the lines that name it. Translated here
-  // rather than in assistVars, which has no `t` — empty when nothing is open, where
-  // it goes unused. Stoppage first, matching the order statusKey resolves them in.
-  const kind = state.pendingStoppage
-    ? t(`stoppageKind_${state.pendingStoppage.kind}` as never)
-    : state.pendingCall
-      ? t(`callKind_${state.pendingCall.kind}` as never)
-      : '';
-  // Which physical end the second-half puller throws from — named alongside
-  // halfTeam in the half-time messages, same reasoning as `kind` above: translated
-  // here rather than in assistVars, which has no `t`.
-  const halfSide = t(secondHalfPullSide(state) === 'left' ? 'sideLeft' : 'sideRight');
-  const key = say ? sayKey : statusKey(state);
+  // What the open question is about, and which end the second-half pull comes from.
+  // Both arrive as i18n keys — assistOccurrence has no `t` — and are translated here.
+  const kind = source.kindKey ? t(source.kindKey as never) : '';
+  const halfSide = t(source.halfSideKey as never);
+  const key = source.key;
 
   return (
     <div

@@ -1,6 +1,7 @@
 import { useEffect, useReducer, useRef, type ReactNode } from 'react';
 import { createInitialState, gameReducer } from './gameReducer';
-import { DispatchCtx, StateCtx } from './gameHooks';
+import { AssistCtx, DispatchCtx, StateCtx } from './gameHooks';
+import { useAssistQueue } from '../hooks/useAssistQueue';
 import { whistle } from '../audio/whistle';
 import { currentWhistle } from './whistleSignal';
 import { loadPersistedState, persistState } from './persistence';
@@ -125,9 +126,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(id);
   }, [pendingRatio]);
 
+  // What the assistance bar and the signal card are showing. It lives here, with the
+  // other timer-driven behaviour, because it *is* a timer: messages take the screen in
+  // turn rather than overwriting each other. See useAssistQueue.
+  const assist = useAssistQueue(state);
+
   return (
     <StateCtx.Provider value={state}>
-      <DispatchCtx.Provider value={dispatch}>{children}</DispatchCtx.Provider>
+      <DispatchCtx.Provider value={dispatch}>
+        <AssistCtx.Provider value={assist}>{children}</AssistCtx.Provider>
+      </DispatchCtx.Provider>
     </StateCtx.Provider>
   );
 }

@@ -137,7 +137,15 @@ async function main() {
   await sleep(800);
   await panelA.click();
   await page.waitForSelector('text=Pull thrown');
-  await sleep(900);
+  // Messages queue rather than overwrite (see useAssistQueue), so the goal waits out
+  // the seven seconds of "Game on!" before it reaches the bar. A fixed beat here
+  // photographs the pull message instead of the score the figure is about — wait for
+  // the call-out itself, then let the goal signal settle beside it.
+  await page
+    .locator('div[aria-live=assertive]')
+    .filter({ hasText: `${TEAM_A} 1, ${TEAM_B} 0` })
+    .waitFor();
+  await sleep(400);
 
   await shot('play.png', { clip: dash });
   out.FIG_PLAY = [
