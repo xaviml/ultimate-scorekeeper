@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
+import { canWaterBreak } from '../state/gameReducer';
 import type { StoppageKind, TeamId } from '../state/types';
 import { Modal } from './Modal';
 import { PlayerSelectDialog } from './PlayerSelectDialog';
@@ -24,7 +25,11 @@ type Step = 'kind' | 'injuryPlayers' | 'technicalTeam' | 'sotgTeam';
  * two-minute rule auto-pauses it. They are grouped anyway because from the
  * volunteer's side the question is the same one, and the hint says which is which.
  *
- * All three are available for the whole game — between points, during a timeout or
+ * A hot-weather water break hangs off the bottom of the same dialog, set apart by a
+ * rule: it answers the same question the volunteer came here with, but it is a break
+ * rather than a stoppage — see startWaterBreak below.
+ *
+ * All three stoppages are available for the whole game — between points, during a timeout or
  * half-time, and over an open call — because on the field play has already stopped
  * by the time this dialog is open. Whatever was running (the pull clock, the
  * timeout, the break, the call's discussion timer) freezes and resumes from where
@@ -89,6 +94,19 @@ export function StoppageDialog({ onClose }: { onClose: () => void }) {
       return;
     }
     dispatch({ type: 'SOTG_TOGGLE' });
+    onClose();
+  };
+
+  // The fourth thing that halts play, and the odd one out: not a stoppage at all
+  // but a break the officials add in hot weather, so it has no attribution step,
+  // no resolution to answer and costs neither team a timeout. It shares this dialog
+  // because the volunteer's question is the same one — play is stopping, why? — but
+  // it sits apart from the three above, and it is the only one that is not available
+  // at any moment: WFDF puts hydration breaks in the transitions, so it is offered
+  // between points only (canWaterBreak) and greys out with the reason the rest of
+  // the time rather than vanishing.
+  const startWaterBreak = () => {
+    dispatch({ type: 'WATER_BREAK_START' });
     onClose();
   };
 
@@ -180,6 +198,10 @@ export function StoppageDialog({ onClose }: { onClose: () => void }) {
     );
   }
 
+  // Refused for a reason the volunteer is told, in the same words the action row
+  // uses for every other refusal, rather than the button quietly disappearing.
+  const waterBreak = canWaterBreak(state);
+
   return (
     <Modal title={t('stoppageDialogTitle')} onClose={onClose} size="sm">
       <p className="text-xs text-chalk/50">{t('stoppageDialogHint')}</p>
@@ -193,6 +215,18 @@ export function StoppageDialog({ onClose }: { onClose: () => void }) {
         <button className={secondaryButton} onClick={chooseSotg}>
           {t('btnSotg')}
         </button>
+      </div>
+      <div className="border-t border-line pt-3 space-y-2">
+        <button
+          className={`${secondaryButton} w-full`}
+          disabled={!waterBreak.ok}
+          onClick={startWaterBreak}
+        >
+          {t('btnWaterBreak')}
+        </button>
+        <p className="text-xs text-chalk/50">
+          {waterBreak.ok ? t('waterBreakHint') : t(`assist_blocked_${waterBreak.reason}` as never)}
+        </p>
       </div>
       <button className={`${secondaryButton} w-full`} onClick={onClose}>
         {t('btnCancel')}

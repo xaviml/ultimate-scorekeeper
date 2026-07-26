@@ -37,6 +37,10 @@ export const defaultConfig: GameConfig = {
     durationSeconds: 75,
     disallowLastFiveMinutes: false,
   },
+  // Off by default: hydration breaks only exist when the officials declare the
+  // hot-weather protocol. The numbers are the ones they most often declare (WFDF
+  // Appendix B4.3 in practice: 3 minutes, at 4 and at 12).
+  waterBreaks: { enabled: false, atScores: [4, 12], durationSeconds: 180 },
   startingTime: { enabled: false, time: '' },
   trackPlayers: false,
   players: { A: [], B: [] },
@@ -129,6 +133,7 @@ export function createInitialState(config: GameConfig = defaultConfig): GameStat
     halftimePlayed: false,
     halfAnnounced: false,
     gameAnnounced: false,
+    waterBreaksTaken: [],
     pendingCall: null,
     pendingStoppage: null,
     points: [],
@@ -156,6 +161,7 @@ export function canScore(state: GameState): { ok: boolean; reason?: string } {
   if (state.status === 'paused') return { ok: false, reason: 'gamePaused' };
   if (state.status === 'timeout') return { ok: false, reason: 'timeoutActive' };
   if (state.status === 'halftime') return { ok: false, reason: 'halftimeActive' };
+  if (state.status === 'waterBreak') return { ok: false, reason: 'waterBreakActive' };
   if (state.status === 'awaitingPull') return { ok: false, reason: 'pullNotThrown' };
   if (state.pendingCall !== null) return { ok: false, reason: 'callPending' };
   return { ok: true };
@@ -203,9 +209,9 @@ export function possessionTracked(state: GameState): boolean {
  * canStoppage.
  *
  * More permissive than canScore in one respect only: an SOTG pause doesn't block
- * it — a foul called as the teams line up is still a foul. But a timeout or
- * half-time is a break in play, not a pause mid-dispute, so recording waits for
- * the game to resume, same as scoring does.
+ * it — a foul called as the teams line up is still a foul. But a timeout, half-time
+ * or a water break is a break in play, not a pause mid-dispute, so recording waits
+ * for the game to resume, same as scoring does.
  *
  * `requiresPull` narrows this further to events that only make sense once the
  * disc is actually live: a travel, any of the six calls (off-side included —
@@ -229,6 +235,7 @@ export function canRecordEvent(
   if (!opts?.allowDuringBreaks) {
     if (state.status === 'timeout') return { ok: false, reason: 'timeoutActive' };
     if (state.status === 'halftime') return { ok: false, reason: 'halftimeActive' };
+    if (state.status === 'waterBreak') return { ok: false, reason: 'waterBreakActive' };
   }
   if (opts?.requiresPull && state.status === 'awaitingPull')
     return { ok: false, reason: 'pullNotThrown' };
@@ -270,10 +277,52 @@ export function canStoppage(state: GameState): { ok: boolean; reason?: string } 
   return { ok: true };
 }
 
+/**
+ * May a hydration break be called by hand right now (the water-break entry in the
+ * stoppage dialog)?
+ *
+ * WFDF puts these breaks in the transitions, never mid-point — so unlike a stoppage,
+ * which interrupts whatever is running because on the field it already has, this is
+ * only offered in the gap the teams are already standing in: after a goal and before
+ * the pull is thrown. That is also the only status the break can hand back to when it
+ * ends (see WATER_BREAK_END), which is what keeps it from having to remember a way
+ * back the way a timeout does.
+ *
+ * It stays open before the very first pull of a half — the teams are lining up there
+ * exactly as they are between points, and the break returns them to the same place.
+ */
+export function canWaterBreak(state: GameState): { ok: boolean; reason?: string } {
+  if (state.phase !== 'game' || state.status === 'notStarted' || state.status === 'awaitingStart')
+    return { ok: false, reason: 'gameNotStarted' };
+  if (state.status === 'finished') return { ok: false, reason: 'gameFinished' };
+  // A stoppage (or a stopped clock) has priority over everything else: a break
+  // started under one would be frozen by it anyway (see playHalted).
+  if (playHalted(state)) return { ok: false, reason: 'stoppageInProgress' };
+  if (state.status !== 'awaitingPull') return { ok: false, reason: 'waterBreakNotNow' };
+  return { ok: true };
+}
+
+/**
+ * The configured water-break scores that this game has now reached and not yet used
+ * — read against the LEADING score, since the protocol is announced as "a break when
+ * the first team reaches N". Empty whenever automatic breaks are switched off.
+ *
+ * Called from GOAL (does this goal trigger one?) and from WATER_BREAK_START (a break
+ * called by hand consumes whatever was already due, so the automatic one doesn't fire
+ * again on the next goal).
+ */
+function dueWaterBreaks(state: GameState): number[] {
+  const { enabled, atScores } = state.config.waterBreaks;
+  if (!enabled) return [];
+  const leader = Math.max(state.scores.A, state.scores.B);
+  return atScores.filter((n) => n > 0 && leader >= n && !state.waterBreaksTaken.includes(n));
+}
+
 export function canUndo(state: GameState, team: TeamId): { ok: boolean; reason?: string } {
   // Deliberately does not reuse canScore: a goal leaves the game in 'awaitingPull'
-  // until the next pull is thrown, in 'halftime' if it reached the half score, or in
-  // 'finished' if it reached the game's end — every one of those shouldn't block
+  // until the next pull is thrown, in 'halftime' if it reached the half score, in
+  // 'waterBreak' if it reached a hydration-break score, or in 'finished' if it
+  // reached the game's end — every one of those shouldn't block
   // undoing the goal that just put it there (each is only ever entered straight out
   // of a goal, so it's always that same goal). Every other non-live status still
   // blocks undo.
@@ -392,6 +441,7 @@ function snapshot(state: GameState): GoalSnapshot {
     cappedTarget: state.cappedTarget,
     halfCappedTarget: state.halfCappedTarget,
     halftimePlayed: state.halftimePlayed,
+    waterBreaksTaken: [...state.waterBreaksTaken],
     halfAnnounced: state.halfAnnounced,
     gameAnnounced: state.gameAnnounced,
   };
@@ -649,7 +699,14 @@ export function gameReducer(state: GameState, action: Action): GameState {
       // the target has still become known, which is what puts the chip on screen.
       const announceGame = !s.gameAnnounced && !capResolved && newScore === effectiveTarget(s) - 1;
 
-      const universePoint = !reachHalf && isUniversePoint(s);
+      // Hydration breaks (see dueWaterBreaks): resolved after the half, because
+      // half-time is the longer break and the two must never run back to back — a
+      // score that triggers both takes half-time and marks the water break as used
+      // (the `dueScores` below are consumed either way).
+      const dueScores = dueWaterBreaks(s);
+      const waterBreakDue = !reachHalf && dueScores.length > 0;
+
+      const universePoint = !reachHalf && !waterBreakDue && isUniversePoint(s);
 
       // Prepare next point: scorer pulls, other team receives.
       // Rule B is end-zone-decided, so there is nothing for the scorekeeper to compute.
@@ -662,17 +719,19 @@ export function gameReducer(state: GameState, action: Action): GameState {
       // for the one-time "half at N" call-out.
       const goalAssist = reachHalf
         ? 'goHalftime'
-        : universePoint
-          ? 'universePoint'
-          : capResolved
-            ? 'capReached'
-            : halfCapResolved
-              ? 'halfCapReached'
-              : announceGame
-                ? 'gameAt'
-                : announceHalf
-                  ? 'halfAt'
-                  : 'goalScored';
+        : waterBreakDue
+          ? 'goWaterBreak'
+          : universePoint
+            ? 'universePoint'
+            : capResolved
+              ? 'capReached'
+              : halfCapResolved
+                ? 'halfCapReached'
+                : announceGame
+                  ? 'gameAt'
+                  : announceHalf
+                    ? 'halfAt'
+                    : 'goalScored';
       // With player tracking on, the scorer/assist picker is about to pop up over
       // this same goal — hold the sign/message back so it doesn't fight the dialog
       // for the volunteer's attention, and release it (REVEAL_GOAL_ASSIST) once the
@@ -693,7 +752,27 @@ export function gameReducer(state: GameState, action: Action): GameState {
         pendingGoalAssist: trackingPlayers ? goalAssist : null,
         halfAnnounced: s.halfAnnounced || announceHalf || halfCapResolved,
         gameAnnounced: s.gameAnnounced || announceGame || capResolved,
+        // Consumed whichever break actually happens: half-time swallows a water
+        // break due on the same goal, and a score can only ever come due once.
+        waterBreaksTaken: dueScores.length
+          ? [...s.waterBreaksTaken, ...dueScores]
+          : s.waterBreaksTaken,
       };
+      if (waterBreakDue) {
+        s = log(s, 'waterBreakStart');
+        s = {
+          ...s,
+          status: 'waterBreak',
+          // Counts UP and stops at nothing: reaching `total` only turns the clock
+          // amber and hands the volunteer the words — the teams come back when they
+          // come back, and WATER_BREAK_END is the only way out (see canWaterBreak).
+          secondary: {
+            kind: 'waterBreak',
+            seconds: 0,
+            total: s.config.waterBreaks.durationSeconds,
+          },
+        };
+      }
       if (reachHalf) {
         s = log(s, 'halftimeStart');
         s = {
@@ -713,14 +792,17 @@ export function gameReducer(state: GameState, action: Action): GameState {
     case 'UNDO_GOAL': {
       if (!canUndo(state, action.team).ok) return state;
       const prev = state.history[state.history.length - 1];
-      // A goal that reaches the half appends a 'halftimeStart' entry, and one that
-      // finishes the game appends a 'gameEnd' entry, right after its own 'goal' entry
-      // — both are automatic side effects of the goal, not something the scorekeeper
-      // separately recorded, so neither counts as "something logged in between" and
-      // both are dropped along with the goal. A goal can trigger at most one of the two.
+      // A goal that reaches the half appends a 'halftimeStart' entry, one that reaches
+      // a hydration-break score appends a 'waterBreakStart', and one that finishes the
+      // game appends a 'gameEnd' — all three are automatic side effects of the goal,
+      // not something the scorekeeper separately recorded, so none of them counts as
+      // "something logged in between" and each is dropped along with the goal. A goal
+      // can trigger at most one of the three.
+      const trailingAuto = state.log[state.log.length - 1]?.type;
       const trailingAutoEntry =
-        state.log[state.log.length - 1]?.type === 'halftimeStart' ||
-        state.log[state.log.length - 1]?.type === 'gameEnd';
+        trailingAuto === 'halftimeStart' ||
+        trailingAuto === 'waterBreakStart' ||
+        trailingAuto === 'gameEnd';
       const goalLogIdx = trailingAutoEntry ? state.log.length - 2 : state.log.length - 1;
       const goalLog = state.log[goalLogIdx];
       // If nothing else has been recorded since the goal itself, this undo is just the
@@ -752,6 +834,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         cappedTarget: prev.cappedTarget,
         halfCappedTarget: prev.halfCappedTarget,
         halftimePlayed: prev.halftimePlayed,
+        waterBreaksTaken: prev.waterBreaksTaken,
         halfAnnounced: prev.halfAnnounced,
         gameAnnounced: prev.gameAnnounced,
         status: prev.status,
@@ -1040,6 +1123,42 @@ export function gameReducer(state: GameState, action: Action): GameState {
       };
     }
 
+    case 'WATER_BREAK_START': {
+      // Manual, from the stoppage dialog. Only between points — see canWaterBreak.
+      if (!canWaterBreak(state).ok) return state;
+      // Anything the automatic protocol already had due is spent by this break:
+      // without that, calling one by hand at 4-3 would be followed by the app
+      // calling its own at the very next goal.
+      const dueScores = dueWaterBreaks(state);
+      const s = log(state, 'waterBreakStart');
+      return {
+        ...s,
+        status: 'waterBreak',
+        waterBreaksTaken: dueScores.length
+          ? [...s.waterBreaksTaken, ...dueScores]
+          : s.waterBreaksTaken,
+        secondary: { kind: 'waterBreak', seconds: 0, total: s.config.waterBreaks.durationSeconds },
+        assist: 'goWaterBreak',
+      };
+    }
+
+    case 'WATER_BREAK_END': {
+      if (state.status !== 'waterBreak') return state;
+      // Same as TIMEOUT_END/HALFTIME_END: the break clock is frozen under a stoppage,
+      // so play can't be sent back to the line until that stoppage is resolved.
+      if (state.pendingStoppage !== null) return state;
+      const s = log(state, 'waterBreakEnd');
+      // A break only ever starts between points and hands back to the same place,
+      // with the pull clock restarted at 0 so the standard 45/60/75 sequence runs
+      // fresh — exactly what a before-pull timeout does when it ends.
+      return {
+        ...s,
+        status: 'awaitingPull',
+        secondary: { kind: 'pull', seconds: 0, total: 75 },
+        assist: 'waterBreakOver',
+      };
+    }
+
     case 'TICK': {
       if (state.phase !== 'game') return state;
       let s = state;
@@ -1061,8 +1180,9 @@ export function gameReducer(state: GameState, action: Action): GameState {
         s = beginPlay(s);
       }
       // Game clock only stops for a pause (status 'paused') — manual, SOTG, or
-      // auto-triggered by a prolonged stoppage below; halftime and timeouts don't
-      // stop it. 'finished' doesn't stop it either: the screen shows it frozen (see
+      // auto-triggered by a prolonged stoppage below; halftime, timeouts and water
+      // breaks don't stop it. 'finished' doesn't stop it either: the screen shows it
+      // frozen (see
       // GameScreen) but it keeps advancing underneath so that undoing the goal that
       // finished the game (see canUndo) resumes from the time that would have
       // elapsed, not from a clock that lost however long the review took.
@@ -1071,6 +1191,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         s.status === 'awaitingPull' ||
         s.status === 'timeout' ||
         s.status === 'halftime' ||
+        s.status === 'waterBreak' ||
         s.status === 'finished';
       if (clockRuns) {
         s = { ...s, gameSeconds: s.gameSeconds + 1 };
@@ -1140,11 +1261,22 @@ export function gameReducer(state: GameState, action: Action): GameState {
           pendingCall: { ...s.pendingCall, elapsedSeconds: s.pendingCall.elapsedSeconds + 1 },
         };
       }
-      // Secondary timer — the pull countdown, a timeout, the half-time break.
+      // Secondary timer — the pull countdown, a timeout, the half-time break, a
+      // water break.
       if (s.secondary && !halted) {
         const sec = s.secondary;
         if (sec.kind === 'pull' && s.status === 'awaitingPull') {
           s = { ...s, secondary: { ...sec, seconds: sec.seconds + 1 } };
+        } else if (sec.kind === 'waterBreak' && s.status === 'waterBreak') {
+          // Counts up and keeps going past the configured duration: the break ends
+          // when the volunteer says it does, not when the clock says so. Crossing
+          // the duration is announced once — that is the whole event, and the
+          // display turns amber off the same comparison.
+          const next = sec.seconds + 1;
+          s = { ...s, secondary: { ...sec, seconds: next } };
+          if (sec.total !== null && sec.seconds < sec.total && next >= sec.total) {
+            s = { ...s, assist: 'waterBreakDue' };
+          }
         } else if (
           (sec.kind === 'timeout' && s.status === 'timeout') ||
           (sec.kind === 'halftime' && s.status === 'halftime')

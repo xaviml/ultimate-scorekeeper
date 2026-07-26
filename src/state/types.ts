@@ -21,6 +21,24 @@ export interface TimeoutConfig {
 }
 
 /**
+ * Hot-weather hydration breaks (WFDF Appendix B4.3): extra stops *between points*
+ * that the tournament officials add when the heat is a health risk, and which
+ * deliberately do NOT come out of either team's timeouts.
+ *
+ * `enabled` only governs the automatic ones — the breaks the officials announce
+ * before the game ("a break when the first team reaches 4, and again at 12"),
+ * which the reducer fires off `atScores` so the volunteer never has to remember
+ * them. A break called on the spot is always available from the stoppage dialog,
+ * whatever this says (see canWaterBreak).
+ */
+export interface WaterBreakConfig {
+  enabled: boolean; // automatic breaks at `atScores`; manual ones work regardless
+  /** Scores that trigger a break, read against the *leading* score — "when the first team reaches N". Each fires at most once. */
+  atScores: number[];
+  durationSeconds: number; // break duration, in seconds like every other break
+}
+
+/**
  * Optional scheduled kickoff. When enabled, START_GAME does not open the pull
  * immediately — it waits (status 'awaitingStart') until `time` (today, "HH:MM",
  * local) actually arrives, or until the volunteer taps "Start game" early
@@ -66,6 +84,7 @@ export interface GameConfig {
   endCap: EndCapRule;
   halfCap: HalfCapRule;
   timeouts: TimeoutConfig;
+  waterBreaks: WaterBreakConfig;
   startingTime: StartingTimeConfig;
   /**
    * The "Track game activity" stats toggle. When true: the Roster and Turn action-row
@@ -108,6 +127,7 @@ export type GameStatus =
   | 'paused' // clock manually stopped — an SOTG stoppage, or a generic pause via the clock button
   | 'timeout' // team timeout running
   | 'halftime'
+  | 'waterBreak' // hydration break between points — never ends on its own, see WATER_BREAK_END
   | 'finished';
 
 /**
@@ -150,6 +170,8 @@ export type LogType =
   | 'pauseEnd'
   | 'halftimeStart'
   | 'halftimeEnd'
+  | 'waterBreakStart'
+  | 'waterBreakEnd'
   | 'timeCap'
   | 'halfTimeCap'
   | 'gameEnd';
@@ -262,6 +284,7 @@ export interface GoalSnapshot {
   halftimePlayed: boolean;
   halfAnnounced: boolean;
   gameAnnounced: boolean;
+  waterBreaksTaken: number[];
 }
 
 export interface GameState {
@@ -307,7 +330,13 @@ export interface GameState {
   startingAtMs: number | null;
   pointStartSeconds: number | null; // gameSeconds when the current pull was thrown
   secondary: {
-    kind: 'pull' | 'timeout' | 'halftime';
+    /**
+     * 'pull' and 'waterBreak' count UP (0 → total), 'timeout' and 'halftime' count
+     * DOWN to 0. The two that count down auto-resume when they hit 0 (GameContext);
+     * a water break never does — reaching `total` only turns the clock amber and
+     * says so, and the volunteer ends it when the teams are actually back.
+     */
+    kind: 'pull' | 'timeout' | 'halftime' | 'waterBreak';
     seconds: number;
     total: number | null;
     /**
@@ -339,6 +368,15 @@ export interface GameState {
   halfAnnounced: boolean;
   /** The same, for the game target — see `halfAnnounced`. */
   gameAnnounced: boolean;
+  /**
+   * Configured water-break scores (see WaterBreakConfig.atScores) that have already
+   * been used up, so each fires at most once. A manual break consumes every score
+   * the game has already reached too — otherwise the automatic one would fire again
+   * on the very next goal, right after the teams came back from drinking.
+   *
+   * Restored by UNDO_GOAL from the GoalSnapshot, like every other goal-driven field.
+   */
+  waterBreaksTaken: number[];
   /** Open call awaiting an accepted/contested/retracted answer, or null. */
   pendingCall: PendingCall | null;
   /** Open stoppage awaiting resolution, or null. */
@@ -398,6 +436,9 @@ export type Action =
    */
   | { type: 'SOTG_TOGGLE'; silent?: boolean; team?: TeamId }
   | { type: 'HALFTIME_END' }
+  /** Manual hydration break, from the stoppage dialog — only between points (see canWaterBreak). */
+  | { type: 'WATER_BREAK_START' }
+  | { type: 'WATER_BREAK_END' }
   | { type: 'TICK' } // 1 s of real time while clocks run
   | { type: 'END_GAME' }
   /** "Open report" tap once the game has finished: the only way from 'finished' to phase 'report'. */

@@ -146,6 +146,38 @@ describe('dialogs render through the shared Modal', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('StoppageDialog offers a water break between points', () => {
+    const state = createInitialState();
+    state.phase = 'game';
+    state.status = 'awaitingPull';
+    sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
+
+    const onClose = vi.fn();
+    renderWithProviders(<StoppageDialog onClose={onClose} />);
+    const button = screen.getByRole('button', { name: 'Water break' });
+    expect(button).toBeEnabled();
+
+    fireEvent.click(button);
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    const stored = JSON.parse(sessionStorage.getItem('ultimate-scorekeeper:game-state')!);
+    expect(stored.status).toBe('waterBreak');
+  });
+
+  it('StoppageDialog greys the water break out mid-point, and says why', () => {
+    const state = createInitialState();
+    state.phase = 'game';
+    state.status = 'live';
+    sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
+
+    renderWithProviders(<StoppageDialog onClose={noop} />);
+
+    expect(screen.getByRole('button', { name: 'Water break' })).toBeDisabled();
+    expect(screen.getByText(/only be called between points/i)).toBeInTheDocument();
+    // The three stoppages themselves stay available — they interrupt anything.
+    expect(screen.getByText('Injury')).toBeInTheDocument();
+  });
+
   it('StoppageDialog shows the player picker after choosing Injury when tracking players', () => {
     const state = createInitialState();
     state.config.trackPlayers = true;

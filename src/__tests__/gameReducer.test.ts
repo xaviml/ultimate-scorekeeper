@@ -6,6 +6,7 @@ import {
   canTurnover,
   canUndo,
   canUndoTurnover,
+  canWaterBreak,
   createInitialState,
   defaultConfig,
   gameReducer,
@@ -1748,5 +1749,195 @@ describe('scheduled kickoff', () => {
   it('ignores a "Start game" tap once the game is already under way', () => {
     const s = live();
     expect(gameReducer(s, { type: 'BEGIN_PLAY' })).toBe(s);
+  });
+});
+
+describe('water breaks', () => {
+  const hot = (patch: Partial<GameConfig['waterBreaks']> = {}) =>
+    cfg({ waterBreaks: { enabled: true, atScores: [4, 12], durationSeconds: 180, ...patch } });
+
+  /** Plays `n` goals for A, each one point long (pull, goal, next pull, ...). */
+  function goalsForA(state: GameState, n: number): GameState {
+    let s = state;
+    for (let i = 0; i < n; i++) {
+      if (s.status === 'awaitingPull') s = gameReducer(s, { type: 'PULL_THROWN' });
+      s = gameReducer(s, { type: 'GOAL', team: 'A' });
+    }
+    return s;
+  }
+
+  it('calls one automatically when the first team reaches a configured score', () => {
+    const s = goalsForA(started(hot()), 4);
+
+    expect(s.scores.A).toBe(4);
+    expect(s.status).toBe('waterBreak');
+    expect(s.secondary).toEqual({ kind: 'waterBreak', seconds: 0, total: 180 });
+    expect(s.waterBreaksTaken).toEqual([4]);
+    expect(s.assist).toBe('goWaterBreak');
+    expect(s.log[s.log.length - 1].type).toBe('waterBreakStart');
+  });
+
+  it('never calls the same one twice, whichever team gets there first', () => {
+    let s = goalsForA(started(hot()), 4);
+    s = gameReducer(s, { type: 'WATER_BREAK_END' });
+
+    // B catches up to 4 — the score is reached again, the break is not.
+    s = gameReducer(s, { type: 'PULL_THROWN' });
+    s = gameReducer(s, { type: 'GOAL', team: 'B' });
+    expect(s.status).toBe('awaitingPull');
+    expect(s.waterBreaksTaken).toEqual([4]);
+  });
+
+  it('leaves the game alone when automatic breaks are switched off', () => {
+    const s = goalsForA(started(cfg()), 4);
+    expect(s.status).toBe('awaitingPull');
+    expect(s.waterBreaksTaken).toEqual([]);
+  });
+
+  it('gives way to half-time, and spends the score doing it', () => {
+    // Half at 4 and a break at 4: the longer break wins and the water break is
+    // marked used, so it can never fire on the way back from half-time.
+    const s = goalsForA(started(cfg({ ...hot(), halfScore: 4 })), 4);
+
+    expect(s.status).toBe('halftime');
+    expect(s.waterBreaksTaken).toEqual([4]);
+    expect(s.assist).toBe('goHalftime');
+  });
+
+  it('never interrupts the game that goal just finished', () => {
+    // Game to 4 and a break at 4: the goal that reaches the target ends the game,
+    // and the break never gets a look in.
+    const s = goalsForA(started(cfg({ ...hot(), targetScore: 4, halfScore: 4 })), 4);
+    expect(s.status).toBe('finished');
+    expect(s.log.some((e) => e.type === 'waterBreakStart')).toBe(false);
+  });
+
+  it('counts up, keeps going past the duration, and announces the crossing once', () => {
+    let s = goalsForA(started(hot({ durationSeconds: 20 })), 4);
+
+    s = ticks(s, 19);
+    expect(s.secondary?.seconds).toBe(19);
+    expect(s.assist).toBe('goWaterBreak');
+
+    s = ticks(s, 1);
+    expect(s.secondary?.seconds).toBe(20);
+    expect(s.assist).toBe('waterBreakDue');
+
+    // Still running afterwards — nothing ends it but the volunteer — and the
+    // crossing is not re-announced.
+    s = { ...s, assist: 'goalScored' };
+    s = ticks(s, 5);
+    expect(s.status).toBe('waterBreak');
+    expect(s.secondary?.seconds).toBe(25);
+    expect(s.assist).toBe('goalScored');
+  });
+
+  it('keeps the game clock running, and freezes the break clock under a stoppage', () => {
+    let s = goalsForA(started(hot()), 4);
+    const clockAtBreak = s.gameSeconds;
+
+    s = ticks(s, 5);
+    expect(s.gameSeconds).toBe(clockAtBreak + 5);
+    expect(s.secondary?.seconds).toBe(5);
+
+    s = gameReducer(s, { type: 'STOPPAGE', kind: 'injury' });
+    s = ticks(s, 10);
+    expect(s.secondary?.seconds).toBe(5); // frozen where it was
+    expect(s.gameSeconds).toBe(clockAtBreak + 15); // the game clock is not
+
+    // And the break can't be ended out from under the open stoppage.
+    expect(gameReducer(s, { type: 'WATER_BREAK_END' }).status).toBe('waterBreak');
+
+    s = gameReducer(s, { type: 'STOPPAGE_RESOLVED' });
+    s = ticks(s, 2);
+    expect(s.secondary?.seconds).toBe(7); // picks up from exactly where it stopped
+  });
+
+  it('hands back to the pull with the pull clock restarted', () => {
+    let s = goalsForA(started(hot()), 4);
+    const puller = s.pullingTeam;
+    s = ticks(s, 200);
+    s = gameReducer(s, { type: 'WATER_BREAK_END' });
+
+    expect(s.status).toBe('awaitingPull');
+    expect(s.secondary).toEqual({ kind: 'pull', seconds: 0, total: 75 });
+    expect(s.pullingTeam).toBe(puller); // a break is not a point: nothing about it moves on
+    expect(s.assist).toBe('waterBreakOver');
+    expect(s.log[s.log.length - 1].type).toBe('waterBreakEnd');
+  });
+
+  it('locks the score and blocks recorded events while it runs, but not a stoppage', () => {
+    const s = goalsForA(started(hot()), 4);
+
+    expect(canScore(s)).toEqual({ ok: false, reason: 'waterBreakActive' });
+    expect(gameReducer(s, { type: 'GOAL', team: 'A' }).scores.A).toBe(4);
+    expect(canRecordEvent(s)).toEqual({ ok: false, reason: 'waterBreakActive' });
+    // A note is written from the log dialog, which stays open through any break.
+    expect(canRecordEvent(s, { allowDuringBreaks: true }).ok).toBe(true);
+    expect(canStoppage(s).ok).toBe(true);
+    expect(timeoutAvailability(s, 'A')).toEqual({ ok: false, reason: 'timeoutNotNow' });
+  });
+
+  it('undoes the goal that triggered it, break and log entry included', () => {
+    let s = goalsForA(started(hot()), 4);
+    expect(s.status).toBe('waterBreak');
+
+    s = gameReducer(s, { type: 'UNDO_GOAL', team: 'A' });
+
+    expect(s.scores.A).toBe(3);
+    expect(s.status).toBe('live'); // back into the point that goal ended
+    expect(s.waterBreaksTaken).toEqual([]); // and the break is due again
+    expect(s.log.some((e) => e.type === 'waterBreakStart')).toBe(false);
+    expect(s.log.some((e) => e.type === 'goal' && e.detail?.startsWith('4-'))).toBe(false);
+  });
+
+  it('can be called by hand between points, and only there', () => {
+    const s = live(cfg());
+
+    expect(canWaterBreak(s)).toEqual({ ok: false, reason: 'waterBreakNotNow' });
+    expect(gameReducer(s, { type: 'WATER_BREAK_START' })).toBe(s);
+
+    const between = gameReducer(s, { type: 'GOAL', team: 'A' });
+    expect(canWaterBreak(between).ok).toBe(true);
+    const onBreak = gameReducer(between, { type: 'WATER_BREAK_START' });
+    expect(onBreak.status).toBe('waterBreak');
+    expect(onBreak.secondary).toEqual({ kind: 'waterBreak', seconds: 0, total: 180 });
+  });
+
+  it('is refused by hand before the game starts, once it is over, and under a stoppage', () => {
+    expect(canWaterBreak(createInitialState(cfg()))).toEqual({
+      ok: false,
+      reason: 'gameNotStarted',
+    });
+
+    const halted = gameReducer(gameReducer(live(), { type: 'GOAL', team: 'A' }), {
+      type: 'STOPPAGE',
+      kind: 'injury',
+    });
+    expect(canWaterBreak(halted)).toEqual({ ok: false, reason: 'stoppageInProgress' });
+
+    const finished = gameReducer(live(cfg({ targetScore: 1, halfScore: 1 })), {
+      type: 'GOAL',
+      team: 'A',
+    });
+    expect(finished.status).toBe('finished');
+    expect(canWaterBreak(finished)).toEqual({ ok: false, reason: 'gameFinished' });
+  });
+
+  it('spends the scores already due when one is called by hand', () => {
+    // 4 is due but the volunteer calls the break themselves first: the automatic
+    // one must not fire again on the very next goal.
+    let s = goalsForA(started(hot({ atScores: [4] })), 3);
+    s = gameReducer(s, { type: 'WATER_BREAK_START' });
+    expect(s.waterBreaksTaken).toEqual([]); // 4 not reached yet, nothing spent
+
+    s = gameReducer(s, { type: 'WATER_BREAK_END' });
+    s = goalsForA(s, 1);
+    expect(s.scores.A).toBe(4);
+    expect(s.status).toBe('waterBreak'); // the automatic one, as configured
+
+    s = gameReducer(s, { type: 'WATER_BREAK_END' });
+    s = gameReducer(s, { type: 'WATER_BREAK_START' });
+    expect(s.waterBreaksTaken).toEqual([4]); // already spent, not spent twice
   });
 });

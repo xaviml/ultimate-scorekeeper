@@ -70,6 +70,12 @@ export const es: typeof en = {
   timeoutsScopeGame: 'Por partido',
   timeoutDuration: 'Duración del tiempo muerto (segundos)',
   timeoutLastFive: 'Prohibir tiempos muertos en los últimos 5 minutos del partido',
+  waterBreakTitle: 'Pausas de hidratación',
+  waterBreakHelp:
+    'Pausas de hidratación por calor (Apéndice B4.3 de la WFDF): paradas adicionales entre puntos que deciden los oficiales del torneo. Nunca consumen los tiempos muertos de ningún equipo. También puedes pedir una a mano durante el partido, con el botón de la mano levantada.',
+  waterBreakEnabled: 'Pedir las pausas automáticamente',
+  waterBreakScores: 'Cuando el primer equipo llegue a',
+  waterBreakDuration: 'Duración de la pausa (segundos)',
   startGame: 'Empezar partido',
   teamsRequired: 'Introduce o selecciona ambos equipos para empezar',
   duplicateTeamNames: 'Los nombres de los equipos deben ser diferentes',
@@ -146,6 +152,7 @@ export const es: typeof en = {
   pullTimer: 'Tiempo de pull',
   timeoutTimer: 'Tiempo muerto',
   halftimeTimer: 'Half',
+  waterBreakTimer: 'Hidratación',
   pauseLabel: 'Pausado',
   pullThrown: 'Pull lanzado',
   openReport: 'Abrir informe',
@@ -161,6 +168,10 @@ export const es: typeof en = {
   btnStoppageSotg: 'Parada o SOTG',
   btnSotg: 'SOTG',
   btnEndHalftime: 'Fin del descanso',
+  btnEndWaterBreak: 'Fin de la pausa',
+  btnWaterBreak: 'Pausa de hidratación',
+  waterBreakHint:
+    'Una pausa para beber entre puntos. No gasta el tiempo muerto de ningún equipo y dura hasta que tú la termines.',
   btnSettings: 'Ajustes',
   btnLog: 'Registro',
 
@@ -267,6 +278,9 @@ export const es: typeof en = {
   say_technicalStoppage: '«¡Parada de juego!»',
   say_spirit: '«¡Parada de espíritu!»',
   say_halftime: '«¡Half! Pull de {halfTeam} desde la {halfSide}!»',
+  say_waterBreak: '«{a} {as}, {b} {bs} — ¡pausa de hidratación!»',
+  say_waterBreakDue: '«¡Se acabó la pausa — los dos equipos a la línea!»',
+  say_waterBreakOver: '«¡Tiempo dentro — el reloj del pull vuelve a empezar!»',
   say_timeCap: '«¡Time cap — partido a {n}!»',
   say_timeCapFinish: '«¡Tiempo! Terminen este punto — el partido acaba después.»',
   say_timeCapPending: '«¡Time cap — terminen este punto!»',
@@ -308,6 +322,10 @@ export const es: typeof en = {
     'Descanso — pull de {halfTeam} desde la {halfSide} para empezar la segunda parte. Se reanuda solo cuando termine el tiempo, o pulsa «Fin del descanso» si ambos equipos están listos antes.',
   now_halftimeWarn:
     'Un minuto para la segunda parte — pull de {halfTeam} desde la {halfSide}. Un silbato — los equipos deberían ir preparándose.',
+  now_waterBreak:
+    'Pausa de hidratación — los jugadores están bebiendo y el reloj del partido sigue corriendo. Pulsa «Fin de la pausa» cuando los dos equipos estén en la línea; la app te avisa cuando se cumple el tiempo.',
+  now_waterBreakDue:
+    'Se ha cumplido el tiempo de la pausa — manda a los dos equipos a la línea y pulsa «Fin de la pausa».',
   now_stoppagePending:
     'Parada por {kind}. El reloj del pull, del tiempo muerto y de la llamada están en espera — pulsa «El juego puede continuar» encima del reloj en cuanto el juego pueda seguir.',
   now_callPending:
@@ -337,6 +355,9 @@ export const es: typeof en = {
   assist_blocked_gamePaused: 'Marcador bloqueado mientras el juego está pausado.',
   assist_blocked_timeoutActive: 'No disponible durante un tiempo muerto.',
   assist_blocked_halftimeActive: 'No disponible durante el half.',
+  assist_blocked_waterBreakActive: 'No disponible durante una pausa de hidratación.',
+  assist_blocked_waterBreakNotNow:
+    'Una pausa de hidratación solo se puede pedir entre puntos: después de un gol y antes de que se lance el pull.',
   assist_blocked_minScoreZero: 'El marcador no puede bajar de 0.',
   assist_blocked_notLastScorer: 'Solo se puede deshacer el último gol (mantén pulsado ese equipo).',
   assist_blocked_gameFinished: 'El partido ha terminado.',
@@ -389,6 +410,8 @@ export const es: typeof en = {
   event_pauseEnd: 'Partido reanudado',
   event_halftimeStart: 'Half',
   event_halftimeEnd: 'Inicio de la segunda parte',
+  event_waterBreakStart: 'Pausa de hidratación',
+  event_waterBreakEnd: 'Fin de la pausa de hidratación',
   event_timeCap: 'CAP de tiempo alcanzado',
   event_halfTimeCap: 'CAP de half alcanzado',
   event_gameEnd: 'Fin del partido',
@@ -456,6 +479,9 @@ export const es: typeof en = {
   guideStep3Half: 'Half',
   guideStep3HalfBody:
     'Las mismas tres cosas para la primera parte: el marcador que activa el half, su propio límite de tiempo y su propio CAP, además de cuánto dura el descanso.',
+  guideStep3Water: 'Pausas de hidratación',
+  guideStep3WaterBody:
+    'Solo para días de calor, y desactivadas salvo que el torneo diga lo contrario. Cuando los oficiales activan el protocolo de calor suelen anunciar pausas a marcadores fijos: «una cuando el primer equipo llegue a 4, y otra a 12». Marca la casilla, escribe esos marcadores y la app parará el partido por ti en cada uno. No gastan el tiempo muerto de ningún equipo.',
   guideStep3Timeouts: 'Tiempos muertos',
   guideStep3TimeoutsBody:
     'Cuántos puede pedir cada equipo y cuánto duran. Desmarca "Permitir tiempos muertos" si en este torneo no hay, y los botones desaparecen del panel.',
@@ -509,7 +535,7 @@ export const es: typeof en = {
 
   guideSignalsTitle: 'Cuándo pita la app',
   guideSignalsIntro:
-    'El silbato es como mantienes a los jugadores al tanto del tiempo. La app pita por ti — y muestra la tarjeta de silbato en ese mismo momento — exactamente en estas cinco situaciones, y en ninguna más. Pita tú también para acompañar, con el número de pitidos que te indica.',
+    'El silbato es como mantienes a los jugadores al tanto del tiempo. La app pita por ti — y muestra la tarjeta de silbato en ese mismo momento — exactamente en estas situaciones, y en ninguna más. Pita tú también para acompañar, con el número de pitidos que te indica.',
   guideSignalHalf: 'El inicio de una parte',
   guideSignalHalfBody:
     'Un pitido en el instante en que empieza una parte — el primer pull del partido y el inicio de la segunda parte. Como aviso, también pitas una vez un minuto antes, pero solo cuando hay una espera de la que avisar: una hora de inicio programada o un descanso de dos minutos o más.',
@@ -519,6 +545,9 @@ export const es: typeof en = {
   guideSignalTimeout: 'El final de un tiempo muerto',
   guideSignalTimeoutBody:
     'Solo si los tiempos muertos se activaron en la configuración — ahí también se fija cuántos tiene cada equipo y lo que dura uno, así que un tiempo muerto puede ser más largo o más corto que el valor por defecto de la app. Un tiempo muerto pedido antes del pull: un pitido en el momento en que termina, y luego arranca de cero la cuenta normal de 45/60/75. Un tiempo muerto pedido después del pull, con el disco ya en juego, vuelve al juego con una cuenta atrás al final: un pitido 30 segundos antes de que el ataque deba estar listo, dos a los 15 y tres cuando el disco entra en juego.',
+  guideSignalWater: 'El final de una pausa de hidratación',
+  guideSignalWaterBody:
+    'Un silbato en cuanto terminas una pausa de hidratación, para llamar a los dos equipos a la línea; después empieza de cero la cuenta normal del pull de 45/60/75. Que se cumpla el tiempo de la pausa no se pita: eso es un aviso para ti, no para ellos.',
   guideSignalCall: 'Una jugada que se alarga',
   guideSignalCallBody:
     'Cuando una falta, un pick, un travel, un stall, un fuera de juego, un disco caído o una jugada genérica — o una lesión o parada técnica — sigue sin resolverse a los 45 segundos: tres pitidos, y tres más a los 60 segundos. Después nada — la app sigue contando la espera, pero deja de pitar.',
@@ -541,6 +570,9 @@ export const es: typeof en = {
   guideStep8Half: 'Half',
   guideStep8HalfBody:
     'La aplicación canta el half sola en cuanto un equipo llega al marcador del half, y nunca en mitad de un punto. El descanso es una cuenta atrás; pulsa "Fin del descanso" si los dos equipos están listos antes. Después los equipos cambian de lado y la aplicación te lo dice.',
+  guideStep8Water: 'Pausa de hidratación',
+  guideStep8WaterBody:
+    'Cuando hace calor, los oficiales añaden pausas para que los jugadores beban. Si se configuraron en el paso 1, la app las pide sola, en los marcadores acordados, justo después de un gol. También puedes pedir una en cualquier momento entre puntos: pulsa la mano levantada y elige «Pausa de hidratación». Esta no termina sola: el reloj cuenta hacia arriba, se pone ámbar cuando se cumple el tiempo acordado y la barra te dice que mandes a los dos equipos a la línea. Pulsa «Fin de la pausa» cuando estén.',
   guideStep8Cap: 'CAP',
   guideStep8CapBody:
     'Cuando se llega al límite de tiempo la aplicación pita, pero el objetivo aún no se fija: el punto que se está jugando termina primero, exactamente como si no hubiera CAP. Solo entonces calcula el objetivo nuevo a partir de ese marcador ya terminado, lo muestra en una etiqueta y te da la frase que cantar. No hay nada que calcular.',
@@ -548,6 +580,23 @@ export const es: typeof en = {
   guideStep8UniverseBody:
     'Cuando el siguiente gol gana el partido, aparece un aviso y la barra te da el cántico. Anúncialo: los dos equipos quieren saberlo.',
 
+  guideWaterTitle: 'Las pausas de hidratación por calor',
+  guideWaterIntro:
+    'Esta conviene conocerla, porque eres la persona a quien los capitanes preguntarán por qué se para el partido. Las pausas de hidratación no están en las reglas de juego, sino en el Apéndice de las Reglas del Ultimate de la WFDF (2025-2028), en la sección B4.3, «Clima caliente».',
+  guideWaterWho: 'Quién lo decide',
+  guideWaterWhoBody:
+    'Los oficiales del torneo, jornada a jornada. La norma no fija ninguna temperatura: son ellos quienes valoran el riesgo real, normalmente con un índice térmico que combina temperatura, humedad y viento (como el WBGT). Si deciden que el calor es un riesgo para la salud, están obligados a informar a todos los capitanes y comunicar el protocolo que se aplica (B4.3.1 y B4.3.2).',
+  guideWaterAdjust: 'Qué pueden cambiar',
+  guideWaterAdjustBody:
+    'Tres cosas, cuando las condiciones se consideran extremas (B4.3.3): añadir pausas de hidratación entre puntos para que los jugadores descansen y se rehidraten (B4.3.3.1), mover los horarios para evitar la franja más calurosa del día, o suspender el partido, temporal o definitivamente.',
+  guideWaterPractice: 'Cómo suele aplicarse',
+  guideWaterPracticeBody:
+    'La WFDF prefiere colocar estas pausas en las transiciones, en lugar de forzar tiempos muertos a mitad de las partes como hacen otras normativas. En la práctica, cuando el protocolo de calor se activa antes de empezar, los oficiales introducen pausas de hidratación obligatorias de 3 minutos que saltan cuando el primer equipo alcanza una puntuación determinada, frecuentemente a los 4 y a los 12 puntos.',
+  guideWaterTimeouts: 'Son gratis',
+  guideWaterTimeoutsBody:
+    'Una pausa decretada por la organización no consume los tiempos muertos reglamentarios de ninguno de los dos equipos. Los dos siguen teniendo todos los que tenían, sea cual sea el motivo por el que la app acaba de parar el partido.',
+  guideWaterYou:
+    'Así que: pregunta a los oficiales al empezar la jornada si el protocolo de calor está activo y a qué marcadores. Escribe esos marcadores en la sección de pausas de hidratación durante la configuración y la app pedirá cada pausa por ti, justo después del gol que llega a ese marcador. Si se decreta una que no habías configurado, pulsa la mano levantada entre puntos y elige «Pausa de hidratación».',
   guideStep9Title: 'Apuntar lo que pasa',
   guideStep9Body:
     'La fila que hay bajo los relojes apunta cualquier cosa que merezca la pena recordar: el bocadillo para un llamado, la mano levantada para una parada, las dos flechas para una pérdida. Ninguno cambia el marcador ni el objetivo: escriben en el historial y te dicen qué anunciar.',

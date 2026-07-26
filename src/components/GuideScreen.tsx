@@ -210,6 +210,7 @@ export default function GuideScreen({ onBack }: { onBack: () => void }) {
           <Bullet label={t('guideStep3Cap')} body={t('guideStep3CapBody')} />
           <Bullet label={t('guideStep3Half')} body={t('guideStep3HalfBody')} />
           <Bullet label={t('guideStep3Timeouts')} body={t('guideStep3TimeoutsBody')} />
+          <Bullet label={t('guideStep3Water')} body={t('guideStep3WaterBody')} />
         </ul>
         <Para k="guideStep3Start" />
       </Card>
@@ -258,6 +259,7 @@ export default function GuideScreen({ onBack }: { onBack: () => void }) {
           <Bullet label={t('guideSignalHalf')} body={t('guideSignalHalfBody')} />
           <Bullet label={t('guideSignalPoint')} body={t('guideSignalPointBody')} />
           <Bullet label={t('guideSignalTimeout')} body={t('guideSignalTimeoutBody')} />
+          <Bullet label={t('guideSignalWater')} body={t('guideSignalWaterBody')} />
           <Bullet label={t('guideSignalCall')} body={t('guideSignalCallBody')} />
           <Bullet label={t('guideSignalCap')} body={t('guideSignalCapBody')} />
         </ul>
@@ -273,9 +275,25 @@ export default function GuideScreen({ onBack }: { onBack: () => void }) {
         <ul className="space-y-2">
           <Bullet label={t('guideStep8Timeout')} body={t('guideStep8TimeoutBody')} />
           <Bullet label={t('guideStep8Half')} body={t('guideStep8HalfBody')} />
+          <Bullet label={t('guideStep8Water')} body={t('guideStep8WaterBody')} />
           <Bullet label={t('guideStep8Cap')} body={t('guideStep8CapBody')} />
           <Bullet label={t('guideStep8Universe')} body={t('guideStep8UniverseBody')} />
         </ul>
+      </Card>
+
+      {/* Where the hydration-break rule actually comes from. Its own card rather
+          than a longer step-8 bullet: the volunteer is the person the captains will
+          ask "why are we stopping?", and the answer is a rule most players have
+          never read (it lives in the WFDF Appendix, not the rules themselves). */}
+      <Card title={t('guideWaterTitle')}>
+        <Para k="guideWaterIntro" />
+        <ul className="space-y-2">
+          <Bullet label={t('guideWaterWho')} body={t('guideWaterWhoBody')} />
+          <Bullet label={t('guideWaterAdjust')} body={t('guideWaterAdjustBody')} />
+          <Bullet label={t('guideWaterPractice')} body={t('guideWaterPracticeBody')} />
+          <Bullet label={t('guideWaterTimeouts')} body={t('guideWaterTimeoutsBody')} />
+        </ul>
+        <Para k="guideWaterYou" />
       </Card>
 
       <Card step={9} title={t('guideStep9Title')}>

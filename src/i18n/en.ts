@@ -69,6 +69,12 @@ export const en = {
   timeoutsScopeGame: 'Per game',
   timeoutDuration: 'Timeout duration (seconds)',
   timeoutLastFive: 'Disallow timeouts in the last 5 minutes of the game',
+  waterBreakTitle: 'Water breaks',
+  waterBreakHelp:
+    "Hot-weather hydration breaks (WFDF Appendix B4.3): extra stops between points, decided by the tournament officials. They never come out of either team's timeouts. You can also call one by hand during the game, from the raised-hand button.",
+  waterBreakEnabled: 'Call water breaks automatically',
+  waterBreakScores: 'When the first team reaches',
+  waterBreakDuration: 'Water break duration (seconds)',
   startGame: 'Start game',
   teamsRequired: 'Enter or select both team names to start',
   duplicateTeamNames: 'Team names must be different',
@@ -147,6 +153,7 @@ export const en = {
   pullTimer: 'Pull timer',
   timeoutTimer: 'Timeout',
   halftimeTimer: 'Half-time',
+  waterBreakTimer: 'Water break',
   pauseLabel: 'Paused',
   pullThrown: 'Pull thrown',
   openReport: 'Open report',
@@ -168,6 +175,10 @@ export const en = {
   btnStoppageSotg: 'Stoppage or SOTG',
   btnSotg: 'SOTG',
   btnEndHalftime: 'End half-time',
+  btnEndWaterBreak: 'End water break',
+  btnWaterBreak: 'Water break',
+  waterBreakHint:
+    'A hydration break between points. It costs neither team a timeout, and it lasts until you end it.',
   btnSettings: 'Settings',
   btnLog: 'Log',
 
@@ -278,6 +289,9 @@ export const en = {
   say_technicalStoppage: '"Stoppage of play!"',
   say_spirit: '"Spirit stoppage!"',
   say_halftime: '"Half-time! {halfTeam} pulls from the {halfSide}!"',
+  say_waterBreak: '"{a} {as}, {b} {bs} — water break!"',
+  say_waterBreakDue: '"Water break over — both teams back to the line!"',
+  say_waterBreakOver: '"Time in — pull clock restarts!"',
   say_timeCap: '"Time cap — game to {n}!"',
   say_timeCapFinish: '"Time! Finish this point — the game ends after it!"',
   say_timeCapPending: '"Time cap — finish this point!"',
@@ -319,6 +333,10 @@ export const en = {
     'Half-time break — {halfTeam} pulls from the {halfSide} to start the second half. Resumes automatically when the clock runs out, or press "End half-time" if both teams are ready sooner.',
   now_halftimeWarn:
     'One minute until the second half — {halfTeam} pulls from the {halfSide}. One whistle — teams should be getting ready.',
+  now_waterBreak:
+    'Water break — the players are drinking and the game clock keeps running. Press "End water break" once both teams are back at the line; the app tells you when the time is up.',
+  now_waterBreakDue:
+    'The water break time is up — send both teams back to the line and press "End water break".',
   now_stoppagePending:
     '{kind} stoppage. The pull, timeout and call clocks are on hold — press "Play can resume" above the clock the moment play can go on.',
   now_callPending:
@@ -348,6 +366,9 @@ export const en = {
   assist_blocked_gamePaused: 'Score locked while the game is paused.',
   assist_blocked_timeoutActive: 'Not available during a timeout.',
   assist_blocked_halftimeActive: 'Not available during half-time.',
+  assist_blocked_waterBreakActive: 'Not available during a water break.',
+  assist_blocked_waterBreakNotNow:
+    'A water break can only be called between points — after a goal, before the pull is thrown.',
   assist_blocked_minScoreZero: 'The score cannot go below 0.',
   assist_blocked_notLastScorer: 'Only the most recent goal can be undone (long-press that team).',
   assist_blocked_gameFinished: 'The game is finished.',
@@ -401,6 +422,8 @@ export const en = {
   event_pauseEnd: 'Game resumed',
   event_halftimeStart: 'Half-time',
   event_halftimeEnd: 'Second half started',
+  event_waterBreakStart: 'Water break',
+  event_waterBreakEnd: 'Water break ended',
   event_timeCap: 'Time cap reached',
   event_halfTimeCap: 'Half-time cap reached',
   event_gameEnd: 'Game end',
@@ -470,6 +493,9 @@ export const en = {
   guideStep3Half: 'Half-time',
   guideStep3HalfBody:
     'The same three things again for the first half: the score that triggers half-time, its own time limit and its own cap, plus how long the break lasts.',
+  guideStep3Water: 'Water breaks',
+  guideStep3WaterBody:
+    'Only for hot weather, and off unless the tournament says otherwise. When the officials declare the heat protocol they usually announce breaks at fixed scores — "one when the first team reaches 4, and again at 12". Tick the box, type those scores and the app stops the game for you at each of them. They cost neither team a timeout.',
   guideStep3Timeouts: 'Timeouts',
   guideStep3TimeoutsBody:
     'How many each team may call and how long one lasts. Untick "Allow timeouts" if this tournament has none, and the buttons disappear from the dashboard.',
@@ -523,7 +549,7 @@ export const en = {
 
   guideSignalsTitle: 'When the app whistles',
   guideSignalsIntro:
-    'The whistle is how you keep the players aware of time. The app blows it for you — and shows the whistle card at the same moment — in exactly these five situations, and nowhere else. Blow your own whistle to match, the number of blasts it tells you.',
+    'The whistle is how you keep the players aware of time. The app blows it for you — and shows the whistle card at the same moment — in exactly these situations, and nowhere else. Blow your own whistle to match, the number of blasts it tells you.',
   guideSignalHalf: 'The start of a half',
   guideSignalHalfBody:
     'One whistle the instant a half begins — the first pull of the game, and the start of the second half. As a heads-up you also get one whistle a minute before, but only when there is a wait to warn about: a scheduled kickoff, or a half-time break of two minutes or more.',
@@ -533,6 +559,9 @@ export const en = {
   guideSignalTimeout: 'The end of a timeout',
   guideSignalTimeoutBody:
     "Only if timeouts were switched on at setup — that is also where each team's allowance and the length of a timeout are set, so a break may run longer or shorter than the app's default. A timeout called before the pull: one whistle the moment the break ends, then the normal 45/60/75 pull count starts fresh. A timeout called after the pull, with the disc already live, winds back into play with a countdown near the end: one whistle 30 seconds before the offence must be set, two at 15, and three when the disc goes live.",
+  guideSignalWater: 'The end of a water break',
+  guideSignalWaterBody:
+    'One whistle the moment you end a water break, to call both teams back to the line — then the normal 45/60/75 pull count starts fresh. The break running out of time is not whistled: that is your cue, not theirs.',
   guideSignalCall: 'A call that drags on',
   guideSignalCallBody:
     'When a foul, pick, travel, stall-out, off-side, disc-down or generic call — or an injury or technical stoppage — is still being sorted out after 45 seconds: three whistles, and three more at 60 seconds. Nothing after that — the app keeps counting the wait, but stops whistling.',
@@ -555,6 +584,9 @@ export const en = {
   guideStep8Half: 'Half-time',
   guideStep8HalfBody:
     'The app calls half-time by itself as soon as a team reaches the half score, and never in the middle of a point. The break is a countdown; press "End half-time" if both teams are ready sooner. Afterwards the teams swap ends and the app tells you so.',
+  guideStep8Water: 'Water break',
+  guideStep8WaterBody:
+    'In hot weather the officials add breaks so the players can drink. If they were set up at step 1 the app calls them by itself, at the scores agreed, right after a goal. You can also call one at any point between points: press the raised hand and choose "Water break". This one does not end on its own — the clock counts up, turns amber when the agreed time is up, and the bar tells you to send both teams back. Press "End water break" when they are at the line.',
   guideStep8Cap: 'Caps',
   guideStep8CapBody:
     'When the time limit is reached the app whistles, but the target is not fixed yet — the point already being played finishes first, exactly as if there were no cap. Only then does the app work out the new target from that finished score, show it as a chip and give you the sentence to shout. There is nothing to calculate.',
@@ -562,6 +594,23 @@ export const en = {
   guideStep8UniverseBody:
     'When the next goal wins the game, a badge says so and the bar gives you the call. Announce it — both teams want to know.',
 
+  guideWaterTitle: 'Water breaks in hot weather',
+  guideWaterIntro:
+    'This one is worth knowing, because you are the person the captains will ask why the game is stopping. Hydration breaks are not in the rules of play themselves — they are in the Appendix to the WFDF Rules of Ultimate (2025-2028), section B4.3, "Hot Weather".',
+  guideWaterWho: 'Who decides',
+  guideWaterWhoBody:
+    'The tournament officials, day by day. There is no temperature written into the rule: the officials judge the real risk, usually with a heat index that combines temperature, humidity and wind (WBGT and the like). If they decide the heat is a health risk, they must tell every team captain and say which protocol applies (B4.3.1, B4.3.2).',
+  guideWaterAdjust: 'What they may change',
+  guideWaterAdjustBody:
+    'Three things, once conditions count as extreme (B4.3.3): add hydration breaks between points so players can rest and drink (B4.3.3.1), move the schedule away from the hottest part of the day, or suspend the game — for a while or for good.',
+  guideWaterPractice: 'How it usually looks',
+  guideWaterPracticeBody:
+    'WFDF puts these breaks in the transitions rather than forcing them mid-half the way some other bodies do. In practice, when the heat protocol is declared before the game, the officials announce mandatory 3-minute hydration breaks that trigger when the first team reaches a set score — most often 4 and 12.',
+  guideWaterTimeouts: 'They are free',
+  guideWaterTimeoutsBody:
+    "A break the organisers decree does not come out of either team's timeouts. Both teams still have every timeout they started with, whatever the app just stopped the game for.",
+  guideWaterYou:
+    'So: ask the officials at the start of the day whether the heat protocol is on and at which scores. Put those scores into the water breaks section at setup, and the app calls each break for you, right after the goal that reaches it. If one is called that you had not set up, press the raised hand between points and choose "Water break".',
   guideStep9Title: 'Writing down what happens',
   guideStep9Body:
     'The row under the clocks logs anything worth remembering: the speech bubble for a call, the raised hand for a stoppage, the two arrows for a turnover. None of them change the score or the target — they write to the log, and tell you what to announce.',

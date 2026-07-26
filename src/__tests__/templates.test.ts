@@ -74,6 +74,7 @@ describe('extractTemplateSettings', () => {
       endCap: cfg.endCap,
       halfCap: cfg.halfCap,
       timeouts: cfg.timeouts,
+      waterBreaks: cfg.waterBreaks,
     });
     expect(settings).not.toHaveProperty('teams');
     expect(settings).not.toHaveProperty('startingOffense');

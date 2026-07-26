@@ -32,6 +32,9 @@ const SAY: Record<string, string> = {
   stoppageTechnical: 'say_technicalStoppage',
   sotg: 'say_spirit',
   goHalftime: 'say_halftime',
+  goWaterBreak: 'say_waterBreak',
+  waterBreakDue: 'say_waterBreakDue',
+  waterBreakOver: 'say_waterBreakOver',
   capReached: 'say_timeCap',
   capNoneFinishPoint: 'say_timeCapFinish',
   capPending: 'say_timeCapPending',
@@ -92,6 +95,16 @@ function statusKey(state: GameState): string {
       return 'now_halftimeWarn';
     }
     return 'now_halftime';
+  }
+  // A water break runs on its own terms: the timer counts up and nothing ends it
+  // but the volunteer, so the line says "still drinking" until the configured
+  // duration is up and "send them back" from then on.
+  if (state.status === 'waterBreak') {
+    const sec = state.secondary;
+    if (sec?.kind === 'waterBreak' && sec.total !== null && sec.seconds >= sec.total) {
+      return 'now_waterBreakDue';
+    }
+    return 'now_waterBreak';
   }
   // An open call or stoppage. Excluded once a stoppage has run long enough to
   // auto-stop the clock (status 'paused'), where the more specific clock-stopped

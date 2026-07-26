@@ -42,6 +42,11 @@ export function currentWhistle(state: GameState): WhistleSignal | null {
 
   // Scenario 3a — a before-pull timeout has ended; "time in", pull sequence begins.
   if (assist === 'timeoutOver') return { key: `timeoutOver:${state.nextLogId}`, blasts: 1 };
+  // Scenario 3a again — a water break always ends between points, so it ends exactly
+  // the way a before-pull timeout does: one blast to call the teams back to the line,
+  // then the pull sequence starts fresh. Nothing is whistled when the break's own
+  // clock runs out — that is the volunteer's cue, not the players'.
+  if (assist === 'waterBreakOver') return { key: `waterBreakOver:${state.nextLogId}`, blasts: 1 };
   // Scenario 3b — an after-pull timeout has ended; three blasts, disc back in play.
   if (assist === 'timeoutRestart') return { key: `timeoutRestart:${state.nextLogId}`, blasts: 3 };
 

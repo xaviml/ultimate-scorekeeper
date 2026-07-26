@@ -146,3 +146,21 @@ describe('currentWhistle — the single source for every whistle-and-sign', () =
     expect(currentWhistle(s)).toBeNull();
   });
 });
+
+describe('water break', () => {
+  const hot = cfg({ waterBreaks: { enabled: true, atScores: [1], durationSeconds: 20 } });
+
+  it('blows once when the break ends, and stays silent while it runs out', () => {
+    let s = gameReducer(live(hot), { type: 'GOAL', team: 'A' });
+    expect(s.status).toBe('waterBreak');
+    expect(currentWhistle(s)).toBeNull();
+
+    // The configured duration passing is the volunteer's cue, not a whistle.
+    s = ticks(s, 25);
+    expect(s.assist).toBe('waterBreakDue');
+    expect(currentWhistle(s)).toBeNull();
+
+    s = gameReducer(s, { type: 'WATER_BREAK_END' });
+    expect(currentWhistle(s)).toEqual({ key: `waterBreakOver:${s.nextLogId}`, blasts: 1 });
+  });
+});

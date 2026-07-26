@@ -70,6 +70,12 @@ export const ca: typeof en = {
   timeoutsScopeGame: 'Per partit',
   timeoutDuration: 'Durada del temps mort (segons)',
   timeoutLastFive: 'Prohibir temps morts en els últims 5 minuts del partit',
+  waterBreakTitle: "Pauses d'hidratació",
+  waterBreakHelp:
+    "Pauses d'hidratació per calor (Apèndix B4.3 de la WFDF): parades addicionals entre punts que decideixen els oficials del torneig. Mai no consumeixen els temps morts de cap equip. També en pots demanar una a mà durant el partit, amb el botó de la mà alçada.",
+  waterBreakEnabled: 'Demanar les pauses automàticament',
+  waterBreakScores: 'Quan el primer equip arribi a',
+  waterBreakDuration: 'Durada de la pausa (segons)',
   startGame: 'Començar partit',
   teamsRequired: 'Introdueix o selecciona els dos equips per començar',
   duplicateTeamNames: 'Els noms dels equips han de ser diferents',
@@ -146,6 +152,7 @@ export const ca: typeof en = {
   pullTimer: 'Temps de pull',
   timeoutTimer: 'Temps mort',
   halftimeTimer: 'Half',
+  waterBreakTimer: 'Hidratació',
   pauseLabel: 'En pausa',
   pullThrown: 'Pull llançat',
   openReport: "Obrir l'informe",
@@ -161,6 +168,10 @@ export const ca: typeof en = {
   btnStoppageSotg: 'Aturada o SOTG',
   btnSotg: 'SOTG',
   btnEndHalftime: 'Fi del descans',
+  btnEndWaterBreak: 'Fi de la pausa',
+  btnWaterBreak: "Pausa d'hidratació",
+  waterBreakHint:
+    'Una pausa per beure entre punts. No gasta el temps mort de cap equip i dura fins que la acabes tu.',
   btnSettings: 'Ajustos',
   btnLog: 'Registre',
 
@@ -267,6 +278,9 @@ export const ca: typeof en = {
   say_technicalStoppage: '«Aturada de joc!»',
   say_spirit: "«Aturada d'esperit!»",
   say_halftime: '«Half! Pull de {halfTeam} des de la {halfSide}!»',
+  say_waterBreak: "«{a} {as}, {b} {bs} — pausa d'hidratació!»",
+  say_waterBreakDue: "«S'ha acabat la pausa — tots dos equips a la línia!»",
+  say_waterBreakOver: '«Temps dins — el rellotge del pull torna a començar!»',
   say_timeCap: '«Time cap — partit a {n}!»',
   say_timeCapFinish: "«Temps! Acabeu aquest punt — el partit s'acaba després.»",
   say_timeCapPending: '«Time cap — acabeu aquest punt!»',
@@ -306,6 +320,10 @@ export const ca: typeof en = {
     "Descans — pull de {halfTeam} des de la {halfSide} per començar la segona part. Es reprèn sol quan s'acabi el temps, o prem «Fi del descans» si tots dos equips estan llestos abans.",
   now_halftimeWarn:
     "Un minut per a la segona part — pull de {halfTeam} des de la {halfSide}. Un xiulet — els equips haurien d'anar-se preparant.",
+  now_waterBreak:
+    "Pausa d'hidratació — els jugadors estan bevent i el rellotge del partit continua corrent. Prem «Fi de la pausa» quan tots dos equips siguin a la línia; l'app t'avisa quan es compleix el temps.",
+  now_waterBreakDue:
+    "S'ha complert el temps de la pausa — envia tots dos equips a la línia i prem «Fi de la pausa».",
   now_stoppagePending:
     'Aturada per {kind}. El rellotge del pull, del temps mort i del call estan en espera — prem «El joc pot continuar» sobre el rellotge tan bon punt el joc pugui seguir.',
   now_callPending:
@@ -335,6 +353,9 @@ export const ca: typeof en = {
   assist_blocked_gamePaused: 'Marcador bloquejat mentre el joc està en pausa.',
   assist_blocked_timeoutActive: 'No disponible durant un temps mort.',
   assist_blocked_halftimeActive: 'No disponible durant el half.',
+  assist_blocked_waterBreakActive: "No disponible durant una pausa d'hidratació.",
+  assist_blocked_waterBreakNotNow:
+    "Una pausa d'hidratació només es pot demanar entre punts: després d'un gol i abans que es llanci el pull.",
   assist_blocked_minScoreZero: 'El marcador no pot baixar de 0.',
   assist_blocked_notLastScorer: "Només es pot desfer l'últim gol (mantén premut aquell equip).",
   assist_blocked_gameFinished: 'El partit ha acabat.',
@@ -387,6 +408,8 @@ export const ca: typeof en = {
   event_pauseEnd: 'Partit reprès',
   event_halftimeStart: 'Half',
   event_halftimeEnd: 'Inici de la segona part',
+  event_waterBreakStart: "Pausa d'hidratació",
+  event_waterBreakEnd: "Fi de la pausa d'hidratació",
   event_timeCap: 'CAP de temps assolit',
   event_halfTimeCap: 'CAP de half assolit',
   event_gameEnd: 'Fi del partit',
@@ -454,6 +477,9 @@ export const ca: typeof en = {
   guideStep3Half: 'Half',
   guideStep3HalfBody:
     'Les mateixes tres coses per a la primera part: el marcador que activa el half, el seu propi límit de temps i el seu propi CAP, a més de quant dura el descans.',
+  guideStep3Water: "Pauses d'hidratació",
+  guideStep3WaterBody:
+    "Només per a dies de calor, i desactivades si el torneig no diu el contrari. Quan els oficials activen el protocol de calor solen anunciar pauses a marcadors fixos: «una quan el primer equip arribi a 4, i una altra a 12». Marca la casella, escriu aquests marcadors i l'app aturarà el partit per tu a cadascun. No gasten el temps mort de cap equip.",
   guideStep3Timeouts: 'Temps morts',
   guideStep3TimeoutsBody:
     'Quants en pot demanar cada equip i quant duren. Desmarca "Permetre temps morts" si en aquest torneig no n\'hi ha, i els botons desapareixen del panell.',
@@ -506,7 +532,7 @@ export const ca: typeof en = {
 
   guideSignalsTitle: "Quan xiula l'app",
   guideSignalsIntro:
-    "El xiulet és com mantens els jugadors al corrent del temps. L'app xiula per tu — i mostra la targeta de xiulet en aquell mateix moment — exactament en aquestes cinc situacions, i en cap més. Xiula tu també per acompanyar, amb el nombre de xiulets que t'indica.",
+    "El xiulet és com mantens els jugadors al corrent del temps. L'app xiula per tu — i mostra la targeta de xiulet en aquell mateix moment — exactament en aquestes situacions, i en cap més. Xiula tu també per acompanyar, amb el nombre de xiulets que t'indica.",
   guideSignalHalf: "L'inici d'una part",
   guideSignalHalfBody:
     "Un xiulet en l'instant en què comença una part — el primer pull del partit i l'inici de la segona part. Com a avís, també xiules un cop un minut abans, però només quan hi ha una espera de la qual avisar: una hora d'inici programada o un descans de dos minuts o més.",
@@ -516,6 +542,9 @@ export const ca: typeof en = {
   guideSignalTimeout: "El final d'un temps mort",
   guideSignalTimeoutBody:
     "Només si els temps morts s'han activat a la configuració — allà també es fixa quants en té cada equip i quant dura un, així que un temps mort pot ser més llarg o més curt que el valor per defecte de l'app. Un temps mort demanat abans del pull: un xiulet en el moment que acaba, i després arrenca de zero el compte normal de 45/60/75. Un temps mort demanat després del pull, amb el disc ja en joc, torna al joc amb un compte enrere al final: un xiulet 30 segons abans que l'atac hagi d'estar llest, dos als 15 i tres quan el disc entra en joc.",
+  guideSignalWater: "El final d'una pausa d'hidratació",
+  guideSignalWaterBody:
+    "Un xiulet quan acabes una pausa d'hidratació, per cridar tots dos equips a la línia; després comença de zero el compte normal del pull de 45/60/75. Que es compleixi el temps de la pausa no es xiula: això és un avís per a tu, no per a ells.",
   guideSignalCall: "Una jugada que s'allarga",
   guideSignalCallBody:
     "Quan una falta, un pick, un travel, un stall, un fora de joc, un disc caigut o una jugada genèrica — o una lesió o aturada tècnica — segueix sense resoldre als 45 segons: tres xiulets, i tres més als 60 segons. Després res — l'app segueix comptant l'espera, però deixa de xiular.",
@@ -538,6 +567,9 @@ export const ca: typeof en = {
   guideStep8Half: 'Half',
   guideStep8HalfBody:
     "L'aplicació canta el half sola tan bon punt un equip arriba al marcador del half, i mai al mig d'un punt. El descans és un compte enrere; prem \"Fi del descans\" si els dos equips estan llestos abans. Després els equips canvien de banda i l'aplicació t'ho diu.",
+  guideStep8Water: "Pausa d'hidratació",
+  guideStep8WaterBody:
+    "Quan fa calor, els oficials afegeixen pauses perquè els jugadors beguin. Si es van configurar al pas 1, l'app les demana sola, als marcadors acordats, just després d'un gol. També en pots demanar una en qualsevol moment entre punts: prem la mà alçada i tria «Pausa d'hidratació». Aquesta no s'acaba sola: el rellotge compta cap amunt, es posa ambre quan es compleix el temps acordat i la barra et diu que enviïs tots dos equips a la línia. Prem «Fi de la pausa» quan hi siguin.",
   guideStep8Cap: 'CAP',
   guideStep8CapBody:
     "Quan s'arriba al límit de temps l'aplicació xiula, però l'objectiu encara no es fixa: el punt que s'està jugant s'acaba primer, exactament com si no hi hagués CAP. Només llavors calcula l'objectiu nou a partir d'aquell marcador ja acabat, el mostra en una etiqueta i et dóna la frase que has de cantar. No hi ha res a calcular.",
@@ -545,6 +577,23 @@ export const ca: typeof en = {
   guideStep8UniverseBody:
     'Quan el gol següent guanya el partit, apareix un avís i la barra et dóna el cant. Anuncia-ho: els dos equips ho volen saber.',
 
+  guideWaterTitle: "Les pauses d'hidratació per calor",
+  guideWaterIntro:
+    "Aquesta val la pena conèixer-la, perquè ets la persona a qui els capitans preguntaran per què s'atura el partit. Les pauses d'hidratació no són a les regles de joc, sinó a l'Apèndix de les Regles de l'Ultimate de la WFDF (2025-2028), a la secció B4.3, «Clima calent».",
+  guideWaterWho: 'Qui ho decideix',
+  guideWaterWhoBody:
+    "Els oficials del torneig, jornada a jornada. La norma no fixa cap temperatura: són ells qui valoren el risc real, normalment amb un índex tèrmic que combina temperatura, humitat i vent (com el WBGT). Si decideixen que la calor és un risc per a la salut, estan obligats a informar-ne tots els capitans i comunicar el protocol que s'aplica (B4.3.1 i B4.3.2).",
+  guideWaterAdjust: 'Què poden canviar',
+  guideWaterAdjustBody:
+    "Tres coses, quan les condicions es consideren extremes (B4.3.3): afegir pauses d'hidratació entre punts perquè els jugadors descansin i es rehidratin (B4.3.3.1), moure els horaris per evitar la franja més calorosa del dia, o suspendre el partit, temporalment o definitivament.",
+  guideWaterPractice: "Com s'acostuma a aplicar",
+  guideWaterPracticeBody:
+    "La WFDF prefereix col·locar aquestes pauses a les transicions, en lloc de forçar temps morts a mitja part com fan altres normatives. A la pràctica, quan el protocol de calor s'activa abans de començar, els oficials introdueixen pauses d'hidratació obligatòries de 3 minuts que salten quan el primer equip arriba a una puntuació determinada, sovint als 4 i als 12 punts.",
+  guideWaterTimeouts: 'Són gratis',
+  guideWaterTimeoutsBody:
+    "Una pausa decretada per l'organització no consumeix els temps morts reglamentaris de cap dels dos equips. Tots dos continuen tenint els que tenien, sigui quin sigui el motiu pel qual l'app acaba d'aturar el partit.",
+  guideWaterYou:
+    "Així doncs: pregunta als oficials en començar la jornada si el protocol de calor està actiu i a quins marcadors. Escriu aquests marcadors a la secció de pauses d'hidratació durant la configuració i l'app demanarà cada pausa per tu, just després del gol que hi arriba. Si se'n decreta una que no havies configurat, prem la mà alçada entre punts i tria «Pausa d'hidratació».",
   guideStep9Title: 'Apuntar el que passa',
   guideStep9Body:
     "La fila que hi ha sota els rellotges apunta qualsevol cosa que valgui la pena recordar: el globus de diàleg per a un call, la mà aixecada per a una aturada, les dues fletxes per a una pèrdua. Cap d'ells canvia el marcador ni l'objectiu: escriuen al registre i et diuen què anunciar.",

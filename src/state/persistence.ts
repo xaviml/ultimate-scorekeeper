@@ -18,7 +18,12 @@ export function loadPersistedState(): GameState | null {
     // Layered over fresh initial state so a game stored by an older build — a tab
     // left open across a deploy — comes back with any field added since defaulted
     // rather than undefined. JSON never emits absent keys, so nothing real is lost.
-    return { ...createInitialState(), ...(JSON.parse(raw) as GameState) };
+    // `config` is layered the same way for the same reason: it is one stored object,
+    // so a config setting added since (waterBreaks, say) would otherwise come back
+    // undefined and crash the first reducer that reads through it.
+    const fresh = createInitialState();
+    const stored = JSON.parse(raw) as GameState;
+    return { ...fresh, ...stored, config: { ...fresh.config, ...stored.config } };
   } catch {
     return null;
   }

@@ -24,6 +24,7 @@ export const GRASS_TEMPLATE: Omit<TemplateSettings, 'fieldNumber'> = {
     durationSeconds: 75,
     disallowLastFiveMinutes: false,
   },
+  waterBreaks: { enabled: false, atScores: [4, 12], durationSeconds: 180 },
 };
 
 export const BEACH_TEMPLATE: Omit<TemplateSettings, 'fieldNumber'> = {
@@ -43,6 +44,7 @@ export const BEACH_TEMPLATE: Omit<TemplateSettings, 'fieldNumber'> = {
     durationSeconds: 75,
     disallowLastFiveMinutes: false,
   },
+  waterBreaks: { enabled: false, atScores: [4, 12], durationSeconds: 180 },
 };
 
 /** Picks the fields a custom template saves — the config screen's current settings minus teams, coin toss, players and trackPlayers. */
@@ -59,6 +61,7 @@ export function extractTemplateSettings(cfg: GameConfig): TemplateSettings {
     endCap: cfg.endCap,
     halfCap: cfg.halfCap,
     timeouts: cfg.timeouts,
+    waterBreaks: cfg.waterBreaks,
   };
 }
 

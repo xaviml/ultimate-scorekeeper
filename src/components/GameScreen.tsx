@@ -259,7 +259,7 @@ function TimeoutButton({
   const icon = (
     <svg
       viewBox="0 0 24 24"
-      className="w-4 h-4 lscape:w-3 lscape:h-3"
+      className="w-5 h-5 lscape:w-4 lscape:h-4"
       fill="none"
       stroke="currentColor"
       strokeWidth="2"
@@ -270,7 +270,7 @@ function TimeoutButton({
       <path d="M12 11v3M9.5 2h5M12 2v3" />
     </svg>
   );
-  const count = <span className="font-clock text-sm lscape:text-[10px] leading-none">{left}</span>;
+  const count = <span className="font-clock text-base lscape:text-xs leading-none">{left}</span>;
 
   return (
     <button
@@ -280,7 +280,7 @@ function TimeoutButton({
       title={label}
       className={`absolute top-2 lscape:top-1 ${
         side === 'left' ? 'left-2 lscape:left-1' : 'right-2 lscape:right-1'
-      } z-10 flex items-center justify-center gap-1 rounded-lg bg-black/60 border border-white/25 px-2 py-1.5 lscape:px-1.5 lscape:py-1 text-chalk active:scale-95 disabled:opacity-40`}
+      } z-10 flex items-center justify-center gap-1 rounded-lg bg-black/60 border border-white/25 px-3 py-2 lscape:px-2 lscape:py-1.5 text-chalk active:scale-95 disabled:opacity-40`}
     >
       {/* Invisible, larger-than-visible hit area: the pill itself stays small so it
           doesn't eat into the score panel's thumb zone, but a near-miss tap should
@@ -521,6 +521,7 @@ export default function GameScreen() {
     state.status === 'paused' ||
     state.status === 'timeout' ||
     state.status === 'halftime' ||
+    state.status === 'waterBreak' ||
     state.status === 'finished'
       ? state.status
       : null;
@@ -891,8 +892,12 @@ export default function GameScreen() {
                 entirely (see the possession chip above, which takes over that
                 job for the rest of the point). Also shown through half-time: the
                 next pull is exactly as settled during the break as it is once
-                'awaitingPull' starts, and it's the reminder of who resumes into. */}
-            {(state.status === 'awaitingPull' || state.status === 'halftime') && (
+                'awaitingPull' starts, and it's the reminder of who resumes into.
+                A water break is the same case again — it only ever happens in that
+                gap and hands the teams straight back to it. */}
+            {(state.status === 'awaitingPull' ||
+              state.status === 'halftime' ||
+              state.status === 'waterBreak') && (
               <div
                 aria-live="polite"
                 className="rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border border-line text-chalk"
@@ -946,6 +951,18 @@ export default function GameScreen() {
             onClick={() => dispatch({ type: 'HALFTIME_END' })}
           >
             {t('btnEndHalftime')}
+          </button>
+        )}
+        {/* The amber flavour, not the quiet one the other two breaks use: a water
+            break never runs out on its own, so this is the only way back to play —
+            the same job "Pull thrown" does, in the same place. */}
+        {actionRowStatus === 'waterBreak' && (
+          <button
+            className={playAdvanceButton}
+            disabled={stoppageBlocksPlay}
+            onClick={() => dispatch({ type: 'WATER_BREAK_END' })}
+          >
+            {t('btnEndWaterBreak')}
           </button>
         )}
         {actionRowStatus === 'finished' && (
@@ -1005,11 +1022,18 @@ export default function GameScreen() {
                     ? t('timeoutTimer')
                     : state.secondary?.kind === 'halftime'
                       ? t('halftimeTimer')
-                      : t('pullTimer')}
+                      : state.secondary?.kind === 'waterBreak'
+                        ? t('waterBreakTimer')
+                        : t('pullTimer')}
               </div>
               <div
                 className={`font-clock text-3xl lscape:text-base ${
-                  stoppage || (state.secondary?.kind === 'pull' && state.secondary.seconds >= 45)
+                  stoppage ||
+                  (state.secondary?.kind === 'pull' && state.secondary.seconds >= 45) ||
+                  // A water break counts up and never stops itself, so amber is what
+                  // says the configured duration is up and the teams are due back.
+                  (state.secondary?.kind === 'waterBreak' &&
+                    state.secondary.seconds >= (state.secondary.total ?? 0))
                     ? 'text-signal'
                     : 'text-chalk'
                 }`}

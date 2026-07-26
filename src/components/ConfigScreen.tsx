@@ -13,7 +13,12 @@ import {
   saveTemplate,
 } from '../state/templates';
 import type { GameConfig, PlayerInfo, SavedTeam, SavedTemplate, TeamId } from '../state/types';
-import { loadPlayersSectionCollapsed, savePlayersSectionCollapsed } from '../state/uiPreferences';
+import {
+  loadPlayersSectionCollapsed,
+  loadWaterBreakSectionCollapsed,
+  savePlayersSectionCollapsed,
+  saveWaterBreakSectionCollapsed,
+} from '../state/uiPreferences';
 import { AboutDialog } from './AboutDialog';
 import { ConfirmDeleteTemplateDialog } from './ConfirmDeleteTemplateDialog';
 import GuideScreen from './GuideScreen';
@@ -142,6 +147,17 @@ export default function ConfigScreen() {
       savePlayersSectionCollapsed(next);
       return next;
     });
+  // Same treatment as Roster, for the same reason: hot weather is the exception, so
+  // the section is folded away until a tournament actually runs the protocol.
+  const [waterBreakCollapsed, setWaterBreakCollapsed] = useState(() =>
+    startingFresh ? true : loadWaterBreakSectionCollapsed(),
+  );
+  const toggleWaterBreakCollapsed = () =>
+    setWaterBreakCollapsed((prev) => {
+      const next = !prev;
+      saveWaterBreakSectionCollapsed(next);
+      return next;
+    });
   const removeSavedTeam = (name: string) => {
     deleteTeam(name);
     setSavedTeams((prev) => prev.filter((t) => t.name !== name));
@@ -192,11 +208,29 @@ export default function ConfigScreen() {
     },
   });
 
+  // The water-break trigger scores are a list, not a single number, so they can't go
+  // through numberFieldProps: the field holds free text ("4, 12") while it is being
+  // typed and is only parsed on blur — re-sorting and de-duplicating on every
+  // keystroke would fight the comma the user is halfway through typing.
+  const [scoresDraft, setScoresDraft] = useState<string | null>(null);
+  const commitScores = () => {
+    const parsed = (scoresDraft ?? '')
+      .split(/[^0-9]+/)
+      .map((n) => parseInt(n, 10))
+      .filter((n) => Number.isFinite(n) && n > 0 && n < 100);
+    setCfg((c) => ({
+      ...c,
+      waterBreaks: { ...c.waterBreaks, atScores: [...new Set(parsed)].sort((a, b) => a - b) },
+    }));
+    setScoresDraft(null);
+  };
+
   const applyTemplateChoice = (key: string) => {
     setSelectedTemplateKey(key);
     // A template rewrites these fields wholesale, so any half-typed value in one
     // of them is stale — drop the drafts rather than let them mask the new value.
     setNumberDrafts({});
+    setScoresDraft(null);
     if (key === 'predefined:grass') setCfg((c) => ({ ...c, ...PREDEFINED_TEMPLATES.grass }));
     else if (key === 'predefined:beach') setCfg((c) => ({ ...c, ...PREDEFINED_TEMPLATES.beach }));
     else if (key.startsWith('custom:')) {
@@ -747,6 +781,61 @@ export default function ConfigScreen() {
             />
             <span className="text-sm">{t('timeoutLastFive')}</span>
           </label>
+        </div>
+      </Section>
+
+      {/* Hot-weather hydration breaks (WFDF Appendix B4.3). Collapsed by default —
+          most games never run the protocol — and the checkbox governs only the
+          automatic ones: a break can always be called by hand from the game screen's
+          raised-hand button, which is why the duration stays editable either way. */}
+      <Section
+        title={t('waterBreakTitle')}
+        collapsible
+        collapsed={waterBreakCollapsed}
+        onToggleCollapsed={toggleWaterBreakCollapsed}
+        toggleAriaLabel={t(waterBreakCollapsed ? 'expandSection' : 'collapseSection', {
+          title: t('waterBreakTitle'),
+        })}
+      >
+        <p className="text-xs text-chalk/50">{t('waterBreakHelp')}</p>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={cfg.waterBreaks.enabled}
+            onChange={(e) => set('waterBreaks', { ...cfg.waterBreaks, enabled: e.target.checked })}
+          />
+          <span className="text-sm">{t('waterBreakEnabled')}</span>
+        </label>
+        <div className="grid grid-cols-2 gap-3">
+          <div className={cfg.waterBreaks.enabled ? '' : 'opacity-40'}>
+            <label className={fieldLabel} htmlFor="water-break-scores">
+              {t('waterBreakScores')}
+            </label>
+            <input
+              id="water-break-scores"
+              className={inputClass}
+              inputMode="numeric"
+              disabled={!cfg.waterBreaks.enabled}
+              value={scoresDraft ?? cfg.waterBreaks.atScores.join(', ')}
+              onChange={(e) => setScoresDraft(e.target.value)}
+              onBlur={commitScores}
+            />
+          </div>
+          <div>
+            <label className={fieldLabel} htmlFor="water-break-duration">
+              {t('waterBreakDuration')}
+            </label>
+            <input
+              id="water-break-duration"
+              {...numberFieldProps(
+                'waterBreakDuration',
+                cfg.waterBreaks.durationSeconds,
+                15,
+                900,
+                (durationSeconds) => set('waterBreaks', { ...cfg.waterBreaks, durationSeconds }),
+              )}
+            />
+          </div>
         </div>
       </Section>
 
