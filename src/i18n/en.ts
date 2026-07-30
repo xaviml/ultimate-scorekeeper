@@ -270,8 +270,6 @@ export const en = {
   callTeamHint: 'Then answer how it ended with the buttons that appear above the clocks.',
   travelTeamTitle: 'Travel — who called it?',
   travelTeamHint: 'Recorded as soon as you pick a team — no follow-up needed.',
-  callPending: '{kind} — {team}',
-  callPendingNoTeam: '{kind}',
   callResolution_accepted: 'Accepted',
   callResolution_contested: 'Contested',
   callResolution_retracted: 'Retracted',

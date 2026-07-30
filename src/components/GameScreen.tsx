@@ -320,55 +320,60 @@ function TimeoutButton({
 const RESOLUTIONS: CallResolution[] = ['accepted', 'contested', 'retracted'];
 
 /**
- * The three answers to an open call, parked directly above the clocks so they are
- * the first thing the thumb finds while the discussion is still going on. Rendered
- * only while a call is pending; picking one logs how long it took and clears it.
+ * The three answers to an open call, rendered into the action row's reserved slot —
+ * the same place "Pull thrown" and "End timeout" occupy, because answering a call
+ * is the one thing that moves play on while one is open. Picking one logs how long
+ * it took and clears it.
  *
- * A stoppage or an SOTG pause raised mid-discussion takes the row away entirely
- * (`playHalted`), leaving only the button that clears that stoppage: the discussion
- * itself is frozen — `pendingCall.elapsedSeconds` stops ticking — so there is
- * nothing for the players to be deciding, and one question at a time above the
- * clocks is the whole point of this row. It comes back untouched, with the call
- * still open, the moment play resumes.
+ * That slot is provably free for exactly this window, which is what makes sharing
+ * it safe rather than lucky: `actionRowStatus` is null only for `live`, and a call
+ * can only be open then — `CALL_MADE` needs a live disc (`requiresPull`), and while
+ * `pendingCall` is set `canScore` and `timeoutAvailability` both refuse, so the
+ * status cannot leave `live` underneath it. The one thing that can happen over an
+ * open call is a stoppage or an SOTG pause, and that takes this row away entirely
+ * (`playHalted`), leaving only the button that clears the stoppage: the discussion
+ * is frozen — `pendingCall.elapsedSeconds` stops ticking — so there is nothing for
+ * the players to be deciding, and one question at a time is the point of the slot.
+ * It comes back untouched, with the call still open, the moment play resumes.
+ *
+ * No heading naming the call: the amber ambient line is already saying "{kind}
+ * called by {team} … tap Accepted, Contested or Retracted", and a label here would
+ * push the row past the reserved height and start resizing the score panels above —
+ * the one thing that height exists to prevent. These stay outline-amber rather than
+ * borrowing `playAdvanceButton`'s solid fill for the same reason the row is a grid
+ * of three: it asks a question, it doesn't invite the one obvious tap.
  */
 function CallResolutionRow() {
   const state = useGame();
   const dispatch = useGameDispatch();
   const { t } = useT();
-  const pending = state.pendingCall;
-  if (!pending || playHalted(state)) return null;
+  if (!state.pendingCall || playHalted(state)) return null;
 
   return (
-    <div className="space-y-1 lscape:space-y-0.5">
-      <p className="text-[10px] lscape:text-[8px] uppercase tracking-widest text-signal">
-        {/* No team when activity isn't tracked — then the kind stands alone, rather
-            than being trailed by a "No team" that reads like a team's name. */}
-        {pending.team
-          ? t('callPending', {
-              kind: t(`callKind_${pending.kind}` as never),
-              team: state.config.teams[pending.team].name,
-            })
-          : t('callPendingNoTeam', { kind: t(`callKind_${pending.kind}` as never) })}
-      </p>
-      <div className="grid grid-cols-3 gap-2 lscape:gap-1">
-        {RESOLUTIONS.map((resolution) => (
-          <button
-            key={resolution}
-            className="rounded-lg bg-signal/20 border border-signal text-signal px-2 py-2 lscape:px-1 lscape:py-1 text-xs sm:text-sm lscape:text-[9px] font-board uppercase tracking-wide active:scale-95"
-            onClick={() => dispatch({ type: 'CALL_RESOLVED', resolution })}
-          >
-            {t(`callResolution_${resolution}` as never)}
-          </button>
-        ))}
-      </div>
+    <div className="w-full grid grid-cols-3 gap-2 lscape:gap-1">
+      {RESOLUTIONS.map((resolution) => (
+        <button
+          key={resolution}
+          className="rounded-lg bg-signal/20 border border-signal text-signal px-2 py-3 lscape:px-1 lscape:py-1.5 text-xs sm:text-sm lscape:text-[9px] font-board uppercase tracking-wide active:scale-95"
+          onClick={() => dispatch({ type: 'CALL_RESOLVED', resolution })}
+        >
+          {t(`callResolution_${resolution}` as never)}
+        </button>
+      ))}
     </div>
   );
 }
 
 /**
- * The one answer to an open stoppage, parked next to the call resolution row
- * above the clocks. Rendered only while a stoppage (injury or technical) is
- * awaiting resolution; tapping it logs how long the stoppage took and clears it.
+ * The one answer to an open stoppage, parked above the clocks. Rendered only while
+ * a stoppage (injury or technical) is awaiting resolution; tapping it logs how long
+ * the stoppage took and clears it.
+ *
+ * It stays here rather than following the call answers into the action row slot,
+ * because a stoppage can be raised over anything: between points, during a timeout,
+ * half-time or a water break, the slot already holds that break's own (faded)
+ * button. Above the clocks is the one place that is free in every status a stoppage
+ * can be open in.
  *
  * Hidden once the stoppage has run long enough to auto-stop the game clock
  * (`clockStopped`) — at that point the game is 'paused' exactly like an SOTG
@@ -1006,6 +1011,10 @@ export default function GameScreen() {
           possessionRule ? '' : 'border-t border-line'
         }`}
       >
+        {/* The three call answers take this slot when one is open. They can never
+            collide with the buttons below: every status that puts a button here is
+            a status a call cannot be open in (see CallResolutionRow). */}
+        <CallResolutionRow />
         {(actionRowStatus === 'notStarted' || actionRowStatus === 'awaitingStart') && (
           <button className={playAdvanceButton} onClick={() => dispatch({ type: 'BEGIN_PLAY' })}>
             {t('startGame')}
@@ -1067,10 +1076,9 @@ export default function GameScreen() {
 
       {/* Clocks + actions */}
       <div className="flex flex-col gap-2 lscape:gap-1 px-3 lscape:px-2 py-2 lscape:py-0.5 bg-panel border-t border-line shrink-0">
-        {/* Answer to an open call or stoppage, above the clocks — nothing else matters
-            until it's given. Mutually exclusive in practice: recordEventBusy blocks
-            starting either kind while the other is still open. */}
-        <CallResolutionRow />
+        {/* Answer to an open stoppage — nothing else matters until it's given. The
+            call answers are up in the action row slot instead; the two never show
+            at once anyway, since an open stoppage means playHalted. */}
         <StoppageResolutionRow />
 
         {/* Clocks and action buttons stack in portrait; landscape has the height to

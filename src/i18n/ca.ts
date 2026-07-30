@@ -251,8 +251,6 @@ export const ca: typeof en = {
   callTeamHint: 'Després indica com ha acabat amb els botons que apareixen sobre els rellotges.',
   travelTeamTitle: "Travel — qui l'ha cantat?",
   travelTeamHint: 'Es registra en triar un equip — no cal res més.',
-  callPending: '{kind} — {team}',
-  callPendingNoTeam: '{kind}',
   callResolution_accepted: 'Acceptada',
   callResolution_contested: 'Discutida',
   callResolution_retracted: 'Retirada',

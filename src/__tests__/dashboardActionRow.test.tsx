@@ -382,7 +382,7 @@ describe('the pull chip and assistance bar through half-time', () => {
   });
 });
 
-describe('the resolution rows above the clocks', () => {
+describe('the resolution rows', () => {
   it('shows the three call answers while a call is the only thing open', () => {
     const state = liveGame();
     state.pendingCall = { kind: 'foul', team: 'A', elapsedSeconds: 12 };
@@ -391,6 +391,46 @@ describe('the resolution rows above the clocks', () => {
     expect(screen.getByText('Accepted')).toBeInTheDocument();
     expect(screen.getByText('Contested')).toBeInTheDocument();
     expect(screen.getByText('Retracted')).toBeInTheDocument();
+  });
+
+  // The call answers share the action row's reserved slot with "Pull thrown" and
+  // friends, which is only safe because a call can be open in no status that puts a
+  // button there: CALL_MADE needs a live disc, and canScore/timeoutAvailability
+  // refuse while one is pending, so the status cannot leave 'live' underneath it.
+  // If a future rule lets a call outlive the point, this is what catches it.
+  it.each([
+    ['notStarted', 'Start game'],
+    ['awaitingPull', 'Pull thrown'],
+    ['timeout', 'End timeout'],
+    ['halftime', 'End half-time'],
+    ['waterBreak', 'End water break'],
+    ['finished', 'Open report'],
+  ] as const)('refuses to open a call in %s, whose slot is taken by "%s"', (status, label) => {
+    const state = liveGame({ status });
+    mount(state);
+
+    expect(screen.getByText(label)).toBeInTheDocument();
+
+    const next = gameReducer(state, { type: 'CALL_MADE', kind: 'foul', team: 'A' });
+    expect(next.pendingCall).toBeNull();
+  });
+
+  it('puts the answers in the reserved slot, and hands it back empty', () => {
+    const state = liveGame();
+    state.pendingCall = { kind: 'foul', team: 'A', elapsedSeconds: 12 };
+    mount(state);
+
+    // The slot itself, identified by the min-height that keeps the score panels
+    // above from resizing — that reservation is what the answers are borrowing.
+    const slot = (screen.getByText('Accepted').closest('div') as HTMLElement)
+      .parentElement as HTMLElement;
+    expect(slot.className).toContain('min-h-16');
+
+    fireEvent.click(screen.getByText('Contested'));
+
+    // Resolving a call doesn't move play on — the point carries on live — so the
+    // slot goes back to holding nothing but its own height.
+    expect(within(slot).queryAllByRole('button')).toHaveLength(0);
   });
 
   it('replaces them with the stoppage answer once a stoppage freezes the discussion', () => {

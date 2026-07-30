@@ -68,8 +68,8 @@ describe('the ambient assistance line while a call is open', () => {
     state.pendingCall = { kind: 'foul', elapsedSeconds: 5 };
     mountWith(state);
 
-    // Both the resolution-row heading and the ambient line — "Foul", not "Foul — No team".
-    // (getAllByText: the secondary clock is labelled with the same bare kind.)
+    // "Foul", not "Foul — No team", wherever the kind is named: the ambient line and
+    // the secondary clock's heading, which is why this is getAllByText.
     expect(screen.getAllByText('Foul').length).toBeGreaterThan(0);
     expect(screen.getByText(/^Foul called\./)).toBeInTheDocument();
     expect(screen.queryByText(/No team/)).not.toBeInTheDocument();

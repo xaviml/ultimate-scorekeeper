@@ -251,8 +251,6 @@ export const es: typeof en = {
   callTeamHint: 'Después indica cómo acabó con los botones que aparecen sobre los relojes.',
   travelTeamTitle: 'Travel — ¿quién lo llamó?',
   travelTeamHint: 'Se registra en cuanto eliges un equipo — no hace falta nada más.',
-  callPending: '{kind} — {team}',
-  callPendingNoTeam: '{kind}',
   callResolution_accepted: 'Aceptada',
   callResolution_contested: 'Discutida',
   callResolution_retracted: 'Retirada',
