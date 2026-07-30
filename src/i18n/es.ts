@@ -4,7 +4,6 @@ export const es: typeof en = {
   appTitle: 'Marcador de Ultimate',
   tagline: 'Un asistente guiado para anotadores de Ultimate Frisbee',
 
-  templateTitle: 'Plantilla',
   templateSelectLabel: 'Plantilla',
   templatePredefinedGroup: 'Predefinidas',
   templateCustomGroup: 'Tus plantillas',
@@ -105,11 +104,26 @@ export const es: typeof en = {
   btnInstall: 'Instalar',
   dismissBanner: 'Descartar',
 
+  statsTitle: 'Estadísticas',
+  statsModeLabel: 'Qué registrar',
+  statsModeNone: 'Sin estadísticas',
+  statsModeNoneHint: 'Solo el marcador, el reloj y la ratio de género — nada más se registra.',
+  statsModeGame: 'Estadísticas de partido',
+  statsModeGameHint:
+    'Las pérdidas y las faltas se registran por equipo, sin detalle de jugador — no hace falta plantilla.',
+  statsModeTeam: 'Estadísticas de equipo',
+  statsModeTeamHint:
+    'Los goles, asistencias, pérdidas y lesiones se atribuyen por jugador para el equipo que elijas debajo. El otro equipo se queda con el detalle de estadísticas de partido — solo por equipo, nunca por jugador.',
+  statsModePlayer: 'Estadísticas de jugador',
+  statsModePlayerHint:
+    'Los goles, asistencias, pérdidas y lesiones se atribuyen por jugador, en ambos equipos.',
+  trackedTeamLabel: 'Equipo a seguir',
+
   playersTitle: 'Roster',
   collapseSection: 'Contraer {title}',
   expandSection: 'Expandir {title}',
-  trackPlayers:
-    'Registrar actividad del partido para estadísticas (goles, asistencias, pérdidas, faltas, lesiones)',
+  rosterHelp:
+    'Puedes añadir jugadores con el partido ya en marcha — no hace falta rellenar toda la plantilla antes de empezar.',
   playerNumber: '#',
   playerName: 'Nombre',
   addPlayer: 'Añadir',
@@ -129,6 +143,9 @@ export const es: typeof en = {
   injuryDialogTitle: '¿Quién se lesionó?',
   injuryDialogHint:
     'Opcional — selecciona a todos los lesionados, de cualquier equipo, u omite y solo registra la lesión.',
+  injuryOtherTeamToggle: 'Marcar también a {team} como lesionado (sin jugador)',
+  injuryTeamStoppageTitle: 'Lesión — ¿de qué equipo?',
+  injuryTeamStoppageHint: 'Opcional — también puedes omitir el equipo.',
   technicalStoppageTitle: 'Parada técnica — ¿quién la llamó?',
   technicalStoppageHint:
     'Material, interferencia externa y similares. Opcional — también puedes omitir el equipo.',
@@ -241,7 +258,8 @@ export const es: typeof en = {
   handSignal: 'Señal de mano',
   signal_goal: 'Gol',
   signal_timeout: 'Tiempo muerto',
-  signal_stoppage: 'Parada de juego',
+  signal_stoppageInjury: 'Parada por lesión',
+  signal_stoppageTechnical: 'Parada técnica',
   signal_sotg: 'Parada de espíritu',
   signal_ratioMale: 'Ratio: Chicos',
   signal_ratioFemale: 'Ratio: Chicas',
@@ -376,16 +394,38 @@ export const es: typeof en = {
   reportDuration: 'Duración: {duration}',
   finalScore: 'Marcador final',
   statOLineHolds: 'Holds de ataque',
+  statCleanHold: 'Holds limpios',
+  statBreakChances: 'Oportunidades de break',
+  statTurnovers: 'Pérdidas',
   statBreaks: 'Breaks',
+  statCleanBreaks: 'Breaks limpios',
   statAvgHold: 'Duración media de hold',
   statAvgBreak: 'Duración media de break',
   statTimeouts: 'Tiempos muertos usados',
+  playerStatsTitle: 'Estadísticas de jugadores',
+  filterAllTeams: 'Todos',
+  colPlayer: 'Jugador',
+  colGoals: 'Goles',
+  colAssists: 'Asistencias',
+  colTotal: 'Total',
+  reportFooterCredit: 'Este partido se registró con:',
   historyTitle: 'Historial del partido',
-  colTime: 'Hora',
   colClock: 'Reloj',
   colEvent: 'Evento',
   colTeam: 'Equipo',
   colDetail: 'Detalle',
+  colActions: 'Acciones',
+  btnEditEntry: 'Corregir esta entrada',
+  btnDeleteEntry: 'Borrar esta entrada',
+  logEditHint: 'Esto solo corrige el historial: el marcador, el reloj y la posesión no cambian.',
+  logEditCallTitle: '{kind} — corregir la señalización',
+  whoCalled: 'Quién la señaló',
+  howResolved: 'Cómo acabó',
+  logLasted: 'ha durado {n}s',
+  shareImage: 'Compartir imagen',
+  shareImagePreparing: 'Preparando…',
+  shareImageSaved: 'Imagen guardada',
+  shareImageFailed: 'No se pudo crear la imagen',
   copyReport: 'Copiar al portapapeles',
   copied: '¡Copiado!',
   copyFailed: 'No se pudo copiar — inténtalo de nuevo',
@@ -447,9 +487,9 @@ export const es: typeof en = {
   guideStep1Teams: 'Nombres y colores de los equipos',
   guideStep1TeamsBody:
     'Escribe cada nombre, o elige un equipo que guardaste antes. Elige un color parecido al de las camisetas de cada equipo: los paneles del marcador van pintados con esos colores todo el partido, así nunca tienes que recordar qué lado es cuál.',
-  guideStep1Players: 'Roster',
+  guideStep1Players: 'Estadísticas',
   guideStep1PlayersBody:
-    'Opcional, para estadísticas. Desactivado por defecto: el marcador, los relojes y el informe funcionan igual sin ello, y las faltas, travelling y paradas técnicas se registran sin equipo. Marca "Registrar actividad del partido" y aparecen dos botones más en la pantalla de juego, Roster y Turn: cada falta, travelling y parada técnica pregunta entonces qué equipo, y un gol, asistencia, pérdida o lesión pregunta también qué jugador, una vez añadas las plantillas de abajo.',
+    'Elige qué registra este partido. "Sin estadísticas" es lo predeterminado: solo marcador, relojes y ratio, con faltas, travelling y paradas técnicas registradas sin equipo. "Estadísticas de partido" añade pérdidas y faltas por equipo, sin necesidad de plantilla. "Estadísticas de equipo" y "Estadísticas de jugador" atribuyen goles, asistencias, pérdidas y lesiones a un jugador, una vez añadas la plantilla de abajo: de equipo para el lado que elijas, de jugador para ambos. Cualquier opción por encima de "Sin estadísticas" añade además dos botones más en la pantalla de juego, Roster y Turn.',
   guideStep1Time: 'Hora de inicio prevista',
   guideStep1TimeBody:
     'Opcional. Márcalo y la aplicación hace la cuenta atrás hasta la hora de inicio y desbloquea el juego sola cuando llega.',
@@ -605,7 +645,7 @@ export const es: typeof en = {
   guideStep9Travel:
     'Travel: se canta a quien lanza y se mueve de forma ilegal. Se registra en un solo paso, sin seguimiento.',
   guideStep9Turn:
-    'Turn: solo aparece con "Registrar actividad del partido" activado (paso 1): registra una pérdida, para que el disco cambie de equipo sin un gol. Desde la primera, una etiqueta «Posesión» en el marcador indica quién tiene el disco durante cada punto. Mantén pulsado Turn para deshacer la última pérdida del punto si la registraste por error.',
+    'Turn: solo aparece cuando el partido registra algo más que el marcador (paso 1): registra una pérdida, para que el disco cambie de equipo sin un gol. Desde la primera, una etiqueta «Posesión» en el marcador indica quién tiene el disco durante cada punto. Mantén pulsado Turn para deshacer la última pérdida del punto si la registraste por error.',
   guideStep9Stoppage:
     'Mano levantada: lesión o técnica (material, interferencia externa...). El reloj del partido sigue corriendo. Cuando el juego pueda continuar, pulsa «El juego puede continuar» para registrar cuánto duró la parada.',
   guideStep9Sotg:
@@ -621,7 +661,7 @@ export const es: typeof en = {
   guideStep10Body:
     'La aplicación termina el partido sola cuando un equipo llega al objetivo. Si tienes que pararlo antes, pulsa la ✕ de la esquina superior izquierda, al lado del número de campo, y confirma.',
   guideStep10Report:
-    'Entonces aparece el informe: el marcador final, unas cuantas estadísticas de cada equipo y el historial completo del partido. "Copiar al portapapeles" lo convierte en texto plano que puedes pegar en un mensaje o en una hoja de cálculo; hazlo antes de salir de la pantalla. "Nuevo partido" te devuelve a la configuración para el siguiente.',
+    'Entonces aparece el informe: el marcador final, unas cuantas estadísticas de cada equipo y el historial completo del partido. "Compartir imagen" manda una foto del marcador y las estadísticas directamente a un chat; el historial se queda fuera para que se pueda leer. "Copiar al portapapeles" lo convierte todo, historial incluido, en texto plano que puedes pegar en un mensaje o en una hoja de cálculo; hazlo antes de salir de la pantalla. "Nuevo partido" te devuelve a la configuración para el siguiente.',
 
   guideCheatTitle: 'Resumen rápido',
   guideCheatTap: 'Tocar el panel de un equipo',

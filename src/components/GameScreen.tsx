@@ -12,10 +12,12 @@ import {
   halfTargetApplies,
   isUniversePoint,
   playHalted,
+  playerTrackingFor,
   possessionTracked,
   pullFromSide,
   secondHalfPuller,
   secondHalfPullSide,
+  statsTrackingEnabled,
   timeoutAvailability,
   timeoutsConfigured,
 } from '../state/gameReducer';
@@ -526,8 +528,10 @@ export default function GameScreen() {
       ? state.status
       : null;
 
-  // Post-goal assist dialog: pops up once per new point once trackPlayers is on,
-  // tracked by how many points have already been resolved (skipped or saved).
+  // Post-goal assist dialog: pops up once per new point once the scoring team is
+  // player-tracked (Player stats always, Team stats only when it was the tracked
+  // team's goal), tracked by how many points have already been resolved (skipped
+  // or saved).
   //
   // Persisted alongside the game state: that state now survives a reload, so a
   // counter that reset to 0 on mount would make an already-answered point look
@@ -542,9 +546,12 @@ export default function GameScreen() {
   useEffect(() => {
     sessionStorage.setItem(ASSIST_DISMISSED_KEY, String(dismissedUpTo));
   }, [dismissedUpTo]);
+  const lastPoint = state.points[state.points.length - 1];
   const pendingAssistPoint =
-    state.config.trackPlayers && state.points.length > dismissedUpTo
-      ? state.points[state.points.length - 1]
+    state.points.length > dismissedUpTo &&
+    lastPoint &&
+    playerTrackingFor(state.config, lastPoint.scoredBy)
+      ? lastPoint
       : null;
   const resolveAssistDialog = () => {
     setDismissedUpTo(state.points.length);
@@ -658,6 +665,13 @@ export default function GameScreen() {
       flashHint(t(`assist_blocked_${check.reason}` as never));
       return;
     }
+    // Game stats mode has no roster on either side, so there's no player question
+    // for the dialog to ask — log it straight away, same as it would with no
+    // team tracked at all.
+    if (state.config.statsMode === 'game') {
+      dispatch({ type: 'TURNOVER' });
+      return;
+    }
     setTurnoverTeam(state.possessionTeam);
   };
 
@@ -680,10 +694,10 @@ export default function GameScreen() {
   const chooseCall = (choice: CallChoice) => {
     setShowCall(false);
     if (choice.type === 'call') {
-      if (state.config.trackPlayers) setCallKind(choice.kind);
+      if (statsTrackingEnabled(state.config)) setCallKind(choice.kind);
       else dispatch({ type: 'CALL_MADE', kind: choice.kind });
     } else {
-      if (state.config.trackPlayers) setShowTravel(true);
+      if (statsTrackingEnabled(state.config)) setShowTravel(true);
       else dispatch({ type: 'TRAVEL' });
     }
   };
@@ -732,6 +746,16 @@ export default function GameScreen() {
   // half-time clocks are frozen under one (see playHalted), and the reducer refuses
   // all three, so the buttons say so rather than doing nothing.
   const stoppageBlocksPlay = state.pendingStoppage !== null;
+
+  // Roster only has something to show once a roster exists to view — Team stats
+  // mode has one (the tracked team's), Game stats mode never does. Turn appears
+  // for any mode that logs a turnover at all, Game stats included, even though
+  // that mode's turnover carries no player.
+  const showRosterBtn = state.config.statsMode === 'team' || state.config.statsMode === 'player';
+  const showTurnBtn = statsTrackingEnabled(state.config);
+  const actionRowCols = 3 + (showRosterBtn ? 1 : 0) + (showTurnBtn ? 1 : 0);
+  const actionRowColsClass =
+    actionRowCols === 5 ? 'grid-cols-5' : actionRowCols === 4 ? 'grid-cols-4' : 'grid-cols-3';
 
   return (
     <div className="h-dvh flex flex-col bg-pitch text-chalk overflow-y-auto">
@@ -1050,12 +1074,10 @@ export default function GameScreen() {
           {/* Roster / Log / Stoppage / Call / Turn, ordered from the surfaces that only
             read (left) to the ones that record something (right), so the thumb's
             reach matches how consequential the button is. Timeouts left this row
-            for the score panels; Roster and Turn are both hidden unless the game is
-            tracking activity (see trackPlayers), leaving three. */}
-          <div
-            className={`grid ${state.config.trackPlayers ? 'grid-cols-5' : 'grid-cols-3'} gap-2 lscape:gap-1 lscape:flex-1`}
-          >
-            {state.config.trackPlayers && (
+            for the score panels; Roster and Turn each hide on their own depending
+            on statsMode (see showRosterBtn/showTurnBtn), leaving three to five. */}
+          <div className={`grid ${actionRowColsClass} gap-2 lscape:gap-1 lscape:flex-1`}>
+            {showRosterBtn && (
               <ActionButton
                 icon={<PlayersIcon />}
                 label={t('lblRoster')}
@@ -1082,7 +1104,7 @@ export default function GameScreen() {
               onClick={openCall}
               disabled={recordBusy}
             />
-            {state.config.trackPlayers && (
+            {showTurnBtn && (
               <ActionButton
                 icon={<TurnIcon />}
                 label={t('lblTurn')}

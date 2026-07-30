@@ -14,7 +14,7 @@ function liveGame(): GameState {
   state.possessionTeam = 'A';
   state.offenseTeam = 'A';
   state.pullingTeam = 'B';
-  state.config.trackPlayers = true;
+  state.config.statsMode = 'player';
   return state;
 }
 
@@ -64,7 +64,7 @@ describe('the goal sign and gender-ratio sign, with player tracking on', () => {
 
   it('shows the goal sign immediately when player tracking is off', () => {
     const state = liveGame();
-    state.config.trackPlayers = false;
+    state.config.statsMode = 'none';
     mount(state);
 
     fireEvent.pointerDown(screen.getByLabelText('Team A: 0'));

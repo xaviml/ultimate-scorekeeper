@@ -15,9 +15,11 @@ function midGameState(): GameState {
   state.pullingTeam = 'A';
   state.offenseTeam = 'B';
   state.secondary = { kind: 'pull', seconds: 0, total: 75 };
-  state.config.trackPlayers = true;
+  state.config.statsMode = 'player';
   state.config.players.A = [{ id: 'p1', number: '7', name: 'Alex' }];
-  state.points = [{ scoredBy: 'A', offense: 'A', isBreak: false, durationSeconds: 30, half: 1 }];
+  state.points = [
+    { scoredBy: 'A', offense: 'A', isBreak: false, durationSeconds: 30, half: 1, turnovers: 0 },
+  ];
   state.assist = 'goalScored';
   return state;
 }
@@ -72,7 +74,7 @@ describe('the pull prompt survives a mid-game reload', () => {
     next.scores = { A: 1, B: 1 };
     next.points = [
       ...next.points,
-      { scoredBy: 'B', offense: 'B', isBreak: false, durationSeconds: 20, half: 1 },
+      { scoredBy: 'B', offense: 'B', isBreak: false, durationSeconds: 20, half: 1, turnovers: 0 },
     ];
     sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(next));
 

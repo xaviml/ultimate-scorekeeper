@@ -203,8 +203,8 @@ const WHISTLE: Record<1 | 2 | 3, SignalArt> = {
 const SIGNAL: Record<string, SignalArt> = {
   goalScored: { file: 'goal', caption: 'signal_goal' },
   timeoutRunning: { file: 'timeout', caption: 'signal_timeout' },
-  stoppageInjury: { file: 'stoppage', caption: 'signal_stoppage' },
-  stoppageTechnical: { file: 'stoppage', caption: 'signal_stoppage' },
+  stoppageInjury: { file: 'stoppage', caption: 'signal_stoppageInjury' },
+  stoppageTechnical: { file: 'stoppage', caption: 'signal_stoppageTechnical' },
   sotg: { file: 'sotg', caption: 'signal_sotg' },
   universePoint: { file: 'match-point', caption: 'signal_universePoint' },
   // Recorded events. Each call shows the infraction when it is made, and one of the
@@ -282,9 +282,9 @@ export function assistVars(state: GameState) {
     // possession is null). An open call outranks possession because that is what
     // play has stopped for, and it is the only thing being talked about.
     //
-    // A call logged without tracking activity (see trackPlayers) has no team and
-    // falls through: every message about such a call uses a NoTeam wording that
-    // never reads `team`, so there is no "No team" to print here.
+    // A call logged in statsMode 'none' has no team and falls through: every
+    // message about such a call uses a NoTeam wording that never reads `team`,
+    // so there is no "No team" to print here.
     team: state.pendingCall?.team
       ? state.config.teams[state.pendingCall.team].name
       : state.timeoutTeam !== null

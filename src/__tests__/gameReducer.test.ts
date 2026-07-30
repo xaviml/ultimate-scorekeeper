@@ -13,9 +13,11 @@ import {
   halfTargetApplies,
   isUniversePoint,
   leftEndzoneTeam,
+  playerTrackingFor,
   possessionTracked,
   pullFromSide,
   ruleARatio,
+  statsTrackingEnabled,
   timeoutAvailability,
   timeoutsConfigured,
 } from '../state/gameReducer';
@@ -1124,17 +1126,17 @@ describe('undoing a turnover', () => {
     }
   });
 
-  it('puts the possession chip on screen with the first turnover, and only then', () => {
-    expect(possessionTracked(live())).toBe(false);
+  it('puts the possession chip on screen for any tracked mode from the first pull, with no need to wait for a turnover', () => {
+    expect(possessionTracked(live())).toBe(false); // statsMode 'none' by default
+    expect(possessionTracked(live(cfg({ statsMode: 'game' })))).toBe(true);
+    expect(possessionTracked(live(cfg({ statsMode: 'team', trackedTeam: 'A' })))).toBe(true);
+    expect(possessionTracked(live(cfg({ statsMode: 'player' })))).toBe(true);
 
-    const s = gameReducer(live(), { type: 'TURNOVER' });
+    // A turnover (or undoing one) never changes whether the chip is on the board —
+    // only statsMode does — just what it currently says.
+    const s = gameReducer(live(cfg({ statsMode: 'game' })), { type: 'TURNOVER' });
     expect(possessionTracked(s)).toBe(true);
-    // Taken straight back, it never happened — and the chip goes with it.
-    expect(possessionTracked(gameReducer(s, { type: 'UNDO_TURNOVER' }))).toBe(false);
-    // Still on screen for the rest of the game, points later.
-    expect(possessionTracked(run(s, { type: 'GOAL', team: 'A' }, { type: 'PULL_THROWN' }))).toBe(
-      true,
-    );
+    expect(possessionTracked(gameReducer(s, { type: 'UNDO_TURNOVER' }))).toBe(true);
   });
 });
 
@@ -1939,5 +1941,122 @@ describe('water breaks', () => {
     s = gameReducer(s, { type: 'WATER_BREAK_END' });
     s = gameReducer(s, { type: 'WATER_BREAK_START' });
     expect(s.waterBreaksTaken).toEqual([4]); // already spent, not spent twice
+  });
+});
+
+describe('stats modes', () => {
+  it('statsTrackingEnabled is only false for none', () => {
+    expect(statsTrackingEnabled(cfg({ statsMode: 'none' }))).toBe(false);
+    expect(statsTrackingEnabled(cfg({ statsMode: 'game' }))).toBe(true);
+    expect(statsTrackingEnabled(cfg({ statsMode: 'team', trackedTeam: 'A' }))).toBe(true);
+    expect(statsTrackingEnabled(cfg({ statsMode: 'player' }))).toBe(true);
+  });
+
+  it('playerTrackingFor is per-team only in team mode, both teams in player mode, neither otherwise', () => {
+    expect(playerTrackingFor(cfg({ statsMode: 'none' }), 'A')).toBe(false);
+    expect(playerTrackingFor(cfg({ statsMode: 'game' }), 'A')).toBe(false);
+    expect(playerTrackingFor(cfg({ statsMode: 'game' }), 'B')).toBe(false);
+
+    const teamA = cfg({ statsMode: 'team', trackedTeam: 'A' });
+    expect(playerTrackingFor(teamA, 'A')).toBe(true);
+    expect(playerTrackingFor(teamA, 'B')).toBe(false);
+
+    const teamB = cfg({ statsMode: 'team', trackedTeam: 'B' });
+    expect(playerTrackingFor(teamB, 'A')).toBe(false);
+    expect(playerTrackingFor(teamB, 'B')).toBe(true);
+
+    const player = cfg({ statsMode: 'player' });
+    expect(playerTrackingFor(player, 'A')).toBe(true);
+    expect(playerTrackingFor(player, 'B')).toBe(true);
+  });
+
+  it('holds the goal message back for the scorer/assist dialog only when the scoring team is player-tracked', () => {
+    const base = live(cfg({ statsMode: 'team', trackedTeam: 'A' }));
+    const beforeAssist = base.assist;
+
+    // Tracked team scores: the dialog is about to open over this goal, so the
+    // sign/message waits in pendingGoalAssist for REVEAL_GOAL_ASSIST instead.
+    const trackedScores = gameReducer(base, { type: 'GOAL', team: 'A' });
+    expect(trackedScores.assist).toBe(beforeAssist);
+    expect(trackedScores.pendingGoalAssist).toBe('goalScored');
+
+    // Untracked team scores: no dialog ever opens for it, so nothing to hold back.
+    const untrackedScores = gameReducer(base, { type: 'GOAL', team: 'B' });
+    expect(untrackedScores.assist).toBe('goalScored');
+    expect(untrackedScores.pendingGoalAssist).toBeNull();
+  });
+
+  it('an injury can name a specific player and, independently, a whole other team with no player', () => {
+    // Team stats mode's hybrid step: a named player from the tracked team, plus
+    // the untracked team marked with no one named — same shape Game stats mode's
+    // team-only step dispatches on its own.
+    const s = gameReducer(live(), {
+      type: 'STOPPAGE',
+      kind: 'injury',
+      team: 'B',
+      players: [{ team: 'A', playerId: 'p1' }],
+    });
+    expect(s.pendingStoppage?.players).toEqual([{ team: 'A', playerId: 'p1' }]);
+    // Both teams involved at once (one named, one generic) — no single-team badge.
+    expect(s.pendingStoppage?.team).toBeUndefined();
+    expect(s.log[s.log.length - 1].detail).toContain(s.config.teams.B.name);
+  });
+
+  it("an injury naming only the untracked team's generic entry gets a plain team badge, same as a named single-team injury", () => {
+    const generic = gameReducer(live(), { type: 'STOPPAGE', kind: 'injury', team: 'B' });
+    expect(generic.pendingStoppage?.team).toBe('B');
+
+    const named = gameReducer(live(), {
+      type: 'STOPPAGE',
+      kind: 'injury',
+      players: [{ team: 'B', playerId: 'p1' }],
+    });
+    expect(named.pendingStoppage?.team).toBe('B');
+  });
+});
+
+describe('turnover stats', () => {
+  it('TURNOVER credits the team that lost the disc, and UNDO_TURNOVER nets it back out', () => {
+    // A receives the pull, so A is attacking first.
+    const s1 = gameReducer(live(), { type: 'TURNOVER' });
+    expect(s1.turnoversCommitted).toEqual({ A: 1, B: 0 });
+
+    const s2 = gameReducer(s1, { type: 'TURNOVER' }); // now B is attacking
+    expect(s2.turnoversCommitted).toEqual({ A: 1, B: 1 });
+
+    const s3 = gameReducer(s2, { type: 'UNDO_TURNOVER' });
+    expect(s3.turnoversCommitted).toEqual({ A: 1, B: 0 });
+  });
+
+  it('stays correct even when the log keeps the turnover as a visible correction instead of dropping it', () => {
+    // Something else recorded after the turnover (a note) forces UNDO_TURNOVER onto
+    // the visible-correction log path rather than a clean removal — the lifetime
+    // counter must still net out, unlike a naive count of 'turnover' log entries.
+    let s = gameReducer(live(), { type: 'TURNOVER' });
+    s = gameReducer(s, { type: 'NOTE', text: 'checking' });
+    expect(s.log.filter((e) => e.type === 'turnover')).toHaveLength(1);
+    s = gameReducer(s, { type: 'UNDO_TURNOVER' });
+    // The log keeps the original 'turnover' entry as history (not scraped for stats).
+    expect(s.log.filter((e) => e.type === 'turnover')).toHaveLength(1);
+    expect(s.turnoversCommitted).toEqual({ A: 0, B: 0 });
+  });
+
+  it('bakes the total turnovers of the point into the PointRecord for clean hold/break', () => {
+    // A holds clean: no turnovers before the goal.
+    const cleanHold = gameReducer(live(), { type: 'GOAL', team: 'A' });
+    expect(cleanHold.points[0]).toMatchObject({ isBreak: false, turnovers: 0 });
+
+    // One turnover, then B (now attacking) scores immediately — a clean break.
+    const oneTurn = run(live(), { type: 'TURNOVER' }, { type: 'GOAL', team: 'B' });
+    expect(oneTurn.points[0]).toMatchObject({ isBreak: true, turnovers: 1 });
+
+    // Disc changes hands twice more before A closes it out on a hold that isn't clean.
+    const messyHold = run(
+      live(),
+      { type: 'TURNOVER' },
+      { type: 'TURNOVER' },
+      { type: 'GOAL', team: 'A' },
+    );
+    expect(messyHold.points[0]).toMatchObject({ isBreak: false, turnovers: 2 });
   });
 });

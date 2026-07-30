@@ -19,3 +19,13 @@ window.matchMedia ??= () =>
     removeEventListener: () => {},
     dispatchEvent: () => false,
   }) as unknown as MediaQueryList;
+
+// jsdom ships canvas as a stub that logs "Not implemented" for every getContext
+// call unless the (native, heavy) `canvas` package is installed. The report card
+// renders itself as soon as the report screen mounts, so without this every
+// report test would print that trace. Returning null is what the real code
+// already treats as "no canvas here" — see drawReportCard.
+HTMLCanvasElement.prototype.getContext = () => null;
+HTMLCanvasElement.prototype.toBlob = function toBlob(callback: BlobCallback) {
+  callback(null);
+};

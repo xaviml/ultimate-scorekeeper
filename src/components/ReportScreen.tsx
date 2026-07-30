@@ -1,17 +1,36 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useReportImage } from '../hooks/useReportImage';
 import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
+import { statsTrackingEnabled } from '../state/gameReducer';
+import { playerStatsTeams, reportCardModel, teamStatRows } from '../state/reportCard';
 import {
   callDetail,
   formatClock,
   goalPlayersDetail,
+  pauseDetail,
+  playerStatLines,
   stoppageDetail,
   teamStats,
   turnoverPlayersDetail,
 } from '../state/stats';
 import type { TeamId } from '../state/types';
 import { GameLogTable } from './GameLogTable';
-import { contrastText, primaryButton, secondaryButtonOnPitch, sectionTitle } from './ui';
+import { contrastText, pillClass, primaryButton, secondaryButtonOnPitch, sectionTitle } from './ui';
+
+/** Plugged into the report footer so a shared copy points back at the app. */
+const APP_URL = 'https://xaviml.github.io/ultimate-scorekeeper/';
+
+/** Team names go into a filename, so anything a filesystem might object to comes out. */
+function slug(name: string): string {
+  const ascii = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
+  return ascii.slice(0, 24);
+}
 
 /**
  * Fallback for browsers/contexts where the async Clipboard API is unavailable
@@ -40,14 +59,30 @@ function legacyCopy(text: string): boolean {
 export default function ReportScreen() {
   const state = useGame();
   const dispatch = useGameDispatch();
-  const { t } = useT();
+  const { t, lang } = useT();
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
+  const [teamFilter, setTeamFilter] = useState<TeamId | 'all'>('all');
 
   const A = teamStats(state, 'A');
   const B = teamStats(state, 'B');
   const nameOf = (id: TeamId) => state.config.teams[id].name;
 
   const fmt = (s: number | null) => (s === null ? '—' : formatClock(s));
+
+  const trackingOn = statsTrackingEnabled(state.config);
+  // Team mode only ever has player detail for the tracked side; Player mode has
+  // both, with a filter to page through them on a small screen.
+  const showTeamFilter = state.config.statsMode === 'player';
+  const playerLines = playerStatLines(state, playerStatsTeams(state.config));
+  const visiblePlayerLines =
+    teamFilter === 'all' ? playerLines : playerLines.filter((p) => p.team === teamFilter);
+
+  // Memoised because the hook renders the image off it the moment it changes,
+  // and a fresh object every render would redraw the canvas every render.
+  const cardModel = useMemo(() => reportCardModel(state, t, lang), [state, t, lang]);
+  const shareTitle = `${nameOf('A')} ${A.score} — ${B.score} ${nameOf('B')}`;
+  const imageName = `${slug(nameOf('A')) || 'a'}-${A.score}-${B.score}-${slug(nameOf('B')) || 'b'}.png`;
+  const { status: shareStatus, share } = useReportImage(cardModel, imageName, shareTitle);
 
   const buildPlainText = () => {
     const lines: string[] = [];
@@ -71,12 +106,28 @@ export default function ReportScreen() {
     ] as const) {
       lines.push(`${nameOf(id)}:`);
       lines.push(`  ${t('statOLineHolds')}: ${s.oLineHolds}`);
+      if (trackingOn) lines.push(`  ${t('statCleanHold')}: ${s.cleanHolds}`);
+      if (trackingOn) lines.push(`  ${t('statBreakChances')}: ${s.breakChances}`);
+      if (trackingOn) lines.push(`  ${t('statTurnovers')}: ${s.turnovers}`);
       lines.push(`  ${t('statBreaks')}: ${s.breaks}`);
+      if (trackingOn) lines.push(`  ${t('statCleanBreaks')}: ${s.cleanBreaks}`);
       lines.push(`  ${t('statAvgHold')}: ${fmt(s.avgHoldSeconds)}`);
       lines.push(`  ${t('statAvgBreak')}: ${fmt(s.avgBreakSeconds)}`);
       lines.push(`  ${t('statTimeouts')}: ${s.timeoutsUsed}`);
       lines.push('');
     }
+
+    if (playerLines.length > 0) {
+      lines.push(t('playerStatsTitle'));
+      for (const p of playerLines) {
+        const teamPrefix = showTeamFilter ? `${nameOf(p.team)} — ` : '';
+        lines.push(
+          `  ${teamPrefix}${p.label}: ${t('colAssists')} ${p.assists}, ${t('colGoals')} ${p.goals}, ${t('colTotal')} ${p.total}`,
+        );
+      }
+      lines.push('');
+    }
+
     lines.push(t('historyTitle'));
     for (const e of state.log) {
       const team = e.team ? ` — ${nameOf(e.team)}` : '';
@@ -84,11 +135,16 @@ export default function ReportScreen() {
       // it's left out here to avoid printing it twice.
       const detail = e.detail && !e.stoppageKind ? ` (${e.detail})` : '';
       const players = goalPlayersDetail(state, e, t) + turnoverPlayersDetail(state, e, t);
-      const call = callDetail(e, t) || stoppageDetail(e, t);
+      const call = callDetail(e, t) || stoppageDetail(e, t) || pauseDetail(e, t);
       lines.push(
         `  [${formatClock(e.gameSeconds)}] ${t(`event_${e.type}` as never)}${team}${detail}${players}${call ? ` — ${call}` : ''}`,
       );
     }
+
+    lines.push('');
+    lines.push(t('reportFooterCredit'));
+    lines.push('');
+    lines.push(APP_URL);
     return lines.join('\n');
   };
 
@@ -108,13 +164,8 @@ export default function ReportScreen() {
     setTimeout(() => setCopyState('idle'), 2000);
   };
 
-  const statRows: Array<[string, string | number, string | number]> = [
-    [t('statOLineHolds'), A.oLineHolds, B.oLineHolds],
-    [t('statBreaks'), A.breaks, B.breaks],
-    [t('statAvgHold'), fmt(A.avgHoldSeconds), fmt(B.avgHoldSeconds)],
-    [t('statAvgBreak'), fmt(A.avgBreakSeconds), fmt(B.avgBreakSeconds)],
-    [t('statTimeouts'), A.timeoutsUsed, B.timeoutsUsed],
-  ];
+  // Shared with the image so the two can never drift — see state/reportCard.ts.
+  const statRows = teamStatRows(state, t);
 
   return (
     <div className="min-h-dvh bg-pitch text-chalk p-4 pb-10 max-w-2xl mx-auto space-y-4">
@@ -147,22 +198,69 @@ export default function ReportScreen() {
         <table className="w-full text-sm">
           <thead>
             <tr className="text-chalk/50">
-              <th className="text-left py-1"></th>
-              <th className="text-right py-1">{nameOf('A')}</th>
-              <th className="text-right py-1">{nameOf('B')}</th>
+              <th className="text-right py-1 w-1/4">{nameOf('A')}</th>
+              <th className="py-1"></th>
+              <th className="text-left py-1 w-1/4">{nameOf('B')}</th>
             </tr>
           </thead>
           <tbody>
-            {statRows.map(([label, a, b]) => (
-              <tr key={label} className="border-t border-line/50">
-                <td className="py-1.5">{label}</td>
-                <td className="py-1.5 text-right font-clock">{a}</td>
-                <td className="py-1.5 text-right font-clock">{b}</td>
+            {statRows.map((row) => (
+              <tr key={row.label} className="border-t border-line/50">
+                <td className="py-1.5 text-right font-clock">{row.a}</td>
+                <td className="py-1.5 text-center text-chalk/70">{row.label}</td>
+                <td className="py-1.5 text-left font-clock">{row.b}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </section>
+
+      {playerLines.length > 0 && (
+        <section className="rounded-xl bg-panel border border-line p-4 overflow-x-auto">
+          <h2 className={`${sectionTitle} mb-2`}>{t('playerStatsTitle')}</h2>
+          {showTeamFilter && (
+            <div className="flex gap-2 mb-3">
+              {(['all', 'A', 'B'] as const).map((f) => (
+                <button
+                  key={f}
+                  className={pillClass(teamFilter === f)}
+                  onClick={() => setTeamFilter(f)}
+                >
+                  {f === 'all' ? t('filterAllTeams') : nameOf(f)}
+                </button>
+              ))}
+            </div>
+          )}
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-chalk/50 text-left">
+                <th className="py-1">{t('colPlayer')}</th>
+                <th className="py-1 text-right">{t('colAssists')}</th>
+                <th className="py-1 text-right">{t('colGoals')}</th>
+                <th className="py-1 text-right">{t('colTotal')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visiblePlayerLines.map((p) => (
+                <tr key={`${p.team}:${p.playerId}`} className="border-t border-line/50">
+                  <td className="py-1.5">
+                    {showTeamFilter && (
+                      <span
+                        className="inline-block w-2.5 h-2.5 rounded-full mr-2 align-middle"
+                        style={{ backgroundColor: state.config.teams[p.team].color }}
+                      />
+                    )}
+                    {p.label}
+                  </td>
+                  <td className="py-1.5 text-right font-clock">{p.assists}</td>
+                  <td className="py-1.5 text-right font-clock">{p.goals}</td>
+                  <td className="py-1.5 text-right font-clock">{p.total}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       <section className="rounded-xl bg-panel border border-line p-4 overflow-x-auto">
         <h2 className={`${sectionTitle} mb-2`}>{t('historyTitle')}</h2>
@@ -170,20 +268,30 @@ export default function ReportScreen() {
       </section>
 
       <div className="grid grid-cols-2 gap-3">
-        <button className={primaryButton} onClick={copy}>
+        <button className={primaryButton} onClick={share}>
+          {shareStatus === 'working'
+            ? t('shareImagePreparing')
+            : shareStatus === 'saved'
+              ? t('shareImageSaved')
+              : shareStatus === 'failed'
+                ? t('shareImageFailed')
+                : t('shareImage')}
+        </button>
+        <button className={secondaryButtonOnPitch} onClick={copy}>
           {copyState === 'copied'
             ? t('copied')
             : copyState === 'failed'
               ? t('copyFailed')
               : t('copyReport')}
         </button>
-        <button
-          className={secondaryButtonOnPitch}
-          onClick={() => dispatch({ type: 'BACK_TO_CONFIG' })}
-        >
-          {t('newGame')}
-        </button>
       </div>
+
+      <button
+        className={`${secondaryButtonOnPitch} w-full`}
+        onClick={() => dispatch({ type: 'BACK_TO_CONFIG' })}
+      >
+        {t('newGame')}
+      </button>
     </div>
   );
 }

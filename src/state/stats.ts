@@ -4,7 +4,11 @@ import type { GameState, LogEntry, PlayerInfo, PointRecord, TeamId } from './typ
 export interface TeamStats {
   score: number;
   oLineHolds: number; // points won while on offense
+  cleanHolds: number; // oLineHolds with zero turnovers all point
+  breakChances: number; // opponent turnovers — one opportunity to break per
+  turnovers: number; // this team's own turnovers, lifetime, net of undo
   breaks: number; // points won while on defense
+  cleanBreaks: number; // breaks forced and converted with no turnover of their own
   avgHoldSeconds: number | null;
   avgBreakSeconds: number | null;
   timeoutsUsed: number;
@@ -15,7 +19,13 @@ function avg(nums: number[]): number | null {
   return Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
 }
 
+/**
+ * A hold is "clean" with zero turnovers in the point; a break is "clean" with
+ * exactly one — the single turnover that handed the disc over, immediately
+ * converted with none given back. See `PointRecord.turnovers`.
+ */
 export function teamStats(state: GameState, team: TeamId): TeamStats {
+  const other: TeamId = team === 'A' ? 'B' : 'A';
   const won = state.points.filter((p: PointRecord) => p.scoredBy === team);
   const holds = won.filter((p) => !p.isBreak);
   const breaks = won.filter((p) => p.isBreak);
@@ -23,11 +33,61 @@ export function teamStats(state: GameState, team: TeamId): TeamStats {
   return {
     score: state.scores[team],
     oLineHolds: holds.length,
+    cleanHolds: holds.filter((p) => p.turnovers === 0).length,
+    breakChances: state.turnoversCommitted[other],
+    turnovers: state.turnoversCommitted[team],
     breaks: breaks.length,
+    cleanBreaks: breaks.filter((p) => p.turnovers === 1).length,
     avgHoldSeconds: avg(holds.map((p) => p.durationSeconds)),
     avgBreakSeconds: avg(breaks.map((p) => p.durationSeconds)),
     timeoutsUsed: t.half1 + t.half2,
   };
+}
+
+export interface PlayerStatLine {
+  team: TeamId;
+  playerId: string;
+  label: string;
+  goals: number;
+  assists: number;
+  total: number; // goals + assists
+}
+
+/**
+ * One line per player who has scored or assisted at least once, across the
+ * given teams, sorted by goals+assists descending (ties broken by goals, then
+ * name, for a stable and readable order). Reads scorer/assist attribution off
+ * the goal log entries — the same place `goalPlayersDetail` reads it from —
+ * rather than `points`, since a goal's players can be filled in after the
+ * point already closed (SET_GOAL_PLAYERS).
+ */
+export function playerStatLines(state: GameState, teams: TeamId[]): PlayerStatLine[] {
+  const counts = new Map<
+    string,
+    { team: TeamId; playerId: string; goals: number; assists: number }
+  >();
+  const bump = (team: TeamId, playerId: string, field: 'goals' | 'assists') => {
+    const key = `${team}:${playerId}`;
+    const cur = counts.get(key) ?? { team, playerId, goals: 0, assists: 0 };
+    cur[field] += 1;
+    counts.set(key, cur);
+  };
+  for (const e of state.log) {
+    if (e.type !== 'goal' || !e.team || !teams.includes(e.team)) continue;
+    if (e.scorerId) bump(e.team, e.scorerId, 'goals');
+    if (e.assistId) bump(e.team, e.assistId, 'assists');
+  }
+  const lines = [...counts.values()].map(({ team, playerId, goals, assists }) => ({
+    team,
+    playerId,
+    label: playerLabel(findPlayer(state.config.players[team], playerId)),
+    goals,
+    assists,
+    total: goals + assists,
+  }));
+  return lines.sort(
+    (a, b) => b.total - a.total || b.goals - a.goals || a.label.localeCompare(b.label),
+  );
 }
 
 export function findPlayer(players: PlayerInfo[], id?: string): PlayerInfo | undefined {
@@ -105,6 +165,17 @@ export function stoppageDetail(e: LogEntry, t: TFunc): string {
   if (e.type === 'stoppage') return e.detail ? `${kind} — ${e.detail}` : kind;
   if (e.type !== 'stoppageResolved') return '';
   return `${kind} — ${t('callResolvedIn', { n: e.resolutionSeconds ?? 0 })}`;
+}
+
+/**
+ * How long the clock was stopped, for the row that says it started running again:
+ * "lasted 42s". The game clock is frozen for the whole pause, so this is the one
+ * duration in the log that `gameSeconds` cannot be read off — it comes from
+ * `pauseElapsedSeconds`, counted by TICK (see SOTG_TOGGLE).
+ */
+export function pauseDetail(e: LogEntry, t: TFunc): string {
+  if (e.type !== 'sotgEnd' && e.type !== 'pauseEnd') return '';
+  return t('logLasted', { n: e.resolutionSeconds ?? 0 });
 }
 
 export function formatClock(totalSeconds: number): string {

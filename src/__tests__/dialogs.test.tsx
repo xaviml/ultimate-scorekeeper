@@ -180,7 +180,7 @@ describe('dialogs render through the shared Modal', () => {
 
   it('StoppageDialog shows the player picker after choosing Injury when tracking players', () => {
     const state = createInitialState();
-    state.config.trackPlayers = true;
+    state.config.statsMode = 'player';
     sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
 
     renderWithProviders(<StoppageDialog onClose={noop} />);
@@ -200,7 +200,7 @@ describe('dialogs render through the shared Modal', () => {
     // state.config.players directly would otherwise leak these rosters into
     // every other test in this file that creates a "fresh" state afterward.
     state.config = { ...state.config, players: { A: [], B: [] } };
-    state.config.trackPlayers = true;
+    state.config.statsMode = 'player';
     state.config.players.A = [{ id: 'a1', number: '7', name: 'Alex' }];
     state.config.players.B = [{ id: 'b1', number: '3', name: 'Sam' }];
     sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
@@ -231,7 +231,7 @@ describe('dialogs render through the shared Modal', () => {
 
   it('StoppageDialog shows a team picker with a skip option after choosing Technical when tracking activity', () => {
     const state = createInitialState();
-    state.config.trackPlayers = true;
+    state.config.statsMode = 'game';
     sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
 
     renderWithProviders(<StoppageDialog onClose={noop} />);
@@ -241,7 +241,7 @@ describe('dialogs render through the shared Modal', () => {
 
   it('StoppageDialog records Technical straight away, with no team picker, when not tracking activity', () => {
     const state = createInitialState();
-    state.config.trackPlayers = false;
+    state.config.statsMode = 'none';
     sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
 
     const onClose = vi.fn();
@@ -253,7 +253,7 @@ describe('dialogs render through the shared Modal', () => {
 
   it('StoppageDialog asks which team called the SOTG, with no skip option, when tracking activity', () => {
     const state = createInitialState();
-    state.config.trackPlayers = true;
+    state.config.statsMode = 'game';
     sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
 
     const onClose = vi.fn();
@@ -267,7 +267,7 @@ describe('dialogs render through the shared Modal', () => {
 
   it('StoppageDialog applies the SOTG stoppage once a team is picked', () => {
     const state = createInitialState();
-    state.config.trackPlayers = true;
+    state.config.statsMode = 'game';
     sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
 
     const onClose = vi.fn();
@@ -279,7 +279,7 @@ describe('dialogs render through the shared Modal', () => {
 
   it('StoppageDialog leaves the SOTG stoppage unapplied when the team step is cancelled', () => {
     const state = createInitialState();
-    state.config.trackPlayers = true;
+    state.config.statsMode = 'game';
     sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
 
     const onClose = vi.fn();
@@ -292,11 +292,79 @@ describe('dialogs render through the shared Modal', () => {
     expect(stored.status).not.toBe('paused');
   });
 
+  it('StoppageDialog asks a team-only question for Injury in Game stats mode, with no roster', () => {
+    const state = createInitialState();
+    state.phase = 'game';
+    state.status = 'awaitingPull';
+    state.config = { ...state.config, statsMode: 'game' };
+    sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
+
+    const onClose = vi.fn();
+    renderWithProviders(<StoppageDialog onClose={onClose} />);
+    fireEvent.click(screen.getByText('Injury'));
+    expect(screen.getByText('Team A')).toBeInTheDocument();
+    expect(screen.getByText('Team B')).toBeInTheDocument();
+    expect(screen.getByText('No team')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Team A'));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    const stored = JSON.parse(sessionStorage.getItem('ultimate-scorekeeper:game-state')!);
+    expect(stored.pendingStoppage.team).toBe('A');
+    expect(stored.pendingStoppage.players).toBeUndefined();
+  });
+
+  it('StoppageDialog picks a named player for the tracked team and a plain team badge for the other, in Team stats mode', () => {
+    const state = createInitialState();
+    state.phase = 'game';
+    state.status = 'awaitingPull';
+    state.config = {
+      ...state.config,
+      statsMode: 'team',
+      trackedTeam: 'A',
+      players: { A: [{ id: 'a1', number: '7', name: 'Alex' }], B: [] },
+    };
+    sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
+
+    const onClose = vi.fn();
+    renderWithProviders(<StoppageDialog onClose={onClose} />);
+    fireEvent.click(screen.getByText('Injury'));
+
+    // Only the tracked team's roster is offered as named players.
+    const alex = screen.getByText('#7 Alex');
+    fireEvent.pointerDown(alex);
+    fireEvent.pointerUp(alex);
+
+    // The other team is a plain checkbox, no roster.
+    fireEvent.click(screen.getByLabelText(/Also mark Team B as injured/));
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    const stored = JSON.parse(sessionStorage.getItem('ultimate-scorekeeper:game-state')!);
+    expect(stored.pendingStoppage.players).toEqual([{ team: 'A', playerId: 'a1' }]);
+    // Both teams involved at once (one named, one generic) — no single-team badge.
+    expect(stored.pendingStoppage.team).toBeUndefined();
+  });
+
   it('TurnoverDialog asks both sides and can be saved with no one picked', () => {
+    const state = createInitialState();
+    state.config.statsMode = 'player';
+    sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
+
     renderWithProviders(<TurnoverDialog attacking="A" onClose={noop} />);
     expect(screen.getByText(/Team A — who lost the disc/)).toBeInTheDocument();
     expect(screen.getByText(/Team B — who forced it/)).toBeInTheDocument();
     expect(screen.getByText('Cancel')).toBeInTheDocument();
+  });
+
+  it("TurnoverDialog asks only the tracked team's role in Team stats mode", () => {
+    const state = createInitialState();
+    state.config.statsMode = 'team';
+    state.config.trackedTeam = 'B';
+    sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
+
+    renderWithProviders(<TurnoverDialog attacking="A" onClose={noop} />);
+    expect(screen.queryByText(/Team A — who lost the disc/)).toBeNull();
+    expect(screen.getByText(/Team B — who forced it/)).toBeInTheDocument();
   });
 
   it('AssistGoalDialog hides scorer/assist titles when the roster is empty', () => {

@@ -9,9 +9,17 @@ export function PlayersDialog({ onClose }: { onClose: () => void }) {
   const dispatch = useGameDispatch();
   const { t } = useT();
 
+  // Team stats mode only ever attributes the tracked team's players, so the
+  // other roster has nothing to be edited for — same scope as the config
+  // screen's Roster section (see ConfigScreen).
+  const teams: TeamId[] =
+    state.config.statsMode === 'team' && state.config.trackedTeam
+      ? [state.config.trackedTeam]
+      : (['A', 'B'] as TeamId[]);
+
   return (
     <Modal title={t('playersTitle')} onClose={onClose} showClose>
-      {(['A', 'B'] as TeamId[]).map((id) => (
+      {teams.map((id) => (
         <PlayerRosterEditor
           key={id}
           label={state.config.teams[id].name}

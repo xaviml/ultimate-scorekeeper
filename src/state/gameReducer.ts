@@ -4,8 +4,10 @@ import type {
   GameState,
   Gender,
   GoalSnapshot,
+  LogEdit,
   LogEntry,
   LogType,
+  StoppagePlayer,
   TeamId,
   TimeoutConfig,
 } from './types';
@@ -42,9 +44,27 @@ export const defaultConfig: GameConfig = {
   // Appendix B4.3 in practice: 3 minutes, at 4 and at 12).
   waterBreaks: { enabled: false, atScores: [4, 12], durationSeconds: 180 },
   startingTime: { enabled: false, time: '' },
-  trackPlayers: false,
+  statsMode: 'none',
+  trackedTeam: null,
   players: { A: [], B: [] },
 };
+
+/** Whether this game logs anything beyond the bare score — any mode but `none`. */
+export function statsTrackingEnabled(config: GameConfig): boolean {
+  return config.statsMode !== 'none';
+}
+
+/**
+ * Whether `team`'s specific players get attributed in this game — the goal/assist
+ * picker, a turnover's role (drop or D), an injury's named-player picker. True for
+ * both teams in `player` mode, true for only `trackedTeam` in `team` mode (the
+ * other team stays at `game`-mode, team-only detail), false otherwise.
+ */
+export function playerTrackingFor(config: GameConfig, team: TeamId): boolean {
+  return (
+    config.statsMode === 'player' || (config.statsMode === 'team' && config.trackedTeam === team)
+  );
+}
 
 const other = (t: TeamId): TeamId => (t === 'A' ? 'B' : 'A');
 
@@ -66,7 +86,13 @@ function log(
   detail?: string,
   extra?: Pick<
     LogEntry,
-    'turnoverId' | 'defenseId' | 'callKind' | 'resolution' | 'resolutionSeconds' | 'stoppageKind'
+    | 'turnoverId'
+    | 'defenseId'
+    | 'callKind'
+    | 'resolution'
+    | 'resolutionSeconds'
+    | 'stoppageKind'
+    | 'stoppagePlayers'
   >,
 ): GameState {
   return {
@@ -86,6 +112,36 @@ function log(
     ],
     nextLogId: state.nextLogId + 1,
   };
+}
+
+/**
+ * Who an injury stoppage is attributed to: the players named, plus the generic
+ * "this team, nobody in particular" attribution the team-only pickers produce
+ * (see PendingStoppage.team).
+ *
+ * A team badge only makes sense when every injured party — named player or
+ * generic team — is on the same side; more than one side involved (or nobody
+ * named at all) leaves it off, and the label carries the full attribution
+ * instead. Shared by STOPPAGE and EDIT_LOG_ENTRY so a corrected injury reads
+ * exactly like one recorded right the first time.
+ */
+function injuryAttribution(
+  state: GameState,
+  team: TeamId | undefined,
+  players: StoppagePlayer[] | undefined,
+): { team?: TeamId; label?: string } {
+  const named = players ?? [];
+  const teams = [...new Set([...named.map((p) => p.team), ...(team ? [team] : [])])];
+  const namedLabels = named
+    .map((p) => {
+      const label = playerLabel(findPlayer(state.config.players[p.team], p.playerId));
+      return teams.length > 1 ? `${state.config.teams[p.team].name}: ${label}` : label;
+    })
+    .filter(Boolean);
+  const label = team
+    ? [...namedLabels, state.config.teams[team].name].join(', ')
+    : namedLabels.join(', ');
+  return { team: teams.length === 1 ? teams[0] : undefined, label: label || undefined };
 }
 
 /**
@@ -109,6 +165,7 @@ export function createInitialState(config: GameConfig = defaultConfig): GameStat
     statusBeforeTimeout: null,
     pauseSilent: false,
     pauseTeam: null,
+    pauseElapsedSeconds: 0,
     half: 1,
     scores: { A: 0, B: 0 },
     // Rule B leaves the ratio to the end zone the teams are playing into — the
@@ -119,6 +176,7 @@ export function createInitialState(config: GameConfig = defaultConfig): GameStat
     offenseTeam: config.startingOffense,
     possessionTeam: null,
     pointTurnovers: 0,
+    turnoversCommitted: { A: 0, B: 0 },
     gameSeconds: 0,
     startingAtMs: null,
     pointStartSeconds: null,
@@ -194,13 +252,14 @@ export function canUndoTurnover(state: GameState): { ok: boolean; reason?: strin
 }
 
 /**
- * Whether the possession chip belongs on the scoreboard: only once a turnover has
- * actually been recorded. Until then possession is simply the team that received
- * the pull, which the pull chip already says — and a game where nobody presses Turn
- * would otherwise carry a chip that never changes and is never checked.
+ * Whether the possession chip belongs on the scoreboard. Any stats mode but `none`
+ * shows it from the first pull onward — Game/Team/Player stats all put a Turn
+ * button on screen, so there's no reason to wait for a first press of it before
+ * telling the volunteer who has the disc. In `none` there is no Turn button at
+ * all, so a possession chip would just repeat the pull chip and never change.
  */
 export function possessionTracked(state: GameState): boolean {
-  return state.log.some((e) => e.type === 'turnover');
+  return state.config.statsMode !== 'none';
 }
 
 /**
@@ -300,6 +359,145 @@ export function canWaterBreak(state: GameState): { ok: boolean; reason?: string 
   if (playHalted(state)) return { ok: false, reason: 'stoppageInProgress' };
   if (state.status !== 'awaitingPull') return { ok: false, reason: 'waterBreakNotNow' };
   return { ok: true };
+}
+
+/**
+ * The rows one recorded event writes, in the order it writes them. An attribution
+ * edit applies to the whole group, so the log can never say a foul was Red's on
+ * one line and Blue's on the next; the first type in each group opens an episode,
+ * and only one episode of a kind can ever be open at a time (see PendingCall /
+ * PendingStoppage), which is what makes finding a row's partners exact.
+ *
+ * The silent manual pause (`pauseStart`/`pauseEnd`) is absent on purpose: it is
+ * never attributed to a team, so it has nothing for an edit to keep in sync.
+ */
+const EPISODE_GROUPS: LogType[][] = [
+  ['call', 'callResolved'],
+  ['stoppage', 'stoppageClockStopped', 'stoppageResolved'],
+  ['sotgStart', 'sotgEnd'],
+];
+
+/** The rows that close an episode — their absence is what makes it still open. */
+const EPISODE_CLOSERS: LogType[] = ['callResolved', 'stoppageResolved', 'sotgEnd'];
+
+/**
+ * Every index belonging to the same episode as `index`: the opening row, that row
+ * itself and whatever else the same event wrote. Just `[index]` for the types that
+ * write a single row (a goal, a turnover, a travel, a note).
+ */
+function episodeIndices(log: LogEntry[], index: number): number[] {
+  const group = EPISODE_GROUPS.find((g) => g.includes(log[index].type));
+  if (!group) return [index];
+  const [opener] = group;
+  let start = index;
+  while (start > 0 && log[start].type !== opener) start--;
+  const indices: number[] = [];
+  for (let i = start; i < log.length; i++) {
+    if (i > start && log[i].type === opener) break; // the next episode of the same kind
+    if (group.includes(log[i].type)) indices.push(i);
+  }
+  return indices;
+}
+
+/**
+ * Which question the log dialog's pencil asks for an entry, or null when there is
+ * nothing to fix — in which case the row shows no pencil at all.
+ *
+ * It mirrors this game's stats mode rather than widening it: an edit re-asks the
+ * question the app asked when the event was recorded, so a game that never asked
+ * which team (statsMode 'none') has nothing to edit on a call, and a team whose
+ * players are not tracked has nothing to edit on its goals. What is deliberately
+ * NOT here: which team scored, whether a goal happened at all, the kind of call or
+ * stoppage, and a timeout's team — the first two are what undo is for, and the
+ * rest would rewrite what the event *was* rather than who it involved.
+ */
+export function logEditKind(state: GameState, entry: LogEntry): LogEdit['kind'] | null {
+  const { config } = state;
+  switch (entry.type) {
+    case 'goal':
+      return entry.team && playerTrackingFor(config, entry.team) ? 'goalPlayers' : null;
+    case 'turnover':
+      // The team is possession-derived, so only the players are editable — and only
+      // when at least one of the two sides involved has a roster to pick from.
+      if (!entry.team) return null;
+      return playerTrackingFor(config, entry.team) || playerTrackingFor(config, other(entry.team))
+        ? 'turnoverPlayers'
+        : null;
+    case 'stoppage':
+    case 'stoppageClockStopped':
+    case 'stoppageResolved':
+      if (!statsTrackingEnabled(config)) return null;
+      return entry.stoppageKind === 'injury' ? 'injury' : 'team';
+    case 'callResolved':
+      return statsTrackingEnabled(config) ? 'callResolution' : null;
+    case 'call':
+    case 'travel':
+    case 'sotgStart':
+    case 'sotgEnd':
+      return statsTrackingEnabled(config) ? 'team' : null;
+    case 'note':
+      return 'note';
+    default:
+      return null;
+  }
+}
+
+/**
+ * Whether the editor offers a way back to no team at all. Only a technical
+ * stoppage's team was ever optional (StoppageDialog's "No team" skip); a call, a
+ * travel and an SOTG stoppage all had to name one to be recorded, so clearing
+ * theirs would put the log in a state the app cannot produce.
+ */
+export function logEditAllowsNoTeam(entry: LogEntry): boolean {
+  return entry.stoppageKind === 'technical';
+}
+
+/**
+ * May this entry be deleted (the log dialog's bin)? Only the newest one, and only
+ * the handful of types whose effect on the game can be rewound completely:
+ *
+ * - a turnover — exactly what a long-press on Turn already undoes (see
+ *   UNDO_TURNOVER), which is the code the delete reuses;
+ * - a call, resolved or not — bookkeeping either way, and the two rows go together;
+ * - a travel or a note — bookkeeping with no state behind it at all.
+ *
+ * Everything else keeps its row. A goal is undone with a long-press on the score,
+ * which is a rule with a snapshot behind it; a stoppage, a timeout or a break moves
+ * the clock and the status, and rewinding those from the log is where the corner
+ * cases live. Restricting deletion to the newest entry is what keeps this list
+ * short: nothing has happened since, so there is nothing to reconcile.
+ */
+export function canDeleteLogEntry(state: GameState, entry: LogEntry): boolean {
+  if (state.log[state.log.length - 1]?.id !== entry.id) return false;
+  switch (entry.type) {
+    case 'turnover':
+      return canUndoTurnover(state).ok;
+    case 'call':
+    case 'callResolved':
+    case 'travel':
+    case 'note':
+      return true;
+    default:
+      return false;
+  }
+}
+
+/**
+ * The point a goal log entry belongs to, or null. A goal appends one PointRecord
+ * and one log row, and only the most recently scored goal can be undone (canUndo)
+ * — but an undo that had something logged after it leaves the goal row in place
+ * and appends a correction instead (see UNDO_GOAL), so the n-th goal row is not
+ * simply the n-th point. Replaying the log the way UNDO_GOAL did it is: each
+ * 'undo' drops the goal row most recently added to the list.
+ */
+function pointIndexForGoal(log: LogEntry[], id: number): number | null {
+  const live: number[] = [];
+  for (const e of log) {
+    if (e.type === 'goal') live.push(e.id);
+    else if (e.type === 'undo') live.pop();
+  }
+  const index = live.indexOf(id);
+  return index === -1 ? null : index;
 }
 
 /**
@@ -618,6 +816,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
             isBreak,
             durationSeconds: duration,
             half: s.half,
+            turnovers: s.pointTurnovers,
           },
         ],
       };
@@ -732,12 +931,14 @@ export function gameReducer(state: GameState, action: Action): GameState {
                   : announceHalf
                     ? 'halfAt'
                     : 'goalScored';
-      // With player tracking on, the scorer/assist picker is about to pop up over
-      // this same goal — hold the sign/message back so it doesn't fight the dialog
-      // for the volunteer's attention, and release it (REVEAL_GOAL_ASSIST) once the
-      // dialog closes instead. The gender-ratio auto-reveal piggybacks on this for
-      // free: it only arms off `assist === 'goalScored'`, so it naturally waits too.
-      const trackingPlayers = s.config.trackPlayers;
+      // When the scoring team is player-tracked, the scorer/assist picker is about
+      // to pop up over this same goal — hold the sign/message back so it doesn't
+      // fight the dialog for the volunteer's attention, and release it
+      // (REVEAL_GOAL_ASSIST) once the dialog closes instead. In `team` mode a goal
+      // by the untracked side never opens that dialog, so nothing needs holding
+      // back there. The gender-ratio auto-reveal piggybacks on this for free: it
+      // only arms off `assist === 'goalScored'`, so it naturally waits too.
+      const trackingPlayers = playerTrackingFor(s.config, team);
       s = {
         ...s,
         status: reachHalf ? s.status : 'awaitingPull',
@@ -915,22 +1116,19 @@ export function gameReducer(state: GameState, action: Action): GameState {
       // technical stoppage is never attributed to a player, only (optionally) a
       // single team.
       if (!canStoppage(state).ok) return state;
-      const injuredPlayers = action.kind === 'injury' ? (action.players ?? []) : [];
-      // A team badge only makes sense when every injured player is on the same
-      // side — mixed teams (or no player named at all) leave it off, and the
-      // player list in the detail string carries the attribution instead.
-      const injuredTeams = [...new Set(injuredPlayers.map((p) => p.team))];
-      const soleInjuredTeam = injuredTeams.length === 1 ? injuredTeams[0] : undefined;
-      const team = action.kind === 'technical' ? action.team : soleInjuredTeam;
-      const injuredLabel = injuredPlayers
-        .map((p) => {
-          const label = playerLabel(findPlayer(state.config.players[p.team], p.playerId));
-          return injuredTeams.length > 1 ? `${state.config.teams[p.team].name}: ${label}` : label;
-        })
-        .filter(Boolean)
-        .join(', ');
-      const s = log(state, 'stoppage', team, injuredLabel || undefined, {
+      // Team stats mode's hybrid injury step (and Game stats mode's team-only
+      // step) can name a team with no specific player at all — injuryAttribution
+      // folds that into the same team/label derivation as named players, rather
+      // than a separate code path. A technical stoppage names a team and nothing
+      // else: nobody caused it.
+      const injured =
+        action.kind === 'injury'
+          ? injuryAttribution(state, action.team, action.players)
+          : { team: action.team, label: undefined };
+      const team = injured.team;
+      const s = log(state, 'stoppage', team, injured.label, {
         stoppageKind: action.kind,
+        stoppagePlayers: action.kind === 'injury' ? action.players : undefined,
       });
       return {
         ...s,
@@ -986,6 +1184,10 @@ export function gameReducer(state: GameState, action: Action): GameState {
         ...s,
         possessionTeam: other(attacking),
         pointTurnovers: s.pointTurnovers + 1,
+        turnoversCommitted: {
+          ...s.turnoversCommitted,
+          [attacking]: s.turnoversCommitted[attacking] + 1,
+        },
         assist: 'turnover',
       };
     }
@@ -1011,6 +1213,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         ...s,
         possessionTeam: back,
         pointTurnovers: s.pointTurnovers - 1,
+        turnoversCommitted: { ...s.turnoversCommitted, [back]: s.turnoversCommitted[back] - 1 },
         assist: 'turnoverUndone',
       };
     }
@@ -1070,10 +1273,15 @@ export function gameReducer(state: GameState, action: Action): GameState {
 
     case 'SOTG_TOGGLE': {
       if (state.status === 'paused' && state.statusBeforePause !== null) {
+        // How long play was actually halted, the same thing a resolved call or
+        // stoppage records: counted by TICK rather than measured off the wall
+        // clock, so it is unaffected by the app being reloaded mid-pause.
         const s = log(
           state,
           state.pauseSilent ? 'pauseEnd' : 'sotgEnd',
           state.pauseTeam ?? undefined,
+          undefined,
+          { resolutionSeconds: state.pauseElapsedSeconds },
         );
         return {
           ...s,
@@ -1097,6 +1305,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         statusBeforePause: state.status,
         pauseSilent: !!action.silent,
         pauseTeam: action.team ?? null,
+        pauseElapsedSeconds: 0,
         assist: action.silent ? 'pauseStart' : 'sotg',
       };
     }
@@ -1213,6 +1422,12 @@ export function gameReducer(state: GameState, action: Action): GameState {
           }
         }
       }
+      // How long the clock has been stopped, logged by sotgEnd/pauseEnd when play
+      // resumes. Read off the status this tick started with, so the pause that the
+      // prolonged-stoppage rule below opens starts counting from its own 0.
+      if (s.status === 'paused') {
+        s = { ...s, pauseElapsedSeconds: s.pauseElapsedSeconds + 1 };
+      }
       // Pending stoppage bookkeeping: elapsedSeconds keeps counting every tick for
       // recording purposes even once the clock below has stopped. Left unresolved
       // for PROLONGED_STOPPAGE_SECONDS, the game clock auto-stops exactly like an
@@ -1240,6 +1455,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
             ...s,
             status: 'paused',
             statusBeforePause: s.status,
+            pauseElapsedSeconds: 0,
             pendingStoppage: { ...pending, clockStopped: true },
             assist: 'stoppageClockStopped',
           };
@@ -1362,6 +1578,111 @@ export function gameReducer(state: GameState, action: Action): GameState {
       }
 
       return { ...state, points, log };
+    }
+
+    case 'EDIT_LOG_ENTRY': {
+      const index = state.log.findIndex((e) => e.id === action.id);
+      if (index === -1) return state;
+      const entry = state.log[index];
+      const edit = action.edit;
+      // The row has to actually offer this question. The dialog only ever opens the
+      // matching one, so this is about a stale dispatch (an entry deleted underneath
+      // it) not being able to write a row the app itself could never record.
+      if (logEditKind(state, entry) !== edit.kind) return state;
+      const log = [...state.log];
+
+      if (edit.kind === 'goalPlayers') {
+        log[index] = { ...entry, scorerId: edit.scorerId, assistId: edit.assistId };
+        // The point carries the same two ids (see SET_GOAL_PLAYERS), so it moves with
+        // the row rather than being left behind disagreeing with it.
+        const pointIndex = pointIndexForGoal(state.log, entry.id);
+        const points =
+          pointIndex === null
+            ? state.points
+            : state.points.map((p, i) =>
+                i === pointIndex ? { ...p, scorerId: edit.scorerId, assistId: edit.assistId } : p,
+              );
+        return { ...state, log, points };
+      }
+
+      if (edit.kind === 'turnoverPlayers') {
+        log[index] = { ...entry, turnoverId: edit.turnoverId, defenseId: edit.defenseId };
+        return { ...state, log };
+      }
+
+      if (edit.kind === 'note') {
+        const text = edit.text.trim();
+        // Same rule as NOTE itself: an empty note is not a note. Clearing the text is
+        // "delete this entry", which is the other button on the row.
+        if (!text) return state;
+        log[index] = { ...entry, detail: text };
+        return { ...state, log };
+      }
+
+      // Everything left is an attribution every row of the event shares.
+      const episode = episodeIndices(state.log, index);
+      const injury =
+        edit.kind === 'injury' ? injuryAttribution(state, edit.team, edit.players) : null;
+      const injuredPlayers = edit.kind === 'injury' ? edit.players : undefined;
+      const team = injury ? injury.team : edit.team;
+      for (const i of episode) {
+        log[i] = { ...log[i], team };
+        // Only the opening row of an injury names the players — the rows that follow
+        // it are about the clock, not about who was hurt.
+        if (injury && log[i].type === 'stoppage') {
+          log[i] = { ...log[i], detail: injury.label, stoppagePlayers: injuredPlayers };
+        }
+      }
+      if (edit.kind === 'callResolution') {
+        log[index] = { ...log[index], resolution: edit.resolution };
+      }
+
+      // An episode with no closing row is the one still in progress, so the live
+      // state that will write that closing row has to move with the edit — otherwise
+      // resolving the call would put the old team back.
+      const open = !episode.some((i) => EPISODE_CLOSERS.includes(state.log[i].type));
+      if (!open) return { ...state, log };
+      if (entry.type === 'call' && state.pendingCall !== null) {
+        return { ...state, log, pendingCall: { ...state.pendingCall, team } };
+      }
+      if (entry.stoppageKind !== undefined && state.pendingStoppage !== null) {
+        return {
+          ...state,
+          log,
+          pendingStoppage: {
+            ...state.pendingStoppage,
+            team,
+            players: injury ? injuredPlayers : state.pendingStoppage.players,
+          },
+        };
+      }
+      if (entry.type === 'sotgStart' && state.status === 'paused') {
+        return { ...state, log, pauseTeam: team ?? null };
+      }
+      return { ...state, log };
+    }
+
+    case 'DELETE_LOG_ENTRY': {
+      const entry = state.log[state.log.length - 1];
+      if (entry === undefined || entry.id !== action.id) return state;
+      if (!canDeleteLogEntry(state, entry)) return state;
+      // A turnover is exactly what a long-press on Turn takes back, and its entry
+      // being the newest is the very case UNDO_TURNOVER already handles by dropping
+      // the row rather than logging a correction — so this is that action, not a
+      // second way to rewind possession.
+      if (entry.type === 'turnover') return gameReducer(state, { type: 'UNDO_TURNOVER' });
+      // A resolution goes with the call it answered: half a call left in the log
+      // reads as a dispute that never ended. Everything else here is a single row.
+      const drop = new Set(episodeIndices(state.log, state.log.length - 1));
+      return {
+        ...state,
+        log: state.log.filter((_, i) => !drop.has(i)),
+        // Deleting a call nobody has answered yet takes the open question with it.
+        pendingCall: entry.type === 'call' ? null : state.pendingCall,
+        // nextLogId is deliberately left alone: ids stay unique for the lifetime of
+        // the game, so a deleted row's id can never be handed to a later event (the
+        // assistance queue keys its messages off it — see useAssistQueue).
+      };
     }
 
     default:

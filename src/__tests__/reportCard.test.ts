@@ -1,0 +1,196 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import { en } from '../i18n/en';
+import type { TFunc } from '../i18n/useT';
+import { createInitialState, defaultConfig } from '../state/gameReducer';
+import { reportCardModel, teamStatRows } from '../state/reportCard';
+import type { GameState, LogEntry, PointRecord } from '../state/types';
+
+/** Same shape as the real translator, without standing up the provider. */
+const t: TFunc = (key, vars) => {
+  const raw = en[key] as string;
+  if (!vars) return raw;
+  return raw.replace(/\{(\w+)\}/g, (_, name: string) => String(vars[name] ?? ''));
+};
+
+function point(patch: Partial<PointRecord> = {}): PointRecord {
+  return {
+    scoredBy: 'A',
+    offense: 'A',
+    isBreak: false,
+    durationSeconds: 10,
+    half: 1,
+    turnovers: 0,
+    ...patch,
+  };
+}
+
+let nextLogId = 1;
+function entry(patch: Partial<LogEntry> = {}): LogEntry {
+  return {
+    id: nextLogId++,
+    wallClock: '10:00:00',
+    atMs: 0,
+    gameSeconds: 0,
+    type: 'goal',
+    ...patch,
+  };
+}
+
+/** See reportScreenStats.test.tsx — defaultConfig is a shared singleton, so it has to be cloned. */
+function baseState(): GameState {
+  const state = createInitialState(structuredClone(defaultConfig));
+  state.phase = 'report';
+  state.status = 'finished';
+  return state;
+}
+
+beforeEach(() => {
+  nextLogId = 1;
+});
+
+describe('teamStatRows', () => {
+  it('drops the turnover-derived rows when activity tracking is off', () => {
+    const state = baseState();
+    state.config.statsMode = 'none';
+    const labels = teamStatRows(state, t).map((r) => r.label);
+
+    expect(labels).toContain('O-line holds');
+    expect(labels).toContain('Break points');
+    expect(labels).not.toContain('Clean holds');
+    expect(labels).not.toContain('Break chances');
+    expect(labels).not.toContain('Turnovers');
+    expect(labels).not.toContain('Clean breaks');
+  });
+
+  it('formats the average times as a clock, and an absent average as a dash', () => {
+    const state = baseState();
+    state.config.statsMode = 'game';
+    state.points = [point({ scoredBy: 'A', offense: 'A', isBreak: false, durationSeconds: 95 })];
+
+    const rows = teamStatRows(state, t);
+    expect(rows.find((r) => r.label === 'Avg. hold time')).toEqual({
+      label: 'Avg. hold time',
+      a: '01:35',
+      b: '—',
+    });
+    // Neither side ever broke, so both averages are empty.
+    expect(rows.find((r) => r.label === 'Avg. break time')).toEqual({
+      label: 'Avg. break time',
+      a: '—',
+      b: '—',
+    });
+  });
+});
+
+describe('reportCardModel', () => {
+  it('carries the score, team names and colours the card paints', () => {
+    const state = baseState();
+    state.config.teams = {
+      A: { name: 'Foxes', color: '#ff0000' },
+      B: { name: 'Wolves', color: '#0000ff' },
+    };
+    state.scores = { A: 15, B: 12 };
+
+    const model = reportCardModel(state, t, 'en');
+    expect(model.title).toBe('Final report');
+    expect(model.teams).toEqual([
+      { name: 'Foxes', color: '#ff0000', score: '15' },
+      { name: 'Wolves', color: '#0000ff', score: '12' },
+    ]);
+    expect(model.statHeader).toEqual(['Foxes', 'Wolves']);
+  });
+
+  it('puts the field, date and the clock times of the game in the meta line', () => {
+    const state = baseState();
+    state.config.fieldNumber = '3';
+    const start = Date.UTC(2026, 6, 30, 9, 0, 0);
+    state.log = [
+      entry({ type: 'gameStart', wallClock: '11:00:00', atMs: start }),
+      entry({ type: 'gameEnd', wallClock: '12:07:30', atMs: start + 4050_000 }),
+    ];
+
+    const meta = reportCardModel(state, t, 'en').meta;
+    expect(meta).toContain('Field 3');
+    expect(meta).toContain('Started: 11:00:00');
+    expect(meta).toContain('Finished: 12:07:30');
+    expect(meta).toContain('Duration: 67:30');
+    expect(meta.some((m) => m.includes('2026'))).toBe(true);
+  });
+
+  it('leaves the field out when none was entered, rather than printing an empty one', () => {
+    const state = baseState();
+    state.config.fieldNumber = '  ';
+    expect(reportCardModel(state, t, 'en').meta).not.toContain('Field   ');
+    expect(reportCardModel(state, t, 'en').meta.some((m) => m.startsWith('Field'))).toBe(false);
+  });
+
+  it('gives every player row a team colour in Player mode, and none in Team mode', () => {
+    const state = baseState();
+    state.config.statsMode = 'player';
+    state.config.teams = {
+      A: { name: 'Foxes', color: '#ff0000' },
+      B: { name: 'Wolves', color: '#0000ff' },
+    };
+    state.config.players = {
+      A: [{ id: 'a1', number: '7', name: 'Alex' }],
+      B: [{ id: 'b1', number: '', name: 'Jo' }],
+    };
+    state.log = [entry({ team: 'A', scorerId: 'a1' }), entry({ team: 'B', scorerId: 'b1' })];
+
+    const both = reportCardModel(state, t, 'en').playerRows;
+    expect(both.map((p) => p.label)).toEqual(['#7 Alex', 'Jo']);
+    expect(both.map((p) => p.color)).toEqual(['#ff0000', '#0000ff']);
+
+    // Team mode lists one roster, so a colour dot would distinguish nothing.
+    state.config.statsMode = 'team';
+    state.config.trackedTeam = 'A';
+    const tracked = reportCardModel(state, t, 'en').playerRows;
+    expect(tracked.map((p) => p.label)).toEqual(['#7 Alex']);
+    expect(tracked[0].color).toBeNull();
+  });
+
+  it('counts assists and goals separately and totals them', () => {
+    const state = baseState();
+    state.config.statsMode = 'team';
+    state.config.trackedTeam = 'A';
+    state.config.players = { A: [{ id: 'a1', number: '', name: 'Alex' }], B: [] };
+    state.log = [
+      entry({ team: 'A', scorerId: 'a1' }),
+      entry({ team: 'A', scorerId: 'a1' }),
+      entry({ team: 'A', assistId: 'a1' }),
+    ];
+
+    expect(reportCardModel(state, t, 'en').playerRows[0]).toEqual({
+      label: 'Alex',
+      color: null,
+      assists: '1',
+      goals: '2',
+      total: '3',
+    });
+  });
+
+  it('has no player section at all when nobody was attributed', () => {
+    const state = baseState();
+    state.config.statsMode = 'game';
+    state.points = [point()];
+    state.log = [entry({ team: 'A' })];
+
+    expect(reportCardModel(state, t, 'en').playerRows).toEqual([]);
+  });
+
+  it('never carries the game log — leaving it out is the whole point of the image', () => {
+    const bare = baseState();
+    bare.log = [entry({ type: 'gameStart' })];
+
+    const chatty = baseState();
+    chatty.log = [
+      entry({ type: 'gameStart' }),
+      entry({ type: 'note', detail: 'wind picked up' }),
+      entry({ type: 'note', detail: 'sideline warned' }),
+    ];
+
+    const model = reportCardModel(chatty, t, 'en');
+    expect(model).toEqual(reportCardModel(bare, t, 'en'));
+    expect(JSON.stringify(model)).not.toContain('wind picked up');
+  });
+});

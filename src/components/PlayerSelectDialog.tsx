@@ -21,6 +21,12 @@ export type PlayerSelectSection =
       multi?: false;
       selected: string | null;
       onSelect: (playerId: string | null) => void;
+      /**
+       * A player to leave out of this section's chips — for two sections asking
+       * about the same roster, so the answer to one can't also be the answer to
+       * the other (nobody assists their own goal).
+       */
+      exclude?: string | null;
     }
   | {
       team: TeamId;
@@ -76,7 +82,7 @@ export function PlayerSelectDialog({
             />
           ) : (
             <PlayerPicker
-              players={state.config.players[section.team]}
+              players={state.config.players[section.team].filter((p) => p.id !== section.exclude)}
               selected={section.selected}
               onSelect={section.onSelect}
               onRemove={(id) => {

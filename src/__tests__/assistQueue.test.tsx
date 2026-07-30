@@ -146,7 +146,7 @@ describe('the assistance queue', () => {
     send({ type: 'STOPPAGE', kind: 'injury', team: 'A' });
     expect(screen.getByText('"Injury — stop play!"')).toBeInTheDocument();
     expect(screen.queryByRole('img', { name: 'Goal' })).toBeNull();
-    expect(screen.getByRole('img', { name: 'Stoppage of play' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Injury stoppage' })).toBeInTheDocument();
 
     // ...and hands them both back together.
     wait(7000);

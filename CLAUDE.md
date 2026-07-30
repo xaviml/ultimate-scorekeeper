@@ -57,6 +57,19 @@ One consequence worth knowing: a note recorded between a goal and an undo of tha
 
 The figures are real screenshots (`public/guide/*.png`), captured English-only by `scripts/guide-screenshots.mjs`, which drives an actual game through Playwright. The numbered pointers are **not** drawn into the images: the script measures the live bounding boxes and prints the `FIG_*` percentage arrays that `GuideScreen` positions markers with, and the captions are the translated list beside the picture. So after a layout change to the config screen, the dashboard or the report, re-run the script and paste the arrays back — otherwise the markers drift off their controls.
 
+### The report leaves by two doors, and they carry different things
+
+"Copy to clipboard" is the archive: the whole report as plain text, **game log included**, for a spreadsheet or an email. "Share as image" is the thing you send to the team chat, and it deliberately drops the log — a full history is pages long and illegible as a picture, so the card is the score, the team stats and the player stats, plus the field/date/duration line that only ever lived in the copied text.
+
+The card is **drawn by hand onto a canvas**, not rasterised from the DOM. The app has no runtime dependencies and works offline off a service worker; every DOM-to-image library has to re-fetch the cross-origin Google Fonts stylesheet and inline it, which is exactly what fails on a pitch with no signal — silently, in the fallback font. `fillText` uses the faces the page already loaded. The split is `state/reportCard.ts` (pure: `reportCardModel` freezes everything into translated, formatted strings, and is unit-tested) and `components/reportCardImage.ts` (mechanical: measures and paints, untested by design). `teamStatRows` is shared with the on-screen table so the two can't drift, and `playerStatsTeams` decides which rosters both of them read.
+
+Two things there are easy to undo by accident:
+
+- **The image is rendered on mount, not on the tap** (`hooks/useReportImage.ts`). Safari only honours `navigator.share` while the user activation from the tap is alive, and awaiting a fresh canvas render inside the handler loses it. With the blob already waiting, the share call happens in the same task as the click. Moving the render into the handler would work everywhere except the phones this app is for.
+- **A dismissed share sheet is not a failure.** `AbortError` goes back to idle; anything else falls through to downloading the PNG, which is also the path for every browser without file sharing. Downloading on cancel would force through exactly what was just declined.
+
+`setupTests.ts` stubs `getContext`/`toBlob` to null — jsdom logs a "Not implemented" trace otherwise, and null is already what `drawReportCard` treats as "no canvas here".
+
 ### i18n key conventions
 
 `src/i18n/{en,es}.ts` are plain objects; `es` is typed as `typeof en`, so **a key missing from Spanish is a type error**. Three conventions are load-bearing:

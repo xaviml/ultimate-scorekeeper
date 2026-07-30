@@ -49,7 +49,9 @@ export function GameLog({ onClose, onAddEvent }: { onClose: () => void; onAddEve
       }
     >
       {flash && <p className="text-xs text-signal">{t(`assist_blocked_${flash}` as never)}</p>}
-      <GameLogTable order="desc" />
+      {/* Editable here and nowhere else: this is the log of a game still being
+          played, which is when a mis-tap is worth going back and fixing. */}
+      <GameLogTable order="desc" editable />
     </Modal>
   );
 }

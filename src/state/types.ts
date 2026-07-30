@@ -3,6 +3,21 @@ export type Division = 'open' | 'women' | 'mixed';
 export type MixedRule = 'A' | 'B';
 export type Gender = 'male' | 'female';
 
+/**
+ * The four levels of "how much do we log":
+ * - `none` — the basic app: score, clock, ratio. No Roster/Turn buttons, a
+ *   call/travel/technical/SOTG stoppage logs with no team attached.
+ * - `game` — Turn appears and a call/travel/stoppage asks which team, but
+ *   nothing is ever attributed to a specific player (no roster either).
+ * - `team` — `game`-level detail for both teams, PLUS a roster and
+ *   player-level attribution (goal/assist, a turnover's role, injury) for
+ *   `trackedTeam` only. Anything about the other team behaves exactly like
+ *   `game` — team-only, never a player picker.
+ * - `player` — full detail: a roster and player-level attribution for both
+ *   teams, same as this app always behaved before this mode existed.
+ */
+export type StatsMode = 'none' | 'game' | 'team' | 'player';
+
 export type EndCapRule =
   | { kind: 'none' } // Option A: finish the current point, no cap
   | { kind: 'cap'; plus: 1 | 2 } // Option B (default)
@@ -86,21 +101,16 @@ export interface GameConfig {
   timeouts: TimeoutConfig;
   waterBreaks: WaterBreakConfig;
   startingTime: StartingTimeConfig;
-  /**
-   * The "Track game activity" stats toggle. When true: the Roster and Turn action-row
-   * buttons appear, a call/travel/technical stoppage asks which team was involved, and
-   * a goal/assist/turnover/injury additionally asks which player once the roster below
-   * is filled in. When false, none of that is asked and both buttons are hidden — every
-   * event is still logged, just with no team or player attached, and a turnover isn't
-   * logged at all (there is no Turn button to log one with).
-   */
-  trackPlayers: boolean;
+  /** See `StatsMode`. Replaces the old "Track game activity" checkbox with four levels. */
+  statsMode: StatsMode;
+  /** The team followed in `team` mode; null in every other mode. */
+  trackedTeam: TeamId | null;
   players: Record<TeamId, PlayerInfo[]>;
 }
 
 /**
  * Rule settings a template can carry — everything except the per-game choices
- * templates must not touch: teams, coin toss results, players, trackPlayers.
+ * templates must not touch: teams, coin toss results, players, statsMode/trackedTeam.
  */
 export type TemplateSettings = Omit<
   GameConfig,
@@ -108,7 +118,8 @@ export type TemplateSettings = Omit<
   | 'startingOffense'
   | 'startingSide'
   | 'startingRatio'
-  | 'trackPlayers'
+  | 'statsMode'
+  | 'trackedTeam'
   | 'players'
   | 'startingTime'
 >;
@@ -148,6 +159,12 @@ export type CallResolution = 'accepted' | 'contested' | 'retracted';
  * can only be attributed to a team.
  */
 export type StoppageKind = 'injury' | 'technical';
+
+/** One person named in an injury stoppage — a collision can hurt players on both sides at once, so the team travels with the id. */
+export interface StoppagePlayer {
+  team: TeamId;
+  playerId: string;
+}
 
 export type LogType =
   | 'gameStart'
@@ -195,11 +212,39 @@ export interface LogEntry {
   callKind?: CallKind;
   /** `callResolved` entries only. */
   resolution?: CallResolution;
-  /** `callResolved` and `stoppageResolved` entries only: game-clock seconds the call/stoppage took to settle. */
+  /**
+   * How long the thing that stopped play took, in seconds: `callResolved` and
+   * `stoppageResolved` carry the discussion/stoppage timer, `sotgEnd`/`pauseEnd`
+   * carry how long the clock was stopped (`pauseElapsedSeconds`).
+   */
   resolutionSeconds?: number;
   /** `stoppage` and `stoppageResolved` entries only. */
   stoppageKind?: StoppageKind;
+  /**
+   * `stoppage` entries for an injury: the players named, kept structured next to
+   * the `detail` label they render as — `detail` is what the log and the report
+   * print, this is what the log editor prefills from and re-derives it from.
+   */
+  stoppagePlayers?: StoppagePlayer[];
 }
+
+/**
+ * One change the log editor can make to an entry (EDIT_LOG_ENTRY) — the same
+ * questions the app asked when it recorded the event, asked again. Every one of
+ * them is attribution: an edit never touches the score, the clock or possession,
+ * which is what keeps the log editable without re-opening every game rule.
+ *
+ * `undefined` clears an answer, exactly as it does in the recording actions.
+ */
+export type LogEdit =
+  | { kind: 'goalPlayers'; scorerId?: string; assistId?: string }
+  | { kind: 'turnoverPlayers'; turnoverId?: string; defenseId?: string }
+  /** The team of a travel, a call, a technical stoppage or an SOTG/manual pause. */
+  | { kind: 'team'; team?: TeamId }
+  /** A resolved call: who called it and how it ended, the two questions that row answers. */
+  | { kind: 'callResolution'; team?: TeamId; resolution: CallResolution }
+  | { kind: 'injury'; team?: TeamId; players?: StoppagePlayer[] }
+  | { kind: 'note'; text: string };
 
 /**
  * A call that has been made but not yet resolved. While one is open the game
@@ -208,7 +253,7 @@ export interface LogEntry {
  */
 export interface PendingCall {
   kind: CallKind;
-  /** Undefined when the call was logged without tracking game activity — see trackPlayers. */
+  /** Undefined when the call was logged in `statsMode: 'none'` — see StatsMode. */
   team?: TeamId;
   /**
    * How long the discussion has been going. Ticked every TICK except while play is
@@ -236,10 +281,16 @@ export interface PendingCall {
  */
 export interface PendingStoppage {
   kind: StoppageKind;
-  /** Set for `technical` (the team responsible), and derived for `injury` when every injured player is on the same team — undefined once the injury spans both. */
+  /**
+   * Set for `technical` (the team responsible). For `injury` it is derived: the
+   * sole team across every name in `players` plus the generic, no-player team
+   * `STOPPAGE.team` can also carry for injury (the `game`-mode team-only picker,
+   * or the untracked side of `team` mode's hybrid picker) — undefined once more
+   * than one of those is involved at once.
+   */
   team?: TeamId;
-  /** `injury` only — every injured player, each with their own team since an injury can involve people from both sides at once. A technical stoppage is never attributed to a player. */
-  players?: { team: TeamId; playerId: string }[];
+  /** `injury` only — every named player, each with their own team since an injury can involve people from both sides at once. A technical stoppage is never attributed to a player. */
+  players?: StoppagePlayer[];
   /**
    * Seconds since the stoppage was logged, incremented every TICK regardless of
    * whether the game clock itself is running — so the resolution duration keeps
@@ -258,6 +309,8 @@ export interface PointRecord {
   half: 1 | 2;
   scorerId?: string;
   assistId?: string;
+  /** Turnovers by either team during this point — 0 makes a hold "clean", 1 makes a break "clean" (see teamStats in stats.ts). */
+  turnovers: number;
 }
 
 /**
@@ -304,6 +357,15 @@ export interface GameState {
   pauseSilent: boolean;
   /** Team that called the open SOTG pause, when `config.trackPlayers` asked — carried from `sotgStart` to `sotgEnd` the same way `pendingStoppage.team` survives to `stoppageResolved`. Null for a silent pause or when tracking is off. */
   pauseTeam: TeamId | null;
+  /**
+   * How long the clock has been stopped, ticked every TICK while `status` is
+   * 'paused' and reset each time a pause begins. Same shape and purpose as
+   * `pendingCall.elapsedSeconds` and `pendingStoppage.elapsedSeconds`: it is what
+   * `sotgEnd`/`pauseEnd` log as `resolutionSeconds`, so the log says how long play
+   * was actually halted. A counter rather than a wall-clock difference so it stays
+   * deterministic in tests, like the other two.
+   */
+  pauseElapsedSeconds: number;
   half: 1 | 2;
   scores: Record<TeamId, number>;
   /** Gender ratio for the point currently being played (mixed only). */
@@ -325,6 +387,16 @@ export interface GameState {
    * possession then would hand the disc away from the team that received the pull.
    */
   pointTurnovers: number;
+  /**
+   * Turnovers committed by each team over the whole game, net of any undo — a
+   * long-press on Turn decrements whichever team gets the disc back, exactly
+   * mirroring `pointTurnovers`. Unlike that counter this never resets per point:
+   * it's what the report's Turnovers/Break chance stats read (a team's break
+   * chances are simply the other team's turnovers). It needs no entry in
+   * GoalSnapshot — UNDO_GOAL only rewinds the goal itself, not the turnovers
+   * already played out earlier in the same, still-in-progress point.
+   */
+  turnoversCommitted: Record<TeamId, number>;
   gameSeconds: number; // elapsed game clock
   /** Epoch ms of the scheduled kickoff, while status is 'awaitingStart'; null otherwise. */
   startingAtMs: number | null;
@@ -414,10 +486,14 @@ export type Action =
   | {
       type: 'STOPPAGE';
       kind: StoppageKind;
-      /** `technical` only — `injury` derives its team badge from `players` instead. */
+      /**
+       * `technical`: the team responsible. `injury`: a generic, no-player
+       * attribution — the `game`-mode team-only picker, or the untracked
+       * side of `team` mode's hybrid picker (see PendingStoppage.team).
+       */
       team?: TeamId;
-      /** `injury` only — every player hurt, each with their own team. */
-      players?: { team: TeamId; playerId: string }[];
+      /** `injury` only — every named player hurt, each with their own team. */
+      players?: StoppagePlayer[];
     }
   | { type: 'STOPPAGE_RESOLVED' }
   | { type: 'TURNOVER'; turnoverId?: string; defenseId?: string }
@@ -446,4 +522,16 @@ export type Action =
   | { type: 'BACK_TO_CONFIG' }
   | { type: 'ADD_PLAYER'; team: TeamId; number: string; name: string }
   | { type: 'REMOVE_PLAYER'; team: TeamId; id: string }
-  | { type: 'SET_GOAL_PLAYERS'; team: TeamId; scorerId: string | null; assistId: string | null };
+  | { type: 'SET_GOAL_PLAYERS'; team: TeamId; scorerId: string | null; assistId: string | null }
+  /**
+   * Fix an attribution already in the log, from the log dialog's pencil — any
+   * entry, however old (see LogEdit and `logEditKind`). Silent and in place: the
+   * row changes, nothing is appended, and no call-out or signal fires, because a
+   * correction to the bookkeeping is not an event on the field.
+   */
+  | { type: 'EDIT_LOG_ENTRY'; id: number; edit: LogEdit }
+  /**
+   * Remove the newest log entry, from the log dialog's bin — only for the handful
+   * of types whose state can be rewound completely (see `canDeleteLogEntry`).
+   */
+  | { type: 'DELETE_LOG_ENTRY'; id: number };

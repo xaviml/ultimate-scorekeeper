@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
-import { canWaterBreak } from '../state/gameReducer';
+import { canWaterBreak, statsTrackingEnabled } from '../state/gameReducer';
 import type { StoppageKind, TeamId } from '../state/types';
+import { InjuryAttributionDialog } from './InjuryAttributionDialog';
 import { Modal } from './Modal';
-import { PlayerSelectDialog } from './PlayerSelectDialog';
-import { contrastText, secondaryButton } from './ui';
+import { contrastText, secondaryButton, teamChoiceButton } from './ui';
 
-type Step = 'kind' | 'injuryPlayers' | 'technicalTeam' | 'sotgTeam';
+type Step = 'kind' | 'injury' | 'technicalTeam' | 'sotgTeam';
 
 /**
  * The three answers to "play is halting, why?": an injury (optionally attributed
@@ -19,6 +19,10 @@ type Step = 'kind' | 'injuryPlayers' | 'technicalTeam' | 'sotgTeam';
  * activity tracking is on, in which case it asks which team called it — and unlike
  * every other attribution step, there is no "no team" skip: cancelling that step
  * cancels the SOTG stoppage entirely rather than applying it untracked.
+ *
+ * Injury's attribution step lives in InjuryAttributionDialog, which asks whichever
+ * question this game's statsMode has an answer for — and is the same step the log
+ * editor reopens to correct an injury already recorded.
  *
  * SOTG is the odd one of the three in that it stops the game clock immediately,
  * while an injury or technical stoppage leaves it running until the reducer's
@@ -41,15 +45,13 @@ export function StoppageDialog({ onClose }: { onClose: () => void }) {
   const dispatch = useGameDispatch();
   const { t } = useT();
   const [step, setStep] = useState<Step>('kind');
-  // Any number of players can be hurt in the same stoppage, from either team —
-  // e.g. a collision between opponents — so this is a list, not a single pick.
-  const [selected, setSelected] = useState<{ team: TeamId; playerId: string }[]>([]);
 
   const chooseKind = (kind: StoppageKind) => {
-    // Both attribution steps are gated the same way: only asked while the game is
-    // tracking activity, otherwise each records straight away with nothing attached.
+    // Technical is gated the same way regardless of statsMode: only asked while
+    // the game is tracking activity at all, otherwise it records straight away
+    // with nothing attached.
     if (kind === 'technical') {
-      if (state.config.trackPlayers) {
+      if (statsTrackingEnabled(state.config)) {
         setStep('technicalTeam');
         return;
       }
@@ -57,31 +59,15 @@ export function StoppageDialog({ onClose }: { onClose: () => void }) {
       onClose();
       return;
     }
-    if (state.config.trackPlayers) {
-      setStep('injuryPlayers');
+    // Which attribution the injury step asks for depends on which roster(s)
+    // actually exist — InjuryAttributionDialog owns that, and is the same step the
+    // log editor reopens to correct one. With no tracking at all there is nothing
+    // to ask, so the stoppage is recorded on the spot.
+    if (statsTrackingEnabled(state.config)) {
+      setStep('injury');
       return;
     }
     dispatch({ type: 'STOPPAGE', kind: 'injury' });
-    onClose();
-  };
-
-  // Toggling a chip adds/removes just that one player, so picks in one team's
-  // section don't touch the other's.
-  const toggleInjured = (team: TeamId, playerId: string) => {
-    setSelected((prev) =>
-      prev.some((p) => p.team === team && p.playerId === playerId)
-        ? prev.filter((p) => !(p.team === team && p.playerId === playerId))
-        : [...prev, { team, playerId }],
-    );
-  };
-
-  // Save with no player picked still records the injury — just with no one attached.
-  const saveInjury = () => {
-    dispatch({
-      type: 'STOPPAGE',
-      kind: 'injury',
-      players: selected.length ? selected : undefined,
-    });
     onClose();
   };
 
@@ -89,7 +75,7 @@ export function StoppageDialog({ onClose }: { onClose: () => void }) {
   // there is no second step to show. While it's on, which team called it is the
   // one thing worth attributing — asked next rather than applied on the spot.
   const chooseSotg = () => {
-    if (state.config.trackPlayers) {
+    if (statsTrackingEnabled(state.config)) {
       setStep('sotgTeam');
       return;
     }
@@ -122,20 +108,14 @@ export function StoppageDialog({ onClose }: { onClose: () => void }) {
     onClose();
   };
 
-  if (step === 'injuryPlayers') {
+  if (step === 'injury') {
     return (
-      <PlayerSelectDialog
-        title={t('injuryDialogTitle')}
-        hint={t('injuryDialogHint')}
-        sections={(['A', 'B'] as TeamId[]).map((id) => ({
-          team: id,
-          label: state.config.teams[id].name,
-          multi: true as const,
-          selected: selected.filter((p) => p.team === id).map((p) => p.playerId),
-          onToggle: (playerId: string) => toggleInjured(id, playerId),
-        }))}
+      <InjuryAttributionDialog
         onCancel={onClose}
-        onSave={saveInjury}
+        onSubmit={({ team, players }) => {
+          dispatch({ type: 'STOPPAGE', kind: 'injury', team, players });
+          onClose();
+        }}
       />
     );
   }
@@ -148,7 +128,7 @@ export function StoppageDialog({ onClose }: { onClose: () => void }) {
           {(['A', 'B'] as TeamId[]).map((id) => (
             <button
               key={id}
-              className="rounded-xl font-board font-bold py-6 active:scale-[0.99] truncate px-2"
+              className={teamChoiceButton()}
               style={{
                 backgroundColor: state.config.teams[id].color,
                 color: contrastText(state.config.teams[id].color),
@@ -174,7 +154,7 @@ export function StoppageDialog({ onClose }: { onClose: () => void }) {
           {(['A', 'B'] as TeamId[]).map((id) => (
             <button
               key={id}
-              className="rounded-xl font-board font-bold py-6 active:scale-[0.99] truncate px-2"
+              className={teamChoiceButton()}
               style={{
                 backgroundColor: state.config.teams[id].color,
                 color: contrastText(state.config.teams[id].color),

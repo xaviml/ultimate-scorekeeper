@@ -71,21 +71,24 @@ async function main() {
   await page.locator('h1').click(); // close the combobox suggestion panel
   await sleep(200);
 
+  // Template and division/teams/starting-time now live in one merged "Setup"
+  // section; Stats (the statsMode picker) is its own section right after it.
+  // The Roster section itself only renders once statsMode is 'team'/'player', so
+  // this default (stats-off) walkthrough never reaches it — the setup figure
+  // points at the Stats section instead, which is where that choice is made.
   const sections = page.locator('section');
-  const [template, setup, players, toss, win, timeouts] = [0, 1, 2, 3, 4, 6].map((i) =>
-    sections.nth(i),
-  );
+  const [setup, stats, toss, win, timeouts] = [0, 1, 2, 3, 5].map((i) => sections.nth(i));
 
-  const setupClip = await span(page, page.locator('header'), players);
+  const setupClip = await span(page, page.locator('header'), stats);
   await shot('setup.png', { clip: setupClip, fullPage: true });
   // Anchors are nudged off centre on purpose: a marker should sit beside the
   // control it points at, not on top of the value the reader is trying to read.
   out.FIG_SETUP = [
-    await marker(template.locator('select'), setupClip, -0.04),
     await marker(setup.locator('select').first(), setupClip, -0.04),
+    await marker(setup.locator('select').nth(1), setupClip, -0.04),
     await marker(page.getByLabel('Team 1', { exact: true }), setupClip, -0.04),
     await marker(setup.locator('input[type=checkbox]'), setupClip),
-    await marker(players.locator('h2'), setupClip, 1.25),
+    await marker(stats.locator('h2'), setupClip, 1.05),
   ];
 
   const tossClip = await span(page, toss, toss);

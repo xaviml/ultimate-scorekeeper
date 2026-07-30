@@ -249,6 +249,15 @@ export default function ConfigScreen() {
 
   const set = <K extends keyof GameConfig>(key: K, value: GameConfig[K]) =>
     setCfg((c) => ({ ...c, [key]: value }));
+  // Switching into 'team' defaults trackedTeam to 'A' unless one was already
+  // picked (coming back from a previous 'team' choice); switching away clears it,
+  // matching the type's own "null unless mode==='team'" contract.
+  const setStatsMode = (mode: GameConfig['statsMode']) =>
+    setCfg((c) => ({
+      ...c,
+      statsMode: mode,
+      trackedTeam: mode === 'team' ? (c.trackedTeam ?? 'A') : null,
+    }));
   const setTeam = (id: TeamId, patch: Partial<GameConfig['teams'][TeamId]>) =>
     setCfg((c) => ({ ...c, teams: { ...c.teams, [id]: { ...c.teams[id], ...patch } } }));
   const selectSavedTeam = (id: TeamId, team: SavedTeam) =>
@@ -320,6 +329,15 @@ export default function ConfigScreen() {
     !cfg.startingTime.enabled || startingTimeIsFuture(cfg.startingTime.time);
   const canStart = teamsReady && !duplicateTeamNames && halfScoreValid && startingTimeReady;
 
+  const statsModeHintKey = {
+    none: 'statsModeNoneHint',
+    game: 'statsModeGameHint',
+    team: 'statsModeTeamHint',
+    player: 'statsModePlayerHint',
+  }[cfg.statsMode] as
+    'statsModeNoneHint' | 'statsModeGameHint' | 'statsModeTeamHint' | 'statsModePlayerHint';
+  const showRoster = cfg.statsMode === 'team' || cfg.statsMode === 'player';
+
   return (
     <div className="min-h-dvh bg-pitch text-chalk p-4 pb-10 max-w-2xl mx-auto space-y-4">
       <header className="flex items-center justify-between pt-2">
@@ -363,7 +381,7 @@ export default function ConfigScreen() {
         </button>
       </p>
 
-      <Section title={t('templateTitle')}>
+      <Section title={t('setupTitle')}>
         <div>
           <label className={fieldLabel}>{t('templateSelectLabel')}</label>
           <select
@@ -396,9 +414,7 @@ export default function ConfigScreen() {
             {t('btnDeleteTemplate')}
           </button>
         )}
-      </Section>
 
-      <Section title={t('setupTitle')}>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={fieldLabel}>{t('division')}</label>
@@ -487,36 +503,65 @@ export default function ConfigScreen() {
         )}
       </Section>
 
-      <Section
-        title={t('playersTitle')}
-        collapsible
-        collapsed={playersCollapsed}
-        onToggleCollapsed={togglePlayersCollapsed}
-        toggleAriaLabel={t(playersCollapsed ? 'expandSection' : 'collapseSection', {
-          title: t('playersTitle'),
-        })}
-      >
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={cfg.trackPlayers}
-            onChange={(e) => set('trackPlayers', e.target.checked)}
-          />
-          <span>{t('trackPlayers')}</span>
-        </label>
-        <PlayerRosterEditor
-          label={cfg.teams.A.name.trim() || t('teamA')}
-          players={cfg.players.A}
-          onAdd={(number, name) => addPlayer('A', number, name)}
-          onRemove={(id) => removePlayer('A', id)}
-        />
-        <PlayerRosterEditor
-          label={cfg.teams.B.name.trim() || t('teamB')}
-          players={cfg.players.B}
-          onAdd={(number, name) => addPlayer('B', number, name)}
-          onRemove={(id) => removePlayer('B', id)}
-        />
+      <Section title={t('statsTitle')}>
+        <div>
+          <label className={fieldLabel}>{t('statsModeLabel')}</label>
+          <select
+            className={inputClass}
+            value={cfg.statsMode}
+            onChange={(e) => setStatsMode(e.target.value as GameConfig['statsMode'])}
+          >
+            <option value="none">{t('statsModeNone')}</option>
+            <option value="game">{t('statsModeGame')}</option>
+            <option value="team">{t('statsModeTeam')}</option>
+            <option value="player">{t('statsModePlayer')}</option>
+          </select>
+          <p className="text-xs text-chalk/50 pt-1">{t(statsModeHintKey)}</p>
+        </div>
+        {cfg.statsMode === 'team' && (
+          <div>
+            <label className={fieldLabel}>{t('trackedTeamLabel')}</label>
+            <select
+              className={inputClass}
+              value={cfg.trackedTeam ?? 'A'}
+              onChange={(e) => set('trackedTeam', e.target.value as TeamId)}
+            >
+              <option value="A">{cfg.teams.A.name.trim() || t('teamA')}</option>
+              <option value="B">{cfg.teams.B.name.trim() || t('teamB')}</option>
+            </select>
+          </div>
+        )}
       </Section>
+
+      {showRoster && (
+        <Section
+          title={t('playersTitle')}
+          collapsible
+          collapsed={playersCollapsed}
+          onToggleCollapsed={togglePlayersCollapsed}
+          toggleAriaLabel={t(playersCollapsed ? 'expandSection' : 'collapseSection', {
+            title: t('playersTitle'),
+          })}
+        >
+          <p className="text-xs text-chalk/50">{t('rosterHelp')}</p>
+          {(cfg.statsMode === 'player' || cfg.trackedTeam === 'A') && (
+            <PlayerRosterEditor
+              label={cfg.teams.A.name.trim() || t('teamA')}
+              players={cfg.players.A}
+              onAdd={(number, name) => addPlayer('A', number, name)}
+              onRemove={(id) => removePlayer('A', id)}
+            />
+          )}
+          {(cfg.statsMode === 'player' || cfg.trackedTeam === 'B') && (
+            <PlayerRosterEditor
+              label={cfg.teams.B.name.trim() || t('teamB')}
+              players={cfg.players.B}
+              onAdd={(number, name) => addPlayer('B', number, name)}
+              onRemove={(id) => removePlayer('B', id)}
+            />
+          )}
+        </Section>
+      )}
 
       <Section title={t('coinToss')}>
         <p className="text-sm text-chalk/60">{t('coinTossHelp')}</p>

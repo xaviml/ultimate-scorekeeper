@@ -4,7 +4,6 @@ export const ca: typeof en = {
   appTitle: "Marcador d'Ultimate",
   tagline: "Un assistent guiat per als anotadors d'Ultimate Frisbee",
 
-  templateTitle: 'Plantilla',
   templateSelectLabel: 'Plantilla',
   templatePredefinedGroup: 'Predefinides',
   templateCustomGroup: 'Les teves plantilles',
@@ -105,11 +104,26 @@ export const ca: typeof en = {
   btnInstall: 'Instal·lar',
   dismissBanner: 'Descartar',
 
+  statsTitle: 'Estadístiques',
+  statsModeLabel: 'Què registrar',
+  statsModeNone: 'Sense estadístiques',
+  statsModeNoneHint: 'Només el marcador, el rellotge i la ràtio de gènere — res més es registra.',
+  statsModeGame: 'Estadístiques de partit',
+  statsModeGameHint:
+    'Les pèrdues i els calls es registren per equip, sense detall de jugador — no cal roster.',
+  statsModeTeam: "Estadístiques d'equip",
+  statsModeTeamHint:
+    "Els gols, assistències, pèrdues i lesions s'atribueixen per jugador per a l'equip que triïs a sota. L'altre equip es queda amb el detall d'estadístiques de partit — només per equip, mai per jugador.",
+  statsModePlayer: 'Estadístiques de jugador',
+  statsModePlayerHint:
+    "Els gols, assistències, pèrdues i lesions s'atribueixen per jugador, en els dos equips.",
+  trackedTeamLabel: 'Equip a seguir',
+
   playersTitle: 'Roster',
   collapseSection: 'Replegar {title}',
   expandSection: 'Desplegar {title}',
-  trackPlayers:
-    'Registrar activitat del partit per a estadístiques (gols, assistències, pèrdues, faltes, lesions)',
+  rosterHelp:
+    'Pots afegir jugadors amb el partit ja en marxa — no cal omplir tot el roster abans de començar.',
   playerNumber: '#',
   playerName: 'Nom',
   addPlayer: 'Afegir',
@@ -129,6 +143,9 @@ export const ca: typeof en = {
   injuryDialogTitle: "Qui s'ha lesionat?",
   injuryDialogHint:
     "Opcional — selecciona tothom que s'hagi lesionat, de qualsevol equip, o omet-ho i registra només la lesió.",
+  injuryOtherTeamToggle: 'Marcar també {team} com a lesionat (sense jugador)',
+  injuryTeamStoppageTitle: 'Lesió — de quin equip?',
+  injuryTeamStoppageHint: "Opcional — també pots ometre l'equip.",
   technicalStoppageTitle: "Aturada tècnica — qui l'ha cantada?",
   technicalStoppageHint:
     "Material, interferència externa i similars. Opcional — també pots ometre l'equip.",
@@ -241,7 +258,8 @@ export const ca: typeof en = {
   handSignal: 'Senyal de mà',
   signal_goal: 'Gol',
   signal_timeout: 'Temps mort',
-  signal_stoppage: 'Aturada de joc',
+  signal_stoppageInjury: 'Aturada per lesió',
+  signal_stoppageTechnical: 'Aturada tècnica',
   signal_sotg: "Aturada d'esperit",
   signal_ratioMale: 'Ràtio: Nois',
   signal_ratioFemale: 'Ràtio: Noies',
@@ -374,16 +392,39 @@ export const ca: typeof en = {
   reportDuration: 'Durada: {duration}',
   finalScore: 'Marcador final',
   statOLineHolds: "Holds d'atac",
+  statCleanHold: 'Holds nets',
+  statBreakChances: 'Oportunitats de break',
+  statTurnovers: 'Pèrdues',
   statBreaks: 'Breaks',
+  statCleanBreaks: 'Breaks nets',
   statAvgHold: 'Durada mitjana de hold',
   statAvgBreak: 'Durada mitjana de break',
   statTimeouts: 'Temps morts usats',
+  playerStatsTitle: 'Estadístiques de jugadors',
+  filterAllTeams: 'Tots',
+  colPlayer: 'Jugador',
+  colGoals: 'Gols',
+  colAssists: 'Assistències',
+  colTotal: 'Total',
+  reportFooterCredit: 'Aquest partit es va registrar amb:',
   historyTitle: 'Historial del partit',
-  colTime: 'Hora',
   colClock: 'Rellotge',
   colEvent: 'Esdeveniment',
   colTeam: 'Equip',
   colDetail: 'Detall',
+  colActions: 'Accions',
+  btnEditEntry: 'Corregir aquesta entrada',
+  btnDeleteEntry: 'Esborrar aquesta entrada',
+  logEditHint:
+    'Això només corregeix l’historial: el marcador, el rellotge i la possessió no canvien.',
+  logEditCallTitle: '{kind} — corregir la senyalització',
+  whoCalled: 'Qui la va senyalar',
+  howResolved: 'Com va acabar',
+  logLasted: 'ha durat {n}s',
+  shareImage: 'Compartir imatge',
+  shareImagePreparing: 'Preparant…',
+  shareImageSaved: 'Imatge desada',
+  shareImageFailed: "No s'ha pogut crear la imatge",
   copyReport: 'Copiar al porta-retalls',
   copied: 'Copiat!',
   copyFailed: "No s'ha pogut copiar — torna-ho a provar",
@@ -445,9 +486,9 @@ export const ca: typeof en = {
   guideStep1Teams: 'Noms i colors dels equips',
   guideStep1TeamsBody:
     'Escriu cada nom, o tria un equip que hagis desat abans. Tria un color semblant al de les samarretes de cada equip: els panells del marcador van pintats amb aquests colors tot el partit, així no has de recordar mai quina banda és quina.',
-  guideStep1Players: 'Roster',
+  guideStep1Players: 'Estadístiques',
   guideStep1PlayersBody:
-    'Opcional, per a estadístiques. Desactivat per defecte: el marcador, els rellotges i l\'informe funcionen igual sense això, i les faltes, travellings i aturades tècniques es registren sense equip. Marca "Registrar activitat del partit" i apareixen dos botons més a la pantalla de joc, Roster i Turn: cada falta, travelling i aturada tècnica pregunta llavors quin equip, i un gol, assistència, pèrdua o lesió pregunta també quin jugador, un cop afegeixis les plantilles de sota.',
+    'Tria què registra aquest partit. "Sense estadístiques" és el valor per defecte: només marcador, rellotges i ràtio, amb faltes, travellings i aturades tècniques registrades sense equip. "Estadístiques de partit" afegeix pèrdues i faltes per equip, sense necessitat de plantilla. "Estadístiques d\'equip" i "Estadístiques de jugador" atribueixen gols, assistències, pèrdues i lesions a un jugador, un cop afegeixis la plantilla de sota: d\'equip per al costat que triïs, de jugador per a tots dos. Qualsevol opció per sobre de "Sense estadístiques" afegeix a més dos botons més a la pantalla de joc, Roster i Turn.',
   guideStep1Time: "Hora d'inici prevista",
   guideStep1TimeBody:
     "Opcional. Marca-ho i l'aplicació fa el compte enrere fins a l'hora d'inici i desbloqueja el joc sola quan arriba.",
@@ -602,7 +643,7 @@ export const ca: typeof en = {
   guideStep9Travel:
     'Travel: es canta a qui llança i es mou de manera il·legal. Es registra en un sol pas, sense seguiment.',
   guideStep9Turn:
-    "Turn: només apareix amb \"Registrar activitat del partit\" activat (pas 1): registra una pèrdua, perquè el disc canviï d'equip sense un gol. Des de la primera, una etiqueta «Possessió» al marcador indica qui té el disc durant cada punt. Mantén premut Turn per desfer l'última pèrdua del punt si l'has registrada per error.",
+    "Turn: només apareix quan el partit registra alguna cosa més que el marcador (pas 1): registra una pèrdua, perquè el disc canviï d'equip sense un gol. Des de la primera, una etiqueta «Possessió» al marcador indica qui té el disc durant cada punt. Mantén premut Turn per desfer l'última pèrdua del punt si l'has registrada per error.",
   guideStep9Stoppage:
     "Mà aixecada: lesió o tècnica (material, interferència externa...). El rellotge del partit segueix corrent. Quan el joc pugui continuar, prem «El joc pot continuar» per registrar quant ha durat l'aturada.",
   guideStep9Sotg:
@@ -618,7 +659,7 @@ export const ca: typeof en = {
   guideStep10Body:
     "L'aplicació acaba el partit sola quan un equip arriba a l'objectiu. Si l'has d'aturar abans, prem la ✕ del cantó superior esquerre, al costat del número de camp, i confirma.",
   guideStep10Report:
-    'Llavors apareix l\'informe: el marcador final, unes quantes estadístiques de cada equip i l\'historial complet del partit. "Copiar al porta-retalls" el converteix en text pla que pots enganxar en un missatge o en un full de càlcul; fes-ho abans de sortir de la pantalla. "Nou partit" et torna a la configuració per al següent.',
+    'Llavors apareix l\'informe: el marcador final, unes quantes estadístiques de cada equip i l\'historial complet del partit. "Compartir imatge" envia una foto del marcador i les estadístiques directament a un xat; l\'historial es queda fora perquè es pugui llegir. "Copiar al porta-retalls" ho converteix tot, historial inclòs, en text pla que pots enganxar en un missatge o en un full de càlcul; fes-ho abans de sortir de la pantalla. "Nou partit" et torna a la configuració per al següent.',
 
   guideCheatTitle: 'Resum ràpid',
   guideCheatTap: "Tocar el panell d'un equip",

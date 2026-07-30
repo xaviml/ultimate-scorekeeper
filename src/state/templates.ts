@@ -47,7 +47,7 @@ export const BEACH_TEMPLATE: Omit<TemplateSettings, 'fieldNumber'> = {
   waterBreaks: { enabled: false, atScores: [4, 12], durationSeconds: 180 },
 };
 
-/** Picks the fields a custom template saves — the config screen's current settings minus teams, coin toss, players and trackPlayers. */
+/** Picks the fields a custom template saves — the config screen's current settings minus teams, coin toss, players and statsMode/trackedTeam. */
 export function extractTemplateSettings(cfg: GameConfig): TemplateSettings {
   return {
     division: cfg.division,

@@ -3,7 +3,6 @@ export const en = {
   tagline: 'A guided assistant for Ultimate Frisbee scorekeepers',
 
   // Config screen
-  templateTitle: 'Template',
   templateSelectLabel: 'Template',
   templatePredefinedGroup: 'Predefined',
   templateCustomGroup: 'Your templates',
@@ -105,11 +104,28 @@ export const en = {
   btnInstall: 'Install',
   dismissBanner: 'Dismiss',
 
+  // Statistics
+  statsTitle: 'Statistics',
+  statsModeLabel: 'What to track',
+  statsModeNone: 'No statistics',
+  statsModeNoneHint: 'Just the score, clock and gender ratio — nothing else is logged.',
+  statsModeGame: 'Game stats',
+  statsModeGameHint:
+    'Turnovers and calls are logged by team, with no player detail — no roster needed.',
+  statsModeTeam: 'Team stats',
+  statsModeTeamHint:
+    'Goals, assists, turnovers and injuries are attributed by player for the team you pick below. The other team stays at game-stats detail — team only, never a player.',
+  statsModePlayer: 'Player stats',
+  statsModePlayerHint:
+    'Goals, assists, turnovers and injuries are attributed by player, for both teams.',
+  trackedTeamLabel: 'Team to track',
+
   // Players / rosters
   playersTitle: 'Roster',
   collapseSection: 'Collapse {title}',
   expandSection: 'Expand {title}',
-  trackPlayers: 'Track game activity for stats (goals, assists, turnovers, calls, injuries)',
+  rosterHelp:
+    "You can add players once the game is underway — there's no need to fill in the full roster before kickoff.",
   playerNumber: '#',
   playerName: 'Name',
   addPlayer: 'Add',
@@ -129,6 +145,9 @@ export const en = {
   injuryDialogTitle: 'Who got injured?',
   injuryDialogHint:
     'Optional — pick everyone hurt, from either team, or skip and just log the injury.',
+  injuryOtherTeamToggle: 'Also mark {team} as injured (no player)',
+  injuryTeamStoppageTitle: 'Injury — which team?',
+  injuryTeamStoppageHint: 'Optional — you can skip the team too.',
   technicalStoppageTitle: 'Technical stoppage — who called it?',
   technicalStoppageHint:
     'Equipment, outside interference, and the like. Optional — you can skip the team too.',
@@ -250,7 +269,8 @@ export const en = {
   handSignal: 'Hand signal',
   signal_goal: 'Goal',
   signal_timeout: 'Time-out',
-  signal_stoppage: 'Stoppage of play',
+  signal_stoppageInjury: 'Injury stoppage',
+  signal_stoppageTechnical: 'Technical stoppage',
   signal_sotg: 'Spirit stoppage',
   signal_ratioMale: 'Ratio: Men',
   signal_ratioFemale: 'Ratio: Women',
@@ -388,16 +408,41 @@ export const en = {
   reportDuration: 'Duration: {duration}',
   finalScore: 'Final score',
   statOLineHolds: 'O-line holds',
+  statCleanHold: 'Clean holds',
+  statBreakChances: 'Break chances',
+  statTurnovers: 'Turnovers',
   statBreaks: 'Break points',
+  statCleanBreaks: 'Clean breaks',
   statAvgHold: 'Avg. hold time',
   statAvgBreak: 'Avg. break time',
   statTimeouts: 'Timeouts used',
+  playerStatsTitle: 'Player stats',
+  filterAllTeams: 'All',
+  colPlayer: 'Player',
+  colGoals: 'Goals',
+  colAssists: 'Assists',
+  colTotal: 'Total',
+  reportFooterCredit: 'This game was tracked with:',
   historyTitle: 'Game history',
-  colTime: 'Time',
   colClock: 'Clock',
   colEvent: 'Event',
   colTeam: 'Team',
   colDetail: 'Detail',
+  // The log's actions column: a pencil on every row whose attribution can still be
+  // fixed, a bin on the newest row when it is one that can be taken back.
+  colActions: 'Actions',
+  btnEditEntry: 'Fix this entry',
+  btnDeleteEntry: 'Delete this entry',
+  logEditHint: 'This only corrects the log — the score, the clock and possession stay as they are.',
+  logEditCallTitle: '{kind} — fix the call',
+  whoCalled: 'Who called it',
+  howResolved: 'How it ended',
+  // Duration of a stopped clock, on the row that says play resumed.
+  logLasted: 'lasted {n}s',
+  shareImage: 'Share as image',
+  shareImagePreparing: 'Preparing…',
+  shareImageSaved: 'Image saved',
+  shareImageFailed: "Couldn't create the image",
   copyReport: 'Copy to clipboard',
   copied: 'Copied!',
   copyFailed: 'Copy failed — try again',
@@ -461,9 +506,9 @@ export const en = {
   guideStep1Teams: 'Team names and colours',
   guideStep1TeamsBody:
     'Type each name, or pick a team you saved earlier. Choose a colour close to the shirts each team is wearing: the score panels are painted in those colours all game, so you never have to remember which side is which.',
-  guideStep1Players: 'Roster',
+  guideStep1Players: 'Statistics',
   guideStep1PlayersBody:
-    'Optional, for stats. Off by default — the score, the clocks and the report all work without it, and calls, travels and technical stoppages are logged with no team. Tick "Track game activity" and two more buttons appear on the game screen, Roster and Turn: every call, travel and technical stoppage then asks which team, and a goal, assist, turnover or injury asks which player too, once you add the rosters below.',
+    'Choose what this game tracks. "No statistics" is the default — score, clocks and ratio only, with calls, travels and technical stoppages logged with no team. "Game stats" adds turnovers and calls by team, no roster needed. "Team stats" and "Player stats" attribute goals, assists, turnovers and injuries to a player, once you add the roster below — Team stats for the side you pick, Player stats for both. Anything above "No statistics" also adds two more buttons on the game screen, Roster and Turn.',
   guideStep1Time: 'Scheduled starting time',
   guideStep1TimeBody:
     'Optional. Tick it and the app counts down to the kickoff and unlocks play on its own when it arrives.',
@@ -619,7 +664,7 @@ export const en = {
   guideStep9Travel:
     'Travel — called on a thrower who moves illegally. Recorded in one step, with no follow-up.',
   guideStep9Turn:
-    'Turn — only on screen once "Track game activity" is on (step 1): logs a turnover, so the disc changes hands without a goal. From the first one on, a "Possession" chip on the scoreboard says who has the disc during every point. Press and hold Turn to take back the last turnover of the point if you tapped it by mistake.',
+    'Turn — only on screen once this game is tracking anything besides the score (step 1): logs a turnover, so the disc changes hands without a goal. From the first one on, a "Possession" chip on the scoreboard says who has the disc during every point. Press and hold Turn to take back the last turnover of the point if you tapped it by mistake.',
   guideStep9Stoppage:
     'Raised hand — injury or technical (equipment, outside interference, ...). The game clock keeps running. Once play can resume, press "Play can resume" to log how long the stoppage took.',
   guideStep9Sotg:
@@ -635,7 +680,7 @@ export const en = {
   guideStep10Body:
     'The app ends the game on its own when a team reaches the target. If you have to stop earlier, press the ✕ in the top-left corner, next to the field number, and confirm.',
   guideStep10Report:
-    'You then get the report: the final score, a few statistics for each team and the full history of the game. "Copy to clipboard" turns it into plain text you can paste into a message or a spreadsheet — do that before you leave the screen. "New game" takes you back to setup for the next match.',
+    'You then get the report: the final score, a few statistics for each team and the full history of the game. "Share as image" sends a picture of the score and the stats straight to a chat — the log is left out, so it stays readable. "Copy to clipboard" turns everything, log included, into plain text you can paste into a message or a spreadsheet — do that before you leave the screen. "New game" takes you back to setup for the next match.',
 
   guideCheatTitle: 'Quick reference',
   guideCheatTap: 'Tap a team panel',

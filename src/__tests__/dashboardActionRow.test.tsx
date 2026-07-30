@@ -18,7 +18,7 @@ function liveGame(overrides: Partial<GameState> = {}): GameState {
   state.possessionTeam = 'B';
   state.offenseTeam = 'B';
   state.pullingTeam = 'A';
-  state.config.trackPlayers = true;
+  state.config.statsMode = 'player';
   state.config.timeouts = { ...state.config.timeouts, enabled: true, perHalf: 2, perGame: null };
   return { ...state, ...overrides };
 }
@@ -54,12 +54,44 @@ describe('the action row', () => {
 
   it('drops Roster and Turn when the game does not track activity', () => {
     const state = liveGame();
-    state.config.trackPlayers = false;
+    state.config.statsMode = 'none';
     mount(state);
 
     expect(screen.queryByLabelText('Roster')).toBeNull();
     expect(screen.queryByLabelText('Turnover — hold to undo')).toBeNull();
     expect(screen.getByLabelText('What was called?')).toBeInTheDocument();
+  });
+
+  it('keeps Turn but drops Roster in Game stats mode, with no roster to view', () => {
+    const state = liveGame();
+    state.config = { ...state.config, statsMode: 'game' };
+    mount(state);
+
+    expect(screen.queryByLabelText('Roster')).toBeNull();
+    expect(screen.getByLabelText('Turnover — hold to undo')).toBeInTheDocument();
+  });
+
+  it('logs a turnover straight away in Game stats mode, with no player dialog to ask', () => {
+    const state = liveGame();
+    state.config = { ...state.config, statsMode: 'game' };
+    mount(state);
+
+    const turn = screen.getByLabelText('Turnover — hold to undo');
+    fireEvent.pointerDown(turn);
+    fireEvent.pointerUp(turn);
+
+    expect(screen.queryByText('Turnover')).toBeNull(); // TurnoverDialog never opened
+    const stored = JSON.parse(sessionStorage.getItem('ultimate-scorekeeper:game-state')!);
+    expect(stored.log.some((e: { type: string }) => e.type === 'turnover')).toBe(true);
+  });
+
+  it('shows both Roster and Turn in Team stats mode', () => {
+    const state = liveGame();
+    state.config = { ...state.config, statsMode: 'team', trackedTeam: 'A' };
+    mount(state);
+
+    expect(screen.getByLabelText('Roster')).toBeInTheDocument();
+    expect(screen.getByLabelText('Turnover — hold to undo')).toBeInTheDocument();
   });
 
   it('labels every button but the stoppage one, which no short word covers', () => {
@@ -151,8 +183,15 @@ describe('the possession chip', () => {
       ...overrides,
     });
 
-  it('stays off the board until a turnover is recorded', () => {
+  it('shows from the first pull once the game tracks activity, with no turnover needed', () => {
     mount(liveGame());
+    expect(screen.getByText('Possession: Team B')).toBeInTheDocument();
+  });
+
+  it('stays off the board entirely when the game does not track activity', () => {
+    const state = liveGame();
+    state.config.statsMode = 'none';
+    mount(state);
     expect(screen.queryByText(/Possession/)).toBeNull();
   });
 
@@ -221,12 +260,13 @@ describe('the possession chip', () => {
  */
 describe('the pull chip and assistance bar through half-time', () => {
   function reachHalftime(scoringTeam: 'A' | 'B', halfScore: number): GameState {
-    // trackPlayers explicitly false: with it on, GOAL holds the real assist back in
-    // pendingGoalAssist for the scorer dialog instead of applying it (see CLAUDE.md) —
-    // not what this test is about, and createInitialState()'s default config object is
-    // shared/mutated by other tests in this file (liveGame() flips it to true), so
-    // relying on the default here would make this test order-dependent.
-    const config = { ...createInitialState().config, halfScore, trackPlayers: false };
+    // statsMode explicitly 'none': in 'player' mode, GOAL holds the real assist back
+    // in pendingGoalAssist for the scorer dialog instead of applying it (see
+    // CLAUDE.md) — not what this test is about, and createInitialState()'s default
+    // config object is shared/mutated by other tests in this file (liveGame() flips
+    // it to 'player'), so relying on the default here would make this test
+    // order-dependent.
+    const config = { ...createInitialState().config, halfScore, statsMode: 'none' as const };
     let s = gameReducer(createInitialState(config), { type: 'START_GAME', config });
     s = gameReducer(s, { type: 'BEGIN_PLAY' });
     s = gameReducer(s, { type: 'PULL_THROWN' });

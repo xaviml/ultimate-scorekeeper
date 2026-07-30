@@ -5,8 +5,9 @@ import { inputClass, primaryButton, secondaryButton } from './ui';
 
 /**
  * Names and saves the current win-conditions/half-time/timeouts settings as a
- * reusable template. Teams, coin toss results, players and trackPlayers are
- * never part of it — see extractTemplateSettings in state/templates.ts.
+ * reusable template. Teams, coin toss results, players and the stats mode
+ * (statsMode/trackedTeam) are never part of it — see extractTemplateSettings in
+ * state/templates.ts.
  */
 export function SaveTemplateDialog({
   onClose,

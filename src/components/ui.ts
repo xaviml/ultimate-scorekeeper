@@ -22,6 +22,17 @@ export const secondaryButton = `${buttonBase} border border-line bg-pitch`;
 /** Secondary action directly on the page background — inverted so it doesn't vanish. */
 export const secondaryButtonOnPitch = `${buttonBase} border border-line bg-panel`;
 
+/**
+ * The big team-coloured button every "which team?" dialog is built from — the team
+ * name on its own colour, sized for a thumb. `selected` rings it, for the pickers
+ * that show which answer is already recorded (the log editor) rather than asking
+ * from scratch.
+ */
+export const teamChoiceButton = (selected = false) =>
+  `rounded-xl font-board font-bold py-6 active:scale-[0.99] truncate px-2${
+    selected ? ' ring-2 ring-signal' : ''
+  }`;
+
 /** Selectable player chip, used by every roster picker. */
 export const pillClass = (active: boolean) =>
   `rounded-full px-3 py-1.5 text-sm border ${
