@@ -92,12 +92,17 @@ describe('reportCardModel', () => {
     state.scores = { A: 15, B: 12 };
 
     const model = reportCardModel(state, t, 'en');
-    expect(model.title).toBe('Final report');
     expect(model.teams).toEqual([
       { name: 'Foxes', color: '#ff0000', score: '15' },
       { name: 'Wolves', color: '#0000ff', score: '12' },
     ]);
     expect(model.statHeader).toEqual(['Foxes', 'Wolves']);
+  });
+
+  it('has no "Final report" heading — the screen needs one to say where you are, an image does not', () => {
+    const state = baseState();
+    state.config.fieldNumber = '3';
+    expect(JSON.stringify(reportCardModel(state, t, 'en'))).not.toContain('Final report');
   });
 
   it('puts the field, date and the clock times of the game in the meta line', () => {

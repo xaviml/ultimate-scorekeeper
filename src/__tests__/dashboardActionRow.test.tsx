@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '../i18n';
 import { GameProvider } from '../state/GameContext';
@@ -168,11 +168,19 @@ describe('the action row', () => {
 });
 
 /**
- * Possession is only worth a chip in a game where someone is actually pressing
- * Turn — until then it is just the team that received the pull, which the pull
- * chip already says.
+ * Possession is a 3 px rule between the score panels and the action row, lit on
+ * the half belonging to whoever holds the disc — it replaced a chip that spelled
+ * out a name already on screen in 52 px letters. It carries no wording, so these
+ * read the `data-possession` attribute the strip exposes for exactly that reason.
+ *
+ * The rule is only worth drawing in a game where someone is actually pressing
+ * Turn; in `none` there is no Turn button, so the fill could never move.
  */
-describe('the possession chip', () => {
+describe('the possession rule', () => {
+  const rule = () => document.querySelector('[data-possession]');
+  /** The lit half, or null when the disc is dead. */
+  const fill = () => rule()?.querySelector('div') ?? null;
+
   const turnedOver = (overrides: Partial<GameState> = {}): GameState =>
     liveGame({
       possessionTeam: 'A',
@@ -183,33 +191,48 @@ describe('the possession chip', () => {
       ...overrides,
     });
 
-  it('shows from the first pull once the game tracks activity, with no turnover needed', () => {
+  it('is lit from the first pull once the game tracks activity, with no turnover needed', () => {
     mount(liveGame());
-    expect(screen.getByText('Possession: Team B')).toBeInTheDocument();
+    expect(rule()).toHaveAttribute('data-possession', 'B');
+    expect(fill()).not.toBeNull();
   });
 
   it('stays off the board entirely when the game does not track activity', () => {
     const state = liveGame();
     state.config.statsMode = 'none';
     mount(state);
-    expect(screen.queryByText(/Possession/)).toBeNull();
+    expect(rule()).toBeNull();
   });
 
-  it('names whoever has the disc once one has been', () => {
+  it('moves to whoever has the disc once one has been turned over', () => {
     mount(turnedOver());
-    expect(screen.getByText('Possession: Team A')).toBeInTheDocument();
+    expect(rule()).toHaveAttribute('data-possession', 'A');
   });
 
-  it('goes away between points, when the disc is dead', () => {
+  it('lights the half the holding team sits on, not always the same one', () => {
+    const state = liveGame();
+    // startingSide fixes the left panel for the whole game; whichever team is not
+    // on it gets the fill pushed across to the right half.
+    const right = state.config.startingSide === 'A' ? 'B' : 'A';
+    mount(liveGame({ possessionTeam: right }));
+    expect(fill()?.className).toContain('translate-x-full');
+
+    cleanup();
+    mount(liveGame({ possessionTeam: state.config.startingSide }));
+    expect(fill()?.className).not.toContain('translate-x-full');
+  });
+
+  it('keeps its track but goes dark between points, when the disc is dead', () => {
     mount(turnedOver({ status: 'awaitingPull', possessionTeam: null, pointTurnovers: 0 }));
-    expect(screen.queryByText(/Possession/)).toBeNull();
+    expect(rule()).toHaveAttribute('data-possession', 'none');
+    expect(fill()).toBeNull();
   });
 
   it('follows a long-press on Turn back to the team that lost the disc', () => {
     vi.useFakeTimers();
     try {
       // Two turnovers this point (B → A → B), so undoing one still leaves the game
-      // with a turnover in it and the chip on screen.
+      // with a turnover in it.
       mount(
         turnedOver({
           possessionTeam: 'B',
@@ -227,7 +250,7 @@ describe('the possession chip', () => {
       fireEvent.pointerUp(turn);
 
       // Back to A, and no turnover dialog: the hold replaced the tap.
-      expect(screen.getByText('Possession: Team A')).toBeInTheDocument();
+      expect(rule()).toHaveAttribute('data-possession', 'A');
       expect(screen.queryByText('Turnover')).toBeNull();
     } finally {
       vi.useRealTimers();
@@ -248,6 +271,56 @@ describe('the possession chip', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+/**
+ * The count on the Turn button. Its real job is confirming a press landed: when
+ * the disc goes back to a team that has already held it this point, the rule
+ * returns to a half it has been on before and nothing else on screen moves.
+ */
+describe('the turn count badge', () => {
+  const turnButton = () => screen.getByLabelText('Turnover — hold to undo');
+
+  it('is absent before anything has been turned over', () => {
+    mount(liveGame());
+    expect(turnButton()).toHaveTextContent(/^Turn$/);
+  });
+
+  it('appears at the first turnover of the point', () => {
+    mount(liveGame({ pointTurnovers: 1 }));
+    expect(turnButton()).toHaveTextContent('1');
+  });
+
+  it('counts the point, not the game', () => {
+    // Nine turnovers already in this game, but the point being played is clean.
+    mount(liveGame({ pointTurnovers: 0, turnoversCommitted: { A: 5, B: 4 } }));
+    expect(turnButton()).toHaveTextContent(/^Turn$/);
+  });
+
+  it('caps at 9+ so the disc keeps one size', () => {
+    mount(liveGame({ pointTurnovers: 9 }));
+    expect(turnButton()).toHaveTextContent('9');
+    cleanup();
+
+    mount(liveGame({ pointTurnovers: 10 }));
+    expect(turnButton()).toHaveTextContent('9+');
+  });
+
+  it('stays up through a timeout, where the point has not ended and the count still holds', () => {
+    mount(liveGame({ status: 'timeout', pointTurnovers: 2 }));
+    expect(turnButton()).toHaveTextContent('2');
+  });
+
+  it('stays up while the button itself is refused, fading with it', () => {
+    // A pause is one of the few things that actually disables Turn (a timeout
+    // does not — the button stays live and tryTurnover explains the refusal).
+    // The count is still true, so it is left inside `disabled`'s fade.
+    mount(liveGame({ status: 'paused', pointTurnovers: 2 }));
+    const turn = turnButton();
+    expect(turn).toBeDisabled();
+    expect(turn).toHaveTextContent('2');
+    expect(turn.className).toContain('disabled:opacity-40');
   });
 });
 
@@ -390,20 +463,59 @@ describe('timeouts on the score panels', () => {
   });
 });
 
-describe('the header leave control', () => {
-  it('is a cross once the game is under way', () => {
-    mount(liveGame());
-    expect(screen.getByLabelText('End game')).toBeInTheDocument();
+describe('the header menu', () => {
+  const openMenu = () => fireEvent.click(screen.getByLabelText('Menu'));
+
+  it('is one glyph in every status, not a leave button that changes its icon', () => {
+    mount(liveGame({ status: 'notStarted' }));
+    expect(screen.getByLabelText('Menu')).toBeInTheDocument();
+    expect(screen.queryByLabelText('End game')).toBeNull();
     expect(screen.queryByLabelText('Back to setup')).toBeNull();
   });
 
-  it('stays put once the game is finished, going straight to the report', () => {
-    const state = liveGame();
-    state.status = 'finished';
-    mount(state);
+  it('offers the way out that matches the moment: back to setup before kickoff', () => {
+    mount(liveGame({ status: 'notStarted' }));
+    openMenu();
+    expect(screen.getByText('Back to setup')).toBeInTheDocument();
+    expect(screen.queryByText('End game')).toBeNull();
+  });
 
-    // No longer "End game" — the game is already over, so there is nothing to confirm.
-    expect(screen.getByLabelText('Open report')).toBeInTheDocument();
-    expect(screen.queryByText('End game?')).toBeNull();
+  it('offers ending the game once it is under way, still behind the confirm', () => {
+    mount(liveGame());
+    openMenu();
+    expect(screen.queryByText('Back to setup')).toBeNull();
+    fireEvent.click(screen.getByText('End game'));
+    expect(screen.getByText('End game?')).toBeInTheDocument();
+  });
+
+  it('offers the report once the game is finished, with nothing left to confirm', () => {
+    mount(liveGame({ status: 'finished' }));
+    openMenu();
+    // Scoped to the menu: the action row shows its own "Open report" button once
+    // the game is over, which is what keeps the report one tap from the dashboard.
+    const menu = screen.getByRole('heading', { name: 'Menu' }).parentElement!
+      .parentElement as HTMLElement;
+    expect(within(menu).getByText('Open report')).toBeInTheDocument();
+    expect(within(menu).queryByText('End game')).toBeNull();
+  });
+
+  // Both were reachable only from the config screen before, which is to say not at
+  // all once a game had started — including the walkthrough written for exactly
+  // the volunteer who is mid-game and lost.
+  it('opens the setup and the guide, replacing itself rather than stacking', () => {
+    mount(liveGame());
+    openMenu();
+    fireEvent.click(screen.getByText('Game setup'));
+    expect(screen.queryByText('Menu')).toBeNull();
+    expect(screen.getByText('Coin toss results')).toBeInTheDocument();
+  });
+
+  it('reaches the guide, which is a screen rather than a dialog', () => {
+    mount(liveGame());
+    openMenu();
+    fireEvent.click(screen.getByText('How to use this app'));
+    expect(screen.getByText('How this app works')).toBeInTheDocument();
+    // The dashboard is gone while it is up — it is an early return, not an overlay.
+    expect(screen.queryByLabelText('Menu')).toBeNull();
   });
 });

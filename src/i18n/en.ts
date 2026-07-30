@@ -213,6 +213,27 @@ export const en = {
   btnEndGame: 'End game',
   btnBackToSetup: 'Back to setup',
   btnEndTimeout: 'End timeout',
+
+  // The header menu. It holds the one way off this screen (which of the three it
+  // is depends on the game's status) plus the two things that are only readable
+  // from here: the setup the game is being played under, and the walkthrough,
+  // which until now was reachable only before kickoff.
+  menuTitle: 'Menu',
+  menuGameSetup: 'Game setup',
+  menuGuide: 'How to use this app',
+
+  // Read-only view of state.config. Most labels are shared with the setup form —
+  // only the values it has to write out as sentences live here.
+  setupScheduled: 'Scheduled',
+  setupStarted: 'Started',
+  // The setup form's own labels carry "(seconds)" because its inputs are typed in
+  // seconds. Here the value writes its own unit (1' 15''), so the label doesn't.
+  setupBreak: 'Break',
+  setupDuration: 'Duration',
+  setupNoCap: 'No CAP',
+  setupNoTimeouts: 'No timeouts in this game.',
+  setupSidesNote: 'The teams swap ends after every point, and again at half-time.',
+  setupCapInForce: 'A cap has already been applied — the game is now to {n}.',
   confirmEndGame: 'End the game now and open the report?',
   confirmEndGameTitle: 'End game?',
   confirmLeaveGame: 'You will go back to game setup. The current score and clock will be lost.',
@@ -224,8 +245,6 @@ export const en = {
   timeoutsLeft: '{n} timeouts left',
   currentRatio: 'Ratio: {gender}',
   pullChip: 'Pull: {team} ({side})',
-  // Only on screen once a turnover has been recorded — see possessionTracked.
-  possessionChip: 'Possession: {team}',
   // Short, glanceable cap indicators — only shown once a cap has fixed a new target.
   halfCapChip: 'Half at {n}',
   gameCapChip: 'Game at {n}',
@@ -306,7 +325,7 @@ export const en = {
   say_timeIn: '"Time in — pull clock restarts!"',
   say_playRestart: '"Play on — disc live!"',
   say_injury: '"Injury — stop play!"',
-  say_technicalStoppage: '"Stoppage of play!"',
+  say_technicalStoppage: '"Technical stoppage!"',
   say_spirit: '"Spirit stoppage!"',
   say_halftime: '"Half-time! {halfTeam} pulls from the {halfSide}!"',
   say_waterBreak: '"{a} {as}, {b} {bs} — water break!"',
@@ -439,7 +458,7 @@ export const en = {
   howResolved: 'How it ended',
   // Duration of a stopped clock, on the row that says play resumed.
   logLasted: 'lasted {n}s',
-  shareImage: 'Share as image',
+  shareImage: 'Share',
   shareImagePreparing: 'Preparing…',
   shareImageSaved: 'Image saved',
   shareImageFailed: "Couldn't create the image",
@@ -479,8 +498,7 @@ export const en = {
   guideLink: 'How does this app work?',
   guideTitle: 'How this app works',
   guideSubtitle: 'A walkthrough for first-time scorekeepers',
-  guideBack: 'Back to setup',
-  guideBackShort: 'Setup',
+  guideBackShort: 'Back',
   guideIntro:
     'You do not need to know Ultimate Frisbee to keep score with this app. Work through these steps in order — during the game the app tells you what is happening, what to do next and the exact words to shout.',
   guideScreenshotNote:
@@ -550,7 +568,7 @@ export const en = {
   guideStep4Body:
     'This is the only screen you will use during the game. Nothing here can be pressed by mistake in a way you cannot take back.',
   guideTour1:
-    'Field number, the time of day, which half it is and the score the game is played to.',
+    'Field number, the time of day, which half it is and the score the game is played to. The menu on the left holds this guide, the setup the game is being played under, and the way out of the game.',
   guideTour2:
     'One panel per team, painted in the team colour. This is where you add goals (step 5), and each team\u2019s timeout button sits in the top outer corner of its own panel.',
   guideTour3:
@@ -680,7 +698,7 @@ export const en = {
   guideStep10Body:
     'The app ends the game on its own when a team reaches the target. If you have to stop earlier, press the ✕ in the top-left corner, next to the field number, and confirm.',
   guideStep10Report:
-    'You then get the report: the final score, a few statistics for each team and the full history of the game. "Share as image" sends a picture of the score and the stats straight to a chat — the log is left out, so it stays readable. "Copy to clipboard" turns everything, log included, into plain text you can paste into a message or a spreadsheet — do that before you leave the screen. "New game" takes you back to setup for the next match.',
+    'You then get the report: the final score, a few statistics for each team and the full history of the game. "Share" sends a picture of the score and the stats straight to a chat — the log is left out, so it stays readable. "Copy to clipboard" turns everything, log included, into plain text you can paste into a message or a spreadsheet — do that before you leave the screen. "New game" takes you back to setup for the next match.',
 
   guideCheatTitle: 'Quick reference',
   guideCheatTap: 'Tap a team panel',

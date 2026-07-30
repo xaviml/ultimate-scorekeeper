@@ -68,10 +68,8 @@ describe('phone back button in a game', () => {
   it('goes straight back to setup with no prompt when the game has not started yet', () => {
     seedNotStartedGame();
     renderApp();
-    // The pre-game screen is up: the header's leave control is the back arrow
-    // ("Back to setup"), not the cross it becomes once the game is real.
-    expect(screen.getByLabelText('Back to setup')).toBeInTheDocument();
-    expect(screen.queryByLabelText('End game')).toBeNull();
+    // The pre-game dashboard is up, with the menu in the header.
+    expect(screen.getByLabelText('Menu')).toBeInTheDocument();
 
     pressPhoneBack();
 
@@ -79,6 +77,35 @@ describe('phone back button in a game', () => {
     expect(screen.queryByText('Leave the game?')).toBeNull();
     expect(screen.getByText('Game setup')).toBeInTheDocument();
     expect(screen.getByLabelText('Team 1')).toHaveValue('Foxes');
+  });
+
+  // The menu and what it opens are layers over the dashboard, so a back press has
+  // to peel one off at a time rather than jump straight to abandoning the game.
+  // They share the game's single back guard: a second useBackGuard would attach a
+  // second popstate listener and each would answer the other's press.
+  it('closes the menu instead of offering to leave', () => {
+    mountGame();
+    fireEvent.click(screen.getByLabelText('Menu'));
+
+    pressPhoneBack();
+    expect(screen.queryByText('Menu')).toBeNull();
+    expect(screen.queryByText('Leave the game?')).toBeNull();
+
+    // Still guarded — the press was absorbed, not spent.
+    pressPhoneBack();
+    expect(screen.getByText('Leave the game?')).toBeInTheDocument();
+  });
+
+  it('returns from the guide to the game, not out of it', () => {
+    mountGame();
+    fireEvent.click(screen.getByLabelText('Menu'));
+    fireEvent.click(screen.getByText('How to use this app'));
+    expect(screen.getByText('How this app works')).toBeInTheDocument();
+
+    pressPhoneBack();
+    expect(screen.queryByText('How this app works')).toBeNull();
+    expect(screen.queryByText('Leave the game?')).toBeNull();
+    expect(screen.getByLabelText('Menu')).toBeInTheDocument();
   });
 
   it('cancelling stays on the game and keeps guarding the next press', () => {
@@ -142,12 +169,12 @@ describe('phone back button on the how-it-works guide', () => {
     pushSpy.mockRestore();
   });
 
-  it('closing via the guide button consumes the pending entry too', () => {
+  it('closing via the guide header button consumes the pending entry too', () => {
     mountConfig();
     fireEvent.click(screen.getByText('How does this app work?'));
     const backSpy = vi.spyOn(history, 'back');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Back to setup' }));
+    fireEvent.click(screen.getByRole('button', { name: '← Back' }));
 
     expect(screen.getByText('Game setup')).toBeInTheDocument();
     expect(backSpy).toHaveBeenCalledTimes(1);

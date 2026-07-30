@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { useReportImage } from '../hooks/useReportImage';
 import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
@@ -173,23 +173,32 @@ export default function ReportScreen() {
 
       <section className="rounded-xl bg-panel border border-line p-4">
         <h2 className={`${sectionTitle} mb-3`}>{t('finalScore')}</h2>
+        {/* Two rows, not one: a name that wraps to a second line must never nudge its
+            own score box out of alignment with the other team's. The name row mirrors
+            the dash with an invisible twin so both name columns still land under their
+            score boxes. */}
         <div className="flex items-center justify-center gap-4">
           {(['A', 'B'] as TeamId[]).map((id, i) => (
-            <div key={id} className="flex items-center gap-4">
+            <Fragment key={id}>
               {i === 1 && <span className="font-clock text-3xl text-chalk/40">—</span>}
-              <div className="text-center">
-                <div
-                  className="font-clock text-6xl font-semibold rounded-lg px-4 py-2"
-                  style={{
-                    backgroundColor: state.config.teams[id].color,
-                    color: contrastText(state.config.teams[id].color),
-                  }}
-                >
-                  {state.scores[id]}
-                </div>
-                <div className="mt-1 font-board">{nameOf(id)}</div>
+              <div
+                className="w-28 text-center font-clock text-6xl font-semibold rounded-lg px-4 py-2"
+                style={{
+                  backgroundColor: state.config.teams[id].color,
+                  color: contrastText(state.config.teams[id].color),
+                }}
+              >
+                {state.scores[id]}
               </div>
-            </div>
+            </Fragment>
+          ))}
+        </div>
+        <div className="flex items-start justify-center gap-4 mt-1">
+          {(['A', 'B'] as TeamId[]).map((id, i) => (
+            <Fragment key={id}>
+              {i === 1 && <span className="font-clock text-3xl invisible">—</span>}
+              <div className="w-28 text-center font-board break-words">{nameOf(id)}</div>
+            </Fragment>
           ))}
         </div>
       </section>

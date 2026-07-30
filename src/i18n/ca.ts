@@ -202,6 +202,19 @@ export const ca: typeof en = {
   btnEndGame: 'Fi del partit',
   btnBackToSetup: 'Tornar a la configuració',
   btnEndTimeout: 'Fi del temps mort',
+
+  menuTitle: 'Menú',
+  menuGameSetup: 'Configuració del partit',
+  menuGuide: "Com fer servir l'aplicació",
+
+  setupScheduled: 'Previst',
+  setupStarted: 'Començat',
+  setupBreak: 'Descans',
+  setupDuration: 'Durada',
+  setupNoCap: 'Sense CAP',
+  setupNoTimeouts: 'No hi ha temps morts en aquest partit.',
+  setupSidesNote: 'Els equips canvien de costat després de cada punt, i un altre cop al descans.',
+  setupCapInForce: "Ja s'ha aplicat un CAP: el partit és ara a {n}.",
   confirmEndGame: "Vols acabar el partit ara i obrir l'informe?",
   confirmEndGameTitle: 'Acabar el partit?',
   confirmLeaveGame:
@@ -214,7 +227,6 @@ export const ca: typeof en = {
   timeoutsLeft: '{n} temps morts restants',
   currentRatio: 'Ràtio: {gender}',
   pullChip: 'Pull: {team} ({side})',
-  possessionChip: 'Possessió: {team}',
   halfCapChip: 'Half a {n}',
   gameCapChip: 'Partit a {n}',
   sideLeft: 'Esquerra',
@@ -293,7 +305,7 @@ export const ca: typeof en = {
   say_timeIn: '«Temps — es reinicia el compte del servei!»',
   say_playRestart: '«Joc — disc en joc!»',
   say_injury: '«Lesió — atureu el joc!»',
-  say_technicalStoppage: '«Aturada de joc!»',
+  say_technicalStoppage: '«Aturada tècnica!»',
   say_spirit: "«Aturada d'esperit!»",
   say_halftime: '«Half! Pull de {halfTeam} des de la {halfSide}!»',
   say_waterBreak: "«{a} {as}, {b} {bs} — pausa d'hidratació!»",
@@ -421,7 +433,7 @@ export const ca: typeof en = {
   whoCalled: 'Qui la va senyalar',
   howResolved: 'Com va acabar',
   logLasted: 'ha durat {n}s',
-  shareImage: 'Compartir imatge',
+  shareImage: 'Compartir',
   shareImagePreparing: 'Preparant…',
   shareImageSaved: 'Imatge desada',
   shareImageFailed: "No s'ha pogut crear la imatge",
@@ -459,8 +471,7 @@ export const ca: typeof en = {
   guideLink: 'Com funciona aquesta aplicació?',
   guideTitle: "Com funciona l'aplicació",
   guideSubtitle: 'Una guia per a qui anota per primer cop',
-  guideBack: 'Tornar a la configuració',
-  guideBackShort: 'Configuració',
+  guideBackShort: 'Enrere',
   guideIntro:
     "No cal saber d'Ultimate Frisbee per portar el marcador amb aquesta aplicació. Segueix aquests passos en ordre: durant el partit l'aplicació et diu què està passant, què has de fer i les paraules exactes que has de cantar.",
   guideScreenshotNote:
@@ -529,7 +540,8 @@ export const ca: typeof en = {
   guideStep4Title: 'Coneix el panell',
   guideStep4Body:
     "És l'única pantalla que faràs servir durant el partit. Res del que hi ha aquí es pot prémer sense voler de manera irreversible.",
-  guideTour1: "Número de camp, l'hora, en quina part som i el marcador al qual es juga el partit.",
+  guideTour1:
+    "Número de camp, l'hora, en quina part som i el marcador al qual es juga el partit. El menú de l'esquerra conté aquesta guia, la configuració amb què es juga el partit i la sortida del partit.",
   guideTour2:
     "Un panell per equip, pintat amb el color de l'equip. Aquí és on sumes gols (pas 5), i el botó de temps mort de cada equip és al cantó superior exterior del seu propi panell.",
   guideTour3:
@@ -659,7 +671,7 @@ export const ca: typeof en = {
   guideStep10Body:
     "L'aplicació acaba el partit sola quan un equip arriba a l'objectiu. Si l'has d'aturar abans, prem la ✕ del cantó superior esquerre, al costat del número de camp, i confirma.",
   guideStep10Report:
-    'Llavors apareix l\'informe: el marcador final, unes quantes estadístiques de cada equip i l\'historial complet del partit. "Compartir imatge" envia una foto del marcador i les estadístiques directament a un xat; l\'historial es queda fora perquè es pugui llegir. "Copiar al porta-retalls" ho converteix tot, historial inclòs, en text pla que pots enganxar en un missatge o en un full de càlcul; fes-ho abans de sortir de la pantalla. "Nou partit" et torna a la configuració per al següent.',
+    'Llavors apareix l\'informe: el marcador final, unes quantes estadístiques de cada equip i l\'historial complet del partit. "Compartir" envia una foto del marcador i les estadístiques directament a un xat; l\'historial es queda fora perquè es pugui llegir. "Copiar al porta-retalls" ho converteix tot, historial inclòs, en text pla que pots enganxar en un missatge o en un full de càlcul; fes-ho abans de sortir de la pantalla. "Nou partit" et torna a la configuració per al següent.',
 
   guideCheatTitle: 'Resum ràpid',
   guideCheatTap: "Tocar el panell d'un equip",

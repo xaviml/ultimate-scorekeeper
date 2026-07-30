@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useT, type Dict, type Lang } from '../i18n/useT';
-import { primaryButton, sectionTitle } from './ui';
+import { sectionTitle } from './ui';
 
 type Key = keyof Dict;
 
@@ -340,11 +340,11 @@ export default function GuideScreen({ onBack }: { onBack: () => void }) {
         </dl>
       </Card>
 
+      {/* No "back" button down here: the guide is now reached from two places (the
+          config screen's link and the game's header menu), so a full-width primary
+          button at the bottom would have to name a destination it can't know. The
+          header's own back button is the one way out, and it stays in view. */}
       <p className="text-xs text-chalk/50 text-center">{t('guideScreenshotNote')}</p>
-
-      <button type="button" className={`${primaryButton} w-full`} onClick={onBack}>
-        {t('guideBack')}
-      </button>
     </div>
   );
 }

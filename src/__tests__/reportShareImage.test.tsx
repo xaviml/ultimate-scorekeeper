@@ -43,7 +43,7 @@ async function clickButton(name: string) {
     fireEvent.click(screen.getByRole('button', { name }));
   });
 }
-const clickShare = () => clickButton('Share as image');
+const clickShare = () => clickButton('Share');
 
 let share: ReturnType<typeof vi.fn>;
 let canShare: ReturnType<typeof vi.fn>;
@@ -142,6 +142,31 @@ describe('report screen — share as image', () => {
     await clickShare();
     await vi.waitFor(() => expect(share).toHaveBeenCalled());
     expect(renderReportCard).toHaveBeenCalledTimes(1);
+  });
+
+  it('reaches navigator.share inside the click itself, with no await in front of it', async () => {
+    renderReport();
+    // Let the up-front render settle, the way it would well before a human taps.
+    await act(async () => {});
+
+    // Deliberately not awaited: a browser only honours share() while the tap's
+    // user activation is alive, so it has to have been called by the time the
+    // click handler returns. Awaiting anything first is what sends a phone down
+    // the download path instead of opening the share sheet.
+    fireEvent.click(screen.getByRole('button', { name: 'Share' }));
+    expect(share).toHaveBeenCalled();
+
+    await act(async () => {});
+  });
+
+  it('still tries to share on a browser that has share() but no canShare()', async () => {
+    // Refusing here would demote a phone that can share to the download fallback.
+    Object.defineProperty(navigator, 'canShare', { value: undefined, configurable: true });
+    renderReport();
+    await clickShare();
+
+    await vi.waitFor(() => expect(share).toHaveBeenCalled());
+    expect(anchorClick).not.toHaveBeenCalled();
   });
 
   it('keeps copying the full text, log and all, on the other button', async () => {

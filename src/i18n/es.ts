@@ -202,6 +202,19 @@ export const es: typeof en = {
   btnEndGame: 'Fin del partido',
   btnBackToSetup: 'Volver a la configuración',
   btnEndTimeout: 'Fin del tiempo muerto',
+
+  menuTitle: 'Menú',
+  menuGameSetup: 'Configuración del partido',
+  menuGuide: 'Cómo usar la aplicación',
+
+  setupScheduled: 'Previsto',
+  setupStarted: 'Empezado',
+  setupBreak: 'Descanso',
+  setupDuration: 'Duración',
+  setupNoCap: 'Sin CAP',
+  setupNoTimeouts: 'No hay tiempos muertos en este partido.',
+  setupSidesNote: 'Los equipos cambian de lado después de cada punto, y otra vez en el descanso.',
+  setupCapInForce: 'Ya se ha aplicado un CAP: el partido es ahora a {n}.',
   confirmEndGame: '¿Terminar el partido ahora y abrir el informe?',
   confirmEndGameTitle: '¿Terminar el partido?',
   confirmLeaveGame:
@@ -214,7 +227,6 @@ export const es: typeof en = {
   timeoutsLeft: '{n} tiempos muertos restantes',
   currentRatio: 'Ratio: {gender}',
   pullChip: 'Pull: {team} ({side})',
-  possessionChip: 'Posesión: {team}',
   halfCapChip: 'Half a {n}',
   gameCapChip: 'Partido a {n}',
   sideLeft: 'Izquierda',
@@ -293,7 +305,7 @@ export const es: typeof en = {
   say_timeIn: '«¡Tiempo — se reinicia la cuenta del saque!»',
   say_playRestart: '«¡Juego — disco en juego!»',
   say_injury: '«¡Lesión — paren el juego!»',
-  say_technicalStoppage: '«¡Parada de juego!»',
+  say_technicalStoppage: '«¡Parada técnica!»',
   say_spirit: '«¡Parada de espíritu!»',
   say_halftime: '«¡Half! Pull de {halfTeam} desde la {halfSide}!»',
   say_waterBreak: '«{a} {as}, {b} {bs} — ¡pausa de hidratación!»',
@@ -422,7 +434,7 @@ export const es: typeof en = {
   whoCalled: 'Quién la señaló',
   howResolved: 'Cómo acabó',
   logLasted: 'ha durado {n}s',
-  shareImage: 'Compartir imagen',
+  shareImage: 'Compartir',
   shareImagePreparing: 'Preparando…',
   shareImageSaved: 'Imagen guardada',
   shareImageFailed: 'No se pudo crear la imagen',
@@ -460,8 +472,7 @@ export const es: typeof en = {
   guideLink: '¿Cómo funciona esta aplicación?',
   guideTitle: 'Cómo funciona la aplicación',
   guideSubtitle: 'Una guía para quien anota por primera vez',
-  guideBack: 'Volver a la configuración',
-  guideBackShort: 'Configuración',
+  guideBackShort: 'Volver',
   guideIntro:
     'No hace falta saber de Ultimate Frisbee para llevar el marcador con esta aplicación. Sigue estos pasos en orden: durante el partido la aplicación te dice qué está pasando, qué hacer y las palabras exactas que tienes que cantar.',
   guideScreenshotNote:
@@ -531,7 +542,7 @@ export const es: typeof en = {
   guideStep4Body:
     'Es la única pantalla que usarás durante el partido. Nada de lo que hay aquí se puede pulsar sin querer de forma irreversible.',
   guideTour1:
-    'Número de campo, la hora, en qué parte vamos y el marcador al que se juega el partido.',
+    'Número de campo, la hora, en qué parte vamos y el marcador al que se juega el partido. El menú de la izquierda contiene esta guía, la configuración con la que se juega el partido y la salida del partido.',
   guideTour2:
     'Un panel por equipo, pintado con el color del equipo. Aquí es donde sumas goles (paso 5), y el botón de tiempo muerto de cada equipo está en la esquina superior exterior de su propio panel.',
   guideTour3:
@@ -661,7 +672,7 @@ export const es: typeof en = {
   guideStep10Body:
     'La aplicación termina el partido sola cuando un equipo llega al objetivo. Si tienes que pararlo antes, pulsa la ✕ de la esquina superior izquierda, al lado del número de campo, y confirma.',
   guideStep10Report:
-    'Entonces aparece el informe: el marcador final, unas cuantas estadísticas de cada equipo y el historial completo del partido. "Compartir imagen" manda una foto del marcador y las estadísticas directamente a un chat; el historial se queda fuera para que se pueda leer. "Copiar al portapapeles" lo convierte todo, historial incluido, en texto plano que puedes pegar en un mensaje o en una hoja de cálculo; hazlo antes de salir de la pantalla. "Nuevo partido" te devuelve a la configuración para el siguiente.',
+    'Entonces aparece el informe: el marcador final, unas cuantas estadísticas de cada equipo y el historial completo del partido. "Compartir" manda una foto del marcador y las estadísticas directamente a un chat; el historial se queda fuera para que se pueda leer. "Copiar al portapapeles" lo convierte todo, historial incluido, en texto plano que puedes pegar en un mensaje o en una hoja de cálculo; hazlo antes de salir de la pantalla. "Nuevo partido" te devuelve a la configuración para el siguiente.',
 
   guideCheatTitle: 'Resumen rápido',
   guideCheatTap: 'Tocar el panel de un equipo',

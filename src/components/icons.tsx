@@ -169,3 +169,44 @@ export function CrossIcon({ size }: { size?: string }) {
     </Glyph>
   );
 }
+
+/**
+ * The header menu. Deliberately the plain three-bar glyph rather than something
+ * Ultimate-flavoured: it is the one control on the dashboard whose meaning has to
+ * be obvious to someone who has never opened the app, and it replaces a slot that
+ * used to change its icon (and its destination) with the game's status.
+ */
+export function MenuIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+    </Glyph>
+  );
+}
+
+/** Game setup: the clipboard the rules were written down on before kickoff. */
+export function SetupIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <path d="M9 12h6m-6 3.75h6M9 8.25h6m3.75-1.5v12.75a1.5 1.5 0 0 1-1.5 1.5H6.75a1.5 1.5 0 0 1-1.5-1.5V6.75a1.5 1.5 0 0 1 1.5-1.5h1.5m7.5 0h1.5a1.5 1.5 0 0 1 1.5 1.5m-10.5-1.5a2.25 2.25 0 0 1 2.25-2.25h1.5a2.25 2.25 0 0 1 2.25 2.25m-6 0a1.5 1.5 0 0 0 1.5 1.5h3a1.5 1.5 0 0 0 1.5-1.5" />
+    </Glyph>
+  );
+}
+
+/** The walkthrough, which until now had no door once a game was under way. */
+export function GuideIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <path d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+    </Glyph>
+  );
+}
+
+/** The finished game's report. */
+export function ReportIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <path d="M3.75 13.5h3.75v6.75H3.75V13.5zm6.375-6h3.75v12.75h-3.75V7.5zm6.375-3.75h3.75v16.5h-3.75V3.75z" />
+    </Glyph>
+  );
+}

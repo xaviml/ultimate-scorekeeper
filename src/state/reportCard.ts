@@ -33,8 +33,12 @@ export interface CardPlayerRow {
 }
 
 export interface ReportCardModel {
-  title: string;
-  /** Field, date and clock times as separate segments; the drawer packs them onto as many lines as fit. */
+  /**
+   * Field, date and clock times as separate segments; the drawer packs them onto
+   * as many lines as fit. There is deliberately no "Final report" heading above
+   * them — the screen needs one to say where you are, an image landing in a chat
+   * does not, and the score speaks for itself.
+   */
   meta: string[];
   teams: { name: string; color: string; score: string }[];
   statHeader: [string, string];
@@ -128,7 +132,6 @@ export function reportCardModel(state: GameState, t: TFunc, lang: Lang): ReportC
   const showTeamColors = state.config.statsMode === 'player';
 
   return {
-    title: t('reportTitle'),
     meta: metaSegments(state, t, lang),
     teams: (['A', 'B'] as TeamId[]).map((id) => ({
       name: teams[id].name,

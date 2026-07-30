@@ -33,15 +33,10 @@ import { ConfirmEndGameDialog } from './ConfirmEndGameDialog';
 import { ConfirmLeaveGameDialog } from './ConfirmLeaveGameDialog';
 import { ConfirmPauseGameDialog } from './ConfirmPauseGameDialog';
 import { GameLog } from './GameLog';
-import {
-  ArrowBackIcon,
-  CallIcon,
-  CrossIcon,
-  LogIcon,
-  PlayersIcon,
-  StoppageIcon,
-  TurnIcon,
-} from './icons';
+import { GameMenuDialog, type LeaveKind } from './GameMenuDialog';
+import { GameSetupDialog } from './GameSetupDialog';
+import GuideScreen from './GuideScreen';
+import { CallIcon, LogIcon, MenuIcon, PlayersIcon, StoppageIcon, TurnIcon } from './icons';
 import { NoteDialog } from './NoteDialog';
 import { PlayersDialog } from './PlayersDialog';
 import { SignalCard } from './SignalCard';
@@ -170,6 +165,7 @@ function ActionButton({
   icon,
   label,
   name,
+  badge,
   onClick,
   onHold,
   disabled,
@@ -178,6 +174,15 @@ function ActionButton({
   label?: string;
   /** Accessible name — the full wording, which the micro-label abbreviates. */
   name: string;
+  /**
+   * A count in the button's top-right corner, hidden below 1 and shown as `9+`
+   * past nine so the disc keeps one size. It sits *inside* the border rather
+   * than straddling it the way a notification badge usually does: these buttons
+   * are ~60 px wide with a couple of pixels between them, so anything hanging
+   * outside eats that gap and rides the press-scale. Left inside `disabled`'s
+   * fade on purpose — a count that is still true but not actionable.
+   */
+  badge?: number;
   onClick: () => void;
   onHold?: () => void;
   disabled?: boolean;
@@ -186,7 +191,7 @@ function ActionButton({
   return (
     <button
       {...(onHold ? press : { onClick })}
-      className={`${utility} flex flex-col lscape:flex-row items-center justify-center gap-0.5 lscape:gap-1.5 ${
+      className={`${utility} relative flex flex-col lscape:flex-row items-center justify-center gap-0.5 lscape:gap-1.5 ${
         onHold ? 'select-none touch-none' : ''
       }`}
       disabled={disabled}
@@ -196,6 +201,14 @@ function ActionButton({
       {icon}
       {label && (
         <span className="text-[9px] lscape:text-[10px] leading-none tracking-wide">{label}</span>
+      )}
+      {badge !== undefined && badge >= 1 && (
+        <span
+          aria-hidden="true"
+          className="absolute top-0.5 right-0.5 lscape:top-px lscape:right-px flex items-center justify-center min-w-[14px] h-[14px] lscape:min-w-[11px] lscape:h-[11px] px-[3px] rounded-full bg-signal text-pitch font-board font-bold text-[9px] lscape:text-[7px] leading-none tabular-nums"
+        >
+          {badge > 9 ? '9+' : badge}
+        </span>
       )}
     </button>
   );
@@ -458,6 +471,12 @@ export default function GameScreen() {
   const now = useNow();
   const [showLog, setShowLog] = useState(false);
   const [showPlayers, setShowPlayers] = useState(false);
+  // The header menu and the two read-only surfaces behind it. The guide is a
+  // whole screen rather than a dialog (see the early return below), which is why
+  // it isn't grouped with the rest of the dialog state at the bottom.
+  const [showMenu, setShowMenu] = useState(false);
+  const [showSetup, setShowSetup] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
   const [showStoppage, setShowStoppage] = useState(false);
   const [showPauseConfirm, setShowPauseConfirm] = useState(false);
   const [showCall, setShowCall] = useState(false);
@@ -490,6 +509,25 @@ export default function GameScreen() {
   // confirmation — only once play is under way does it stop to ask.
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const resolveBack = useBackGuard(true, ({ stay }) => {
+    // The menu's own layers peel off one at a time before the press means
+    // "leave the game" — the guide especially, which is a full screen and would
+    // otherwise be exited by abandoning the game underneath it. This is handled
+    // here rather than by a second useBackGuard because both hooks would attach
+    // their own window `popstate` listener and each would answer the other's
+    // press. The layers are checked innermost-first, and each absorbs the press
+    // with stay() so the screen keeps guarding.
+    const layer = showGuide
+      ? setShowGuide
+      : showSetup
+        ? setShowSetup
+        : showMenu
+          ? setShowMenu
+          : null;
+    if (layer) {
+      stay();
+      layer(false);
+      return;
+    }
     if (!gameStarted) {
       // Nothing to lose yet — the gesture already popped our guard entry, so
       // just drop back to setup, exactly like the "Back to setup" button.
@@ -565,6 +603,20 @@ export default function GameScreen() {
   const closeEndGameConfirm = () => {
     setShowEndGameConfirm(false);
     sessionStorage.removeItem(END_GAME_CONFIRM_KEY);
+  };
+
+  // The one way off this screen, and the same three-way split the header button
+  // used to carry alone — nothing has been played yet so backing out is free, a
+  // game is under way so leaving means ending it, or it is already over and the
+  // report is all that's left. The menu names the destination instead of encoding
+  // it in a glyph; ending still stops at ConfirmEndGameDialog.
+  const leaveKind: LeaveKind =
+    state.status === 'finished' ? 'openReport' : gameStarted ? 'endGame' : 'backToSetup';
+  const leaveFromMenu = () => {
+    setShowMenu(false);
+    if (leaveKind === 'openReport') leaveGameTo({ type: 'OPEN_REPORT' });
+    else if (leaveKind === 'endGame') openEndGameConfirm();
+    else leaveGameTo({ type: 'BACK_TO_CONFIG' });
   };
 
   // The scoreboard layout is fixed for the whole game: whichever team started on the
@@ -753,51 +805,40 @@ export default function GameScreen() {
   // that mode's turnover carries no player.
   const showRosterBtn = state.config.statsMode === 'team' || state.config.statsMode === 'player';
   const showTurnBtn = statsTrackingEnabled(state.config);
+  // The possession rule under the score panels, and the border it carries for the
+  // action row below it — both stand or fall together.
+  const possessionRule = possessionTracked(state);
   const actionRowCols = 3 + (showRosterBtn ? 1 : 0) + (showTurnBtn ? 1 : 0);
   const actionRowColsClass =
     actionRowCols === 5 ? 'grid-cols-5' : actionRowCols === 4 ? 'grid-cols-4' : 'grid-cols-3';
+
+  // The guide is a screen, not a dialog — same early return ConfigScreen uses, so
+  // the game screen's own state survives the round trip and the reducer stays free
+  // of a UI-only phase. Nothing about the game pauses for it: the clock, the
+  // whistles and the assistance queue all live in GameContext, which is above this
+  // component and never unmounts.
+  if (showGuide) return <GuideScreen onBack={() => setShowGuide(false)} />;
 
   return (
     <div className="h-dvh flex flex-col bg-pitch text-chalk overflow-y-auto">
       {/* Header */}
       <header className="grid grid-cols-3 items-center px-3 py-1.5 lscape:py-0.5 text-sm lscape:text-[11px] bg-panel border-b border-line shrink-0">
         <span className="flex items-center gap-2 justify-self-start min-w-0">
-          {/* Leaving the game, moved up here out of the old full-width row at the
-              bottom — that row cost the score panels a line of height on every
-              screen for a button pressed once a game. The glyph says which of the
-              two things it does: an arrow back while nothing has been played and
-              there is nothing to lose, a cross once the game is real. It stays put
-              once the game is finished, where it goes straight to the report — the
-              game is already over, so there is nothing left to confirm. */}
+          {/* The menu, in the slot the leave button used to hold on its own — that
+              button was moved up here out of an old full-width row at the bottom,
+              which cost the score panels a line of height on every screen for
+              something pressed once a game. One slot was carrying three different
+              destinations, distinguished only by its glyph, so what it did was
+              legible only after pressing it. The menu keeps the single slot and
+              names the destination in words instead, and gives the setup and the
+              guide a door they never had once a game was under way. */}
           <button
             className="shrink-0 flex items-center justify-center w-7 h-7 lscape:w-6 lscape:h-6 rounded-lg border border-line text-chalk/70 active:scale-95"
-            onClick={
-              state.status === 'finished'
-                ? () => leaveGameTo({ type: 'OPEN_REPORT' })
-                : gameStarted
-                  ? openEndGameConfirm
-                  : () => leaveGameTo({ type: 'BACK_TO_CONFIG' })
-            }
-            aria-label={t(
-              state.status === 'finished'
-                ? 'openReport'
-                : gameStarted
-                  ? 'btnEndGame'
-                  : 'btnBackToSetup',
-            )}
-            title={t(
-              state.status === 'finished'
-                ? 'openReport'
-                : gameStarted
-                  ? 'btnEndGame'
-                  : 'btnBackToSetup',
-            )}
+            onClick={() => setShowMenu(true)}
+            aria-label={t('menuTitle')}
+            title={t('menuTitle')}
           >
-            {gameStarted ? (
-              <CrossIcon size="w-4 h-4 lscape:w-3.5 lscape:h-3.5" />
-            ) : (
-              <ArrowBackIcon size="w-4 h-4 lscape:w-3.5 lscape:h-3.5" />
-            )}
+            <MenuIcon size="w-4 h-4 lscape:w-3.5 lscape:h-3.5" />
           </button>
           <span className="font-board text-signal truncate">
             {t('field', { n: state.config.fieldNumber })}
@@ -894,28 +935,13 @@ export default function GameScreen() {
                 {ratioLabel(state, t as never)}
               </button>
             )}
-            {/* Who has the disc, but only in a game where that has turned out to be
-                worth following: it appears with the first turnover recorded and then
-                stands for the rest of the game (possessionTracked), and only while a
-                point is actually being played — between points the disc is dead and
-                the pull chip below already names who throws it. */}
-            {state.possessionTeam !== null && possessionTracked(state) && (
-              <div
-                aria-live="polite"
-                className="rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border border-line text-chalk"
-              >
-                {t('possessionChip', {
-                  team: state.config.teams[state.possessionTeam].name,
-                })}
-              </div>
-            )}
             {/* Only meaningful up to the moment the pull is thrown — the same
                 window the "Pull thrown" button occupies in the action row below.
                 Leaving it up once the point is live risks reading as "this team
                 still has to pull", when the disc may since have changed hands
-                entirely (see the possession chip above, which takes over that
-                job for the rest of the point). Also shown through half-time: the
-                next pull is exactly as settled during the break as it is once
+                entirely (see the possession rule below the panels, which takes
+                over that job for the rest of the point). Also shown through
+                half-time: the next pull is exactly as settled during the break as it is once
                 'awaitingPull' starts, and it's the reminder of who resumes into.
                 A water break is the same case again — it only ever happens in that
                 gap and hands the teams straight back to it. */}
@@ -933,13 +959,53 @@ export default function GameScreen() {
         )}
       </div>
 
+      {/* Who has the disc, as a 4 px rule across the seam between the score panels
+          and the action row, lit on the holder's half. Position rather than words:
+          the panels keep a fixed side all game, so the lit half names the team
+          without naming it — which is why this replaced a chip that spelled out a
+          name already on screen in 52 px letters, and gave the chip stack back a
+          row it needs most in landscape.
+
+          The hairline above it is the border the action row used to draw, moved up
+          rather than added (hence the conditional below), so the whole thing costs
+          4 px. That hairline is also what keeps the amber legible for a team that
+          picked yellow: down here the fill only ever meets a team colour along that
+          one edge, so one border does the job a ring around the bar would have.
+
+          Same gate as the chip it replaced — in `none` there is no Turn button, so
+          the fill could never move. aria-hidden: it carries no wording of its own. */}
+      {possessionRule && (
+        <div
+          data-possession={state.possessionTeam ?? 'none'}
+          aria-hidden="true"
+          className="h-[4px] lscape:h-[3px] bg-pitch border-t border-line shrink-0 overflow-hidden"
+        >
+          {/* Mounted only while the disc is live, and that is what makes the motion
+              read right: inside a point the element persists, so a turnover slides
+              it across the centre; between points it unmounts, so the next point's
+              fill appears in place instead of gliding in from the side that just
+              lost it. */}
+          {state.possessionTeam !== null && (
+            <div
+              className={`h-full w-1/2 bg-signal transition-transform duration-200 ease-out motion-reduce:transition-none ${
+                state.possessionTeam === right ? 'translate-x-full' : ''
+              }`}
+            />
+          )}
+        </div>
+      )}
+
       {/* Timeout / pull / halftime action. Height is reserved (min-h) rather than
           only appearing when active: the score panels above are flex-1, so an
           on/off row would resize them the instant this appears — most often
           right when a goal is scored, putting a new button exactly where the
           volunteer's finger already was tapping to score. A fixed-height slot
           keeps the score panel boundary stable so that never happens. */}
-      <div className="min-h-16 lscape:min-h-10 px-3 lscape:px-2 py-2 lscape:py-1 bg-panel border-t border-line shrink-0 flex items-center">
+      <div
+        className={`min-h-16 lscape:min-h-10 px-3 lscape:px-2 py-2 lscape:py-1 bg-panel shrink-0 flex items-center ${
+          possessionRule ? '' : 'border-t border-line'
+        }`}
+      >
         {(actionRowStatus === 'notStarted' || actionRowStatus === 'awaitingStart') && (
           <button className={playAdvanceButton} onClick={() => dispatch({ type: 'BEGIN_PLAY' })}>
             {t('startGame')}
@@ -1109,6 +1175,14 @@ export default function GameScreen() {
                 icon={<TurnIcon />}
                 label={t('lblTurn')}
                 name={t('btnTurnoverHold')}
+                // Turnovers in the point being played, which is the counter that
+                // already resets on PULL_THROWN/GOAL and comes back down on this
+                // button's own long-press — so the badge self-corrects with no
+                // state of its own. It is also the only confirmation that a press
+                // landed: when the disc goes back to a team that has already held
+                // it this point, the rule below the panels returns to a half it
+                // has been on before and nothing else on screen moves.
+                badge={state.pointTurnovers}
                 onClick={tryTurnover}
                 onHold={tryUndoTurnover}
                 disabled={recordBusy}
@@ -1130,6 +1204,24 @@ export default function GameScreen() {
         />
       )}
       {showPlayers && <PlayersDialog onClose={() => setShowPlayers(false)} />}
+      {showMenu && (
+        <GameMenuDialog
+          leave={leaveKind}
+          onClose={() => setShowMenu(false)}
+          // Both surfaces replace the menu rather than stacking on it: the menu is
+          // a signpost, and there is nothing left to choose once you have arrived.
+          onSetup={() => {
+            setShowMenu(false);
+            setShowSetup(true);
+          }}
+          onGuide={() => {
+            setShowMenu(false);
+            setShowGuide(true);
+          }}
+          onLeave={leaveFromMenu}
+        />
+      )}
+      {showSetup && <GameSetupDialog onClose={() => setShowSetup(false)} />}
       {showCall && <CallDialog onClose={() => setShowCall(false)} onChoose={chooseCall} />}
       {callKind && <CallTeamDialog kind={callKind} onClose={() => setCallKind(null)} />}
       {showNote && <NoteDialog onClose={() => setShowNote(false)} />}

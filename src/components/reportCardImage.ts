@@ -23,7 +23,6 @@ const GAP = 14;
 const PANEL_PAD = 20;
 const RADIUS = 16;
 
-const TITLE_H = 36;
 const META_LINE_H = 21;
 const SCORE_BOX_W = 130;
 const SCORE_BOX_H = 78;
@@ -131,7 +130,7 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
   measuring.font = board(14, 500);
   const metaLines = packSegments(measuring, model.meta, contentWidth);
 
-  const headerH = TITLE_H + metaLines.length * META_LINE_H;
+  const headerH = metaLines.length * META_LINE_H;
   const scoreH = PANEL_PAD * 2 + SCORE_BOX_H + TEAM_NAME_H;
   const statsH = PANEL_PAD * 2 + TABLE_HEAD_H + model.statRows.length * ROW_H;
   const hasPlayers = model.playerRows.length > 0;
@@ -154,13 +153,9 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
 
   let y = PAD;
 
-  // Header
+  // Header — the meta line only. See ReportCardModel.meta for why there is no
+  // "Final report" heading on the image.
   ctx.textAlign = 'left';
-  ctx.fillStyle = C.chalk;
-  ctx.font = board(27, 700);
-  ctx.fillText(model.title, PAD, y + 15);
-  y += TITLE_H;
-
   ctx.font = board(14, 500);
   ctx.fillStyle = C.chalkDim;
   for (const line of metaLines) {
@@ -299,7 +294,7 @@ async function fontsReady(): Promise<void> {
   const fonts = (document as Document & { fonts?: FontFaceSet }).fonts;
   if (!fonts) return;
   try {
-    await Promise.all([fonts.load(board(27, 700), 'A'), fonts.load(clock(56, 600), '0')]);
+    await Promise.all([fonts.load(board(17, 600), 'A'), fonts.load(clock(56, 600), '0')]);
     await fonts.ready;
   } catch {
     // A missing face is a cosmetic problem, not a reason to withhold the card.

@@ -37,7 +37,9 @@ describe('guide', () => {
     fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'Foxes' } });
 
     fireEvent.click(screen.getByText(OPEN_GUIDE));
-    fireEvent.click(screen.getByRole('button', { name: 'Back to setup' }));
+    // The header's back button is the only way out — worded neutrally, since the
+    // guide is now reached from the game screen too.
+    fireEvent.click(screen.getByRole('button', { name: '← Back' }));
 
     expect(screen.getByText('Game setup')).toBeInTheDocument();
     expect(screen.getByLabelText('Team 1')).toHaveValue('Foxes');
@@ -51,7 +53,7 @@ describe('guide', () => {
 
     expect(screen.getByText("Com funciona l'aplicació")).toBeInTheDocument();
     // And the choice sticks once the volunteer is back on the setup screen.
-    fireEvent.click(screen.getByRole('button', { name: 'Tornar a la configuració' }));
+    fireEvent.click(screen.getByRole('button', { name: '← Enrere' }));
     expect(screen.getByText('Configuració del partit')).toBeInTheDocument();
   });
 });
