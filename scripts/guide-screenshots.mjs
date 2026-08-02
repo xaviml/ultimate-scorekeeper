@@ -199,8 +199,12 @@ async function main() {
   await point(panelA, 11);
   await point(panelA, 8);
 
-  await page.getByRole('button', { name: 'End game' }).first().click();
-  await page.getByRole('button', { name: 'End game' }).last().click();
+  // The leave button now lives behind the header's menu (GameMenuDialog), which
+  // also gates the setup/guide doors — open it, pick the "End game" row, then
+  // confirm in ConfirmEndGameDialog, which reuses the same label.
+  await page.getByRole('button', { name: 'Menu' }).click();
+  await page.getByRole('button', { name: 'End game' }).click();
+  await page.getByRole('button', { name: 'End game' }).click();
   await page.waitForSelector('text=Final report');
   await sleep(300);
 

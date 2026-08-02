@@ -889,14 +889,6 @@ export default function GameScreen() {
             un-finishes the game. */}
         {state.status !== 'finished' && (
           <div className="absolute left-1/2 top-2 -translate-x-1/2 flex flex-col items-center gap-1">
-            {isUniversePoint(state) && (
-              <div
-                aria-live="polite"
-                className="rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border border-signal text-signal animate-pulse"
-              >
-                {t('universePointBadge' as never)}
-              </div>
-            )}
             {/* Each target goes on screen at the moment it is first announced — one goal
                 short of it, or when a cap fixes a new one — and stays as the standing
                 reminder of what was just shouted. Highlighted while it is a capped value,
@@ -924,6 +916,14 @@ export default function GameScreen() {
                 }`}
               >
                 {t('gameCapChip', { n: target })}
+              </div>
+            )}
+            {isUniversePoint(state) && (
+              <div
+                aria-live="polite"
+                className="rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border border-signal text-signal animate-pulse"
+              >
+                {t('universePointBadge' as never)}
               </div>
             )}
             {isMixed && (state.ratio || state.nextRatio) && (

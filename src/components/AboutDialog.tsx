@@ -14,9 +14,11 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
   return (
     <Modal title={t('aboutTitle')} onClose={onClose} size="sm">
       <div>
-        <p className="text-xs uppercase tracking-wide text-chalk/60">{t('aboutBackgroundLabel')}</p>
-        <p className="text-sm text-chalk/80">{t('aboutStory')}</p>
-        <p className="text-sm text-chalk/80 mt-2">{t('aboutStory2')}</p>
+        <p className="text-sm text-chalk/80 text-justify">
+          <strong>{t('aboutStoryBold')}</strong>
+          {t('aboutStory')}
+          {t('aboutStory2')}
+        </p>
       </div>
       <div>
         <p className="text-xs uppercase tracking-wide text-chalk/60">{t('aboutCreditsLabel')}</p>

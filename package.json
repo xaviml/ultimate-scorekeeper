@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Guided scorekeeping for Ultimate Frisbee volunteers",
+  "description": "A guided assistant for Ultimate Frisbee scorekeepers",
   "license": "MIT",
   "scripts": {
     "dev": "vite",

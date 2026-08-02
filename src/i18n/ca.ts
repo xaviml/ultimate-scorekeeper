@@ -1,8 +1,7 @@
 import type { en } from './en';
 
 export const ca: typeof en = {
-  appTitle: "Marcador d'Ultimate",
-  tagline: "Un assistent guiat per als anotadors d'Ultimate Frisbee",
+  appTitle: 'Ultimate Scorekeeper',
 
   templateSelectLabel: 'Plantilla',
   templatePredefinedGroup: 'Predefinides',
@@ -82,11 +81,10 @@ export const ca: typeof en = {
   language: 'Idioma',
   aboutBtn: "Sobre l'app",
   aboutTitle: "Sobre l'app",
-  aboutBackgroundLabel: 'Context',
-  aboutStory:
-    "Aquesta app està pensada per a aquells anotadors de torneigs d'Ultimate Frisbee de la nostra zona — sovint amb poc o cap coneixement de l'esport. En Kýkhë, d'EUC, va crear una aplicació Android per ajudar aquests anotadors a seguir el temps de sortida, la ràtio de gènere, el descans i els temps morts, però mai es va publicar a la Play Store, així que només arribava a qui tenia un mòbil Android i un enllaç d'instal·lació directe.",
+  aboutStoryBold: 'Ultimate Scorekeeper',
+  aboutStory: " està dissenyada per a anotadors que no necessàriament coneixen l'esport.",
   aboutStory2:
-    "Aquest projecte continua aquesta mateixa missió: reconstruïda per funcionar en qualsevol dispositiu, millorant la usabilitat i l'experiència pel camí. L'objectiu no ha canviat: facilitar la feina d'aquests anotadors i estalviar a tots dos equips la frustració de perdre el compte de la sortida o de la ràtio de gènere durant el partit.",
+    " Una barra d'assistència permanent indica a l'anotador exactament què dir i quin senyal de mà fer servir en cada moment del partit, de manera que no cal experiència prèvia en Ultimate per portar un partit.",
   aboutCreditsLabel: 'Crèdits',
   aboutDesignedByPrefix: 'Dissenyada, desenvolupada i mantinguda per Xavi #29 de ',
   aboutDesignedBySuffix: '.',

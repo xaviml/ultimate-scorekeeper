@@ -21,7 +21,7 @@ export function TeamColorPicker({
       <button
         type="button"
         aria-label={label}
-        className="h-10 w-14 rounded-lg border border-line"
+        className="block h-[42px] w-14 rounded-lg border border-line"
         style={{ backgroundColor: color }}
         onClick={() => setOpen(true)}
       />

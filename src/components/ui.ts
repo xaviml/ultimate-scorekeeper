@@ -5,8 +5,12 @@
  * place instead of being hunted across every dialog and screen.
  */
 
+// h-[42px] pins <input> and <select> to the same rendered height — a native
+// <select> doesn't obey line-height the way <input> does, so identical padding
+// alone leaves it ~8px shorter, which shows up wherever the two sit side by
+// side (e.g. division/field, or a timeout count next to its scope dropdown).
 export const inputClass =
-  'w-full rounded-lg bg-pitch border border-line px-3 py-2 text-chalk focus:outline-none focus:border-signal';
+  'w-full h-[42px] rounded-lg bg-pitch border border-line px-3 py-2 text-chalk focus:outline-none focus:border-signal';
 
 export const fieldLabel = 'block text-xs uppercase tracking-wide text-chalk/60 mb-1';
 

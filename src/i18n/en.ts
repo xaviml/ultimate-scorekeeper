@@ -1,6 +1,5 @@
 export const en = {
   appTitle: 'Ultimate Scorekeeper',
-  tagline: 'A guided assistant for Ultimate Frisbee scorekeepers',
 
   // Config screen
   templateSelectLabel: 'Template',
@@ -79,13 +78,12 @@ export const en = {
   duplicateTeamNames: 'Team names must be different',
   halfScoreInvalid: 'Half-time score must be lower than the target score',
   language: 'Language',
-  aboutBtn: 'About',
+  aboutBtn: 'About the app',
   aboutTitle: 'About',
-  aboutBackgroundLabel: 'Background',
-  aboutStory:
-    'This app is designed for those scorekeepers at Ultimate Frisbee tournaments in our area — often with little or no knowledge of the sport itself. Kýkhë from EUC built an Android app to help these scorekeepers keep up with pull time, gender ratio, half-time and time-outs, but it was never published to the Play Store, so it only reached players with an Android phone and a direct install link.',
+  aboutStoryBold: 'Ultimate Scorekeeper',
+  aboutStory: " is designed for scorekeepers who don't necessarily know the sport.",
   aboutStory2:
-    "This project carries that same mission forward: rebuilt to run on any device, with usability and experience improved along the way. The goal hasn't changed — make those scorekeepers' jobs easier, and spare both teams the frustration of losing track of the pull count or the gender ratio mid-game.",
+    ' A persistent assistance bar tells the scorekeeper exactly what to say and which hand signal to use at every stage of the game, so no prior Ultimate experience is needed to run a match.',
   aboutCreditsLabel: 'Credits',
   aboutDesignedByPrefix: 'Designed, developed and maintained by Xavi #29 from ',
   aboutDesignedBySuffix: '.',

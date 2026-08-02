@@ -340,46 +340,43 @@ export default function ConfigScreen() {
 
   return (
     <div className="min-h-dvh bg-pitch text-chalk p-4 pb-10 max-w-2xl mx-auto space-y-4">
-      <header className="flex items-center justify-between pt-2">
-        <div>
-          <h1 className="font-board text-2xl font-bold">{t('appTitle')}</h1>
-          <p className="text-chalk/50 text-sm">{t('tagline')}</p>
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          <select
-            aria-label={t('language')}
-            className="rounded-lg bg-panel border border-line px-2 py-1"
-            value={lang}
-            onChange={(e) => setLang(e.target.value as Lang)}
-          >
-            <option value="en">EN</option>
-            <option value="es">ES</option>
-            <option value="ca">CA</option>
-          </select>
-          <button
-            className="rounded-lg bg-panel border border-line w-8 h-8 text-chalk/70"
-            aria-label={t('aboutBtn')}
-            onClick={() => setShowAbout(true)}
-          >
-            ⓘ
-          </button>
-        </div>
-      </header>
-
-      {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
-
-      {/* Entry to the guide: directly under the description and above the first
-          card, where a volunteer who has never done this lands before touching
-          anything — and out of the header, so it never competes with the icons. */}
-      <p className="text-center">
+      <header className="flex items-start justify-between pt-2">
+        <h1 className="font-board text-2xl font-bold">{t('appTitle')}</h1>
         <button
           type="button"
-          className="text-sm text-signal underline"
+          className="rounded-lg bg-panel border border-line w-8 h-8 text-chalk/70 flex-shrink-0"
+          aria-label={t('aboutBtn')}
+          onClick={() => setShowAbout(true)}
+        >
+          ⓘ
+        </button>
+      </header>
+
+      {/* Full width of the page, not just the title's column — sharing a row with
+          the language select left too little room for the longer Spanish/Catalan
+          chip text and forced them onto separate lines even when the screen had
+          space for both. */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <button
+          type="button"
+          className="rounded-full border border-signal/40 text-signal text-xs px-3 py-1 whitespace-nowrap"
           onClick={() => setShowGuide(true)}
         >
           {t('guideLink')}
         </button>
-      </p>
+        <select
+          aria-label={t('language')}
+          className="rounded-lg bg-panel border border-line px-2 py-1 flex-shrink-0"
+          value={lang}
+          onChange={(e) => setLang(e.target.value as Lang)}
+        >
+          <option value="en">EN</option>
+          <option value="es">ES</option>
+          <option value="ca">CA</option>
+        </select>
+      </div>
+
+      {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
 
       <Section title={t('setupTitle')}>
         <div>
