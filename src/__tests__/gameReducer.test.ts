@@ -1659,6 +1659,14 @@ describe('a stoppage raised over whatever else was running', () => {
     expect(timeoutAvailability(s, 'A').reason).toBe('stoppageInProgress');
     expect(gameReducer(s, { type: 'TIMEOUT_START', team: 'A' })).toBe(s);
   });
+
+  it('refuses scoring and turnovers while a stoppage is open', () => {
+    const s = gameReducer(live(), { type: 'STOPPAGE', kind: 'injury' });
+    expect(canScore(s).reason).toBe('stoppageInProgress');
+    expect(canTurnover(s).reason).toBe('stoppageInProgress');
+    expect(gameReducer(s, { type: 'GOAL', team: 'A' })).toBe(s);
+    expect(gameReducer(s, { type: 'TURNOVER' })).toBe(s);
+  });
 });
 
 describe('scheduled kickoff', () => {

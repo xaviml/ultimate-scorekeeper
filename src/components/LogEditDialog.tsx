@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
-import { logEditAllowsNoTeam, logEditKind, playerTrackingFor } from '../state/gameReducer';
+import {
+  episodeIndices,
+  logEditAllowsNoTeam,
+  logEditKind,
+  playerTrackingFor,
+} from '../state/gameReducer';
 import type { CallResolution, LogEdit, LogEntry, TeamId } from '../state/types';
 import { InjuryAttributionDialog } from './InjuryAttributionDialog';
 import { Modal } from './Modal';
@@ -40,15 +45,21 @@ export function LogEditDialog({ entry, onClose }: { entry: LogEntry; onClose: ()
       return <GoalPlayersEdit entry={entry} apply={apply} onClose={onClose} />;
     case 'turnoverPlayers':
       return <TurnoverPlayersEdit entry={entry} apply={apply} onClose={onClose} />;
-    case 'injury':
+    case 'injury': {
+      // Only the episode's opening `stoppage` row carries `stoppagePlayers` (see
+      // EDIT_LOG_ENTRY) — the pencil on `stoppageResolved` has to read it from
+      // there, or the picker prefills empty and Save wipes the players out.
+      const index = state.log.findIndex((e) => e.id === entry.id);
+      const opener = state.log[episodeIndices(state.log, index)[0]];
       return (
         <InjuryAttributionDialog
           initialTeam={entry.team}
-          initialPlayers={entry.stoppagePlayers}
+          initialPlayers={opener.stoppagePlayers}
           onCancel={onClose}
           onSubmit={({ team, players }) => apply({ kind: 'injury', team, players })}
         />
       );
+    }
     case 'callResolution':
       return <CallResolutionEdit entry={entry} apply={apply} onClose={onClose} />;
     case 'team':

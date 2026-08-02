@@ -231,6 +231,29 @@ describe('editing an entry', () => {
     ]);
   });
 
+  it('keeps the injured players when the pencil is opened from the resolved row, not the opening one', () => {
+    // Only the opening `stoppage` row carries stoppagePlayers (see EDIT_LOG_ENTRY);
+    // the pencil on `stoppageResolved` used to prefill empty from its own row and
+    // wipe the players out on Save.
+    const s = run(
+      live(),
+      { type: 'STOPPAGE', kind: 'injury', players: [{ team: 'A', playerId: 'a1' }] },
+      { type: 'STOPPAGE_RESOLVED' },
+    );
+    mount(s);
+
+    const rows = screen.getAllByRole('row').slice(1);
+    // Row 0 is the newest (stoppageResolved); row 1 is the opening stoppage row,
+    // which is the only one that ever names the player.
+    expect(within(rows[1]).getByText(/Alex/)).toBeInTheDocument();
+
+    fireEvent.click(within(rows[0]).getByLabelText('Fix this entry'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    const rowsAfter = screen.getAllByRole('row').slice(1);
+    expect(within(rowsAfter[1]).getByText(/Alex/)).toBeInTheDocument();
+  });
+
   it('rewords a note, and refuses to empty one', () => {
     let s = run(live(), { type: 'NOTE', text: 'wind picked up' });
     const id = last(s).id;

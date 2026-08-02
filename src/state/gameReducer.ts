@@ -222,6 +222,10 @@ export function canScore(state: GameState): { ok: boolean; reason?: string } {
   if (state.status === 'waterBreak') return { ok: false, reason: 'waterBreakActive' };
   if (state.status === 'awaitingPull') return { ok: false, reason: 'pullNotThrown' };
   if (state.pendingCall !== null) return { ok: false, reason: 'callPending' };
+  // A stoppage doesn't touch status (see canStoppage), so it has to be checked
+  // explicitly here too — otherwise GOAL/TURNOVER stay live under an open injury
+  // or technical call, same reason timeoutAvailability already guards against it.
+  if (state.pendingStoppage !== null) return { ok: false, reason: 'stoppageInProgress' };
   return { ok: true };
 }
 
@@ -385,7 +389,7 @@ const EPISODE_CLOSERS: LogType[] = ['callResolved', 'stoppageResolved', 'sotgEnd
  * itself and whatever else the same event wrote. Just `[index]` for the types that
  * write a single row (a goal, a turnover, a travel, a note).
  */
-function episodeIndices(log: LogEntry[], index: number): number[] {
+export function episodeIndices(log: LogEntry[], index: number): number[] {
   const group = EPISODE_GROUPS.find((g) => g.includes(log[index].type));
   if (!group) return [index];
   const [opener] = group;
