@@ -73,11 +73,17 @@ describe('teamStats', () => {
       { type: 'GOAL', team: 'B' }, // point3: messy (not clean) break for B
     );
 
+    // Break chances = times each team, as D-line, gained the disc: point0 gave
+    // B (pulling) none (A held wire-to-wire); point1's single turnover gave A
+    // one, converted straight away; point2's two turnovers gave A one (B's
+    // turnover handed it over, A's own turnover right after handed it right
+    // back, so B's eventual hold leaves A with one failed chance); point3's
+    // two turnovers likewise give B exactly one.
     expect(teamStats(s, 'A')).toMatchObject({
       score: 2,
       oLineHolds: 1,
       cleanHolds: 1,
-      breakChances: 3,
+      breakChances: 2,
       turnovers: 2,
       breaks: 1,
       cleanBreaks: 1,
@@ -89,7 +95,7 @@ describe('teamStats', () => {
       score: 2,
       oLineHolds: 1,
       cleanHolds: 0,
-      breakChances: 2,
+      breakChances: 1,
       turnovers: 3,
       breaks: 1,
       cleanBreaks: 0,

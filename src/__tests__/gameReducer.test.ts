@@ -98,6 +98,33 @@ describe('score validation', () => {
   });
 });
 
+describe('late pull', () => {
+  it('logs nothing when the pull is thrown within 75s', () => {
+    let s = started();
+    s = ticks(s, 74);
+    s = gameReducer(s, { type: 'PULL_THROWN' });
+    expect(s.log.some((e) => e.type === 'latePull')).toBe(false);
+  });
+
+  it('logs a latePull entry with the team and how long it took once past 75s', () => {
+    let s = started(cfg({ startingOffense: 'A' })); // B pulls first
+    s = ticks(s, 82);
+    s = gameReducer(s, { type: 'PULL_THROWN' });
+    expect(s.log[s.log.length - 1]).toMatchObject({
+      type: 'latePull',
+      team: 'B',
+      resolutionSeconds: 82,
+    });
+  });
+
+  it('a pull exactly at 75s is not late', () => {
+    let s = started();
+    s = ticks(s, 75);
+    s = gameReducer(s, { type: 'PULL_THROWN' });
+    expect(s.log.some((e) => e.type === 'latePull')).toBe(false);
+  });
+});
+
 describe('undo', () => {
   it('never lets a score go below 0', () => {
     const s = gameReducer(live(), { type: 'UNDO_GOAL', team: 'A' });
@@ -1203,7 +1230,15 @@ describe('recorded events (travel, calls, notes)', () => {
     const afterTravel = gameReducer(s, { type: 'TRAVEL', team: 'A' });
     expect(afterTravel.log.some((e) => e.type === 'travel')).toBe(false);
 
-    for (const kind of ['foul', 'stallOut', 'pick', 'offside', 'discDown', 'generic'] as const) {
+    for (const kind of [
+      'foul',
+      'stallOut',
+      'pick',
+      'discDown',
+      'out',
+      'offside',
+      'generic',
+    ] as const) {
       const after = gameReducer(s, { type: 'CALL_MADE', kind, team: 'A' });
       expect(after.pendingCall).toBeNull();
     }

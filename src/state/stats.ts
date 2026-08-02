@@ -5,7 +5,7 @@ export interface TeamStats {
   score: number;
   oLineHolds: number; // points won while on offense
   cleanHolds: number; // oLineHolds with zero turnovers all point
-  breakChances: number; // opponent turnovers — one opportunity to break per
+  breakChances: number; // times this team (as D-line) gained the disc — see teamStats
   turnovers: number; // this team's own turnovers, lifetime, net of undo
   breaks: number; // points won while on defense
   cleanBreaks: number; // breaks forced and converted with no turnover of their own
@@ -25,7 +25,6 @@ function avg(nums: number[]): number | null {
  * converted with none given back. See `PointRecord.turnovers`.
  */
 export function teamStats(state: GameState, team: TeamId): TeamStats {
-  const other: TeamId = team === 'A' ? 'B' : 'A';
   const won = state.points.filter((p: PointRecord) => p.scoredBy === team);
   const holds = won.filter((p) => !p.isBreak);
   const breaks = won.filter((p) => p.isBreak);
@@ -34,7 +33,7 @@ export function teamStats(state: GameState, team: TeamId): TeamStats {
     score: state.scores[team],
     oLineHolds: holds.length,
     cleanHolds: holds.filter((p) => p.turnovers === 0).length,
-    breakChances: state.turnoversCommitted[other],
+    breakChances: breakChances(state, team),
     turnovers: state.turnoversCommitted[team],
     breaks: breaks.length,
     cleanBreaks: breaks.filter((p) => p.turnovers === 1).length,
@@ -42,6 +41,28 @@ export function teamStats(state: GameState, team: TeamId): TeamStats {
     avgBreakSeconds: avg(breaks.map((p) => p.durationSeconds)),
     timeoutsUsed: t.half1 + t.half2,
   };
+}
+
+/**
+ * A point starts with the offense holding the disc, so turnovers within it
+ * strictly alternate committer: the 1st is always the offense giving it away,
+ * the 2nd is the defense giving it right back, the 3rd is the offense again,
+ * and so on — regardless of who eventually scores. Each odd-numbered one hands
+ * the disc to the defense (the team that pulled), i.e. a break chance. That
+ * count is ceil(turnovers / 2), independent of the point's outcome.
+ *
+ * Includes the point still in progress (via `pointTurnovers`/`pullingTeam`)
+ * so a break chance earned right before a mid-point END_GAME isn't lost —
+ * `pointTurnovers` is 0 whenever there's no such point (e.g. right after a
+ * goal, or once the game has finished cleanly), so the term is a no-op then.
+ */
+function breakChances(state: GameState, team: TeamId): number {
+  const other: TeamId = team === 'A' ? 'B' : 'A';
+  const fromFinishedPoints = state.points
+    .filter((p) => p.offense === other) // team was pulling (defense) that point
+    .reduce((sum, p) => sum + Math.ceil(p.turnovers / 2), 0);
+  const fromCurrentPoint = state.pullingTeam === team ? Math.ceil(state.pointTurnovers / 2) : 0;
+  return fromFinishedPoints + fromCurrentPoint;
 }
 
 export interface PlayerStatLine {
@@ -176,6 +197,12 @@ export function stoppageDetail(e: LogEntry, t: TFunc): string {
 export function pauseDetail(e: LogEntry, t: TFunc): string {
   if (e.type !== 'sotgEnd' && e.type !== 'pauseEnd') return '';
   return t('logLasted', { n: e.resolutionSeconds ?? 0 });
+}
+
+/** How long a late pull took, e.g. "took 82s" — see `resolutionSeconds` on `latePull`. */
+export function latePullDetail(e: LogEntry, t: TFunc): string {
+  if (e.type !== 'latePull') return '';
+  return t('logPullTook', { n: e.resolutionSeconds ?? 0 });
 }
 
 export function formatClock(totalSeconds: number): string {

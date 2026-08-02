@@ -5,15 +5,23 @@ import { Modal } from './Modal';
 import { secondaryButton } from './ui';
 
 /** Every call kind, in the order they appear in the dialog. */
-const CALL_KINDS: CallKind[] = ['foul', 'stallOut', 'pick', 'offside', 'discDown', 'generic'];
+const CALL_KINDS: CallKind[] = [
+  'foul',
+  'stallOut',
+  'pick',
+  'discDown',
+  'out',
+  'offside',
+  'generic',
+];
 
 export type CallChoice = { type: 'call'; kind: CallKind } | { type: 'travel' };
 
 /**
- * The seven answers to one question: what was called? Six disputable player calls
- * plus travel, which is a call too — the marker calls it on the thrower — and
- * differs only in registering in one step, with no team to argue it out. That
- * difference is not worth setting it apart in the layout: all seven are one grid.
+ * The eight answers to one question: what was called? Seven disputable player
+ * calls plus travel, which is a call too — the marker calls it on the thrower —
+ * and differs only in registering in one step, with no team to argue it out. That
+ * difference is not worth setting it apart in the layout: all eight are one grid.
  *
  * Everything that is *not* a call moved out when this replaced the old Record
  * event menu: turnovers have their own action-row button, injury/technical/SOTG
@@ -44,7 +52,7 @@ export function CallDialog({
     <Modal title={t('callDialogTitle')} onClose={onClose} showClose>
       <p className="text-xs text-chalk/50">{t('callDialogHint')}</p>
 
-      {/* Travel is the seventh cell of the same grid, not a full-width button
+      {/* Travel is the eighth cell of the same grid, not a full-width button
           below it: stretched across the bottom it read as a cancel/confirm bar
           rather than as one more thing you could have been called for. */}
       <div className="grid grid-cols-3 gap-2">

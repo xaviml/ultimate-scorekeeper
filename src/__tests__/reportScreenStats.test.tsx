@@ -96,7 +96,9 @@ describe('report screen — team stats table', () => {
 
     expect(rowCells('Clean holds')).toEqual(['1', '0']);
     expect(rowCells('Clean breaks')).toEqual(['1', '0']);
-    expect(rowCells('Break chances')).toEqual(['2', '1']);
+    // A pulled point1 and converted its single break chance; B never pulled a
+    // point with a turnover in it, so B has none.
+    expect(rowCells('Break chances')).toEqual(['1', '0']);
     expect(rowCells('Turnovers')).toEqual(['1', '2']);
   });
 });

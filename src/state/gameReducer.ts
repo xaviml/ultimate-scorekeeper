@@ -273,7 +273,7 @@ export function possessionTracked(state: GameState): boolean {
  * for the game to resume, same as scoring does.
  *
  * `requiresPull` narrows this further to events that only make sense once the
- * disc is actually live: a travel, any of the six calls (off-side included —
+ * disc is actually live: a travel, any of the seven calls (off-side included —
  * nothing has happened yet for the marker to call). A free-text note is the one
  * recorded event that never passes it: it isn't about the play, so there's
  * nothing about the pull it needs to wait for.
@@ -782,7 +782,20 @@ export function gameReducer(state: GameState, action: Action): GameState {
       // The pull clock is frozen while a stoppage is open (see playHalted), and the
       // disc can't be pulled into an injury either — resolve it, then pull.
       if (state.pendingStoppage !== null) return state;
-      const s = state;
+      let s = state;
+      // The pull clock counts up past its 75s total rather than stopping there (see
+      // TICK), so a late pull is simply seconds > total at the moment it's thrown.
+      // Logged only over the limit — a pull inside 75s is unremarkable and stays
+      // silent, exactly as it does today.
+      if (
+        s.secondary?.kind === 'pull' &&
+        s.secondary.total !== null &&
+        s.secondary.seconds > s.secondary.total
+      ) {
+        s = log(s, 'latePull', s.pullingTeam, undefined, {
+          resolutionSeconds: s.secondary.seconds,
+        });
+      }
       return {
         ...s,
         status: 'live',
@@ -1221,7 +1234,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
     case 'TRAVEL': {
       // Only the calling team is attributed, not a player: a travel is called on the
       // thrower by the marker, and chasing down which player it was is more than a
-      // volunteer can follow. Unlike the six CALL_MADE kinds, there's no dispute to
+      // volunteer can follow. Unlike the seven CALL_MADE kinds, there's no dispute to
       // resolve, so it registers in one step with no pendingCall.
       if (!canRecordEvent(state, { requiresPull: true }).ok) return state;
       return { ...log(state, 'travel', action.team), assist: 'travel' };

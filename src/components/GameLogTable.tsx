@@ -6,6 +6,7 @@ import {
   callDetail,
   formatClock,
   goalPlayersDetail,
+  latePullDetail,
   pauseDetail,
   stoppageDetail,
   turnoverPlayersDetail,
@@ -76,6 +77,7 @@ export function GameLogTable({
                 {callDetail(e, t)}
                 {stoppageDetail(e, t)}
                 {pauseDetail(e, t)}
+                {latePullDetail(e, t)}
               </td>
               {editable && (
                 <td className="py-1 pl-1">

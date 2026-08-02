@@ -8,6 +8,7 @@ import {
   callDetail,
   formatClock,
   goalPlayersDetail,
+  latePullDetail,
   pauseDetail,
   playerStatLines,
   stoppageDetail,
@@ -135,7 +136,8 @@ export default function ReportScreen() {
       // it's left out here to avoid printing it twice.
       const detail = e.detail && !e.stoppageKind ? ` (${e.detail})` : '';
       const players = goalPlayersDetail(state, e, t) + turnoverPlayersDetail(state, e, t);
-      const call = callDetail(e, t) || stoppageDetail(e, t) || pauseDetail(e, t);
+      const call =
+        callDetail(e, t) || stoppageDetail(e, t) || pauseDetail(e, t) || latePullDetail(e, t);
       lines.push(
         `  [${formatClock(e.gameSeconds)}] ${t(`event_${e.type}` as never)}${team}${detail}${players}${call ? ` — ${call}` : ''}`,
       );

@@ -387,7 +387,7 @@ describe('dialogs render through the shared Modal', () => {
     expect(screen.getAllByText('#7 Alex')).toHaveLength(2);
   });
 
-  it('CallDialog routes the six calls and travel back to its caller', () => {
+  it('CallDialog routes the seven calls and travel back to its caller', () => {
     const onChoose = vi.fn();
     renderWithProviders(<CallDialog onClose={noop} onChoose={onChoose} />);
 
@@ -396,6 +396,9 @@ describe('dialogs render through the shared Modal', () => {
 
     fireEvent.click(screen.getByText('Stall out'));
     expect(onChoose).toHaveBeenCalledWith({ type: 'call', kind: 'stallOut' });
+
+    fireEvent.click(screen.getByText('Out'));
+    expect(onChoose).toHaveBeenCalledWith({ type: 'call', kind: 'out' });
 
     fireEvent.click(screen.getByText('Travel'));
     expect(onChoose).toHaveBeenCalledWith({ type: 'travel' });

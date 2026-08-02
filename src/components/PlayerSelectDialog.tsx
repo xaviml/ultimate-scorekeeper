@@ -67,39 +67,47 @@ export function PlayerSelectDialog({
     <Modal title={title} onClose={onCancel}>
       {hint && <p className="text-xs text-chalk/50">{hint}</p>}
 
-      {sections.map((section, i) => (
-        <div key={`${section.team}-${i}`} className="space-y-2">
-          <p className="text-xs uppercase tracking-wide text-chalk/60">{section.label}</p>
-          {section.multi ? (
-            <PlayerMultiPicker
-              players={state.config.players[section.team]}
-              selected={section.selected}
-              onToggle={section.onToggle}
-              onRemove={(id) => {
-                dispatch({ type: 'REMOVE_PLAYER', team: section.team, id });
-                if (section.selected.includes(id)) section.onToggle(id);
-              }}
-            />
-          ) : (
-            <PlayerPicker
-              players={state.config.players[section.team].filter((p) => p.id !== section.exclude)}
-              selected={section.selected}
-              onSelect={section.onSelect}
-              onRemove={(id) => {
-                dispatch({ type: 'REMOVE_PLAYER', team: section.team, id });
-                if (section.selected === id) section.onSelect(null);
-              }}
-            />
-          )}
-          <PlayerRosterEditor
-            label={t('addPlayer')}
-            players={[]}
-            onAdd={(number, name) =>
-              dispatch({ type: 'ADD_PLAYER', team: section.team, number, name })
-            }
-          />
-        </div>
-      ))}
+      {sections.map((section, i) => {
+        // Two sections asking about the same roster (scorer/assist) share one
+        // "add player" editor, placed after the last of them — same layout as
+        // AssistGoalDialog, which this dialog's goalPlayers edit mirrors.
+        const isLastForTeam = !sections.slice(i + 1).some((s) => s.team === section.team);
+        return (
+          <div key={`${section.team}-${i}`} className="space-y-2">
+            <p className="text-xs uppercase tracking-wide text-chalk/60">{section.label}</p>
+            {section.multi ? (
+              <PlayerMultiPicker
+                players={state.config.players[section.team]}
+                selected={section.selected}
+                onToggle={section.onToggle}
+                onRemove={(id) => {
+                  dispatch({ type: 'REMOVE_PLAYER', team: section.team, id });
+                  if (section.selected.includes(id)) section.onToggle(id);
+                }}
+              />
+            ) : (
+              <PlayerPicker
+                players={state.config.players[section.team].filter((p) => p.id !== section.exclude)}
+                selected={section.selected}
+                onSelect={section.onSelect}
+                onRemove={(id) => {
+                  dispatch({ type: 'REMOVE_PLAYER', team: section.team, id });
+                  if (section.selected === id) section.onSelect(null);
+                }}
+              />
+            )}
+            {isLastForTeam && (
+              <PlayerRosterEditor
+                label={t('addPlayer')}
+                players={[]}
+                onAdd={(number, name) =>
+                  dispatch({ type: 'ADD_PLAYER', team: section.team, number, name })
+                }
+              />
+            )}
+          </div>
+        );
+      })}
 
       <div className="grid grid-cols-2 gap-3">
         <button className={secondaryButton} onClick={onCancel}>

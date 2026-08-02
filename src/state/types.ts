@@ -149,7 +149,7 @@ export type GameStatus =
  * `generic` is the catch-all button (labelled just "Call") for anything the list
  * doesn't name; it signals "play stopped" rather than a specific infraction.
  */
-export type CallKind = 'foul' | 'stallOut' | 'pick' | 'offside' | 'discDown' | 'generic';
+export type CallKind = 'foul' | 'stallOut' | 'pick' | 'discDown' | 'out' | 'offside' | 'generic';
 
 export type CallResolution = 'accepted' | 'contested' | 'retracted';
 
@@ -170,6 +170,7 @@ export type LogType =
   | 'gameStart'
   | 'goal'
   | 'undo'
+  | 'latePull'
   | 'timeout'
   | 'timeoutEnd'
   | 'stoppage'
@@ -215,7 +216,8 @@ export interface LogEntry {
   /**
    * How long the thing that stopped play took, in seconds: `callResolved` and
    * `stoppageResolved` carry the discussion/stoppage timer, `sotgEnd`/`pauseEnd`
-   * carry how long the clock was stopped (`pauseElapsedSeconds`).
+   * carry how long the clock was stopped (`pauseElapsedSeconds`), and `latePull`
+   * carries how long the pull clock ran before the disc was actually thrown.
    */
   resolutionSeconds?: number;
   /** `stoppage` and `stoppageResolved` entries only. */
@@ -391,8 +393,8 @@ export interface GameState {
    * Turnovers committed by each team over the whole game, net of any undo — a
    * long-press on Turn decrements whichever team gets the disc back, exactly
    * mirroring `pointTurnovers`. Unlike that counter this never resets per point:
-   * it's what the report's Turnovers/Break chance stats read (a team's break
-   * chances are simply the other team's turnovers). It needs no entry in
+   * it's what the report's lifetime Turnovers stat reads. Break chances are a
+   * separate computation (see `teamStats` in stats.ts) — it needs no entry in
    * GoalSnapshot — UNDO_GOAL only rewinds the goal itself, not the turnovers
    * already played out earlier in the same, still-in-progress point.
    */
