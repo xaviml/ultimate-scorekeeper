@@ -133,6 +133,8 @@ export const es: typeof en = {
   assistDialogTitle: '¿Quién anotó por {team}?',
   whoScored: 'Anotador',
   whoAssisted: 'Asistencia',
+  callahan: 'Callahan',
+  callahanToggle: 'Callahan — sin asistencia',
   stoppageDialogTitle: '¿Qué ha parado el juego?',
   stoppageDialogHint:
     'Las paradas por lesión o técnicas no detienen el reloj de partido de entrada. El SOTG sí. En ambos casos, el reloj del pull, del tiempo muerto y de la llamada esperan a que el juego se reanude.',
@@ -227,6 +229,13 @@ export const es: typeof en = {
   pullChip: 'Pull: {team} ({side})',
   halfCapChip: 'Half a {n}',
   gameCapChip: 'Partido a {n}',
+  halfCapChipRange: 'Half a {a} o {b}',
+  gameCapChipRange: 'Partido a {a} o {b}',
+  capTargetTitleHalf: '¿Dónde acaba el half?',
+  capTargetTitleGame: '¿Dónde acaba el partido?',
+  capTargetHint:
+    'Lo decide el punto que se estaba jugando cuando sonó la bocina. Ajústalo tú si el gol se anotó antes de la bocina.',
+  capTargetOption: 'A {n}',
   sideLeft: 'Izquierda',
   sideRight: 'Derecha',
   target: 'Objetivo: {n}',
@@ -343,6 +352,10 @@ export const es: typeof en = {
   now_awaitingPull:
     'Los equipos se están alineando. Pulsa «Pull lanzado» en el momento del lanzamiento.',
   now_discInPlay: 'Disco en juego. Toca el panel del equipo cuando anote en la zona contraria.',
+  now_awaitingPullCap:
+    'Los equipos se están alineando. Pulsa «Pull lanzado» en el momento del lanzamiento. Toca el objetivo de arriba si el gol fue antes de la bocina.',
+  now_discInPlayCap:
+    'Disco en juego. Toca el panel del equipo cuando anote en la zona contraria. Toca el objetivo de arriba si el gol fue antes de la bocina.',
   now_timeout: 'Tiempo muerto en curso. Termina solo, o pulsa «Fin del tiempo muerto».',
   now_toReady30:
     'El tiempo muerto acaba — 30 segundos para que el ataque esté listo. Un silbato a los 30.',
@@ -420,6 +433,7 @@ export const es: typeof en = {
   colGoals: 'Goles',
   colAssists: 'Asistencias',
   colTotal: 'Total',
+  unassignedPlayers: 'Sin registrar',
   reportFooterCredit: 'Este partido se registró con:',
   historyTitle: 'Historial del partido',
   colClock: 'Reloj',
@@ -468,6 +482,7 @@ export const es: typeof en = {
   event_waterBreakEnd: 'Fin de la pausa de hidratación',
   event_timeCap: 'CAP de tiempo alcanzado',
   event_halfTimeCap: 'CAP de half alcanzado',
+  event_capTargetSet: 'Objetivo ajustado a mano',
   event_gameEnd: 'Fin del partido',
 
   // Guía

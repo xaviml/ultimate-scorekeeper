@@ -27,6 +27,8 @@ export interface CardPlayerRow {
   label: string;
   /** Team colour for the leading dot, or null when only one team is listed and the dot would say nothing. */
   color: string | null;
+  /** The per-team aggregate of unrecorded scorers and assists — drawn dimmed, since it names nobody. */
+  unassigned: boolean;
   assists: string;
   goals: string;
   total: string;
@@ -142,9 +144,10 @@ export function reportCardModel(state: GameState, t: TFunc, lang: Lang): ReportC
     statRows: teamStatRows(state, t),
     playerTitle: t('playerStatsTitle'),
     playerHeader: [t('colPlayer'), t('colAssists'), t('colGoals'), t('colTotal')],
-    playerRows: playerStatLines(state, playerStatsTeams(state.config)).map((p) => ({
+    playerRows: playerStatLines(state, playerStatsTeams(state.config), t).map((p) => ({
       label: p.label,
       color: showTeamColors ? teams[p.team].color : null,
+      unassigned: p.unassigned === true,
       assists: String(p.assists),
       goals: String(p.goals),
       total: String(p.total),

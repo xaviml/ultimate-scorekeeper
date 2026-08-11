@@ -8,6 +8,7 @@ import {
   playerTrackingFor,
 } from '../state/gameReducer';
 import type { CallResolution, LogEdit, LogEntry, TeamId } from '../state/types';
+import { CallahanToggle } from './CallahanToggle';
 import { InjuryAttributionDialog } from './InjuryAttributionDialog';
 import { Modal } from './Modal';
 import { NoteDialog } from './NoteDialog';
@@ -84,6 +85,7 @@ function GoalPlayersEdit({
   const { t } = useT();
   const [scorerId, setScorerId] = useState<string | null>(entry.scorerId ?? null);
   const [assistId, setAssistId] = useState<string | null>(entry.assistId ?? null);
+  const [callahan, setCallahan] = useState(entry.callahan ?? false);
   // Guaranteed by logEditKind: a goal row only offers this when its team is tracked.
   const team = entry.team as TeamId;
 
@@ -99,20 +101,36 @@ function GoalPlayersEdit({
           onSelect: setScorerId,
           exclude: assistId,
         },
-        {
-          team,
-          label: t('whoAssisted'),
-          selected: assistId,
-          onSelect: setAssistId,
-          exclude: scorerId,
-        },
+        // Same as AssistGoalDialog: a Callahan has answered this question, so the
+        // picker goes away rather than sitting there inert.
+        ...(callahan
+          ? []
+          : [
+              {
+                team,
+                label: t('whoAssisted'),
+                selected: assistId,
+                onSelect: setAssistId,
+                exclude: scorerId,
+              } as const,
+            ]),
       ]}
+      extra={
+        <CallahanToggle
+          checked={callahan}
+          onChange={(on) => {
+            setCallahan(on);
+            if (on) setAssistId(null);
+          }}
+        />
+      }
       onCancel={onClose}
       onSave={() =>
         apply({
           kind: 'goalPlayers',
           scorerId: scorerId ?? undefined,
           assistId: assistId ?? undefined,
+          callahan,
         })
       }
     />

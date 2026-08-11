@@ -135,6 +135,8 @@ export const en = {
   assistDialogTitle: 'Who scored for {team}?',
   whoScored: 'Scorer',
   whoAssisted: 'Assist',
+  callahan: 'Callahan',
+  callahanToggle: 'Callahan — no assist',
   stoppageDialogTitle: 'What stopped play?',
   stoppageDialogHint:
     'Injury and technical stoppages keep the game clock running at first. SOTG stops it. Either way, the pull, timeout and call clocks wait until play resumes.',
@@ -243,9 +245,19 @@ export const en = {
   timeoutsLeft: '{n} timeouts left',
   currentRatio: 'Ratio: {gender}',
   pullChip: 'Pull: {team} ({side})',
-  // Short, glanceable cap indicators — only shown once a cap has fixed a new target.
+  // Short, glanceable cap indicators. The `Range` wording is the horn's own moment:
+  // the point in progress will settle the target on one of two numbers, and naming
+  // both beats telling the volunteer to wait for one the game may already have
+  // decided (see capTargetOptions).
   halfCapChip: 'Half at {n}',
   gameCapChip: 'Game at {n}',
+  halfCapChipRange: 'Half at {a} or {b}',
+  gameCapChipRange: 'Game at {a} or {b}',
+  capTargetTitleHalf: 'Where does the half end?',
+  capTargetTitleGame: 'Where does the game end?',
+  capTargetHint:
+    'The point being played when the horn sounded decides this. Set it yourself if the goal was scored before the horn.',
+  capTargetOption: 'At {n}',
   sideLeft: 'Left',
   sideRight: 'Right',
   target: 'Target: {n}',
@@ -364,6 +376,13 @@ export const en = {
     'Waiting for the scheduled kickoff. Play unlocks automatically once it arrives, or press "Start game" to begin early.',
   now_awaitingPull: 'Teams are lining up. Press "Pull thrown" the moment the disc is thrown.',
   now_discInPlay: "Disc in play. Tap a team's panel when they score in the opposite end zone.",
+  // Same two lines with the tail that says the target is editable — shown for as long
+  // as a capped target is still in doubt, which is the only window the tap does
+  // anything in (see capTargetOptions).
+  now_awaitingPullCap:
+    'Teams are lining up. Press "Pull thrown" the moment the disc is thrown. Tap the target above if the goal beat the horn.',
+  now_discInPlayCap:
+    "Disc in play. Tap a team's panel when they score in the opposite end zone. Tap the target above if the goal beat the horn.",
   now_timeout: 'Timeout running. It ends on its own, or press "End timeout".',
   now_toReady30: 'Timeout ending — 30 seconds until the offence must be set. One whistle at 30.',
   now_toReady15: '15 seconds until the offence must be set. Two whistles when the time is up.',
@@ -441,6 +460,7 @@ export const en = {
   colGoals: 'Goals',
   colAssists: 'Assists',
   colTotal: 'Total',
+  unassignedPlayers: 'Not recorded',
   reportFooterCredit: 'This game was tracked with:',
   historyTitle: 'Game history',
   colClock: 'Clock',
@@ -493,6 +513,7 @@ export const en = {
   event_waterBreakEnd: 'Water break ended',
   event_timeCap: 'Time cap reached',
   event_halfTimeCap: 'Half-time cap reached',
+  event_capTargetSet: 'Target set by hand',
   event_gameEnd: 'Game end',
 
   // Guide — a full page (not a dialog), reached from the config screen. Written

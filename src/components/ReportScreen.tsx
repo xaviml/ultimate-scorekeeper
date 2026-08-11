@@ -74,7 +74,7 @@ export default function ReportScreen() {
   // Team mode only ever has player detail for the tracked side; Player mode has
   // both, with a filter to page through them on a small screen.
   const showTeamFilter = state.config.statsMode === 'player';
-  const playerLines = playerStatLines(state, playerStatsTeams(state.config));
+  const playerLines = playerStatLines(state, playerStatsTeams(state.config), t);
   const visiblePlayerLines =
     teamFilter === 'all' ? playerLines : playerLines.filter((p) => p.team === teamFilter);
 
@@ -253,7 +253,12 @@ export default function ReportScreen() {
             </thead>
             <tbody>
               {visiblePlayerLines.map((p) => (
-                <tr key={`${p.team}:${p.playerId}`} className="border-t border-line/50">
+                <tr
+                  key={`${p.team}:${p.playerId}`}
+                  // The aggregate names nobody, so it is dimmed rather than reading as
+                  // a player who happened to be called "Not recorded".
+                  className={`border-t border-line/50 ${p.unassigned ? 'text-chalk/50 italic' : ''}`}
+                >
                   <td className="py-1.5">
                     {showTeamFilter && (
                       <span

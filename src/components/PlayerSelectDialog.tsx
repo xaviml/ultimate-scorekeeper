@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import type { TeamId } from '../state/types';
@@ -50,12 +51,19 @@ export function PlayerSelectDialog({
   title,
   hint,
   sections,
+  extra,
   onCancel,
   onSave,
 }: {
   title: string;
   hint?: string;
   sections: PlayerSelectSection[];
+  /**
+   * Anything the event asks that isn't a player — the Callahan toggle on a goal.
+   * It sits below the pickers and above the buttons, where a section that had
+   * been answered by hiding itself used to be.
+   */
+  extra?: ReactNode;
   onCancel: () => void;
   onSave: () => void;
 }) {
@@ -108,6 +116,8 @@ export function PlayerSelectDialog({
           </div>
         );
       })}
+
+      {extra}
 
       <div className="grid grid-cols-2 gap-3">
         <button className={secondaryButton} onClick={onCancel}>

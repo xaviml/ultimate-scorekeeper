@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import type { TeamId } from '../state/types';
+import { CallahanToggle } from './CallahanToggle';
 import { Modal } from './Modal';
 import { PlayerPicker } from './PlayerPicker';
 import { PlayerRosterEditor } from './PlayerRosterEditor';
@@ -21,11 +22,12 @@ export function AssistGoalDialog({
   const { t } = useT();
   const [scorerId, setScorerId] = useState<string | null>(null);
   const [assistId, setAssistId] = useState<string | null>(null);
+  const [callahan, setCallahan] = useState(false);
 
   const players = state.config.players[team];
 
   const save = () => {
-    dispatch({ type: 'SET_GOAL_PLAYERS', team, scorerId, assistId });
+    dispatch({ type: 'SET_GOAL_PLAYERS', team, scorerId, assistId, callahan });
     onSave();
   };
 
@@ -52,7 +54,7 @@ export function AssistGoalDialog({
         </div>
       )}
 
-      {players.length > 0 && (
+      {players.length > 0 && !callahan && (
         <div className="space-y-2">
           <p className="text-xs uppercase tracking-wide text-chalk/60">{t('whoAssisted')}</p>
           <PlayerPicker
@@ -63,6 +65,14 @@ export function AssistGoalDialog({
           />
         </div>
       )}
+
+      <CallahanToggle
+        checked={callahan}
+        onChange={(on) => {
+          setCallahan(on);
+          if (on) setAssistId(null);
+        }}
+      />
 
       <PlayerRosterEditor
         label={t('addPlayer')}

@@ -269,14 +269,16 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
       }
       ctx.textAlign = 'left';
       ctx.font = board(15, 500);
-      ctx.fillStyle = C.chalk;
+      // The aggregate row names nobody, so it is dimmed throughout — including its
+      // total, which otherwise reads in `signal` like a player's tally.
+      ctx.fillStyle = player.unassigned ? C.chalkDim : C.chalk;
       ctx.fillText(fitText(ctx, player.label, nameMax - (nameX - left)), nameX, midY);
 
       ctx.textAlign = 'right';
       ctx.font = clock(17, 600);
       ctx.fillText(player.assists, assistsR, midY);
       ctx.fillText(player.goals, goalsR, midY);
-      ctx.fillStyle = C.signal;
+      if (!player.unassigned) ctx.fillStyle = C.signal;
       ctx.fillText(player.total, totalR, midY);
       pY += ROW_H;
     }

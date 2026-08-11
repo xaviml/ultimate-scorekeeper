@@ -133,6 +133,8 @@ export const ca: typeof en = {
   assistDialogTitle: 'Qui ha anotat per {team}?',
   whoScored: 'Anotador',
   whoAssisted: 'Assistència',
+  callahan: 'Callahan',
+  callahanToggle: 'Callahan — sense assistència',
   stoppageDialogTitle: 'Què ha aturat el joc?',
   stoppageDialogHint:
     'Les aturades per lesió o tècniques no aturen el rellotge de partit de bon principi. El SOTG sí. En tots dos casos, el rellotge del pull, del temps mort i del call esperen que el joc es reprengui.',
@@ -227,6 +229,13 @@ export const ca: typeof en = {
   pullChip: 'Pull: {team} ({side})',
   halfCapChip: 'Half a {n}',
   gameCapChip: 'Partit a {n}',
+  halfCapChipRange: 'Half a {a} o {b}',
+  gameCapChipRange: 'Partit a {a} o {b}',
+  capTargetTitleHalf: 'On acaba el half?',
+  capTargetTitleGame: 'On acaba el partit?',
+  capTargetHint:
+    "Ho decideix el punt que s'estava jugant quan va sonar la botzina. Ajusta'l tu si el gol es va anotar abans de la botzina.",
+  capTargetOption: 'A {n}',
   sideLeft: 'Esquerra',
   sideRight: 'Dreta',
   target: 'Objectiu: {n}',
@@ -342,6 +351,10 @@ export const ca: typeof en = {
     "Esperant l'hora d'inici programada. El joc es desbloquejarà automàticament, o prem «Començar partit» per començar abans.",
   now_awaitingPull: "Els equips s'estan alineant. Prem «Pull llançat» en el moment del llançament.",
   now_discInPlay: "Disc en joc. Toca el panell de l'equip quan anoti a la zona contrària.",
+  now_awaitingPullCap:
+    "Els equips s'estan alineant. Prem «Pull llançat» en el moment del llançament. Toca l'objectiu de dalt si el gol va ser abans de la botzina.",
+  now_discInPlayCap:
+    "Disc en joc. Toca el panell de l'equip quan anoti a la zona contrària. Toca l'objectiu de dalt si el gol va ser abans de la botzina.",
   now_timeout: 'Temps mort en curs. Acaba sol, o prem «Fi del temps mort».',
   now_toReady30: "El temps mort s'acaba — 30 segons perquè l'atac estigui llest. Un xiulet als 30.",
   now_toReady15: "15 segons perquè l'atac estigui llest. Dos xiulets quan s'esgoti el temps.",
@@ -418,6 +431,7 @@ export const ca: typeof en = {
   colGoals: 'Gols',
   colAssists: 'Assistències',
   colTotal: 'Total',
+  unassignedPlayers: 'Sense registrar',
   reportFooterCredit: 'Aquest partit es va registrar amb:',
   historyTitle: 'Historial del partit',
   colClock: 'Rellotge',
@@ -467,6 +481,7 @@ export const ca: typeof en = {
   event_waterBreakEnd: "Fi de la pausa d'hidratació",
   event_timeCap: 'CAP de temps assolit',
   event_halfTimeCap: 'CAP de half assolit',
+  event_capTargetSet: 'Objectiu ajustat a mà',
   event_gameEnd: 'Fi del partit',
 
   // Guia

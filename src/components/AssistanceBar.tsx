@@ -6,7 +6,7 @@ import {
   pendingKindKey,
   type AssistVars,
 } from '../state/assistOccurrence';
-import { isUniversePoint } from '../state/gameReducer';
+import { capTargetOptions, isUniversePoint } from '../state/gameReducer';
 import type { GameState } from '../state/types';
 
 /**
@@ -96,13 +96,21 @@ function statusKey(state: GameState): string {
   if (isUniversePoint(state) && (state.status === 'live' || state.status === 'awaitingPull')) {
     return 'now_universePoint';
   }
+  // A capped target the volunteer can still move (see capTargetOptions) adds a tail to
+  // the two lines that cover the whole window it can be moved in — before the pull and
+  // with the disc live — since the chip it points at is a small thing to notice on its
+  // own. It rides on these two rather than overriding anything above: the pull-clock
+  // whistles and the universe point are about the seconds passing, and the target can
+  // wait for them.
+  const capEditable =
+    capTargetOptions(state, 'game').length > 1 || capTargetOptions(state, 'half').length > 1;
   switch (state.status) {
     case 'notStarted':
       return 'now_setup';
     case 'awaitingStart':
       return 'now_awaitingStart';
     case 'awaitingPull':
-      return 'now_awaitingPull';
+      return capEditable ? 'now_awaitingPullCap' : 'now_awaitingPull';
     case 'timeout':
       return 'now_timeout';
     case 'paused':
@@ -116,7 +124,7 @@ function statusKey(state: GameState): string {
     case 'finished':
       return 'now_finished';
     default:
-      return 'now_discInPlay';
+      return capEditable ? 'now_discInPlayCap' : 'now_discInPlay';
   }
 }
 

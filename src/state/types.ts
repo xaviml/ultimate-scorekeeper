@@ -192,6 +192,8 @@ export type LogType =
   | 'waterBreakEnd'
   | 'timeCap'
   | 'halfTimeCap'
+  /** The capped target named by hand from the cap chip (see SET_CAP_TARGET). */
+  | 'capTargetSet'
   | 'gameEnd';
 
 export interface LogEntry {
@@ -205,6 +207,13 @@ export interface LogEntry {
   detail?: string;
   scorerId?: string; // goal entries only, once assigned via SET_GOAL_PLAYERS
   assistId?: string;
+  /**
+   * Goal entries only: the goal had no assist by definition — a Callahan, caught
+   * in the endzone off the opposition's throw. It is what tells an unrecorded
+   * assist apart from one that never existed, so the report's "unassigned" line
+   * doesn't count it (see `playerStatLines`). Mutually exclusive with `assistId`.
+   */
+  callahan?: boolean;
   /** Turnover entries only: the attacker who lost the disc (team = attacking team). */
   turnoverId?: string;
   /** Turnover entries only: the defender who forced it, from the other team. */
@@ -239,7 +248,7 @@ export interface LogEntry {
  * `undefined` clears an answer, exactly as it does in the recording actions.
  */
 export type LogEdit =
-  | { kind: 'goalPlayers'; scorerId?: string; assistId?: string }
+  | { kind: 'goalPlayers'; scorerId?: string; assistId?: string; callahan?: boolean }
   | { kind: 'turnoverPlayers'; turnoverId?: string; defenseId?: string }
   /** The team of a travel, a call, a technical stoppage or an SOTG/manual pause. */
   | { kind: 'team'; team?: TeamId }
@@ -311,6 +320,8 @@ export interface PointRecord {
   half: 1 | 2;
   scorerId?: string;
   assistId?: string;
+  /** No assist by definition — see `LogEntry.callahan`, which this mirrors. */
+  callahan?: boolean;
   /** Turnovers by either team during this point — 0 makes a hold "clean", 1 makes a break "clean" (see teamStats in stats.ts). */
   turnovers: number;
 }
@@ -517,6 +528,12 @@ export type Action =
   /** Manual hydration break, from the stoppage dialog — only between points (see canWaterBreak). */
   | { type: 'WATER_BREAK_START' }
   | { type: 'WATER_BREAK_END' }
+  /**
+   * Name the capped target by hand, from the cap chip — the volunteer answering the
+   * one thing the app cannot see for itself, which side of the horn a goal fell on
+   * (see capTargetOptions). Refused for anything that isn't currently on offer.
+   */
+  | { type: 'SET_CAP_TARGET'; which: 'game' | 'half'; target: number }
   | { type: 'TICK' } // 1 s of real time while clocks run
   | { type: 'END_GAME' }
   /** "Open report" tap once the game has finished: the only way from 'finished' to phase 'report'. */
@@ -524,7 +541,14 @@ export type Action =
   | { type: 'BACK_TO_CONFIG' }
   | { type: 'ADD_PLAYER'; team: TeamId; number: string; name: string }
   | { type: 'REMOVE_PLAYER'; team: TeamId; id: string }
-  | { type: 'SET_GOAL_PLAYERS'; team: TeamId; scorerId: string | null; assistId: string | null }
+  | {
+      type: 'SET_GOAL_PLAYERS';
+      team: TeamId;
+      scorerId: string | null;
+      assistId: string | null;
+      /** A Callahan has no assist, so this clears `assistId` rather than sitting beside it. */
+      callahan?: boolean;
+    }
   /**
    * Fix an attribution already in the log, from the log dialog's pencil — any
    * entry, however old (see LogEdit and `logEditKind`). Silent and in place: the

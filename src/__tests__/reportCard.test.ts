@@ -142,16 +142,18 @@ describe('reportCardModel', () => {
     };
     state.log = [entry({ team: 'A', scorerId: 'a1' }), entry({ team: 'B', scorerId: 'b1' })];
 
+    // Neither goal has an assist, so each team also gets its own aggregate row —
+    // which is coloured too, since it is per team and the filter has to place it.
     const both = reportCardModel(state, t, 'en').playerRows;
-    expect(both.map((p) => p.label)).toEqual(['#7 Alex', 'Jo']);
-    expect(both.map((p) => p.color)).toEqual(['#ff0000', '#0000ff']);
+    expect(both.map((p) => p.label)).toEqual(['#7 Alex', 'Jo', 'Not recorded', 'Not recorded']);
+    expect(both.map((p) => p.color)).toEqual(['#ff0000', '#0000ff', '#ff0000', '#0000ff']);
 
     // Team mode lists one roster, so a colour dot would distinguish nothing.
     state.config.statsMode = 'team';
     state.config.trackedTeam = 'A';
     const tracked = reportCardModel(state, t, 'en').playerRows;
-    expect(tracked.map((p) => p.label)).toEqual(['#7 Alex']);
-    expect(tracked[0].color).toBeNull();
+    expect(tracked.map((p) => p.label)).toEqual(['#7 Alex', 'Not recorded']);
+    expect(tracked.every((p) => p.color === null)).toBe(true);
   });
 
   it('counts assists and goals separately and totals them', () => {
@@ -160,17 +162,43 @@ describe('reportCardModel', () => {
     state.config.trackedTeam = 'A';
     state.config.players = { A: [{ id: 'a1', number: '', name: 'Alex' }], B: [] };
     state.log = [
-      entry({ team: 'A', scorerId: 'a1' }),
-      entry({ team: 'A', scorerId: 'a1' }),
-      entry({ team: 'A', assistId: 'a1' }),
+      entry({ team: 'A', scorerId: 'a1', callahan: true }),
+      entry({ team: 'A', scorerId: 'a1', callahan: true }),
+      entry({ team: 'A', assistId: 'a1', scorerId: 'a1' }),
     ];
 
-    expect(reportCardModel(state, t, 'en').playerRows[0]).toEqual({
-      label: 'Alex',
+    expect(reportCardModel(state, t, 'en').playerRows).toEqual([
+      {
+        label: 'Alex',
+        color: null,
+        unassigned: false,
+        assists: '1',
+        goals: '3',
+        total: '4',
+      },
+    ]);
+  });
+
+  // The columns have to add up to the score, so what nobody was named on is
+  // carried by one dimmed row per team rather than silently dropped.
+  it('adds a per-team row for the goals nobody was named on', () => {
+    const state = baseState();
+    state.config.statsMode = 'team';
+    state.config.trackedTeam = 'A';
+    state.config.players = { A: [{ id: 'a1', number: '', name: 'Alex' }], B: [] };
+    state.log = [
+      entry({ team: 'A', scorerId: 'a1', assistId: 'a1' }),
+      entry({ team: 'A' }), // nobody named
+      entry({ team: 'A', scorerId: 'a1', callahan: true }), // no assist by the rules
+    ];
+
+    expect(reportCardModel(state, t, 'en').playerRows[1]).toEqual({
+      label: 'Not recorded',
       color: null,
+      unassigned: true,
       assists: '1',
-      goals: '2',
-      total: '3',
+      goals: '1',
+      total: '2',
     });
   });
 

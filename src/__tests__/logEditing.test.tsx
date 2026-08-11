@@ -115,6 +115,26 @@ describe('editing an entry', () => {
     expect(s.points[0]).toMatchObject({ scorerId: 'a2', assistId: 'a1' });
   });
 
+  // Marking a goal as a Callahan after the fact is the same edit as any other
+  // attribution — and it drops the assist that had been recorded, since a
+  // Callahan has none.
+  it('marks a goal as a Callahan and clears its assist, in the log and in the point', () => {
+    let s = run(live(), { type: 'GOAL', team: 'A' });
+    s = gameReducer(s, { type: 'SET_GOAL_PLAYERS', team: 'A', scorerId: 'a1', assistId: 'a2' });
+    const goalId = find(s, 'goal').id;
+
+    s = gameReducer(s, {
+      type: 'EDIT_LOG_ENTRY',
+      id: goalId,
+      edit: { kind: 'goalPlayers', scorerId: 'a1', assistId: 'a2', callahan: true },
+    });
+
+    expect(find(s, 'goal')).toMatchObject({ scorerId: 'a1', callahan: true });
+    expect(find(s, 'goal').assistId).toBeUndefined();
+    expect(s.points[0].assistId).toBeUndefined();
+    expect(s.points[0].callahan).toBe(true);
+  });
+
   it('finds the right point after an undo left a correction in the log', () => {
     // A note between the goal and the undo pushes UNDO_GOAL onto its visible
     // correction path, so the goal row stays while its point is dropped — the n-th

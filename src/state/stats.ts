@@ -67,11 +67,14 @@ function breakChances(state: GameState, team: TeamId): number {
 
 export interface PlayerStatLine {
   team: TeamId;
+  /** Empty on the aggregate line, which stands for no one in particular. */
   playerId: string;
   label: string;
   goals: number;
   assists: number;
   total: number; // goals + assists
+  /** The per-team aggregate of everything nobody was named on — see `playerStatLines`. */
+  unassigned?: boolean;
 }
 
 /**
@@ -81,22 +84,46 @@ export interface PlayerStatLine {
  * the goal log entries — the same place `goalPlayersDetail` reads it from —
  * rather than `points`, since a goal's players can be filled in after the
  * point already closed (SET_GOAL_PLAYERS).
+ *
+ * Naming a player is always optional, so the columns would otherwise quietly
+ * fail to add up to the score. Each team therefore gets one **aggregate line**
+ * pinned below the named players, counting the goals with no scorer and the
+ * goals with no assist — the report says how much went unrecorded rather than
+ * dropping it. Three things about it are deliberate:
+ *
+ * - **A Callahan is not unrecorded.** `callahan` on the entry is an answer to
+ *   "who assisted?" — nobody, by the rules — so it is skipped rather than
+ *   inflating the assists column with an assist that never existed.
+ * - **It is per team**, because Player mode lists both rosters behind a team
+ *   filter, and a combined line could sit in neither half of it.
+ * - **It never appears alone.** With no named player anywhere, the aggregate is
+ *   the whole table and it says nothing the score doesn't already — the callers
+ *   hide the section on an empty result, so the line has to not be the thing
+ *   that makes it non-empty.
  */
-export function playerStatLines(state: GameState, teams: TeamId[]): PlayerStatLine[] {
+export function playerStatLines(state: GameState, teams: TeamId[], t: TFunc): PlayerStatLine[] {
   const counts = new Map<
     string,
     { team: TeamId; playerId: string; goals: number; assists: number }
   >();
+  const unnamed = new Map<TeamId, { goals: number; assists: number }>();
   const bump = (team: TeamId, playerId: string, field: 'goals' | 'assists') => {
     const key = `${team}:${playerId}`;
     const cur = counts.get(key) ?? { team, playerId, goals: 0, assists: 0 };
     cur[field] += 1;
     counts.set(key, cur);
   };
+  const bumpUnnamed = (team: TeamId, field: 'goals' | 'assists') => {
+    const cur = unnamed.get(team) ?? { goals: 0, assists: 0 };
+    cur[field] += 1;
+    unnamed.set(team, cur);
+  };
   for (const e of state.log) {
     if (e.type !== 'goal' || !e.team || !teams.includes(e.team)) continue;
     if (e.scorerId) bump(e.team, e.scorerId, 'goals');
+    else bumpUnnamed(e.team, 'goals');
     if (e.assistId) bump(e.team, e.assistId, 'assists');
+    else if (!e.callahan) bumpUnnamed(e.team, 'assists');
   }
   const lines = [...counts.values()].map(({ team, playerId, goals, assists }) => ({
     team,
@@ -106,9 +133,25 @@ export function playerStatLines(state: GameState, teams: TeamId[]): PlayerStatLi
     assists,
     total: goals + assists,
   }));
-  return lines.sort(
-    (a, b) => b.total - a.total || b.goals - a.goals || a.label.localeCompare(b.label),
-  );
+  if (lines.length === 0) return [];
+  lines.sort((a, b) => b.total - a.total || b.goals - a.goals || a.label.localeCompare(b.label));
+
+  const aggregates = teams.flatMap((team) => {
+    const u = unnamed.get(team);
+    if (!u || u.goals + u.assists === 0) return [];
+    return [
+      {
+        team,
+        playerId: '',
+        label: t('unassignedPlayers'),
+        goals: u.goals,
+        assists: u.assists,
+        total: u.goals + u.assists,
+        unassigned: true,
+      },
+    ];
+  });
+  return [...lines, ...aggregates];
 }
 
 export function findPlayer(players: PlayerInfo[], id?: string): PlayerInfo | undefined {
@@ -125,15 +168,21 @@ export function playerLabel(player?: PlayerInfo): string {
  * Scorer/assist suffix for a goal log entry, e.g. " — #7 Alex, assist: #9 Sam".
  * Returns '' for non-goals and for goals with no attribution, so it can be
  * dropped straight into JSX or concatenated into the plain-text report.
+ *
+ * A Callahan takes the assist's place in the list rather than being a flag
+ * beside it — it is what was answered when the assist was asked for, and the
+ * report's aggregate line reads it the same way (see `playerStatLines`). It also
+ * stands on its own, so a Callahan with nobody named still says so.
  */
 export function goalPlayersDetail(state: GameState, e: LogEntry, t: TFunc): string {
-  if (e.type !== 'goal' || !e.team || (!e.scorerId && !e.assistId)) return '';
+  if (e.type !== 'goal' || !e.team || (!e.scorerId && !e.assistId && !e.callahan)) return '';
   const roster = state.config.players[e.team];
   const scorer = playerLabel(findPlayer(roster, e.scorerId));
   const assist = playerLabel(findPlayer(roster, e.assistId));
   const parts: string[] = [];
   if (scorer) parts.push(scorer);
-  if (assist) parts.push(t('assistedBy', { name: assist }));
+  if (e.callahan) parts.push(t('callahan'));
+  else if (assist) parts.push(t('assistedBy', { name: assist }));
   return parts.length ? ` — ${parts.join(', ')}` : '';
 }
 

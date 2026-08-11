@@ -130,7 +130,7 @@ describe('playerStatLines', () => {
   }
 
   it('only lists players with at least one goal or assist, sorted by their total descending', () => {
-    const lines = playerStatLines(withRoster(), ['A']);
+    const lines = playerStatLines(withRoster(), ['A'], t);
     expect(lines).toEqual([
       { team: 'A', playerId: 'a1', label: 'Alex', goals: 1, assists: 1, total: 2 },
       { team: 'A', playerId: 'a2', label: 'Sam', goals: 1, assists: 1, total: 2 },
@@ -140,8 +140,84 @@ describe('playerStatLines', () => {
   });
 
   it('combines both rosters when asked, keeping the same total-descending order', () => {
-    const lines = playerStatLines(withRoster(), ['A', 'B']);
-    expect(lines.map((l) => l.playerId)).toEqual(['a1', 'a2', 'b1']);
+    // B's one goal has a scorer but no assist, so B also gets an aggregate line.
+    const lines = playerStatLines(withRoster(), ['A', 'B'], t);
+    expect(lines.map((l) => l.playerId)).toEqual(['a1', 'a2', 'b1', '']);
     expect(lines[2]).toMatchObject({ team: 'B', label: 'Jo', goals: 1, assists: 0, total: 1 });
+  });
+
+  describe('the unassigned aggregate', () => {
+    /** Two A goals: one fully named, one with nobody named at all. */
+    function withGaps(): GameState {
+      const config = cfg({
+        statsMode: 'player',
+        players: { A: [{ id: 'a1', number: '', name: 'Alex' }], B: [] },
+      });
+      let s = liveGame(config);
+      s = gameReducer(s, { type: 'GOAL', team: 'A' });
+      s = gameReducer(s, { type: 'SET_GOAL_PLAYERS', team: 'A', scorerId: 'a1', assistId: null });
+      s = run(s, { type: 'PULL_THROWN' }, { type: 'GOAL', team: 'A' });
+      return s;
+    }
+
+    it('counts the unnamed scorers and assists per team, pinned below the players', () => {
+      const lines = playerStatLines(withGaps(), ['A', 'B'], t);
+      expect(lines).toEqual([
+        { team: 'A', playerId: 'a1', label: 'Alex', goals: 1, assists: 0, total: 1 },
+        // One goal with no scorer, two goals with no assist.
+        {
+          team: 'A',
+          playerId: '',
+          label: 'Not recorded',
+          goals: 1,
+          assists: 2,
+          total: 3,
+          unassigned: true,
+        },
+      ]);
+    });
+
+    // A Callahan has no assist by the rules, so counting it as unrecorded would
+    // report a gap the volunteer had actually filled in.
+    it('does not count a Callahan as an unrecorded assist', () => {
+      let s = withGaps();
+      s = gameReducer(s, {
+        type: 'SET_GOAL_PLAYERS',
+        team: 'A',
+        scorerId: 'a1',
+        assistId: null,
+        callahan: true,
+      });
+      const aggregate = playerStatLines(s, ['A'], t).find((l) => l.unassigned);
+      // The second goal now has a scorer and no assist to record: only the first
+      // goal's missing assist is left.
+      expect(aggregate).toMatchObject({ goals: 0, assists: 1, total: 1 });
+    });
+
+    // With nothing attributed anywhere the aggregate would be the whole table, and
+    // it says nothing the score doesn't — the callers hide the section on [].
+    it('never stands alone when no player was named at all', () => {
+      const config = cfg({ statsMode: 'player', players: { A: [], B: [] } });
+      let s = liveGame(config);
+      s = gameReducer(s, { type: 'GOAL', team: 'A' });
+      expect(playerStatLines(s, ['A', 'B'], t)).toEqual([]);
+    });
+
+    it('leaves out a team that named everyone', () => {
+      let s = withGaps();
+      // Fill in the second goal completely; nothing is missing any more.
+      const goals = s.log.filter((e) => e.type === 'goal');
+      s = gameReducer(s, {
+        type: 'EDIT_LOG_ENTRY',
+        id: goals[0].id,
+        edit: { kind: 'goalPlayers', scorerId: 'a1', callahan: true },
+      });
+      s = gameReducer(s, {
+        type: 'EDIT_LOG_ENTRY',
+        id: goals[1].id,
+        edit: { kind: 'goalPlayers', scorerId: 'a1', callahan: true },
+      });
+      expect(playerStatLines(s, ['A'], t).some((l) => l.unassigned)).toBe(false);
+    });
   });
 });

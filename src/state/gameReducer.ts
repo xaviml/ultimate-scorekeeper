@@ -675,6 +675,61 @@ export function halfTargetApplies(state: GameState): boolean {
 }
 
 /**
+ * The targets the volunteer may still put the game — or the half — on, which is what
+ * the cap chip offers when it is tapped. Empty means there is nothing to choose and
+ * the chip stays a plain label.
+ *
+ * The horn is a clock event, but which point it landed in is a human observation, and
+ * the app only knows what has been tapped in. A goal scored a breath before the horn
+ * and entered a breath after it (or the reverse) moves the target by exactly one, and
+ * no guard can catch that — the reducer's view of the timing is the volunteer's typing
+ * speed. So while a capped target is in force it stays editable, over the values it
+ * could legitimately have taken:
+ *   - still unresolved: the point in progress either leaves the leading score where it
+ *     is or lifts it by one, so the target is `leader + plus` or one more. Both are
+ *     named on the chip ("Half at 5 or 6") rather than the volunteer being told to wait
+ *     for a number the game may already have decided.
+ *   - resolved: the same one-goal uncertainty, now sitting around the number on screen.
+ *
+ * Bounded below by `leader + 1` — a target at or under the current score is not a
+ * target — and above by the configured score, since a cap only ever shortens a game.
+ * The half is held one further below the game target, because a half at or past it
+ * never arrives (see halfTargetApplies). When those bounds leave a single value the
+ * number was never in doubt, and the caller renders it as the plain chip it always was.
+ *
+ * Option A (`none`) has no number to offer at all. Option C is offered only once it has
+ * resolved to one: before that its two outcomes are "game to N" and "the game is
+ * already over", and a picker of targets cannot say the second.
+ */
+export function capTargetOptions(state: GameState, which: 'game' | 'half'): number[] {
+  if (state.phase !== 'game' || state.status === 'finished') return [];
+  const half = which === 'half';
+  if (half) {
+    if (state.halftimePlayed || state.half !== 1) return [];
+    // Option A ends the game on the point in progress, so no half is coming. The rest
+    // of halfTargetApplies is deliberately not consulted: while a half cap is pending
+    // it reads the configured half score, which is precisely the number about to be
+    // lowered, so it can retire the half one goal before the cap resolves it into
+    // reach. The ceiling below is the same test, applied to the numbers on offer.
+    if (state.timeCapReached && state.config.endCap.kind === 'none') return [];
+  }
+  if (!(half ? state.halfTimeCapReached : state.timeCapReached)) return [];
+  const rule = half ? state.config.halfCap : state.config.endCap;
+  if (rule.kind === 'none') return [];
+  const current = half ? state.halfCappedTarget : state.cappedTarget;
+  if (rule.kind === 'conditional' && current === null) return [];
+  const leader = Math.max(state.scores.A, state.scores.B);
+  const ceiling = half
+    ? Math.min(state.config.halfScore, effectiveTarget(state) - 1)
+    : state.config.targetScore;
+  const candidates =
+    current === null
+      ? [leader + rule.plus, leader + rule.plus + 1]
+      : [current - 1, current, current + 1];
+  return [...new Set(candidates)].filter((n) => n > leader && n <= ceiling).sort((a, b) => a - b);
+}
+
+/**
  * Universe point: both teams tied one goal below the target (plain target, or
  * whatever a time cap has adjusted it to — effectiveTarget covers both), so the
  * next goal, by either team, ends the game.
@@ -1272,6 +1327,34 @@ export function gameReducer(state: GameState, action: Action): GameState {
         resolution: action.resolution,
         resolutionSeconds: pending.elapsedSeconds,
       });
+      // An accepted stall-out is a turnover under the rules — the thrower held the
+      // disc past the count — so it is marked as one automatically rather than
+      // asking the volunteer to also tap Turn. Only when stats are tracked at all:
+      // with statsMode 'none' there is no Turn button, no pointTurnovers counter and
+      // no possession rule on screen for it to move. It logs as an ordinary
+      // 'turnover' entry (see TURNOVER above), so it is editable and undoable the
+      // same way — including by long-pressing Turn, since it lands as the newest
+      // log entry.
+      if (
+        action.resolution === 'accepted' &&
+        pending.kind === 'stallOut' &&
+        statsTrackingEnabled(s.config) &&
+        s.possessionTeam !== null
+      ) {
+        const attacking = s.possessionTeam;
+        const t = log(s, 'turnover', attacking);
+        return {
+          ...t,
+          pendingCall: null,
+          possessionTeam: other(attacking),
+          pointTurnovers: t.pointTurnovers + 1,
+          turnoversCommitted: {
+            ...t.turnoversCommitted,
+            [attacking]: t.turnoversCommitted[attacking] + 1,
+          },
+          assist: `resolution_${action.resolution}`,
+        };
+      }
       return { ...s, pendingCall: null, assist: `resolution_${action.resolution}` };
     }
 
@@ -1383,6 +1466,30 @@ export function gameReducer(state: GameState, action: Action): GameState {
         secondary: { kind: 'pull', seconds: 0, total: 75 },
         assist: 'waterBreakOver',
       };
+    }
+
+    case 'SET_CAP_TARGET': {
+      // The offered values are the whole guard: capTargetOptions already knows which
+      // cap is live, what the rule allows and what the score has ruled out.
+      if (!capTargetOptions(state, action.which).includes(action.target)) return state;
+      const half = action.which === 'half';
+      const current = half ? state.halfCappedTarget : state.cappedTarget;
+      if (current === action.target) return state;
+      // Writing the target IS the resolution: GOAL only resolves a cap while its
+      // target is still null, so a hand-named number is what the next goal reads
+      // rather than something it overwrites.
+      let s: GameState = half
+        ? { ...state, halfCappedTarget: action.target, halfAnnounced: true }
+        : { ...state, cappedTarget: action.target, gameAnnounced: true };
+      s = log(s, 'capTargetSet', undefined, `${action.which}:${action.target}`);
+      // Silent, like every other correction to the bookkeeping (see EDIT_LOG_ENTRY):
+      // the cap was announced and whistled when it landed, and this is the volunteer
+      // fixing which point it landed in — not a second cap for the players to hear
+      // about. `capTargetSet` is in none of SAY, SIGNAL or currentWhistle's cap list,
+      // so nothing is queued and the ambient line stays on screen. It still has to be
+      // *set*: the occurrence key carries nextLogId, which this entry has just moved,
+      // so leaving the previous assist in place would re-announce it instead.
+      return { ...s, assist: 'capTargetSet' };
     }
 
     case 'TICK': {
@@ -1574,22 +1681,22 @@ export function gameReducer(state: GameState, action: Action): GameState {
       const lastPoint = state.points[idx];
       if (lastPoint.scoredBy !== action.team) return state;
 
-      const points = [...state.points];
-      points[idx] = {
-        ...lastPoint,
+      // A Callahan is the answer to "who assisted?", not a fact alongside it, so
+      // it clears the assist rather than coexisting with a stale one.
+      const attribution = {
         scorerId: action.scorerId ?? undefined,
-        assistId: action.assistId ?? undefined,
+        assistId: action.callahan ? undefined : (action.assistId ?? undefined),
+        callahan: action.callahan || undefined,
       };
+
+      const points = [...state.points];
+      points[idx] = { ...lastPoint, ...attribution };
 
       let log = state.log;
       for (let i = log.length - 1; i >= 0; i--) {
         if (log[i].type === 'goal' && log[i].team === action.team) {
           log = [...log];
-          log[i] = {
-            ...log[i],
-            scorerId: action.scorerId ?? undefined,
-            assistId: action.assistId ?? undefined,
-          };
+          log[i] = { ...log[i], ...attribution };
           break;
         }
       }
@@ -1609,16 +1716,20 @@ export function gameReducer(state: GameState, action: Action): GameState {
       const log = [...state.log];
 
       if (edit.kind === 'goalPlayers') {
-        log[index] = { ...entry, scorerId: edit.scorerId, assistId: edit.assistId };
-        // The point carries the same two ids (see SET_GOAL_PLAYERS), so it moves with
-        // the row rather than being left behind disagreeing with it.
+        // Same rule as SET_GOAL_PLAYERS: a Callahan clears the assist.
+        const attribution = {
+          scorerId: edit.scorerId,
+          assistId: edit.callahan ? undefined : edit.assistId,
+          callahan: edit.callahan || undefined,
+        };
+        log[index] = { ...entry, ...attribution };
+        // The point carries the same attribution (see SET_GOAL_PLAYERS), so it moves
+        // with the row rather than being left behind disagreeing with it.
         const pointIndex = pointIndexForGoal(state.log, entry.id);
         const points =
           pointIndex === null
             ? state.points
-            : state.points.map((p, i) =>
-                i === pointIndex ? { ...p, scorerId: edit.scorerId, assistId: edit.assistId } : p,
-              );
+            : state.points.map((p, i) => (i === pointIndex ? { ...p, ...attribution } : p));
         return { ...state, log, points };
       }
 

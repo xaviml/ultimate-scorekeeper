@@ -387,6 +387,30 @@ describe('dialogs render through the shared Modal', () => {
     expect(screen.getAllByText('#7 Alex')).toHaveLength(2);
   });
 
+  // The Callahan tick is the answer to "who assisted?", not a fact beside it, so
+  // the picker goes away rather than sitting there inert with a stale pick in it.
+  it('AssistGoalDialog swaps the assist picker for the Callahan tick', () => {
+    const state = createInitialState();
+    state.phase = 'game';
+    state.config.players.A = [
+      { id: 'p1', number: '7', name: 'Alex' },
+      { id: 'p2', number: '9', name: 'Sam' },
+    ];
+    sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
+
+    renderWithProviders(<AssistGoalDialog team="A" onCancel={noop} onSave={noop} />);
+    expect(screen.getByText('Assist')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Callahan — no assist'));
+    expect(screen.queryByText('Assist')).toBeNull();
+    expect(screen.getByText('Scorer')).toBeInTheDocument();
+  });
+
+  it('AssistGoalDialog offers the Callahan tick even with no roster to pick from', () => {
+    renderWithProviders(<AssistGoalDialog team="A" onCancel={noop} onSave={noop} />);
+    expect(screen.getByLabelText('Callahan — no assist')).toBeInTheDocument();
+  });
+
   it('CallDialog routes the seven calls and travel back to its caller', () => {
     const onChoose = vi.fn();
     renderWithProviders(<CallDialog onClose={noop} onChoose={onChoose} />);

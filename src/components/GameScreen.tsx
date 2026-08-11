@@ -8,7 +8,9 @@ import {
   canTurnover,
   canUndo,
   canUndoTurnover,
+  capTargetOptions,
   effectiveHalfTarget,
+  effectiveTarget,
   halfTargetApplies,
   isUniversePoint,
   playHalted,
@@ -29,6 +31,7 @@ import { AssistanceBar } from './AssistanceBar';
 import { AssistGoalDialog } from './AssistGoalDialog';
 import { CallDialog, type CallChoice } from './CallDialog';
 import { CallTeamDialog } from './CallTeamDialog';
+import { CapTargetDialog } from './CapTargetDialog';
 import { ConfirmEndGameDialog } from './ConfirmEndGameDialog';
 import { ConfirmLeaveGameDialog } from './ConfirmLeaveGameDialog';
 import { ConfirmPauseGameDialog } from './ConfirmPauseGameDialog';
@@ -402,6 +405,66 @@ function StoppageResolutionRow() {
   );
 }
 
+/**
+ * What the game — or the half — is being played to, and, while a cap is still in
+ * doubt, the control that settles it.
+ *
+ * The chip goes on screen the moment the target is first announced (one goal short of
+ * it, or a cap fixing a new one) and stays as the standing reminder of what was just
+ * shouted; a cap adds a second door in, since from the horn onwards there is a number
+ * to argue about whether or not it has been announced yet. Highlighted whenever a cap
+ * is in force, because that is the number nobody can infer. The half chip retires once
+ * the half score stops deciding anything.
+ *
+ * Tappable only while `capTargetOptions` offers a choice — the horn's timing against a
+ * goal is the volunteer's to correct (see the reducer), but where the bounds leave one
+ * possible number there is nothing to correct, and it renders as the plain label it has
+ * always been. It is the one thing over the score panels that takes a tap, which is why
+ * it stays small and on the seam between them, where a scoring tap is ambiguous anyway.
+ */
+function CapChip({ which, onOpen }: { which: 'game' | 'half'; onOpen: () => void }) {
+  const state = useGame();
+  const { t } = useT();
+  const half = which === 'half';
+  const capped = half ? state.halfCappedTarget : state.cappedTarget;
+  const options = capTargetOptions(state, which);
+  const announced = half ? state.halfAnnounced : state.gameAnnounced;
+  // Nothing to show unless the target has been announced or a cap has put it in play —
+  // and, for the half, unless the half score still decides something. A number still on
+  // offer outranks both: it is the target arriving before its own announcement.
+  if (options.length === 0 && (!announced || (half && !halfTargetApplies(state)))) return null;
+
+  // Both numbers while the point in progress still decides between them, one number
+  // the rest of the time — including a cap whose bounds only ever allowed one.
+  const range = capped === null && options.length > 1;
+  const label = range
+    ? t((half ? 'halfCapChipRange' : 'gameCapChipRange') as never, { a: options[0], b: options[1] })
+    : t((half ? 'halfCapChip' : 'gameCapChip') as never, {
+        n: capped ?? options[0] ?? (half ? effectiveHalfTarget(state) : effectiveTarget(state)),
+      });
+  const className = `rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border ${
+    capped !== null || options.length > 0 ? 'border-signal text-signal' : 'border-line text-chalk'
+  }`;
+
+  if (options.length < 2) {
+    return (
+      <div aria-live="polite" className={className}>
+        {label}
+      </div>
+    );
+  }
+  return (
+    <button
+      aria-live="polite"
+      className={`${className} underline decoration-dotted underline-offset-2 active:scale-95`}
+      title={t((half ? 'capTargetTitleHalf' : 'capTargetTitleGame') as never)}
+      onClick={onOpen}
+    >
+      {label}
+    </button>
+  );
+}
+
 function ratioLabel(
   state: GameState,
   t: (k: never, v?: Record<string, string | number>) => string,
@@ -487,6 +550,8 @@ export default function GameScreen() {
   const [showCall, setShowCall] = useState(false);
   const [showNote, setShowNote] = useState(false);
   const [showTravel, setShowTravel] = useState(false);
+  /** Which cap chip was tapped, if any — see CapChip. */
+  const [capTarget, setCapTarget] = useState<'game' | 'half' | null>(null);
   // The call kind chosen in the Call dialog, waiting on "who called it?".
   const [callKind, setCallKind] = useState<CallKind | null>(null);
   // Attacking team captured when the turnover dialog opens, since recording the
@@ -889,35 +954,8 @@ export default function GameScreen() {
             un-finishes the game. */}
         {state.status !== 'finished' && (
           <div className="absolute left-1/2 top-2 -translate-x-1/2 flex flex-col items-center gap-1">
-            {/* Each target goes on screen at the moment it is first announced — one goal
-                short of it, or when a cap fixes a new one — and stays as the standing
-                reminder of what was just shouted. Highlighted while it is a capped value,
-                since that is the number nobody can infer. The half chip also retires once
-                the half score stops deciding anything. */}
-            {state.halfAnnounced && halfTargetApplies(state) && (
-              <div
-                aria-live="polite"
-                className={`rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border ${
-                  state.halfCappedTarget !== null
-                    ? 'border-signal text-signal'
-                    : 'border-line text-chalk'
-                }`}
-              >
-                {t('halfCapChip', { n: effectiveHalfTarget(state) })}
-              </div>
-            )}
-            {state.gameAnnounced && (
-              <div
-                aria-live="polite"
-                className={`rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border ${
-                  state.cappedTarget !== null
-                    ? 'border-signal text-signal'
-                    : 'border-line text-chalk'
-                }`}
-              >
-                {t('gameCapChip', { n: target })}
-              </div>
-            )}
+            <CapChip which="half" onOpen={() => setCapTarget('half')} />
+            <CapChip which="game" onOpen={() => setCapTarget('game')} />
             {isUniversePoint(state) && (
               <div
                 aria-live="polite"
@@ -1234,6 +1272,7 @@ export default function GameScreen() {
       {callKind && <CallTeamDialog kind={callKind} onClose={() => setCallKind(null)} />}
       {showNote && <NoteDialog onClose={() => setShowNote(false)} />}
       {showTravel && <TravelTeamDialog onClose={() => setShowTravel(false)} />}
+      {capTarget && <CapTargetDialog which={capTarget} onClose={() => setCapTarget(null)} />}
       {showStoppage && <StoppageDialog onClose={() => setShowStoppage(false)} />}
       {turnoverTeam && (
         <TurnoverDialog attacking={turnoverTeam} onClose={() => setTurnoverTeam(null)} />

@@ -7,6 +7,7 @@ import {
   canUndo,
   canUndoTurnover,
   canWaterBreak,
+  capTargetOptions,
   createInitialState,
   defaultConfig,
   gameReducer,
@@ -21,6 +22,7 @@ import {
   timeoutAvailability,
   timeoutsConfigured,
 } from '../state/gameReducer';
+import { currentWhistle } from '../state/whistleSignal';
 import type { Action, GameConfig, GameState } from '../state/types';
 
 const cfg = (patch: Partial<GameConfig> = {}): GameConfig => ({ ...defaultConfig, ...patch });
@@ -424,6 +426,149 @@ describe('caps', () => {
     s = gameReducer(s, { type: 'GOAL', team: 'A' }); // leader 1 + 1 = 2, clamped to 1
     expect(s.halfCappedTarget).toBe(1);
     expect(s.status).toBe('halftime');
+  });
+});
+
+describe('naming a capped target by hand', () => {
+  const halfConfig = cfg({
+    halfTimeLimitMinutes: 1,
+    halfCap: { kind: 'cap', plus: 1 },
+    halfScore: 8,
+    startingOffense: 'A',
+  });
+
+  /** 5-3 with the disc live and nothing on the clock yet — only TICK advances it. */
+  function at5_3(config = halfConfig): GameState {
+    let s = live(config);
+    for (const team of ['A', 'A', 'A', 'A', 'B', 'B', 'B', 'A'] as const) {
+      s = run(s, { type: 'GOAL', team }, { type: 'PULL_THROWN' });
+    }
+    expect(s.scores).toEqual({ A: 5, B: 3 });
+    return s;
+  }
+
+  it('offers both numbers the point in progress could still settle on', () => {
+    const s = ticks(at5_3(), 60);
+    expect(s.halfCappedTarget).toBeNull();
+    // Leader 5 either stays put (half at 6) or goes to 6 (half at 7).
+    expect(capTargetOptions(s, 'half')).toEqual([6, 7]);
+    // Nothing to choose before the horn, and nothing to choose about a target no
+    // cap has touched.
+    expect(capTargetOptions(at5_3(), 'half')).toEqual([]);
+    expect(capTargetOptions(s, 'game')).toEqual([]);
+  });
+
+  it('takes the hand-named half target and lets the next goal alone', () => {
+    // The case the picker exists for: the goal that made it 5-3 was scored before the
+    // horn, so the point it interrupted is the one already over and the half is 6 —
+    // not "6 or 7, we'll see".
+    let s = ticks(at5_3(), 60);
+    s = gameReducer(s, { type: 'SET_CAP_TARGET', which: 'half', target: 6 });
+    expect(s.halfCappedTarget).toBe(6);
+    expect(s.halfAnnounced).toBe(true);
+    // Silent: a correction to the bookkeeping, not a second cap to announce.
+    expect(s.assist).toBe('capTargetSet');
+    expect(currentWhistle(s)).toBeNull();
+    expect(s.log[s.log.length - 1]).toMatchObject({ type: 'capTargetSet', detail: 'half:6' });
+    // GOAL resolves a cap only while its target is null, so the point that finishes
+    // after the pick leaves the named number alone rather than recomputing 6 or 7.
+    s = gameReducer(s, { type: 'GOAL', team: 'B' }); // 5-4
+    expect(s.halfCappedTarget).toBe(6);
+    expect(s.status).not.toBe('halftime');
+    s = run(s, { type: 'PULL_THROWN' }, { type: 'GOAL', team: 'A' }); // 6-4 reaches it
+    expect(s.status).toBe('halftime');
+  });
+
+  it('keeps the number movable by one after it has resolved', () => {
+    let s = ticks(at5_3(), 60);
+    s = gameReducer(s, { type: 'GOAL', team: 'B' }); // 5-4, half resolves to 6
+    expect(s.halfCappedTarget).toBe(6);
+    // The mirror mistake — that goal was scored before the horn too, so the point the
+    // horn landed in is still being played and the half is one higher.
+    expect(capTargetOptions(s, 'half')).toEqual([6, 7]);
+    s = gameReducer(s, { type: 'SET_CAP_TARGET', which: 'half', target: 7 });
+    expect(s.halfCappedTarget).toBe(7);
+    s = run(s, { type: 'PULL_THROWN' }, { type: 'GOAL', team: 'A' }); // 6-4
+    expect(s.status).not.toBe('halftime');
+  });
+
+  it('refuses a target the score or the configuration has ruled out', () => {
+    const s = ticks(at5_3(), 60);
+    for (const target of [5, 8, 0, 6.5]) {
+      // 5 is already on the board, 8 is two points of doubt away, and the configured
+      // half score is the ceiling.
+      expect(gameReducer(s, { type: 'SET_CAP_TARGET', which: 'half', target })).toBe(s);
+    }
+    // No cap on that side of the game at all.
+    expect(gameReducer(s, { type: 'SET_CAP_TARGET', which: 'game', target: 6 })).toBe(s);
+  });
+
+  it('offers nothing when the bounds leave a single number', () => {
+    // Ceiling from the configured half score...
+    let s = ticks(at5_3(cfg({ ...halfConfig, halfScore: 6 })), 60);
+    expect(capTargetOptions(s, 'half')).toEqual([6]);
+    // ...and from the game target, which the half has to stay below to ever arrive:
+    // both horns sounded, the game named at 7, so the half can only be 6.
+    const bothCaps = cfg({ ...halfConfig, timeLimitMinutes: 1, endCap: { kind: 'cap', plus: 1 } });
+    s = ticks(at5_3(bothCaps), 60);
+    s = run(
+      s,
+      { type: 'SET_CAP_TARGET', which: 'game', target: 7 },
+      { type: 'SET_CAP_TARGET', which: 'half', target: 6 },
+    );
+    expect(capTargetOptions(s, 'half')).toEqual([6]);
+    expect(halfTargetApplies(s)).toBe(true);
+  });
+
+  it('does the same for the end cap', () => {
+    const config = cfg({ timeLimitMinutes: 1, endCap: { kind: 'cap', plus: 1 }, targetScore: 15 });
+    let s = ticks(at5_3(config), 60);
+    expect(s.timeCapReached).toBe(true);
+    expect(capTargetOptions(s, 'game')).toEqual([6, 7]);
+    s = gameReducer(s, { type: 'SET_CAP_TARGET', which: 'game', target: 6 });
+    expect(s.cappedTarget).toBe(6);
+    expect(s.gameAnnounced).toBe(true);
+    expect(s.assist).toBe('capTargetSet');
+    expect(currentWhistle(s)).toBeNull();
+    s = gameReducer(s, { type: 'GOAL', team: 'A' }); // 6-3 ends it
+    expect(s.status).toBe('finished');
+  });
+
+  it('offers nothing for a cap with no number to name', () => {
+    // Option A ends the game on the point in progress, so there is no target to move.
+    let s = ticks(at5_3(cfg({ timeLimitMinutes: 1, endCap: { kind: 'none' } })), 60);
+    expect(capTargetOptions(s, 'game')).toEqual([]);
+    // Option C before it resolves: one of its two outcomes is "the game is already
+    // over", which a list of targets cannot say. Once resolved it moves like any other.
+    const conditional = cfg({
+      timeLimitMinutes: 1,
+      endCap: { kind: 'conditional', plus: 1, minDiff: 3 },
+      targetScore: 15,
+    });
+    s = ticks(at5_3(conditional), 60);
+    expect(capTargetOptions(s, 'game')).toEqual([]);
+    s = gameReducer(s, { type: 'GOAL', team: 'B' }); // 5-4, diff 1: game to 6
+    expect(s.cappedTarget).toBe(6);
+    expect(capTargetOptions(s, 'game')).toEqual([6, 7]);
+  });
+
+  it('lets undo take back a hand-named target with the goal it was named over', () => {
+    let s = ticks(at5_3(), 60);
+    s = gameReducer(s, { type: 'GOAL', team: 'B' }); // 5-4, half resolves to 6
+    s = gameReducer(s, { type: 'SET_CAP_TARGET', which: 'half', target: 7 });
+    s = gameReducer(s, { type: 'UNDO_GOAL', team: 'B' });
+    expect(s.scores).toEqual({ A: 5, B: 3 });
+    // Back to the horn's own state: pending, with both numbers on offer again.
+    expect(s.halfCappedTarget).toBeNull();
+    expect(capTargetOptions(s, 'half')).toEqual([6, 7]);
+  });
+
+  it('offers nothing once the cap has been spent', () => {
+    let s = ticks(at5_3(), 60);
+    s = gameReducer(s, { type: 'SET_CAP_TARGET', which: 'half', target: 6 });
+    s = run(s, { type: 'GOAL', team: 'A' }); // 6-3 reaches the half
+    expect(s.status).toBe('halftime');
+    expect(capTargetOptions(s, 'half')).toEqual([]);
   });
 });
 
@@ -1000,6 +1145,42 @@ describe('player tracking', () => {
     expect(goalEntry).toMatchObject({ scorerId, assistId });
   });
 
+  // A Callahan is the answer to "who assisted?" — nobody, by the rules — so it
+  // clears the assist rather than sitting beside a stale one, on the point and
+  // the log entry alike.
+  it('a Callahan clears the assist on both the point and the goal entry', () => {
+    let s = gameReducer(live(), { type: 'ADD_PLAYER', team: 'A', number: '7', name: 'Alex' });
+    s = gameReducer(s, { type: 'ADD_PLAYER', team: 'A', number: '9', name: 'Sam' });
+    const scorerId = s.config.players.A[0].id;
+    const assistId = s.config.players.A[1].id;
+
+    s = gameReducer(s, { type: 'GOAL', team: 'A' });
+    s = gameReducer(s, { type: 'SET_GOAL_PLAYERS', team: 'A', scorerId, assistId, callahan: true });
+
+    expect(s.points[0]).toMatchObject({ scorerId, callahan: true });
+    expect(s.points[0].assistId).toBeUndefined();
+    const goalEntry = [...s.log].reverse().find((e) => e.type === 'goal');
+    expect(goalEntry).toMatchObject({ scorerId, callahan: true });
+    expect(goalEntry?.assistId).toBeUndefined();
+  });
+
+  it('unticking the Callahan lets the assist be recorded again', () => {
+    let s = gameReducer(live(), { type: 'ADD_PLAYER', team: 'A', number: '9', name: 'Sam' });
+    const assistId = s.config.players.A[0].id;
+    s = gameReducer(s, { type: 'GOAL', team: 'A' });
+    s = gameReducer(s, {
+      type: 'SET_GOAL_PLAYERS',
+      team: 'A',
+      scorerId: null,
+      assistId: null,
+      callahan: true,
+    });
+    s = gameReducer(s, { type: 'SET_GOAL_PLAYERS', team: 'A', scorerId: null, assistId });
+
+    expect(s.points[0].assistId).toBe(assistId);
+    expect(s.points[0].callahan).toBeUndefined();
+  });
+
   it('does nothing if the team does not match the most recent scorer', () => {
     let s = gameReducer(live(), { type: 'ADD_PLAYER', team: 'B', number: '3', name: 'Jo' });
     const assistId = s.config.players.B[0].id;
@@ -1292,6 +1473,62 @@ describe('recorded events (travel, calls, notes)', () => {
       resolutionSeconds: 14,
     });
     expect(s.assist).toBe('resolution_contested');
+  });
+
+  it('marks a turnover when an accepted stall-out call is tracked', () => {
+    let s = gameReducer(live(cfg({ statsMode: 'game' })), {
+      type: 'CALL_MADE',
+      kind: 'stallOut',
+      team: 'B',
+    });
+    const before = s.possessionTeam; // A, by default config
+    s = gameReducer(s, { type: 'CALL_RESOLVED', resolution: 'accepted' });
+
+    expect(s.pendingCall).toBeNull();
+    expect(s.possessionTeam).toBe(before === 'A' ? 'B' : 'A');
+    expect(s.pointTurnovers).toBe(1);
+    expect(s.turnoversCommitted[before!]).toBe(1);
+    expect(lastLog(s)).toMatchObject({ type: 'turnover', team: before });
+    // The resolution is still what gets announced — the turnover is bookkeeping,
+    // same as one tapped by hand.
+    expect(s.assist).toBe('resolution_accepted');
+
+    // It reads and undoes exactly like a manually-tapped turnover.
+    expect(canUndoTurnover(s).ok).toBe(true);
+    const undone = gameReducer(s, { type: 'UNDO_TURNOVER' });
+    expect(undone.possessionTeam).toBe(before);
+    expect(undone.pointTurnovers).toBe(0);
+    expect(lastLog(undone)).toMatchObject({ type: 'callResolved' });
+  });
+
+  it('does not mark a turnover on an accepted stall-out when stats are off', () => {
+    let s = gameReducer(live(), { type: 'CALL_MADE', kind: 'stallOut', team: 'B' });
+    const before = s.possessionTeam;
+    s = gameReducer(s, { type: 'CALL_RESOLVED', resolution: 'accepted' });
+
+    expect(s.possessionTeam).toBe(before);
+    expect(s.pointTurnovers).toBe(0);
+    expect(lastLog(s)).toMatchObject({ type: 'callResolved' });
+  });
+
+  it('does not mark a turnover for an accepted call of any other kind, or a contested/retracted stall-out', () => {
+    const base = live(cfg({ statsMode: 'game' }));
+
+    const foul = gameReducer(gameReducer(base, { type: 'CALL_MADE', kind: 'foul', team: 'B' }), {
+      type: 'CALL_RESOLVED',
+      resolution: 'accepted',
+    });
+    expect(foul.possessionTeam).toBe(base.possessionTeam);
+    expect(foul.pointTurnovers).toBe(0);
+
+    for (const resolution of ['contested', 'retracted'] as const) {
+      const s = gameReducer(gameReducer(base, { type: 'CALL_MADE', kind: 'stallOut', team: 'B' }), {
+        type: 'CALL_RESOLVED',
+        resolution,
+      });
+      expect(s.possessionTeam).toBe(base.possessionTeam);
+      expect(s.pointTurnovers).toBe(0);
+    }
   });
 
   it('refuses a second call until the open one is resolved', () => {
