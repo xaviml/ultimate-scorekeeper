@@ -356,6 +356,10 @@ export const es: typeof en = {
     'Los equipos se están alineando. Pulsa «Pull lanzado» en el momento del lanzamiento. Toca el objetivo de arriba si el gol fue antes de la bocina.',
   now_discInPlayCap:
     'Disco en juego. Toca el panel del equipo cuando anote en la zona contraria. Toca el objetivo de arriba si el gol fue antes de la bocina.',
+  now_awaitingPullRatio:
+    'Los equipos se están alineando. Pulsa «Pull lanzado» en el momento del lanzamiento. Mantén la señal hasta asegurarte que las líneas están bien montadas.',
+  now_awaitingPullCapRatio:
+    'Los equipos se están alineando. Pulsa «Pull lanzado» en el momento del lanzamiento. Toca el objetivo de arriba si el gol fue antes de la bocina. Mantén la señal hasta asegurarte que las líneas están bien montadas.',
   now_timeout: 'Tiempo muerto en curso. Termina solo, o pulsa «Fin del tiempo muerto».',
   now_toReady30:
     'El tiempo muerto acaba — 30 segundos para que el ataque esté listo. Un silbato a los 30.',

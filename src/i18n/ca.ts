@@ -355,6 +355,10 @@ export const ca: typeof en = {
     "Els equips s'estan alineant. Prem «Pull llançat» en el moment del llançament. Toca l'objectiu de dalt si el gol va ser abans de la botzina.",
   now_discInPlayCap:
     "Disc en joc. Toca el panell de l'equip quan anoti a la zona contrària. Toca l'objectiu de dalt si el gol va ser abans de la botzina.",
+  now_awaitingPullRatio:
+    "Els equips s'estan alineant. Prem «Pull llançat» en el moment del llançament. Mantén el senyal fins que t'asseguris que les línies estan ben muntades.",
+  now_awaitingPullCapRatio:
+    "Els equips s'estan alineant. Prem «Pull llançat» en el moment del llançament. Toca l'objectiu de dalt si el gol va ser abans de la botzina. Mantén el senyal fins que t'asseguris que les línies estan ben muntades.",
   now_timeout: 'Temps mort en curs. Acaba sol, o prem «Fi del temps mort».',
   now_toReady30: "El temps mort s'acaba — 30 segons perquè l'atac estigui llest. Un xiulet als 30.",
   now_toReady15: "15 segons perquè l'atac estigui llest. Dos xiulets quan s'esgoti el temps.",

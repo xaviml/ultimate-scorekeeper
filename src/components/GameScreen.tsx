@@ -475,6 +475,47 @@ function ratioLabel(
   return t('currentRatio' as never, { gender });
 }
 
+/**
+ * The one chip drawn from the real WFDF signal art rather than a label, so it leads
+ * the stack ahead of the cap/universe-point chips below it — everything else there
+ * is text standing in for a rule, this is the actual picture a volunteer would make
+ * with their hands. The 4-3 split is spelled out next to it (majority gender larger,
+ * on top) because the picture alone only shows which side is up, not the count that
+ * makes it a legal line.
+ */
+function RatioSignalChip() {
+  const state = useGame();
+  const dispatch = useGameDispatch();
+  const { t } = useT();
+  const g = state.nextRatio ?? state.ratio;
+  if (!g) return null;
+  const genderKey = g === 'male' ? 'ratioMale' : 'ratioFemale';
+  const file = g === 'male' ? 'ratio-4men' : 'ratio-4women';
+  return (
+    <button
+      type="button"
+      aria-live="polite"
+      aria-label={ratioLabel(state, t as never) ?? undefined}
+      onClick={() => dispatch({ type: 'SHOW_RATIO_SIGNAL' })}
+      className={`flex items-center gap-2 overflow-hidden rounded-lg lscape:rounded-md border bg-white/95 pr-3 active:scale-95 ${
+        state.nextRatio ? 'border-signal animate-pulse' : 'border-line'
+      }`}
+    >
+      <img
+        src={`${import.meta.env.BASE_URL}signals/${file}.png`}
+        alt=""
+        className="block w-10 h-10 lscape:w-7 lscape:h-7 object-cover"
+      />
+      <span
+        aria-hidden="true"
+        className="font-board font-bold uppercase tracking-wide text-sm sm:text-base lscape:text-xs text-pitch"
+      >
+        {t(genderKey as never)}
+      </span>
+    </button>
+  );
+}
+
 function pullLabel(state: GameState, t: (k: never, v?: Record<string, string | number>) => string) {
   // During the half-time break itself, state.pullingTeam/pullFromSide still hold
   // whoever scored into it — the second-half puller/side aren't applied until
@@ -954,6 +995,7 @@ export default function GameScreen() {
             un-finishes the game. */}
         {state.status !== 'finished' && (
           <div className="absolute left-1/2 top-2 -translate-x-1/2 flex flex-col items-center gap-1">
+            {isMixed && <RatioSignalChip />}
             <CapChip which="half" onOpen={() => setCapTarget('half')} />
             <CapChip which="game" onOpen={() => setCapTarget('game')} />
             {isUniversePoint(state) && (
@@ -964,20 +1006,6 @@ export default function GameScreen() {
                 {t('universePointBadge' as never)}
               </div>
             )}
-            {isMixed && (state.ratio || state.nextRatio) && (
-              <button
-                type="button"
-                aria-live="polite"
-                onClick={() => dispatch({ type: 'SHOW_RATIO_SIGNAL' })}
-                className={`rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border active:scale-95 ${
-                  state.nextRatio
-                    ? 'border-signal text-signal animate-pulse'
-                    : 'border-line text-chalk'
-                }`}
-              >
-                {ratioLabel(state, t as never)}
-              </button>
-            )}
             {/* Only meaningful up to the moment the pull is thrown — the same
                 window the "Pull thrown" button occupies in the action row below.
                 Leaving it up once the point is live risks reading as "this team
@@ -987,8 +1015,13 @@ export default function GameScreen() {
                 half-time: the next pull is exactly as settled during the break as it is once
                 'awaitingPull' starts, and it's the reminder of who resumes into.
                 A water break is the same case again — it only ever happens in that
-                gap and hands the teams straight back to it. */}
-            {(state.status === 'awaitingPull' ||
+                gap and hands the teams straight back to it. And shown before the
+                game even opens ('notStarted'/'awaitingStart'): pullingTeam is
+                fixed by the coin toss in config, so it's exactly as settled as
+                the ratio chip above, which shows through the same statuses. */}
+            {(state.status === 'notStarted' ||
+              state.status === 'awaitingStart' ||
+              state.status === 'awaitingPull' ||
               state.status === 'halftime' ||
               state.status === 'waterBreak') && (
               <div

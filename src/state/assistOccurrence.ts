@@ -242,16 +242,23 @@ function sayFor(state: GameState): string | null {
   return state.assist.startsWith('call_') && !state.pendingCall?.team ? `${base}NoTeam` : base;
 }
 
+/**
+ * The WFDF hand signal for a gender ratio, or null when no ratio is in play (open/
+ * women's division, or Rule B, which has no prescribed ratio to signal). Distinct
+ * art per composition — hands behind head for the 4-men point, arms out to the
+ * sides for the 4-women point. Exported so `SignalCard` can fall back to it once the
+ * queue is empty: unlike a routine message, a ref keeps making this signal until the
+ * lines are actually set, which can outlast its normal window on screen.
+ */
+export function ratioSignalArt(g: 'male' | 'female' | null): SignalArt | null {
+  if (g === 'male') return { file: 'ratio-4men', caption: 'signal_ratioMale' };
+  if (g === 'female') return { file: 'ratio-4women', caption: 'signal_ratioFemale' };
+  return null;
+}
+
 /** The non-whistle hand signal for the current assist, or null. */
 function signalFor(state: GameState): SignalArt | null {
-  // Mixed gender ratio: WFDF has a distinct signal per composition — hands behind
-  // head for the 4-men point, arms out to the sides for the 4-women point.
-  if (state.assist === 'nextRatio') {
-    const g = state.nextRatio ?? state.ratio;
-    if (g === 'male') return { file: 'ratio-4men', caption: 'signal_ratioMale' };
-    if (g === 'female') return { file: 'ratio-4women', caption: 'signal_ratioFemale' };
-    return null;
-  }
+  if (state.assist === 'nextRatio') return ratioSignalArt(state.nextRatio ?? state.ratio);
   return SIGNAL[state.assist] ?? null;
 }
 

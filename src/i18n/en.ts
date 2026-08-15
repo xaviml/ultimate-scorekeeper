@@ -383,6 +383,13 @@ export const en = {
     'Teams are lining up. Press "Pull thrown" the moment the disc is thrown. Tap the target above if the goal beat the horn.',
   now_discInPlayCap:
     "Disc in play. Tap a team's panel when they score in the opposite end zone. Tap the target above if the goal beat the horn.",
+  // Same again, with the reminder to keep making the gender-ratio signal while a
+  // mixed ratio is in play — the picture stays on screen for this (see SignalCard),
+  // but the volunteer is the one who has to keep making it with their hands.
+  now_awaitingPullRatio:
+    'Teams are lining up. Press "Pull thrown" the moment the disc is thrown. Hold the signal until you\'re sure the lines are set correctly.',
+  now_awaitingPullCapRatio:
+    'Teams are lining up. Press "Pull thrown" the moment the disc is thrown. Tap the target above if the goal beat the horn. Hold the signal until you\'re sure the lines are set correctly.',
   now_timeout: 'Timeout running. It ends on its own, or press "End timeout".',
   now_toReady30: 'Timeout ending — 30 seconds until the offence must be set. One whistle at 30.',
   now_toReady15: '15 seconds until the offence must be set. Two whistles when the time is up.',

@@ -104,12 +104,20 @@ function statusKey(state: GameState): string {
   // wait for them.
   const capEditable =
     capTargetOptions(state, 'game').length > 1 || capTargetOptions(state, 'half').length > 1;
+  // Same idea, before the pull specifically: a mixed ratio in play adds the reminder
+  // to keep making the hand signal while the lines are being set (see SignalCard's
+  // fallback, which is what actually keeps that picture on screen through this
+  // window). Rides on the same line as the cap tail rather than a status of its own.
+  const ratioApplies =
+    state.config.division === 'mixed' && (state.ratio !== null || state.nextRatio !== null);
   switch (state.status) {
     case 'notStarted':
       return 'now_setup';
     case 'awaitingStart':
       return 'now_awaitingStart';
     case 'awaitingPull':
+      if (capEditable && ratioApplies) return 'now_awaitingPullCapRatio';
+      if (ratioApplies) return 'now_awaitingPullRatio';
       return capEditable ? 'now_awaitingPullCap' : 'now_awaitingPull';
     case 'timeout':
       return 'now_timeout';
