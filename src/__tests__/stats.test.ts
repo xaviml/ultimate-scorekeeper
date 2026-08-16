@@ -6,10 +6,11 @@ import {
   formatSeconds,
   playerStatLines,
   pointDurationDetail,
+  possessionTopShare,
   stoppageDetail,
   teamStats,
 } from '../state/stats';
-import type { Action, GameConfig, GameState, LogEntry } from '../state/types';
+import type { Action, GameConfig, GameState, LogEntry, PointRecord } from '../state/types';
 
 const t: TFunc = (key, vars) => {
   let s: string = en[key] ?? String(key);
@@ -248,5 +249,43 @@ describe('playerStatLines', () => {
       });
       expect(playerStatLines(s, ['A'], t).some((l) => l.unassigned)).toBe(false);
     });
+  });
+});
+
+describe('possessionTopShare', () => {
+  const point = (patch: Partial<PointRecord> = {}): PointRecord => ({
+    scoredBy: 'A',
+    offense: 'A',
+    isBreak: false,
+    durationSeconds: 30,
+    half: 1,
+    turnovers: 0,
+    ...patch,
+  });
+
+  it('is the tracked-seconds ratio when any accrued', () => {
+    const p = point({ possessionSeconds: { A: 30, B: 10 } });
+    expect(possessionTopShare(p, 'A')).toBe(0.75);
+    expect(possessionTopShare(p, 'B')).toBe(0.25);
+  });
+
+  it('falls back to possession counting for a zero-second point, so a fast goal still gets a bar', () => {
+    // No turnovers: the receiving team held the disc for the whole (instant) point.
+    const clean = point({ possessionSeconds: { A: 0, B: 0 }, turnovers: 0, offense: 'A' });
+    expect(possessionTopShare(clean, 'A')).toBe(1);
+    expect(possessionTopShare(clean, 'B')).toBe(0);
+
+    // One instant turnover: one possession each.
+    const callahan = point({ possessionSeconds: { A: 0, B: 0 }, turnovers: 1, offense: 'A' });
+    expect(possessionTopShare(callahan, 'A')).toBe(0.5);
+
+    // Two turnovers: the offense held twice of three possessions.
+    const messy = point({ possessionSeconds: { A: 0, B: 0 }, turnovers: 2, offense: 'B' });
+    expect(possessionTopShare(messy, 'B')).toBeCloseTo(2 / 3);
+    expect(possessionTopShare(messy, 'A')).toBeCloseTo(1 / 3);
+  });
+
+  it('stays null for a point that never tracked possession at all', () => {
+    expect(possessionTopShare(point(), 'A')).toBeNull();
   });
 });

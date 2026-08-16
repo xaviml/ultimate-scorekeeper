@@ -331,6 +331,13 @@ export interface PointRecord {
   callahan?: boolean;
   /** Turnovers by either team during this point — 0 makes a hold "clean", 1 makes a break "clean" (see teamStats in stats.ts). */
   turnovers: number;
+  /**
+   * Seconds each team held the disc during this point. Sums to at most
+   * `durationSeconds` — halted play (calls, timeouts, stoppages) is credited to
+   * neither team, mirroring how the point clock behaves. Absent for points
+   * recorded before this was tracked, and in statsMode 'none'.
+   */
+  possessionSeconds?: Record<TeamId, number>;
 }
 
 /**
@@ -349,6 +356,7 @@ export interface GoalSnapshot {
   offenseTeam: TeamId;
   possessionTeam: TeamId | null;
   pointTurnovers: number;
+  possessionSeconds: Record<TeamId, number>;
   status: GameStatus;
   half: 1 | 2;
   pointStartSeconds: number | null;
@@ -407,6 +415,17 @@ export interface GameState {
    * possession then would hand the disc away from the team that received the pull.
    */
   pointTurnovers: number;
+  /**
+   * Seconds each team has held the disc during the point in progress, accumulated
+   * in TICK from `possessionTeam`. Reset to 0 at PULL_THROWN alongside
+   * `pointTurnovers`, written into the PointRecord at GOAL, and restored by
+   * UNDO_GOAL from the GoalSnapshot — exactly like `pointTurnovers`.
+   *
+   * Only meaningful when `statsTrackingEnabled(config)`: with statsMode 'none'
+   * there is no Turn button, so `possessionTeam` never changes hands and this
+   * would credit the entire point to the receiving team.
+   */
+  possessionSeconds: Record<TeamId, number>;
   /**
    * Turnovers committed by each team over the whole game, net of any undo — a
    * long-press on Turn decrements whichever team gets the disc back, exactly

@@ -18,6 +18,7 @@ import {
 } from '../state/stats';
 import type { TeamId } from '../state/types';
 import { GameLogTable } from './GameLogTable';
+import { PossessionLedger } from './PossessionLedger';
 import { contrastText, pillClass, primaryButton, secondaryButtonOnPitch, sectionTitle } from './ui';
 
 /** Plugged into the report footer so a shared copy points back at the app. */
@@ -58,7 +59,21 @@ function legacyCopy(text: string): boolean {
   return ok;
 }
 
-export default function ReportScreen() {
+/**
+ * The finished-game report, and — with `live` — the same view opened from the
+ * game menu mid-game, so a captain can lean over the stats at half-time. Live
+ * mode drops only the finished-game furniture: the "Final report" heading (a
+ * back-to-the-game button takes its place), the "Final score" label over the
+ * score boxes, and the "New game" button. Everything else, sharing and copying
+ * included, works on the game as it stands.
+ */
+export default function ReportScreen({
+  live = false,
+  onBack,
+}: {
+  live?: boolean;
+  onBack?: () => void;
+} = {}) {
   const state = useGame();
   const dispatch = useGameDispatch();
   const { t, lang } = useT();
@@ -173,12 +188,34 @@ export default function ReportScreen() {
   // Shared with the image so the two can never drift — see state/reportCard.ts.
   const statRows = teamStatRows(state, t);
 
+  // The possession ledger, reused from the live-stats slot. Only worth drawing
+  // once at least one point actually tracked possession — a game recorded in
+  // statsMode 'none' (or restored from before this was tracked) has nothing but
+  // flat columns to show. The board's fixed left team stays on top, the same
+  // orientation the volunteer watched all game.
+  const ledgerTop: TeamId = state.config.startingSide;
+  const ledgerBottom: TeamId = ledgerTop === 'A' ? 'B' : 'A';
+  // Any point recorded with tracking on carries possessionSeconds — a
+  // zero-second point included, which the ledger gives a possession-counted
+  // bar rather than a flat column (see possessionTopShare).
+  const showLedger = trackingOn && state.points.some((p) => p.possessionSeconds !== undefined);
+
   return (
     <div className="min-h-dvh bg-pitch text-chalk p-4 pb-10 max-w-2xl mx-auto space-y-4">
-      <h1 className="font-board text-2xl font-bold pt-2">{t('reportTitle')}</h1>
+      {live ? (
+        <button
+          type="button"
+          className="rounded-lg bg-panel border border-line px-3 py-1 text-sm text-chalk/70 whitespace-nowrap mt-2"
+          onClick={onBack}
+        >
+          ← {t('btnBackToGame')}
+        </button>
+      ) : (
+        <h1 className="font-board text-2xl font-bold pt-2">{t('reportTitle')}</h1>
+      )}
 
       <section className="rounded-xl bg-panel border border-line p-4">
-        <h2 className={`${sectionTitle} mb-3`}>{t('finalScore')}</h2>
+        {!live && <h2 className={`${sectionTitle} mb-3`}>{t('finalScore')}</h2>}
         {/* Two rows, not one: a name that wraps to a second line must never nudge its
             own score box out of alignment with the other team's. The name row mirrors
             the dash with an invisible twin so both name columns still land under their
@@ -229,6 +266,22 @@ export default function ReportScreen() {
           </tbody>
         </table>
       </section>
+
+      {showLedger && (
+        <section className="rounded-xl bg-panel border border-line p-4">
+          <h2 className={`${sectionTitle} mb-3`}>{t('possessionTitle')}</h2>
+          {/* The ledger scrolls horizontally on its own past the panel's width. */}
+          <PossessionLedger
+            points={state.points}
+            topTeam={ledgerTop}
+            colors={{ A: state.config.teams.A.color, B: state.config.teams.B.color }}
+            chartHeight={72}
+          />
+          <p className="text-xs text-chalk/50 mt-2">
+            {t('possessionLegend', { top: nameOf(ledgerTop), bottom: nameOf(ledgerBottom) })}
+          </p>
+        </section>
+      )}
 
       {playerLines.length > 0 && (
         <section className="rounded-xl bg-panel border border-line p-4 overflow-x-auto">
@@ -306,12 +359,14 @@ export default function ReportScreen() {
         </button>
       </div>
 
-      <button
-        className={`${secondaryButtonOnPitch} w-full`}
-        onClick={() => dispatch({ type: 'BACK_TO_CONFIG' })}
-      >
-        {t('newGame')}
-      </button>
+      {!live && (
+        <button
+          className={`${secondaryButtonOnPitch} w-full`}
+          onClick={() => dispatch({ type: 'BACK_TO_CONFIG' })}
+        >
+          {t('newGame')}
+        </button>
+      )}
     </div>
   );
 }

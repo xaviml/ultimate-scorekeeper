@@ -65,6 +65,25 @@ function breakChances(state: GameState, team: TeamId): number {
   return fromFinishedPoints + fromCurrentPoint;
 }
 
+/**
+ * The `topTeam` share of a point's tracked possession, for the possession
+ * ledger. A point tapped in a breath after the pull finishes with zero seconds
+ * accrued, and a flat column there reads as a bug — so it falls back to
+ * counting possessions instead: the offense held the disc first and every
+ * turnover flipped it, so with n turnovers the offense had ceil((n+1)/2) of
+ * the n+1 possessions. Null only when the point predates possession tracking
+ * entirely (a legacy save), where inventing a share would state something false.
+ */
+export function possessionTopShare(point: PointRecord, topTeam: TeamId): number | null {
+  const seconds = point.possessionSeconds;
+  if (!seconds) return null;
+  const total = seconds.A + seconds.B;
+  if (total > 0) return seconds[topTeam] / total;
+  const possessions = point.turnovers + 1;
+  const offenseShare = Math.ceil(possessions / 2) / possessions;
+  return point.offense === topTeam ? offenseShare : 1 - offenseShare;
+}
+
 export interface PlayerStatLine {
   team: TeamId;
   /** Empty on the aggregate line, which stands for no one in particular. */

@@ -52,12 +52,20 @@ export function GameMenuDialog({
   onClose,
   onSetup,
   onGuide,
+  onReport,
   onLeave,
 }: {
   leave: LeaveKind;
   onClose: () => void;
   onSetup: () => void;
   onGuide: () => void;
+  /**
+   * The report on the game so far, readable mid-game (half-time is exactly when
+   * a captain asks). Absent once the game is finished — the leave row is
+   * already "Open report" there, and two doors to the same place would only ask
+   * which one is different.
+   */
+  onReport?: () => void;
   onLeave: () => void;
 }) {
   const { t } = useT();
@@ -67,6 +75,9 @@ export function GameMenuDialog({
     <Modal title={t('menuTitle')} onClose={onClose} size="sm" showClose>
       <div className="flex flex-col gap-2">
         <MenuRow icon={<SetupIcon size={ICON} />} label={t('menuGameSetup')} onClick={onSetup} />
+        {onReport && (
+          <MenuRow icon={<ReportIcon size={ICON} />} label={t('menuReport')} onClick={onReport} />
+        )}
         <MenuRow icon={<GuideIcon size={ICON} />} label={t('menuGuide')} onClick={onGuide} />
         <MenuRow icon={<Icon size={ICON} />} label={t(labelKey)} onClick={onLeave} />
       </div>

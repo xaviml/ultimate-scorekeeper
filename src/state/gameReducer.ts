@@ -177,6 +177,7 @@ export function createInitialState(config: GameConfig = defaultConfig): GameStat
     offenseTeam: config.startingOffense,
     possessionTeam: null,
     pointTurnovers: 0,
+    possessionSeconds: { A: 0, B: 0 },
     turnoversCommitted: { A: 0, B: 0 },
     gameSeconds: 0,
     startingAtMs: null,
@@ -638,6 +639,7 @@ function snapshot(state: GameState): GoalSnapshot {
     offenseTeam: state.offenseTeam,
     possessionTeam: state.possessionTeam,
     pointTurnovers: state.pointTurnovers,
+    possessionSeconds: { ...state.possessionSeconds },
     status: state.status,
     half: state.half,
     pointStartSeconds: state.pointStartSeconds,
@@ -877,6 +879,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         // The receiving team catches the pull, so the point opens with them on offense.
         possessionTeam: s.offenseTeam,
         pointTurnovers: 0,
+        possessionSeconds: { A: 0, B: 0 },
         secondary: null,
         ratio: s.nextRatio ?? s.ratio,
         nextRatio: null,
@@ -908,6 +911,12 @@ export function gameReducer(state: GameState, action: Action): GameState {
             durationSeconds: duration,
             half: s.half,
             turnovers: s.pointTurnovers,
+            // Only meaningful when possession is actually tracked — in 'none'
+            // the disc never changes hands, so the pair is left absent rather
+            // than crediting the whole point to the receiving team.
+            ...(statsTrackingEnabled(s.config)
+              ? { possessionSeconds: { ...s.possessionSeconds } }
+              : {}),
           },
         ],
       };
@@ -1039,6 +1048,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         offenseTeam: other(team),
         possessionTeam: null, // disc is dead until the next pull is caught
         pointTurnovers: 0,
+        possessionSeconds: { A: 0, B: 0 },
         pointStartSeconds: null,
         nextRatio,
         secondary: reachHalf ? null : { kind: 'pull', seconds: 0, total: 75 },
@@ -1122,6 +1132,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         offenseTeam: prev.offenseTeam,
         possessionTeam: prev.possessionTeam,
         pointTurnovers: prev.pointTurnovers,
+        possessionSeconds: { ...prev.possessionSeconds },
         half: prev.half,
         // A goal appends exactly one point, so dropping the last entry rewinds it.
         points: state.points.slice(0, -1),
@@ -1612,6 +1623,29 @@ export function gameReducer(state: GameState, action: Action): GameState {
       // stoppage leaves the status alone, so both go through the one check and both
       // pick up from exactly where they were.
       const halted = playHalted(s);
+      // Per-team possession time for the point in progress. Credited only while
+      // the disc is genuinely live: same `halted` freeze as every other stretch
+      // of play, plus an open call — the disc is dead mid-dispute, so those
+      // seconds belong to neither team (which is what keeps the pair summing to
+      // at most the point's duration). Skipped entirely in statsMode 'none',
+      // where possession never changes hands and the whole point would be
+      // credited to the receiving team.
+      if (
+        s.status === 'live' &&
+        !halted &&
+        s.pendingCall === null &&
+        s.possessionTeam !== null &&
+        statsTrackingEnabled(s.config)
+      ) {
+        const holder = s.possessionTeam;
+        s = {
+          ...s,
+          possessionSeconds: {
+            ...s.possessionSeconds,
+            [holder]: s.possessionSeconds[holder] + 1,
+          },
+        };
+      }
       // Pending call bookkeeping: elapsedSeconds is how long the discussion has run,
       // driving both the 45/60 s "still unresolved" whistle and the duration logged
       // by CALL_RESOLVED. Independent of the game clock — a timeout doesn't stall a

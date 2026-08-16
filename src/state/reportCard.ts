@@ -14,7 +14,7 @@
  */
 import type { Lang, TFunc } from '../i18n/useT';
 import { statsTrackingEnabled } from './gameReducer';
-import { formatClock, playerStatLines, teamStats } from './stats';
+import { formatClock, playerStatLines, possessionTopShare, teamStats } from './stats';
 import type { GameConfig, GameState, TeamId } from './types';
 
 export interface StatRow {
@@ -34,6 +34,24 @@ export interface CardPlayerRow {
   total: string;
 }
 
+export interface CardLedgerColumn {
+  /** Top team's share of the point's tracked possession, or null when none was recorded (drawn flat). */
+  topShare: number | null;
+  /** Whether the top team scored the point — the filled side of the column. */
+  topScored: boolean;
+  /** Whether the top team started the point on offence — the side the amber dot sits on. */
+  topOffense: boolean;
+  /** The scoring team's running score after this point, riding its bar. */
+  score: string;
+}
+
+export interface CardLedgerModel {
+  title: string;
+  topColor: string;
+  bottomColor: string;
+  columns: CardLedgerColumn[];
+}
+
 export interface ReportCardModel {
   /**
    * Field, date and clock times as separate segments; the drawer packs them onto
@@ -45,6 +63,13 @@ export interface ReportCardModel {
   teams: { name: string; color: string; score: string }[];
   statHeader: [string, string];
   statRows: StatRow[];
+  /**
+   * The possession ledger, or null when no point tracked possession. Unlike the
+   * game log this earns its place on the image: it is one glance wide per point,
+   * and the card grows wider rather than dropping columns — shared full, never
+   * truncated (see drawReportCard).
+   */
+  ledger: CardLedgerModel | null;
   playerTitle: string;
   playerHeader: [string, string, string, string];
   playerRows: CardPlayerRow[];
@@ -90,6 +115,36 @@ export function teamStatRows(state: GameState, t: TFunc): StatRow[] {
     row(t('statAvgBreak'), clock(A.avgBreakSeconds), clock(B.avgBreakSeconds)),
     row(t('statTimeouts'), A.timeoutsUsed, B.timeoutsUsed),
   ];
+}
+
+/**
+ * The card's possession ledger, mirroring the on-screen PossessionLedger: the
+ * board's fixed left team (startingSide) on top, one column per point, the
+ * scorer's running score as its label. Null when no point tracked possession —
+ * a strip of flat columns says nothing the score boxes don't.
+ */
+function ledgerModel(state: GameState, t: TFunc): CardLedgerModel | null {
+  if (!statsTrackingEnabled(state.config)) return null;
+  // Any point recorded with tracking on carries the pair — a zero-second point
+  // included, since possessionTopShare gives that one a share too.
+  if (!state.points.some((p) => p.possessionSeconds !== undefined)) return null;
+  const top: TeamId = state.config.startingSide;
+  const bottom: TeamId = top === 'A' ? 'B' : 'A';
+  const scores: Record<TeamId, number> = { A: 0, B: 0 };
+  return {
+    title: t('possessionTitle'),
+    topColor: state.config.teams[top].color,
+    bottomColor: state.config.teams[bottom].color,
+    columns: state.points.map((p) => {
+      scores[p.scoredBy] += 1;
+      return {
+        topShare: possessionTopShare(p, top),
+        topScored: p.scoredBy === top,
+        topOffense: p.offense === top,
+        score: String(scores[p.scoredBy]),
+      };
+    }),
+  };
 }
 
 function formatDate(atMs: number, lang: Lang): string {
@@ -142,6 +197,7 @@ export function reportCardModel(state: GameState, t: TFunc, lang: Lang): ReportC
     })),
     statHeader: [teams.A.name, teams.B.name],
     statRows: teamStatRows(state, t),
+    ledger: ledgerModel(state, t),
     playerTitle: t('playerStatsTitle'),
     playerHeader: [t('colPlayer'), t('colAssists'), t('colGoals'), t('colTotal')],
     playerRows: playerStatLines(state, playerStatsTeams(state.config), t).map((p) => ({

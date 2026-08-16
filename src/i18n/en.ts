@@ -227,6 +227,23 @@ export const en = {
   lblCall: 'Call',
   lblLog: 'Log',
   lblRoster: 'Roster',
+
+  // The live-stats pager in the reserved action-row slot (see StatsSlot). The
+  // slot* labels render at 9px in a 366px row, so they have to stay terse in
+  // every language — shorten the term rather than letting it wrap.
+  slotStatsLabel: 'Live statistics',
+  slotHolds: 'Holds',
+  slotBreaks: 'Breaks',
+  slotBreakCh: 'Break ch.',
+  slotTurns: 'Turns',
+  slotThisPoint: 'This point · {n} turns',
+  slotAvgHold: 'avg {time}',
+  slotPagePossession: 'Possession by point',
+  slotPageTeam: 'Team figures',
+  slotPagePace: 'Pace of this point',
+  slotPrev: 'Previous statistic',
+  slotNext: 'Next statistic',
+
   btnEndGame: 'End game',
   btnBackToSetup: 'Back to setup',
   btnEndTimeout: 'End timeout',
@@ -238,6 +255,9 @@ export const en = {
   menuTitle: 'Menu',
   menuGameSetup: 'Game setup',
   menuGuide: 'How to use this app',
+  // The report on the game so far, readable mid-game — see ReportScreen's `live`.
+  menuReport: 'Report so far',
+  btnBackToGame: 'Back to the game',
 
   // Read-only view of state.config. Most labels are shared with the setup form —
   // only the values it has to write out as sentences live here.
@@ -482,6 +502,10 @@ export const en = {
   statAvgHold: 'Avg. hold time',
   statAvgBreak: 'Avg. break time',
   statTimeouts: 'Timeouts used',
+  // The possession ledger, reused from the live-stats slot (see PossessionLedger).
+  possessionTitle: 'Possession by point',
+  possessionLegend:
+    "{top} above the line, {bottom} below. Bar height is each team's share of possession; the filled side scored the point, and the small amber dot marks who started it on offence — dot and score on opposite sides is a break.",
   playerStatsTitle: 'Player stats',
   filterAllTeams: 'All',
   colPlayer: 'Player',

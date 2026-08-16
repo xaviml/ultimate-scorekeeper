@@ -31,6 +31,17 @@ const TABLE_HEAD_H = 26;
 const ROW_H = 30;
 const SECTION_TITLE_H = 20;
 
+// The possession ledger strip: column and gap match the on-screen chart, the
+// score bands sit clear of the bars, and the whole card grows *wider* rather
+// than dropping columns — a shared image is seen full or not at all.
+const LEDGER_COL_W = 16;
+const LEDGER_GAP = 5;
+const LEDGER_LABEL_H = 14;
+/** The outermost row on each side: the subtle amber dot marking the side that started on offence. */
+const LEDGER_DOT_H = 6;
+const LEDGER_HALF = 34;
+const LEDGER_CHART_H = (LEDGER_DOT_H + LEDGER_LABEL_H + LEDGER_HALF) * 2 + 1;
+
 /** The Tailwind palette, duplicated because a canvas can't read a utility class. Keep in step with tailwind.config.js. */
 const C = {
   pitch: '#101418',
@@ -49,6 +60,31 @@ const clock = (size: number, weight = 600) =>
   `${weight} ${size}px "Rajdhani", ui-monospace, monospace`;
 
 type Ctx = CanvasRenderingContext2D;
+
+/**
+ * A rect rounded on one end only — the ledger's bars are square against the
+ * centre line, exactly like the on-screen chart's rounded-t/rounded-b pair.
+ */
+function halfRoundRect(ctx: Ctx, x: number, y: number, w: number, h: number, roundTop: boolean) {
+  const r = Math.min(3, h / 2);
+  ctx.beginPath();
+  if (roundTop) {
+    ctx.moveTo(x, y + h);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h);
+  } else {
+    ctx.moveTo(x + w, y);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}
 
 /** `ctx.roundRect` is recent enough that older mobile Safari misses it; arcTo is everywhere. */
 function roundRect(ctx: Ctx, x: number, y: number, w: number, h: number, r: number) {
@@ -123,7 +159,14 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
   const measuring = canvas.getContext('2d');
   if (!measuring) return null;
 
-  const contentWidth = WIDTH - PAD * 2;
+  // The ledger never drops a point: a long game widens the whole card instead.
+  const ledgerCount = model.ledger?.columns.length ?? 0;
+  const ledgerNeedW = ledgerCount
+    ? ledgerCount * LEDGER_COL_W + (ledgerCount - 1) * LEDGER_GAP + (PAD + PANEL_PAD) * 2
+    : 0;
+  const width = Math.max(WIDTH, ledgerNeedW);
+
+  const contentWidth = width - PAD * 2;
   const panelWidth = contentWidth;
   const innerWidth = panelWidth - PANEL_PAD * 2;
 
@@ -133,15 +176,24 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
   const headerH = metaLines.length * META_LINE_H;
   const scoreH = PANEL_PAD * 2 + SCORE_BOX_H + TEAM_NAME_H;
   const statsH = PANEL_PAD * 2 + TABLE_HEAD_H + model.statRows.length * ROW_H;
+  const ledgerH = model.ledger ? PANEL_PAD * 2 + SECTION_TITLE_H + 10 + LEDGER_CHART_H : 0;
   const hasPlayers = model.playerRows.length > 0;
   const playersH = hasPlayers
     ? PANEL_PAD * 2 + SECTION_TITLE_H + 10 + TABLE_HEAD_H + model.playerRows.length * ROW_H
     : 0;
 
   const height =
-    PAD + headerH + GAP + scoreH + GAP + statsH + (hasPlayers ? GAP + playersH : 0) + PAD;
+    PAD +
+    headerH +
+    GAP +
+    scoreH +
+    GAP +
+    statsH +
+    (model.ledger ? GAP + ledgerH : 0) +
+    (hasPlayers ? GAP + playersH : 0) +
+    PAD;
 
-  canvas.width = WIDTH * SCALE;
+  canvas.width = width * SCALE;
   canvas.height = height * SCALE;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
@@ -149,7 +201,7 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
   ctx.textBaseline = 'middle';
 
   ctx.fillStyle = C.pitch;
-  ctx.fillRect(0, 0, WIDTH, height);
+  ctx.fillRect(0, 0, width, height);
 
   let y = PAD;
 
@@ -228,6 +280,77 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
     rowY += ROW_H;
   }
   y += statsH + GAP;
+
+  // Possession ledger — the same chart the dashboard and the report screen
+  // draw, in full: every column, the scorer's running score in the aligned
+  // bands above and below the bars, all in one neutral ink.
+  if (model.ledger) {
+    panelBox(ctx, PAD, y, panelWidth, ledgerH);
+    let lY = y + PANEL_PAD;
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = C.signal;
+    ctx.font = board(13, 700);
+    withTracking(ctx, '1.5px');
+    ctx.fillText(model.ledger.title.toUpperCase(), left, lY + SECTION_TITLE_H / 2);
+    withTracking(ctx, '0px');
+    lY += SECTION_TITLE_H + 10;
+
+    const lineY = lY + LEDGER_DOT_H + LEDGER_LABEL_H + LEDGER_HALF;
+    ctx.strokeStyle = C.lineSoft;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(left, lineY + 0.5);
+    ctx.lineTo(right, lineY + 0.5);
+    ctx.stroke();
+
+    const heightFor = (share: number) =>
+      share <= 0 ? 0 : Math.max(4, Math.round(share * LEDGER_HALF));
+    model.ledger.columns.forEach((column, i) => {
+      const x = left + i * (LEDGER_COL_W + LEDGER_GAP);
+      const { topColor, bottomColor } = model.ledger as NonNullable<typeof model.ledger>;
+      if (column.topShare !== null) {
+        const topH = heightFor(column.topShare);
+        const bottomH = heightFor(1 - column.topShare);
+        const bar = (h: number, color: string, filled: boolean, top: boolean) => {
+          if (h <= 0) return;
+          const barY = top ? lineY - h : lineY + 1;
+          if (filled) {
+            halfRoundRect(ctx, x, barY, LEDGER_COL_W, h, top);
+            ctx.fillStyle = color;
+            ctx.fill();
+          } else {
+            // Hairline, like the on-screen chart: a heavier stroke on a short
+            // hollow bar read as a filled box.
+            halfRoundRect(ctx, x + 0.5, barY + 0.5, LEDGER_COL_W - 1, h - 1, top);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
+        };
+        bar(topH, topColor, column.topScored, true);
+        bar(bottomH, bottomColor, !column.topScored, false);
+      }
+      ctx.font = clock(12, 600);
+      ctx.fillStyle = C.chalkMid;
+      ctx.textAlign = 'center';
+      const labelY = column.topScored
+        ? lY + LEDGER_DOT_H + LEDGER_LABEL_H / 2
+        : lineY + 1 + LEDGER_HALF + LEDGER_LABEL_H / 2;
+      ctx.fillText(column.score, x + LEDGER_COL_W / 2, labelY);
+
+      // The offence dot, outermost of all: score and dot on opposite sides of
+      // a column is a break, readable without decoding bar heights.
+      const dotY = column.topOffense
+        ? lY + LEDGER_DOT_H / 2
+        : lineY + 1 + LEDGER_HALF + LEDGER_LABEL_H + LEDGER_DOT_H / 2;
+      ctx.beginPath();
+      ctx.arc(x + LEDGER_COL_W / 2, dotY, 2, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 212, 71, 0.6)';
+      ctx.fill();
+    });
+    y += ledgerH + GAP;
+  }
 
   // Player stats
   if (hasPlayers) {

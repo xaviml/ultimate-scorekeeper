@@ -42,7 +42,9 @@ import GuideScreen from './GuideScreen';
 import { CallIcon, LogIcon, MenuIcon, PlayersIcon, StoppageIcon, TurnIcon } from './icons';
 import { NoteDialog } from './NoteDialog';
 import { PlayersDialog } from './PlayersDialog';
+import ReportScreen from './ReportScreen';
 import { SignalCard } from './SignalCard';
+import { StatsSlot } from './StatsSlot';
 import { StoppageDialog } from './StoppageDialog';
 import { TravelTeamDialog } from './TravelTeamDialog';
 import { TurnoverDialog } from './TurnoverDialog';
@@ -601,6 +603,11 @@ export default function GameScreen() {
   const [showMenu, setShowMenu] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  // The report on the game so far — the same screen the finished game opens,
+  // minus its finished-game furniture (see ReportScreen's `live`), with a way
+  // back. A screen like the guide, and for the same reason: the dashboard stays
+  // mounted underneath and nothing about the game pauses for it.
+  const [showReport, setShowReport] = useState(false);
   const [showStoppage, setShowStoppage] = useState(false);
   const [showPauseConfirm, setShowPauseConfirm] = useState(false);
   const [showCall, setShowCall] = useState(false);
@@ -644,11 +651,13 @@ export default function GameScreen() {
     // with stay() so the screen keeps guarding.
     const layer = showGuide
       ? setShowGuide
-      : showSetup
-        ? setShowSetup
-        : showMenu
-          ? setShowMenu
-          : null;
+      : showReport
+        ? setShowReport
+        : showSetup
+          ? setShowSetup
+          : showMenu
+            ? setShowMenu
+            : null;
     if (layer) {
       stay();
       layer(false);
@@ -944,6 +953,7 @@ export default function GameScreen() {
   // whistles and the assistance queue all live in GameContext, which is above this
   // component and never unmounts.
   if (showGuide) return <GuideScreen onBack={() => setShowGuide(false)} />;
+  if (showReport) return <ReportScreen live onBack={() => setShowReport(false)} />;
 
   return (
     <div className="h-dvh flex flex-col bg-pitch text-chalk overflow-y-auto">
@@ -1092,7 +1102,7 @@ export default function GameScreen() {
           volunteer's finger already was tapping to score. A fixed-height slot
           keeps the score panel boundary stable so that never happens. */}
       <div
-        className={`min-h-16 lscape:min-h-10 px-3 lscape:px-2 py-2 lscape:py-1 bg-panel shrink-0 flex items-center ${
+        className={`min-h-[72px] lscape:min-h-10 px-3 lscape:px-2 py-2 lscape:py-1 bg-panel shrink-0 flex items-center ${
           possessionRule ? '' : 'border-t border-line'
         }`}
       >
@@ -1157,6 +1167,10 @@ export default function GameScreen() {
             {t('openReport')}
           </button>
         )}
+        {/* While the disc is live the slot is otherwise empty — live stats fill
+            it, and hide themselves the instant a call's answers need the space
+            (see StatsSlot, which self-gates the same way CallResolutionRow does). */}
+        <StatsSlot />
       </div>
 
       {/* Clocks + actions */}
@@ -1311,6 +1325,16 @@ export default function GameScreen() {
             setShowMenu(false);
             setShowGuide(true);
           }}
+          // Hidden once the game is finished: the leave row below is already
+          // "Open report", and this would be a second door to the same place.
+          onReport={
+            leaveKind !== 'openReport'
+              ? () => {
+                  setShowMenu(false);
+                  setShowReport(true);
+                }
+              : undefined
+          }
           onLeave={leaveFromMenu}
         />
       )}

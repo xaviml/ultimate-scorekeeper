@@ -216,6 +216,23 @@ export const ca: typeof en = {
   lblCall: 'Call',
   lblLog: 'Log',
   lblRoster: 'Roster',
+
+  // El paginador d'estadístiques en directe del buit reservat (StatsSlot).
+  // Etiquetes de 9px: millor escurçar el terme que deixar que es parteixi — els
+  // termes hold/break/turn són els que se senten a les pistes catalanes.
+  slotStatsLabel: 'Estadístiques en directe',
+  slotHolds: 'Holds',
+  slotBreaks: 'Breaks',
+  slotBreakCh: 'Op. break',
+  slotTurns: 'Pèrdues',
+  slotThisPoint: 'Aquest punt · {n} pèrdues',
+  slotAvgHold: 'mitjana {time}',
+  slotPagePossession: 'Possessió per punt',
+  slotPageTeam: "Xifres d'equip",
+  slotPagePace: "Ritme d'aquest punt",
+  slotPrev: 'Estadística anterior',
+  slotNext: 'Estadística següent',
+
   btnEndGame: 'Fi del partit',
   btnBackToSetup: 'Tornar a la configuració',
   btnEndTimeout: 'Fi del temps mort',
@@ -223,6 +240,8 @@ export const ca: typeof en = {
   menuTitle: 'Menú',
   menuGameSetup: 'Configuració del partit',
   menuGuide: "Com fer servir l'aplicació",
+  menuReport: 'Informe fins ara',
+  btnBackToGame: 'Tornar al partit',
 
   setupScheduled: 'Previst',
   setupStarted: 'Començat',
@@ -446,6 +465,10 @@ export const ca: typeof en = {
   statAvgHold: 'Durada mitjana de hold',
   statAvgBreak: 'Durada mitjana de break',
   statTimeouts: 'Temps morts usats',
+  // El gràfic de possessió, reutilitzat del buit d'estadístiques en directe.
+  possessionTitle: 'Possessió per punt',
+  possessionLegend:
+    "{top} sobre la línia, {bottom} a sota. L'alçada de la barra és la part de possessió de cada equip; el costat ple va marcar el punt, i el puntet ambre assenyala qui el va començar en atac — puntet i marcador en costats oposats és un break.",
   playerStatsTitle: 'Estadístiques de jugadors',
   filterAllTeams: 'Tots',
   colPlayer: 'Jugador',

@@ -217,6 +217,23 @@ export const es: typeof en = {
   lblCall: 'Call',
   lblLog: 'Log',
   lblRoster: 'Roster',
+
+  // El paginador de estadísticas en directo del hueco reservado (StatsSlot).
+  // Etiquetas de 9px: mejor acortar el término que dejar que se parta — los
+  // términos hold/break/turn son los que se usan en las pistas españolas.
+  slotStatsLabel: 'Estadísticas en directo',
+  slotHolds: 'Holds',
+  slotBreaks: 'Breaks',
+  slotBreakCh: 'Op. break',
+  slotTurns: 'Pérdidas',
+  slotThisPoint: 'Este punto · {n} pérdidas',
+  slotAvgHold: 'media {time}',
+  slotPagePossession: 'Posesión por punto',
+  slotPageTeam: 'Cifras de equipo',
+  slotPagePace: 'Ritmo de este punto',
+  slotPrev: 'Estadística anterior',
+  slotNext: 'Estadística siguiente',
+
   btnEndGame: 'Fin del partido',
   btnBackToSetup: 'Volver a la configuración',
   btnEndTimeout: 'Fin del tiempo muerto',
@@ -224,6 +241,8 @@ export const es: typeof en = {
   menuTitle: 'Menú',
   menuGameSetup: 'Configuración del partido',
   menuGuide: 'Cómo usar la aplicación',
+  menuReport: 'Informe hasta ahora',
+  btnBackToGame: 'Volver al partido',
 
   setupScheduled: 'Previsto',
   setupStarted: 'Empezado',
@@ -449,6 +468,10 @@ export const es: typeof en = {
   statAvgHold: 'Duración media de hold',
   statAvgBreak: 'Duración media de break',
   statTimeouts: 'Tiempos muertos usados',
+  // El gráfico de posesión, reutilizado del hueco de estadísticas en directo.
+  possessionTitle: 'Posesión por punto',
+  possessionLegend:
+    '{top} sobre la línea, {bottom} debajo. La altura de la barra es la parte de posesión de cada equipo; el lado relleno marcó el punto, y el puntito ámbar señala quién lo empezó en ataque — punto y marcador en lados opuestos es un break.',
   playerStatsTitle: 'Estadísticas de jugadores',
   filterAllTeams: 'Todos',
   colPlayer: 'Jugador',

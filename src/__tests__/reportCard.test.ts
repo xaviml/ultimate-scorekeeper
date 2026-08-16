@@ -211,6 +211,34 @@ describe('reportCardModel', () => {
     expect(reportCardModel(state, t, 'en').playerRows).toEqual([]);
   });
 
+  it('builds the possession ledger with running scores, and none when nothing was tracked', () => {
+    const state = baseState();
+    state.config.statsMode = 'game';
+    state.config.startingSide = 'A';
+    state.points = [
+      point({ scoredBy: 'A', possessionSeconds: { A: 30, B: 10 } }),
+      point({ scoredBy: 'B', possessionSeconds: { A: 5, B: 15 } }),
+      point({ scoredBy: 'A' }), // recorded before possession was timed — drawn flat
+    ];
+
+    const ledger = reportCardModel(state, t, 'en').ledger;
+    expect(ledger?.title).toBe('Possession by point');
+    // All three points opened with A on offence (the point() factory default),
+    // so the amber offence dot sits top on every column — making the second
+    // one, scored by B, read as the break it was.
+    expect(ledger?.columns).toEqual([
+      { topShare: 0.75, topScored: true, topOffense: true, score: '1' },
+      { topShare: 0.25, topScored: false, topOffense: true, score: '1' },
+      { topShare: null, topScored: true, topOffense: true, score: '2' },
+    ]);
+
+    // statsMode 'none' never tracked possession, so there is no strip to draw.
+    const untracked = baseState();
+    untracked.config.statsMode = 'none';
+    untracked.points = [point()];
+    expect(reportCardModel(untracked, t, 'en').ledger).toBeNull();
+  });
+
   it('never carries the game log — leaving it out is the whole point of the image', () => {
     const bare = baseState();
     bare.log = [entry({ type: 'gameStart' })];

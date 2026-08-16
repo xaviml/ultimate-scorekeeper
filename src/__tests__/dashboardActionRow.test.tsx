@@ -432,19 +432,22 @@ describe('the resolution rows', () => {
   it('puts the answers in the reserved slot, and hands it back empty', () => {
     const state = liveGame();
     state.pendingCall = { kind: 'foul', team: 'A', elapsedSeconds: 12 };
+    state.pointStartSeconds = 0; // a point in progress, so the stats pager has something to show
     mount(state);
 
     // The slot itself, identified by the min-height that keeps the score panels
     // above from resizing — that reservation is what the answers are borrowing.
     const slot = (screen.getByText('Accepted').closest('div') as HTMLElement)
       .parentElement as HTMLElement;
-    expect(slot.className).toContain('min-h-16');
+    expect(slot.className).toContain('min-h-[72px]');
 
     fireEvent.click(screen.getByText('Contested'));
 
     // Resolving a call doesn't move play on — the point carries on live — so the
-    // slot goes back to holding nothing but its own height.
-    expect(within(slot).queryAllByRole('button')).toHaveLength(0);
+    // slot hands back to the live-stats pager (see StatsSlot), never to the
+    // answers again.
+    expect(within(slot).queryByText('Accepted')).toBeNull();
+    expect(within(slot).getByRole('group', { name: 'Live statistics' })).toBeInTheDocument();
   });
 
   it('replaces them with the stoppage answer once a stoppage freezes the discussion', () => {
@@ -562,6 +565,33 @@ describe('the header menu', () => {
     fireEvent.click(screen.getByText('Game setup'));
     expect(screen.queryByText('Menu')).toBeNull();
     expect(screen.getByText('Coin toss results')).toBeInTheDocument();
+  });
+
+  it('opens the report so far mid-game, minus the finished-game furniture, with a way back', () => {
+    mount(liveGame());
+    openMenu();
+    fireEvent.click(screen.getByText('Report so far'));
+
+    // The report view, without the words that claim the game is over and
+    // without the button that would start a new one.
+    expect(screen.queryByText('Final report')).toBeNull();
+    expect(screen.queryByText('Final score')).toBeNull();
+    expect(screen.queryByText('New game')).toBeNull();
+    // The working parts are all there.
+    expect(screen.getByText('Copy to clipboard')).toBeInTheDocument();
+    expect(screen.getByText('Game history')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText(/Back to the game/));
+    expect(screen.getByLabelText('Menu')).toBeInTheDocument();
+  });
+
+  it('drops the report-so-far row once the game is finished, whose leave row already opens the report', () => {
+    mount(liveGame({ status: 'finished' }));
+    openMenu();
+    const menu = screen.getByRole('heading', { name: 'Menu' }).parentElement!
+      .parentElement as HTMLElement;
+    expect(within(menu).queryByText('Report so far')).toBeNull();
+    expect(within(menu).getByText('Open report')).toBeInTheDocument();
   });
 
   it('reaches the guide, which is a screen rather than a dialog', () => {

@@ -28,18 +28,18 @@ const FIG_TOSS: readonly Marker[] = [
 ];
 const FIG_DASHBOARD: readonly Marker[] = [
   [28, 2.8],
-  [89, 54.9],
-  [32.1, 11.7],
-  [10.6, 72.6],
+  [89, 54.2],
+  [32.1, 13.6],
+  [10.6, 72.2],
   [46.7, 79],
   [63.4, 89.5],
   [92, 96.7],
   [49.5, 82.5],
 ];
 const FIG_PLAY: readonly Marker[] = [
-  [10.6, 72.6],
-  [15, 23.3],
-  [42.5, 56.1],
+  [10.6, 72.2],
+  [15, 23.1],
+  [42.5, 55.5],
 ];
 
 /** Public/ assets: built via BASE_URL so they survive the GitHub Pages base path. */

@@ -2349,3 +2349,63 @@ describe('turnover stats', () => {
     expect(messyHold.points[0]).toMatchObject({ isBreak: false, turnovers: 2 });
   });
 });
+
+describe('possession seconds per point', () => {
+  const tracked = () => live(cfg({ statsMode: 'game' }));
+
+  it('accrues to whoever holds the disc, and to the other team after a turnover', () => {
+    let s = ticks(tracked(), 5); // A received the pull (default startingOffense)
+    expect(s.possessionSeconds).toEqual({ A: 5, B: 0 });
+
+    s = ticks(gameReducer(s, { type: 'TURNOVER' }), 3);
+    expect(s.possessionSeconds).toEqual({ A: 5, B: 3 });
+  });
+
+  it('accrues nothing while play is halted — an open call, a stoppage or a pause', () => {
+    const call = ticks(
+      gameReducer(ticks(tracked(), 2), { type: 'CALL_MADE', kind: 'foul', team: 'B' }),
+      10,
+    );
+    expect(call.possessionSeconds).toEqual({ A: 2, B: 0 });
+
+    const stopped = ticks(
+      gameReducer(ticks(tracked(), 2), { type: 'STOPPAGE', kind: 'injury' }),
+      10,
+    );
+    expect(stopped.possessionSeconds).toEqual({ A: 2, B: 0 });
+
+    const paused = ticks(gameReducer(ticks(tracked(), 2), { type: 'SOTG_TOGGLE' }), 10);
+    expect(paused.possessionSeconds).toEqual({ A: 2, B: 0 });
+  });
+
+  it('writes the pair onto the PointRecord at the goal, and the next pull starts from zero', () => {
+    let s = ticks(tracked(), 4);
+    s = ticks(gameReducer(s, { type: 'TURNOVER' }), 2);
+    s = gameReducer(s, { type: 'GOAL', team: 'B' });
+
+    expect(s.points[0].possessionSeconds).toEqual({ A: 4, B: 2 });
+    expect(s.possessionSeconds).toEqual({ A: 0, B: 0 });
+
+    // B scored, so A receives the next pull and the fresh counter accrues to A.
+    s = ticks(gameReducer(s, { type: 'PULL_THROWN' }), 3);
+    expect(s.possessionSeconds).toEqual({ A: 3, B: 0 });
+  });
+
+  it('restores the live counter with the goal it was snapshotted before', () => {
+    let s = ticks(tracked(), 7);
+    s = gameReducer(s, { type: 'GOAL', team: 'A' });
+    expect(s.possessionSeconds).toEqual({ A: 0, B: 0 });
+
+    s = gameReducer(s, { type: 'UNDO_GOAL', team: 'A' });
+    expect(s.possessionSeconds).toEqual({ A: 7, B: 0 });
+    expect(s.points).toHaveLength(0);
+  });
+
+  it('accrues nothing in statsMode none, and the PointRecord field stays absent', () => {
+    let s = ticks(live(), 6); // default config is statsMode 'none'
+    expect(s.possessionSeconds).toEqual({ A: 0, B: 0 });
+
+    s = gameReducer(s, { type: 'GOAL', team: 'A' });
+    expect(s.points[0].possessionSeconds).toBeUndefined();
+  });
+});

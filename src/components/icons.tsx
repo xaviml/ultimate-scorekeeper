@@ -176,6 +176,22 @@ export function CrossIcon({ size }: { size?: string }) {
  * be obvious to someone who has never opened the app, and it replaces a slot that
  * used to change its icon (and its destination) with the game's status.
  */
+export function ChevronLeftIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <path d="M14.25 5.25 7.5 12l6.75 6.75" />
+    </Glyph>
+  );
+}
+
+export function ChevronRightIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <path d="m9.75 5.25 6.75 6.75-6.75 6.75" />
+    </Glyph>
+  );
+}
+
 export function MenuIcon({ size }: { size?: string }) {
   return (
     <Glyph size={size}>
