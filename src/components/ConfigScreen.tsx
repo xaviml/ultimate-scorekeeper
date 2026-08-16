@@ -23,6 +23,7 @@ import { AboutDialog } from './AboutDialog';
 import { ConfirmDeleteTemplateDialog } from './ConfirmDeleteTemplateDialog';
 import GuideScreen from './GuideScreen';
 import { PlayerRosterEditor } from './PlayerRosterEditor';
+import { RosterImportDialog } from './RosterImportDialog';
 import { SaveTemplateDialog } from './SaveTemplateDialog';
 import { TeamColorPicker } from './TeamColorPicker';
 import { TeamNameCombobox } from './TeamNameCombobox';
@@ -169,6 +170,8 @@ export default function ConfigScreen() {
   const [selectedTemplateKey, setSelectedTemplateKey] = useState('predefined:grass');
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const [pendingDeleteTemplate, setPendingDeleteTemplate] = useState<string | null>(null);
+  // Which team's roster the importer is open for, or null.
+  const [importingTeam, setImportingTeam] = useState<TeamId | null>(null);
 
   // Whatever is currently typed into a numeric field, while it is being typed.
   // Clamping on every keystroke (what this screen used to do) makes the fields
@@ -547,6 +550,7 @@ export default function ConfigScreen() {
               players={cfg.players.A}
               onAdd={(number, name) => addPlayer('A', number, name)}
               onRemove={(id) => removePlayer('A', id)}
+              onImport={() => setImportingTeam('A')}
             />
           )}
           {(cfg.statsMode === 'player' || cfg.trackedTeam === 'B') && (
@@ -555,6 +559,7 @@ export default function ConfigScreen() {
               players={cfg.players.B}
               onAdd={(number, name) => addPlayer('B', number, name)}
               onRemove={(id) => removePlayer('B', id)}
+              onImport={() => setImportingTeam('B')}
             />
           )}
         </Section>
@@ -928,6 +933,18 @@ export default function ConfigScreen() {
               applyTemplateChoice('predefined:grass');
             setPendingDeleteTemplate(null);
           }}
+        />
+      )}
+      {importingTeam && (
+        <RosterImportDialog
+          teamLabel={
+            cfg.teams[importingTeam].name.trim() || t(importingTeam === 'A' ? 'teamA' : 'teamB')
+          }
+          existing={cfg.players[importingTeam]}
+          // Through setPlayers, so an import into a saved team updates the saved
+          // roster too — same as adding a player by hand.
+          onApply={(players) => setPlayers(importingTeam, players)}
+          onClose={() => setImportingTeam(null)}
         />
       )}
     </div>

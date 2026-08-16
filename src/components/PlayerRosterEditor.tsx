@@ -8,11 +8,18 @@ export function PlayerRosterEditor({
   players,
   onAdd,
   onRemove,
+  onImport,
   label,
 }: {
   players: PlayerInfo[];
   onAdd: (number: string, name: string) => void;
   onRemove?: (id: string) => void;
+  /**
+   * Opens the paste/file importer. Optional because only the setup screen offers
+   * it: mid-game the roster is already referenced by log entries, and a bulk
+   * replace there would orphan them.
+   */
+  onImport?: () => void;
   label: string;
 }) {
   const { t } = useT();
@@ -38,7 +45,14 @@ export function PlayerRosterEditor({
 
   return (
     <div className="space-y-2">
-      <p className="text-xs uppercase tracking-wide text-chalk/60">{label}</p>
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-xs uppercase tracking-wide text-chalk/60">{label}</p>
+        {onImport && (
+          <button type="button" className="text-xs text-chalk/60 underline" onClick={onImport}>
+            {t('rosterImportBtn')}
+          </button>
+        )}
+      </div>
       {players.length > 0 && (
         <ul className="space-y-1">
           {players.map((p) => (
