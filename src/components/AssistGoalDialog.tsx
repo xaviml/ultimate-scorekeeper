@@ -44,7 +44,9 @@ export function AssistGoalDialog({
     >
       {players.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs uppercase tracking-wide text-chalk/60">{t('whoScored')}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-signal">
+            {t('whoScored')}
+          </p>
           <PlayerPicker
             players={players.filter((p) => p.id !== assistId)}
             selected={scorerId}
@@ -56,7 +58,9 @@ export function AssistGoalDialog({
 
       {players.length > 0 && !callahan && (
         <div className="space-y-2">
-          <p className="text-xs uppercase tracking-wide text-chalk/60">{t('whoAssisted')}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-signal">
+            {t('whoAssisted')}
+          </p>
           <PlayerPicker
             players={players.filter((p) => p.id !== scorerId)}
             selected={assistId}

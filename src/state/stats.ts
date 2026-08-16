@@ -248,6 +248,28 @@ export function pauseDetail(e: LogEntry, t: TFunc): string {
   return t('logLasted', { n: e.resolutionSeconds ?? 0 });
 }
 
+/**
+ * How long the point took, on the goal that ended it: "in 1m 30s". Reads
+ * `pointSeconds` off the entry — the same duration the point's `PointRecord`
+ * carries — and says nothing when the point had no recorded start.
+ */
+export function pointDurationDetail(e: LogEntry, t: TFunc): string {
+  if (e.type !== 'goal' || e.pointSeconds === undefined) return '';
+  return ` — ${t('logPointLasted', { d: formatSeconds(e.pointSeconds) })}`;
+}
+
+/**
+ * A duration as "25s" / "1m 30s" — minutes only once there are any. This is a
+ * length of time that has finished, not a clock that is running, which is why
+ * it isn't `formatClock`'s zero-padded mm:ss: "01:30" reads as a moment in the
+ * game, "1m 30s" reads as how long something took.
+ */
+export function formatSeconds(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
 /** How long a late pull took, e.g. "took 82s" — see `resolutionSeconds` on `latePull`. */
 export function latePullDetail(e: LogEntry, t: TFunc): string {
   if (e.type !== 'latePull') return '';

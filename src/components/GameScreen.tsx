@@ -8,10 +8,10 @@ import {
   canTurnover,
   canUndo,
   canUndoTurnover,
+  capChipVisible,
   capTargetOptions,
   effectiveHalfTarget,
   effectiveTarget,
-  halfTargetApplies,
   isUniversePoint,
   playHalted,
   playerTrackingFor,
@@ -421,6 +421,12 @@ function StoppageResolutionRow() {
  * possible number there is nothing to correct, and it renders as the plain label it has
  * always been. It is the one thing over the score panels that takes a tap, which is why
  * it stays small and on the seam between them, where a scoring tap is ambiguous anyway.
+ *
+ * Universe point is always a tie one goal below the game target (see `isUniversePoint`),
+ * so whenever it is true the game chip is already showing that same target — announced
+ * the moment either team first reached it, tie or not. Rather than stacking a second
+ * badge that names the identical number a different way, this chip absorbs it: the
+ * wording swaps to "Universe point at {n}" and pulses, and no separate badge renders.
  */
 function CapChip({ which, onOpen }: { which: 'game' | 'half'; onOpen: () => void }) {
   const state = useGame();
@@ -428,22 +434,31 @@ function CapChip({ which, onOpen }: { which: 'game' | 'half'; onOpen: () => void
   const half = which === 'half';
   const capped = half ? state.halfCappedTarget : state.cappedTarget;
   const options = capTargetOptions(state, which);
-  const announced = half ? state.halfAnnounced : state.gameAnnounced;
   // Nothing to show unless the target has been announced or a cap has put it in play —
   // and, for the half, unless the half score still decides something. A number still on
   // offer outranks both: it is the target arriving before its own announcement.
-  if (options.length === 0 && (!announced || (half && !halfTargetApplies(state)))) return null;
+  if (!capChipVisible(state, which)) return null;
+
+  // Universe point never coincides with a range: it requires leader === targetScore - 1
+  // (effectiveTarget falls back to config.targetScore whenever capped is null, which a
+  // range also requires), and every surviving candidate is then >= targetScore + (plus -
+  // 1) — with plus always 1 or 2, at most one candidate clears the targetScore ceiling.
+  const universe = !half && isUniversePoint(state);
 
   // Both numbers while the point in progress still decides between them, one number
   // the rest of the time — including a cap whose bounds only ever allowed one.
   const range = capped === null && options.length > 1;
   const label = range
     ? t((half ? 'halfCapChipRange' : 'gameCapChipRange') as never, { a: options[0], b: options[1] })
-    : t((half ? 'halfCapChip' : 'gameCapChip') as never, {
+    : t((universe ? 'universePointChip' : half ? 'halfCapChip' : 'gameCapChip') as never, {
         n: capped ?? options[0] ?? (half ? effectiveHalfTarget(state) : effectiveTarget(state)),
       });
-  const className = `rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border ${
-    capped !== null || options.length > 0 ? 'border-signal text-signal' : 'border-line text-chalk'
+  const className = `rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-white/95 border text-pitch ${
+    universe
+      ? 'border-signal animate-pulse'
+      : capped !== null || options.length > 0
+        ? 'border-signal'
+        : 'border-line'
   }`;
 
   if (options.length < 2) {
@@ -996,16 +1011,15 @@ export default function GameScreen() {
         {state.status !== 'finished' && (
           <div className="absolute left-1/2 top-2 -translate-x-1/2 flex flex-col items-center gap-1">
             {isMixed && <RatioSignalChip />}
-            <CapChip which="half" onOpen={() => setCapTarget('half')} />
-            <CapChip which="game" onOpen={() => setCapTarget('game')} />
-            {isUniversePoint(state) && (
-              <div
-                aria-live="polite"
-                className="rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border border-signal text-signal animate-pulse"
-              >
-                {t('universePointBadge' as never)}
-              </div>
+            {/* A game cap in force is the number that decides the game — a half
+                target next to it would only argue with it, so the half chip steps
+                aside once the game chip has anything of its own to show. */}
+            {!capChipVisible(state, 'game') && (
+              <CapChip which="half" onOpen={() => setCapTarget('half')} />
             )}
+            {/* Absorbs the universe-point badge that used to render here — see the
+                docblock on CapChip. */}
+            <CapChip which="game" onOpen={() => setCapTarget('game')} />
             {/* Only meaningful up to the moment the pull is thrown — the same
                 window the "Pull thrown" button occupies in the action row below.
                 Leaving it up once the point is live risks reading as "this team
@@ -1026,7 +1040,7 @@ export default function GameScreen() {
               state.status === 'waterBreak') && (
               <div
                 aria-live="polite"
-                className="rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-black/70 border border-line text-chalk"
+                className="rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-white/95 border border-line text-pitch"
               >
                 {pullLabel(state, t as never)}
               </div>

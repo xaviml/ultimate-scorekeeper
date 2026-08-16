@@ -1,9 +1,24 @@
 import { useState } from 'react';
-import { useT } from '../i18n/useT';
+import { useT, type TFunc } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import { playerTrackingFor } from '../state/gameReducer';
 import type { TeamId } from '../state/types';
 import { PlayerSelectDialog, type PlayerSelectSection } from './PlayerSelectDialog';
+
+/**
+ * `whoTurnedOver`/`whoDefended` always open with the {team} placeholder (true in
+ * every dictionary), so the translated team name sits verbatim at the front of the
+ * string — sliced off here to render bold rather than the whole sentence.
+ */
+function teamLedLabel(t: TFunc, key: 'whoTurnedOver' | 'whoDefended', team: string) {
+  const full = t(key, { team });
+  return (
+    <>
+      <strong className="font-semibold text-signal">{team}</strong>
+      {full.slice(team.length)}
+    </>
+  );
+}
 
 /**
  * Asks who was involved in a turnover: an attacker who lost the disc (drop, bad
@@ -39,7 +54,7 @@ export function TurnoverDialog({ attacking, onClose }: { attacking: TeamId; onCl
       ? [
           {
             team: attacking,
-            label: t('whoTurnedOver', { team: state.config.teams[attacking].name }),
+            label: teamLedLabel(t, 'whoTurnedOver', state.config.teams[attacking].name),
             selected: turnoverId,
             onSelect: setTurnoverId,
           } as const,
@@ -49,7 +64,7 @@ export function TurnoverDialog({ attacking, onClose }: { attacking: TeamId; onCl
       ? [
           {
             team: defending,
-            label: t('whoDefended', { team: state.config.teams[defending].name }),
+            label: teamLedLabel(t, 'whoDefended', state.config.teams[defending].name),
             selected: defenseId,
             onSelect: setDefenseId,
           } as const,

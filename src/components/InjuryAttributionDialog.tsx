@@ -72,7 +72,7 @@ export function InjuryAttributionDialog({
       <Modal title={t('injuryDialogTitle')} onClose={onCancel}>
         <p className="text-xs text-chalk/50">{t('injuryDialogHint')}</p>
         <div className="space-y-2">
-          <p className="text-xs uppercase tracking-wide text-chalk/60">
+          <p className="text-xs font-semibold uppercase tracking-wide text-signal">
             {state.config.teams[tracked].name}
           </p>
           <PlayerMultiPicker
@@ -127,7 +127,9 @@ export function InjuryAttributionDialog({
         hint={t('injuryDialogHint')}
         sections={(['A', 'B'] as TeamId[]).map((id) => ({
           team: id,
-          label: state.config.teams[id].name,
+          label: (
+            <strong className="font-semibold text-signal">{state.config.teams[id].name}</strong>
+          ),
           multi: true as const,
           selected: selected.filter((p) => p.team === id).map((p) => p.playerId),
           onToggle: (playerId: string) => toggle(id, playerId),

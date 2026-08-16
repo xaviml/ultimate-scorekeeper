@@ -1,8 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '../i18n';
 import { PlayerMultiPicker, PlayerPicker } from '../components/PlayerPicker';
 import type { PlayerInfo } from '../state/types';
+import { hold, tap } from './gestures';
 
 const players: PlayerInfo[] = [{ id: 'p1', number: '7', name: 'Alex' }];
 const twoPlayers: PlayerInfo[] = [
@@ -44,10 +45,7 @@ describe('PlayerPicker long-press removal', () => {
     const onRemove = vi.fn();
     const onSelect = renderPicker(onRemove);
 
-    const chip = screen.getByText('#7 Alex');
-    fireEvent.pointerDown(chip);
-    vi.advanceTimersByTime(600);
-    fireEvent.pointerUp(chip);
+    hold(screen.getByText('#7 Alex'), 600);
 
     expect(onRemove).toHaveBeenCalledWith('p1');
     expect(onSelect).not.toHaveBeenCalled();
@@ -57,9 +55,7 @@ describe('PlayerPicker long-press removal', () => {
     const onRemove = vi.fn();
     const onSelect = renderPicker(onRemove);
 
-    const chip = screen.getByText('#7 Alex');
-    fireEvent.pointerDown(chip);
-    fireEvent.pointerUp(chip);
+    tap(screen.getByText('#7 Alex'));
 
     expect(onSelect).toHaveBeenCalledWith('p1');
     expect(onRemove).not.toHaveBeenCalled();
@@ -70,14 +66,12 @@ describe('PlayerMultiPicker', () => {
   it('toggles a chip by id regardless of which others are already selected', () => {
     const { onToggle } = renderMultiPicker(['p2']);
 
-    fireEvent.pointerDown(screen.getByText('#7 Alex'));
-    fireEvent.pointerUp(screen.getByText('#7 Alex'));
+    tap(screen.getByText('#7 Alex'));
     expect(onToggle).toHaveBeenCalledWith('p1');
 
     // Tapping an already-selected chip still reports just that one id, so the
     // caller (not the chip) decides it means "remove", leaving the other intact.
-    fireEvent.pointerDown(screen.getByText('#9 Sam'));
-    fireEvent.pointerUp(screen.getByText('#9 Sam'));
+    tap(screen.getByText('#9 Sam'));
     expect(onToggle).toHaveBeenCalledWith('p2');
     expect(onToggle).toHaveBeenCalledTimes(2);
   });
@@ -85,10 +79,7 @@ describe('PlayerMultiPicker', () => {
   it('long-presses a chip to remove it without toggling', () => {
     const { onToggle, onRemove } = renderMultiPicker(['p1']);
 
-    const chip = screen.getByText('#7 Alex');
-    fireEvent.pointerDown(chip);
-    vi.advanceTimersByTime(600);
-    fireEvent.pointerUp(chip);
+    hold(screen.getByText('#7 Alex'), 600);
 
     expect(onRemove).toHaveBeenCalledWith('p1');
     expect(onToggle).not.toHaveBeenCalled();

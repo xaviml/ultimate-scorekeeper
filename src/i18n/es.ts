@@ -231,6 +231,7 @@ export const es: typeof en = {
   gameCapChip: 'Partido a {n}',
   halfCapChipRange: 'Half a {a} o {b}',
   gameCapChipRange: 'Partido a {a} o {b}',
+  universePointChip: 'Universal a {n}',
   capTargetTitleHalf: '¿Dónde acaba el half?',
   capTargetTitleGame: '¿Dónde acaba el partido?',
   capTargetHint:
@@ -239,7 +240,6 @@ export const es: typeof en = {
   sideLeft: 'Izquierda',
   sideRight: 'Derecha',
   target: 'Objetivo: {n}',
-  universePointBadge: 'Universal',
 
   // Llamadas — el diálogo tras el botón del bocadillo. Todo lo que hay dentro
   // responde a una sola pregunta («¿qué se ha llamado?»), y por eso el travel va
@@ -453,6 +453,7 @@ export const es: typeof en = {
   howResolved: 'Cómo acabó',
   logLasted: 'ha durado {n}s',
   logPullTook: 'Tirado después de {n}s',
+  logPointLasted: 'en {d}',
   shareImage: 'Compartir',
   shareImagePreparing: 'Preparando…',
   shareImageSaved: 'Imagen guardada',

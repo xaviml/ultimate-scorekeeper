@@ -214,6 +214,13 @@ export interface LogEntry {
    * doesn't count it (see `playerStatLines`). Mutually exclusive with `assistId`.
    */
   callahan?: boolean;
+  /**
+   * Goal entries only: how long the point took, from pull thrown to goal — the
+   * same number as the point's `PointRecord.durationSeconds`, kept here so the
+   * log can print it without matching entries up to points. Undefined when the
+   * point had no recorded start, so the log says nothing rather than "0s".
+   */
+  pointSeconds?: number;
   /** Turnover entries only: the attacker who lost the disc (team = attacking team). */
   turnoverId?: string;
   /** Turnover entries only: the defender who forced it, from the other team. */

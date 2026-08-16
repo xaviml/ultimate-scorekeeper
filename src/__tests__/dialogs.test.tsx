@@ -10,6 +10,7 @@ import { GameLog } from '../components/GameLog';
 import { CallTeamDialog } from '../components/CallTeamDialog';
 import { Modal } from '../components/Modal';
 import { NoteDialog } from '../components/NoteDialog';
+import { tap } from './gestures';
 import { PlayersDialog } from '../components/PlayersDialog';
 import { CallDialog } from '../components/CallDialog';
 import { StoppageDialog } from '../components/StoppageDialog';
@@ -25,6 +26,14 @@ function renderWithProviders(ui: ReactNode) {
 }
 
 beforeEach(() => sessionStorage.clear());
+
+// Section labels that lead with a bold team name split their text across a
+// <strong> and a sibling text node, so a single-node text match won't find
+// them — match on the containing <p>'s combined text content instead.
+const labelMatcher = (regex: RegExp) => (_: string, element: Element | null) =>
+  element?.tagName.toLowerCase() === 'p' && regex.test(element.textContent ?? '');
+const findLabel = (regex: RegExp) => screen.getByText(labelMatcher(regex));
+const queryLabel = (regex: RegExp) => screen.queryByText(labelMatcher(regex));
 
 describe('Modal backdrop dismissal', () => {
   it('ignores a ghost click that has no matching pointerdown', () => {
@@ -209,12 +218,8 @@ describe('dialogs render through the shared Modal', () => {
     renderWithProviders(<StoppageDialog onClose={onClose} />);
     fireEvent.click(screen.getByText('Injury'));
 
-    const alex = screen.getByText('#7 Alex');
-    fireEvent.pointerDown(alex);
-    fireEvent.pointerUp(alex);
-    const sam = screen.getByText('#3 Sam');
-    fireEvent.pointerDown(sam);
-    fireEvent.pointerUp(sam);
+    tap(screen.getByText('#7 Alex'));
+    tap(screen.getByText('#3 Sam'));
     fireEvent.click(screen.getByText('Save'));
 
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -330,9 +335,7 @@ describe('dialogs render through the shared Modal', () => {
     fireEvent.click(screen.getByText('Injury'));
 
     // Only the tracked team's roster is offered as named players.
-    const alex = screen.getByText('#7 Alex');
-    fireEvent.pointerDown(alex);
-    fireEvent.pointerUp(alex);
+    tap(screen.getByText('#7 Alex'));
 
     // The other team is a plain checkbox, no roster.
     fireEvent.click(screen.getByLabelText(/Also mark Team B as injured/));
@@ -351,8 +354,10 @@ describe('dialogs render through the shared Modal', () => {
     sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
 
     renderWithProviders(<TurnoverDialog attacking="A" onClose={noop} />);
-    expect(screen.getByText(/Team A — who lost the disc/)).toBeInTheDocument();
-    expect(screen.getByText(/Team B — who forced it/)).toBeInTheDocument();
+    // The team name renders bold inside its own element, so the label's text is
+    // split across nodes — match by paragraph content rather than a single node.
+    expect(findLabel(/Team A — who lost the disc/)).toBeInTheDocument();
+    expect(findLabel(/Team B — who forced it/)).toBeInTheDocument();
     expect(screen.getByText('Cancel')).toBeInTheDocument();
   });
 
@@ -363,8 +368,8 @@ describe('dialogs render through the shared Modal', () => {
     sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
 
     renderWithProviders(<TurnoverDialog attacking="A" onClose={noop} />);
-    expect(screen.queryByText(/Team A — who lost the disc/)).toBeNull();
-    expect(screen.getByText(/Team B — who forced it/)).toBeInTheDocument();
+    expect(queryLabel(/Team A — who lost the disc/)).toBeNull();
+    expect(findLabel(/Team B — who forced it/)).toBeInTheDocument();
   });
 
   it('AssistGoalDialog hides scorer/assist titles when the roster is empty', () => {

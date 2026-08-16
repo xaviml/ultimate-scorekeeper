@@ -11,6 +11,7 @@ import {
   latePullDetail,
   pauseDetail,
   playerStatLines,
+  pointDurationDetail,
   stoppageDetail,
   teamStats,
   turnoverPlayersDetail,
@@ -135,7 +136,10 @@ export default function ReportScreen() {
       // stoppageDetail renders e.detail itself (the injured player, if any), so
       // it's left out here to avoid printing it twice.
       const detail = e.detail && !e.stoppageKind ? ` (${e.detail})` : '';
-      const players = goalPlayersDetail(state, e, t) + turnoverPlayersDetail(state, e, t);
+      const players =
+        goalPlayersDetail(state, e, t) +
+        pointDurationDetail(e, t) +
+        turnoverPlayersDetail(state, e, t);
       const call =
         callDetail(e, t) || stoppageDetail(e, t) || pauseDetail(e, t) || latePullDetail(e, t);
       lines.push(

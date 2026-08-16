@@ -1037,6 +1037,15 @@ describe('halves and pulls', () => {
     expect(s.points[0].isBreak).toBe(false);
     expect(s.points[1].isBreak).toBe(true);
   });
+
+  // The log prints the point length off the goal entry, so it has to carry the
+  // same duration the point record does — see pointDurationDetail.
+  it('stamps the point duration on the goal log entry', () => {
+    const s = gameReducer(ticks(live(), 90), { type: 'GOAL', team: 'A' });
+    const goal = s.log[s.log.length - 1];
+    expect(s.points[0].durationSeconds).toBe(90);
+    expect(goal.pointSeconds).toBe(90);
+  });
 });
 
 describe('physical endzone sides', () => {

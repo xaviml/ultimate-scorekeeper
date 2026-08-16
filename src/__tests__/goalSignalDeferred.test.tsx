@@ -5,6 +5,7 @@ import { GameProvider } from '../state/GameContext';
 import { createInitialState } from '../state/gameReducer';
 import GameScreen from '../components/GameScreen';
 import type { GameState } from '../state/types';
+import { tap } from './gestures';
 
 /** A live game with player tracking on, ready for team A to score. */
 function liveGame(): GameState {
@@ -42,8 +43,7 @@ describe('the goal sign and gender-ratio sign, with player tracking on', () => {
   it('holds the goal sign/message back until the scorer/assist dialog closes, but scores and starts the pull clock right away', () => {
     const { container } = mount(liveGame());
 
-    fireEvent.pointerDown(screen.getByLabelText('Team A: 0'));
-    fireEvent.pointerUp(screen.getByLabelText('Team A: 0'));
+    tap(screen.getByLabelText('Team A: 0'));
 
     // Score and pull-clock advance immediately — nothing about that is deferred.
     expect(screen.getByLabelText('Team A: 1')).toBeInTheDocument();
@@ -67,8 +67,7 @@ describe('the goal sign and gender-ratio sign, with player tracking on', () => {
     state.config.statsMode = 'none';
     mount(state);
 
-    fireEvent.pointerDown(screen.getByLabelText('Team A: 0'));
-    fireEvent.pointerUp(screen.getByLabelText('Team A: 0'));
+    tap(screen.getByLabelText('Team A: 0'));
 
     expect(screen.queryByText(/Who scored/i)).toBeNull();
     expect(screen.getByRole('img', { name: 'Goal' })).toBeInTheDocument();
@@ -82,9 +81,7 @@ describe('the goal sign and gender-ratio sign, with player tracking on', () => {
       state.config.mixedRule = 'A';
       const { container } = mount(state);
 
-      const panel = screen.getByLabelText('Team A: 0');
-      fireEvent.pointerDown(panel);
-      fireEvent.pointerUp(panel);
+      tap(screen.getByLabelText('Team A: 0'));
 
       expect(screen.getByText(/Who scored/i)).toBeInTheDocument();
 

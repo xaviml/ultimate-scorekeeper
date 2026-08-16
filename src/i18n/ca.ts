@@ -231,6 +231,7 @@ export const ca: typeof en = {
   gameCapChip: 'Partit a {n}',
   halfCapChipRange: 'Half a {a} o {b}',
   gameCapChipRange: 'Partit a {a} o {b}',
+  universePointChip: 'Universal a {n}',
   capTargetTitleHalf: 'On acaba el half?',
   capTargetTitleGame: 'On acaba el partit?',
   capTargetHint:
@@ -239,7 +240,6 @@ export const ca: typeof en = {
   sideLeft: 'Esquerra',
   sideRight: 'Dreta',
   target: 'Objectiu: {n}',
-  universePointBadge: 'Universal',
 
   // Calls — el diàleg darrere el botó del globus de diàleg. Tot el que hi ha dins
   // respon a una sola pregunta («què s'ha cantat?»), i per això el travel hi va i
@@ -452,6 +452,7 @@ export const ca: typeof en = {
   howResolved: 'Com va acabar',
   logLasted: 'ha durat {n}s',
   logPullTook: 'Tirat després de {n}s',
+  logPointLasted: 'en {d}',
   shareImage: 'Compartir',
   shareImagePreparing: 'Preparant…',
   shareImageSaved: 'Imatge desada',

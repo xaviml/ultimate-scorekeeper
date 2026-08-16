@@ -93,6 +93,7 @@ function log(
     | 'resolutionSeconds'
     | 'stoppageKind'
     | 'stoppagePlayers'
+    | 'pointSeconds'
   >,
 ): GameState {
   return {
@@ -701,6 +702,20 @@ export function halfTargetApplies(state: GameState): boolean {
  * resolved to one: before that its two outcomes are "game to N" and "the game is
  * already over", and a picker of targets cannot say the second.
  */
+/**
+ * Whether the cap chip has anything to put on screen: an announced target, or a
+ * choice still open to resolve. Shared by the chip itself and by the call site
+ * that hides the half chip once the game chip is already showing — a game cap in
+ * force is the number that decides the game, and a half target next to it just
+ * argues with it (see GameScreen).
+ */
+export function capChipVisible(state: GameState, which: 'game' | 'half'): boolean {
+  const half = which === 'half';
+  const options = capTargetOptions(state, which);
+  const announced = half ? state.halfAnnounced : state.gameAnnounced;
+  return options.length > 0 || (announced && (!half || halfTargetApplies(state)));
+}
+
 export function capTargetOptions(state: GameState, which: 'game' | 'half'): number[] {
   if (state.phase !== 'game' || state.status === 'finished') return [];
   const half = which === 'half';
@@ -876,7 +891,11 @@ export function gameReducer(state: GameState, action: Action): GameState {
       const newScore = s.scores[team] + 1;
       s = { ...s, scores: { ...s.scores, [team]: newScore } };
 
-      const duration = s.pointStartSeconds !== null ? s.gameSeconds - s.pointStartSeconds : 0;
+      // Undefined rather than 0 when the point has no recorded start: the log
+      // prints nothing for it, instead of claiming the point lasted no time.
+      const pointSeconds =
+        s.pointStartSeconds !== null ? s.gameSeconds - s.pointStartSeconds : undefined;
+      const duration = pointSeconds ?? 0;
       const isBreak = team !== s.offenseTeam;
       s = {
         ...s,
@@ -892,7 +911,9 @@ export function gameReducer(state: GameState, action: Action): GameState {
           },
         ],
       };
-      s = log(s, 'goal', team, `${s.scores.A}-${s.scores.B}${isBreak ? ' (break)' : ''}`);
+      s = log(s, 'goal', team, `${s.scores.A}-${s.scores.B}${isBreak ? ' (break)' : ''}`, {
+        pointSeconds,
+      });
 
       // End cap by time (Options B and C): the target is the leading score now that the
       // point in progress has finished, plus the cap, never beyond the configured target.

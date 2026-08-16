@@ -75,6 +75,29 @@ describe('the cap target chip', () => {
 
     expect(screen.queryByText(/Half at/)).not.toBeInTheDocument();
   });
+
+  it('steps aside for the game chip once the game cap has a target of its own', () => {
+    const state = halfHornAt5_3({ timeCapReached: true });
+    mountWith({ ...state, config: { ...state.config, endCap: { kind: 'cap', plus: 1 } } });
+
+    expect(screen.getByRole('button', { name: 'Game at 6 or 7' })).toBeInTheDocument();
+    expect(screen.queryByText(/Half at/)).not.toBeInTheDocument();
+  });
+
+  it('absorbs universe point into the game chip instead of a second badge', () => {
+    // defaultConfig.targetScore is 15, so a 14-14 tie is the universe point.
+    const state = createInitialState(defaultConfig);
+    state.phase = 'game';
+    state.status = 'live';
+    state.scores = { A: 14, B: 14 };
+    state.gameAnnounced = true;
+
+    mountWith(state);
+
+    expect(screen.getByText('Universe point at 15')).toBeInTheDocument();
+    expect(screen.queryByText('Game at 15')).not.toBeInTheDocument();
+    expect(screen.queryByText('Universe point', { exact: true })).not.toBeInTheDocument();
+  });
 });
 
 describe('the ambient line while a capped target is still movable', () => {

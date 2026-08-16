@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { en } from '../i18n/en';
 import type { TFunc } from '../i18n/useT';
 import { createInitialState, defaultConfig, gameReducer } from '../state/gameReducer';
-import { playerStatLines, stoppageDetail, teamStats } from '../state/stats';
+import {
+  formatSeconds,
+  playerStatLines,
+  pointDurationDetail,
+  stoppageDetail,
+  teamStats,
+} from '../state/stats';
 import type { Action, GameConfig, GameState, LogEntry } from '../state/types';
 
 const t: TFunc = (key, vars) => {
@@ -41,6 +47,29 @@ describe('stoppageDetail', () => {
 
   it('returns nothing for entries with no stoppage kind', () => {
     expect(stoppageDetail(entry({ type: 'note', stoppageKind: undefined }), t)).toBe('');
+  });
+});
+
+describe('formatSeconds', () => {
+  it('drops the minutes below a minute and shows them from a minute up', () => {
+    expect(formatSeconds(0)).toBe('0s');
+    expect(formatSeconds(25)).toBe('25s');
+    expect(formatSeconds(59)).toBe('59s');
+    expect(formatSeconds(60)).toBe('1m 0s');
+    expect(formatSeconds(90)).toBe('1m 30s');
+    expect(formatSeconds(605)).toBe('10m 5s');
+  });
+});
+
+describe('pointDurationDetail', () => {
+  it('prints how long the point took on the goal that ended it', () => {
+    expect(pointDurationDetail(entry({ type: 'goal', pointSeconds: 90 }), t)).toBe(' — in 1m 30s');
+  });
+
+  // A point with no recorded start says nothing, rather than claiming it took no time.
+  it('says nothing without a recorded duration, or on a non-goal', () => {
+    expect(pointDurationDetail(entry({ type: 'goal' }), t)).toBe('');
+    expect(pointDurationDetail(entry({ type: 'turnover', pointSeconds: 30 }), t)).toBe('');
   });
 });
 

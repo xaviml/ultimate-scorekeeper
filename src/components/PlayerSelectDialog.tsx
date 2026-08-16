@@ -18,7 +18,7 @@ export type PlayerSelectSection =
   | {
       team: TeamId;
       /** Heading above the picker — a team name, or a role like "Who turned it over?". */
-      label: string;
+      label: ReactNode;
       multi?: false;
       selected: string | null;
       onSelect: (playerId: string | null) => void;
@@ -31,7 +31,7 @@ export type PlayerSelectSection =
     }
   | {
       team: TeamId;
-      label: string;
+      label: ReactNode;
       multi: true;
       selected: string[];
       onToggle: (playerId: string) => void;

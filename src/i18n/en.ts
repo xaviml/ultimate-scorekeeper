@@ -253,6 +253,11 @@ export const en = {
   gameCapChip: 'Game at {n}',
   halfCapChipRange: 'Half at {a} or {b}',
   gameCapChipRange: 'Game at {a} or {b}',
+  // The game chip's own wording once isUniversePoint is true — it replaces "Game at
+  // {n}" outright rather than stacking a second badge with the same number. No Range
+  // counterpart: universe point can't coincide with an unresolved cap range (see the
+  // comment on CapChip in GameScreen.tsx).
+  universePointChip: 'Universe point at {n}',
   capTargetTitleHalf: 'Where does the half end?',
   capTargetTitleGame: 'Where does the game end?',
   capTargetHint:
@@ -261,7 +266,6 @@ export const en = {
   sideLeft: 'Left',
   sideRight: 'Right',
   target: 'Target: {n}',
-  universePointBadge: 'Universe point',
 
   // Calls — the dialog behind the shout-bubble button. Everything in it is one
   // answer to one question ("what was called?"), which is why travel belongs here
@@ -487,6 +491,9 @@ export const en = {
   logLasted: 'lasted {n}s',
   // Duration of a pull that ran past the 75s limit — see latePull.
   logPullTook: 'Thrown after {n}s',
+  // How long the point took, on the goal that ended it. {d} is already formatted
+  // ("25s", "1m 30s") — see formatSeconds.
+  logPointLasted: 'in {d}',
   shareImage: 'Share',
   shareImagePreparing: 'Preparing…',
   shareImageSaved: 'Image saved',

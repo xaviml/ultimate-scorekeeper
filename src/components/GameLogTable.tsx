@@ -8,6 +8,7 @@ import {
   goalPlayersDetail,
   latePullDetail,
   pauseDetail,
+  pointDurationDetail,
   stoppageDetail,
   turnoverPlayersDetail,
 } from '../state/stats';
@@ -73,6 +74,7 @@ export function GameLogTable({
                   so it's left out here to avoid printing it twice. */}
                 {e.stoppageKind ? '' : (e.detail ?? '')}
                 {goalPlayersDetail(state, e, t)}
+                {pointDurationDetail(e, t)}
                 {turnoverPlayersDetail(state, e, t)}
                 {callDetail(e, t)}
                 {stoppageDetail(e, t)}

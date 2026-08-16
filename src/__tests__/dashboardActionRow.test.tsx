@@ -1,10 +1,11 @@
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '../i18n';
 import { GameProvider } from '../state/GameContext';
 import { createInitialState, gameReducer, secondHalfPullSide } from '../state/gameReducer';
 import GameScreen from '../components/GameScreen';
 import type { GameState } from '../state/types';
+import { hold, tap } from './gestures';
 
 /**
  * The dashboard after Record event was broken up: the action row holds Roster,
@@ -76,9 +77,7 @@ describe('the action row', () => {
     state.config = { ...state.config, statsMode: 'game' };
     mount(state);
 
-    const turn = screen.getByLabelText('Turnover — hold to undo');
-    fireEvent.pointerDown(turn);
-    fireEvent.pointerUp(turn);
+    tap(screen.getByLabelText('Turnover — hold to undo'));
 
     expect(screen.queryByText('Turnover')).toBeNull(); // TurnoverDialog never opened
     const stored = JSON.parse(sessionStorage.getItem('ultimate-scorekeeper:game-state')!);
@@ -243,11 +242,7 @@ describe('the possession rule', () => {
           ],
         }),
       );
-      const turn = screen.getByLabelText('Turnover — hold to undo');
-
-      fireEvent.pointerDown(turn);
-      act(() => void vi.advanceTimersByTime(700));
-      fireEvent.pointerUp(turn);
+      hold(screen.getByLabelText('Turnover — hold to undo'));
 
       // Back to A, and no turnover dialog: the hold replaced the tap.
       expect(rule()).toHaveAttribute('data-possession', 'A');
@@ -261,16 +256,35 @@ describe('the possession rule', () => {
     vi.useFakeTimers();
     try {
       mount(liveGame());
-      const turn = screen.getByLabelText('Turnover — hold to undo');
-
-      fireEvent.pointerDown(turn);
-      act(() => void vi.advanceTimersByTime(700));
-      fireEvent.pointerUp(turn);
+      hold(screen.getByLabelText('Turnover — hold to undo'));
 
       expect(screen.getByRole('tooltip')).toHaveTextContent(/no turnover to undo/i);
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+/**
+ * A tap that opens a dialog must not be able to land inside the dialog it opened.
+ * On a touch screen the compatibility `click` after a release is hit-tested against
+ * the DOM *as it is then*: with the tap firing on `pointerup`, Turn opened
+ * TurnoverDialog as a bottom sheet whose Save button overlapped the bottom edge of
+ * Turn, and the tap's own click hit Save — turnover recorded with nobody attributed,
+ * dialog gone before it could be read. jsdom cannot lay the two out on top of each
+ * other, so what is pinned here is the ordering that makes the overlap harmless.
+ */
+describe('the tap rides the click, not the pointerup', () => {
+  it('leaves nothing for the click to reach by acting before it', () => {
+    mount(liveGame());
+    const turn = screen.getByLabelText('Turnover — hold to undo');
+
+    fireEvent.pointerDown(turn);
+    fireEvent.pointerUp(turn);
+    expect(screen.queryByText('Turnover')).toBeNull(); // nothing yet — the dialog waits
+
+    fireEvent.click(turn);
+    expect(screen.getByText('Turnover')).toBeInTheDocument();
   });
 });
 
