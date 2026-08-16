@@ -131,7 +131,7 @@ export const en = {
   duplicatePlayer: 'This player is already on the roster',
   close: 'Close',
   noPlayersYet: 'No players added yet.',
-  rosterImportBtn: 'Paste / import',
+  rosterImportBtn: 'Import',
   rosterImportTitle: 'Import roster — {team}',
   rosterImportHint:
     'Paste the roster below, or pick a plain text file in the same format. One player per line: a number and a name, a name on its own, or just a number.',

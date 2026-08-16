@@ -129,7 +129,7 @@ export const es: typeof en = {
   duplicatePlayer: 'Este jugador ya está en la plantilla',
   close: 'Cerrar',
   noPlayersYet: 'Todavía no se han añadido jugadores.',
-  rosterImportBtn: 'Pegar / importar',
+  rosterImportBtn: 'Importar',
   rosterImportTitle: 'Importar roster — {team}',
   rosterImportHint:
     'Pega la lista de jugadores abajo, o elige un archivo de texto con el mismo formato. Un jugador por línea: número y nombre, solo el nombre, o solo el número.',

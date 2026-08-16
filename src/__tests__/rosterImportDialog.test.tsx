@@ -25,7 +25,7 @@ function openImporter(team: 'A' | 'B' = 'A') {
   renderConfigScreen();
   fireEvent.change(fieldSelect('What to track'), { target: { value: 'player' } });
   fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
-  const buttons = screen.getAllByRole('button', { name: 'Paste / import' });
+  const buttons = screen.getAllByRole('button', { name: 'Import' });
   fireEvent.click(buttons[team === 'A' ? 0 : 1]);
 }
 
@@ -77,7 +77,7 @@ describe('roster import dialog', () => {
     paste('12 Anna Smith');
     fireEvent.click(importButton());
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Paste / import' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Import' })[0]);
     paste('12 Anna Smith\n7 Marc Puig');
     expect(screen.getByText('1 already on the roster')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Import 1' }));
@@ -91,7 +91,7 @@ describe('roster import dialog', () => {
     paste('12 Anna Smith');
     fireEvent.click(importButton());
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Paste / import' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Import' })[0]);
     paste('7 Marc Puig');
     fireEvent.click(screen.getByLabelText('Replace the current roster (1)'));
     fireEvent.click(importButton());
