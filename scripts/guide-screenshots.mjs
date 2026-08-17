@@ -168,9 +168,12 @@ async function main() {
   await sleep(300);
   await shot('record.png', { clip: dash });
 
-  // Log the travel for real, so the report's history has something in it besides
-  // goals. Points below are played out slowly on purpose: the report shows hold
-  // times, and a game where every point lasted a second looks like a bug.
+  // Log the travel for real, so the dialog is left the way a real tap leaves it.
+  // It no longer reaches the report's history — that panel leaves the calls and
+  // the turnovers out (see reportLogEntries), and this one is only readable
+  // behind its "Full log" button. Points below are played out slowly on purpose:
+  // the report shows hold times, and a game where every point lasted a second
+  // looks like a bug.
   // Recorded straight away with no team, same as every attribution in this demo —
   // "Track game activity" is off, the default this walkthrough demonstrates.
   await page.getByRole('button', { name: 'Travel', exact: true }).click();

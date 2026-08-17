@@ -3,20 +3,17 @@ import { useReportImage } from '../hooks/useReportImage';
 import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import { statsTrackingEnabled } from '../state/gameReducer';
+import { copyText } from '../state/clipboard';
 import { playerStatsTeams, reportCardModel, teamStatRows } from '../state/reportCard';
 import {
-  callDetail,
   formatClock,
-  goalPlayersDetail,
-  latePullDetail,
-  pauseDetail,
+  logTextLines,
   playerStatLines,
-  pointDurationDetail,
-  stoppageDetail,
+  reportLogEntries,
   teamStats,
-  turnoverPlayersDetail,
 } from '../state/stats';
 import type { TeamId } from '../state/types';
+import { FullLogDialog } from './FullLogDialog';
 import { GameLogTable } from './GameLogTable';
 import { PossessionLedger } from './PossessionLedger';
 import { contrastText, pillClass, primaryButton, secondaryButtonOnPitch, sectionTitle } from './ui';
@@ -33,30 +30,6 @@ function slug(name: string): string {
     .replace(/^-+|-+$/g, '')
     .toLowerCase();
   return ascii.slice(0, 24);
-}
-
-/**
- * Fallback for browsers/contexts where the async Clipboard API is unavailable
- * (non-HTTPS dev/LAN testing, older mobile browsers) — the deprecated but
- * still widely supported execCommand path.
- */
-function legacyCopy(text: string): boolean {
-  const textarea = document.createElement('textarea');
-  textarea.value = text;
-  textarea.setAttribute('readonly', '');
-  textarea.style.position = 'fixed';
-  textarea.style.left = '-9999px';
-  document.body.appendChild(textarea);
-  textarea.focus();
-  textarea.select();
-  let ok = false;
-  try {
-    ok = document.execCommand('copy');
-  } catch {
-    ok = false;
-  }
-  document.body.removeChild(textarea);
-  return ok;
 }
 
 /**
@@ -79,6 +52,7 @@ export default function ReportScreen({
   const { t, lang } = useT();
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   const [teamFilter, setTeamFilter] = useState<TeamId | 'all'>('all');
+  const [showFullLog, setShowFullLog] = useState(false);
 
   const A = teamStats(state, 'A');
   const B = teamStats(state, 'B');
@@ -91,6 +65,9 @@ export default function ReportScreen({
   // both, with a filter to page through them on a small screen.
   const showTeamFilter = state.config.statsMode === 'player';
   const playerLines = playerStatLines(state, playerStatsTeams(state.config), t);
+  // What the history panel lists and what the copy button writes are the same
+  // entries on purpose: what you read is what you take away.
+  const visibleLog = reportLogEntries(state.log);
   const visiblePlayerLines =
     teamFilter === 'all' ? playerLines : playerLines.filter((p) => p.team === teamFilter);
 
@@ -145,22 +122,11 @@ export default function ReportScreen({
       lines.push('');
     }
 
+    // The history as the report shows it, turnovers and calls left out. The full
+    // log has its own copy button inside the dialog that shows it (FullLogDialog)
+    // — this text is the game's story, not its every event.
     lines.push(t('historyTitle'));
-    for (const e of state.log) {
-      const team = e.team ? ` — ${nameOf(e.team)}` : '';
-      // stoppageDetail renders e.detail itself (the injured player, if any), so
-      // it's left out here to avoid printing it twice.
-      const detail = e.detail && !e.stoppageKind ? ` (${e.detail})` : '';
-      const players =
-        goalPlayersDetail(state, e, t) +
-        pointDurationDetail(e, t) +
-        turnoverPlayersDetail(state, e, t);
-      const call =
-        callDetail(e, t) || stoppageDetail(e, t) || pauseDetail(e, t) || latePullDetail(e, t);
-      lines.push(
-        `  [${formatClock(e.gameSeconds)}] ${t(`event_${e.type}` as never)}${team}${detail}${players}${call ? ` — ${call}` : ''}`,
-      );
-    }
+    lines.push(...logTextLines(state, visibleLog, t));
 
     lines.push('');
     lines.push(t('reportFooterCredit'));
@@ -170,17 +136,7 @@ export default function ReportScreen({
   };
 
   const copy = async () => {
-    const text = buildPlainText();
-    let ok = false;
-    if (navigator.clipboard && window.isSecureContext) {
-      try {
-        await navigator.clipboard.writeText(text);
-        ok = true;
-      } catch {
-        ok = false;
-      }
-    }
-    if (!ok) ok = legacyCopy(text);
+    const ok = await copyText(buildPlainText());
     setCopyState(ok ? 'copied' : 'failed');
     setTimeout(() => setCopyState('idle'), 2000);
   };
@@ -335,10 +291,22 @@ export default function ReportScreen({
         </section>
       )}
 
+      {/* The history, minus the turnovers and the calls — see reportLogEntries.
+          Everything is still one tap away, which is what the button is for. */}
       <section className="rounded-xl bg-panel border border-line p-4 overflow-x-auto">
-        <h2 className={`${sectionTitle} mb-2`}>{t('historyTitle')}</h2>
-        <GameLogTable />
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <h2 className={sectionTitle}>{t('historyTitle')}</h2>
+          <button
+            className="rounded-lg bg-pitch border border-line px-2 py-1.5 text-[11px] font-board uppercase tracking-wide text-chalk active:scale-95 shrink-0"
+            onClick={() => setShowFullLog(true)}
+          >
+            {t('btnFullLog')}
+          </button>
+        </div>
+        <GameLogTable entries={visibleLog} />
       </section>
+
+      {showFullLog && <FullLogDialog onClose={() => setShowFullLog(false)} />}
 
       <div className="grid grid-cols-2 gap-3">
         <button className={primaryButton} onClick={share}>

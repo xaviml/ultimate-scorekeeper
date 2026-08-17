@@ -46,6 +46,7 @@ export const defaultConfig: GameConfig = {
   startingTime: { enabled: false, time: '' },
   statsMode: 'none',
   trackedTeam: null,
+  trackTurnoverPlayers: false,
   players: { A: [], B: [] },
 };
 
@@ -63,6 +64,20 @@ export function statsTrackingEnabled(config: GameConfig): boolean {
 export function playerTrackingFor(config: GameConfig, team: TeamId): boolean {
   return (
     config.statsMode === 'player' || (config.statsMode === 'team' && config.trackedTeam === team)
+  );
+}
+
+/**
+ * Whether tapping Turn stops to ask who lost the disc and who forced it. The
+ * setting alone isn't enough: a mode with no roster on either side has no player
+ * question to ask, so `game` and `none` register the turnover straight away
+ * whatever the flag says (which is also what makes the flag safe to leave set
+ * while switching modes on the config screen).
+ */
+export function turnoverPlayersTracked(config: GameConfig): boolean {
+  return (
+    config.trackTurnoverPlayers &&
+    (playerTrackingFor(config, 'A') || playerTrackingFor(config, 'B'))
   );
 }
 
@@ -1359,17 +1374,17 @@ export function gameReducer(state: GameState, action: Action): GameState {
         resolution: action.resolution,
         resolutionSeconds: pending.elapsedSeconds,
       });
-      // An accepted stall-out is a turnover under the rules — the thrower held the
-      // disc past the count — so it is marked as one automatically rather than
-      // asking the volunteer to also tap Turn. Only when stats are tracked at all:
-      // with statsMode 'none' there is no Turn button, no pointTurnovers counter and
-      // no possession rule on screen for it to move. It logs as an ordinary
-      // 'turnover' entry (see TURNOVER above), so it is editable and undoable the
-      // same way — including by long-pressing Turn, since it lands as the newest
-      // log entry.
+      // An accepted stall-out or disc-down is a turnover under the rules — the
+      // thrower held the disc past the count, or the pass hit the ground — so it is
+      // marked as one automatically rather than asking the volunteer to also tap
+      // Turn. Only when stats are tracked at all: with statsMode 'none' there is no
+      // Turn button, no pointTurnovers counter and no possession rule on screen for
+      // it to move. It logs as an ordinary 'turnover' entry (see TURNOVER above), so
+      // it is editable and undoable the same way — including by long-pressing Turn,
+      // since it lands as the newest log entry.
       if (
         action.resolution === 'accepted' &&
-        pending.kind === 'stallOut' &&
+        (pending.kind === 'stallOut' || pending.kind === 'discDown') &&
         statsTrackingEnabled(s.config) &&
         s.possessionTeam !== null
       ) {

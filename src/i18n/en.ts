@@ -117,6 +117,9 @@ export const en = {
   statsModePlayerHint:
     'Goals, assists, turnovers and injuries are attributed by player, for both teams.',
   trackedTeamLabel: 'Team to track',
+  trackTurnoverPlayersLabel: 'Ask who turned it over',
+  trackTurnoverPlayersHint:
+    'Off, Turn just registers the turnover. On, it asks who lost the disc and who forced it — accurate, but a lot of taps in a fast point.',
 
   // Players / rosters
   playersTitle: 'Roster',
@@ -515,6 +518,11 @@ export const en = {
   unassignedPlayers: 'Not recorded',
   reportFooterCredit: 'This game was tracked with:',
   historyTitle: 'Game history',
+  // The report's history leaves out the turnovers and the calls; this opens the
+  // rest of it, with its own copy button (see FullLogDialog).
+  btnFullLog: 'Full log',
+  fullLogTitle: 'Full game log',
+  copyLog: 'Copy log',
   colClock: 'Clock',
   colEvent: 'Event',
   colTeam: 'Team',

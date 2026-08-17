@@ -12,6 +12,7 @@ import {
   stoppageDetail,
   turnoverPlayersDetail,
 } from '../state/stats';
+import type { LogEntry } from '../state/types';
 import { BinIcon, PencilIcon } from './icons';
 import { LogEditDialog } from './LogEditDialog';
 
@@ -27,19 +28,27 @@ import { LogEditDialog } from './LogEditDialog';
  * `editable` adds the actions column, and belongs to the in-game dialog only — the
  * report is a record of a finished game, and "delete the newest entry" has nothing
  * left to mean once the final whistle has gone.
+ *
+ * `entries` narrows what is listed to a subset of the log — the report's history
+ * leaves the turnovers and the calls out (see `reportLogEntries`). It is still
+ * `state.log` that the rows are rendered from, so an entry looks the same
+ * wherever it appears.
  */
 export function GameLogTable({
   order = 'asc',
   editable = false,
+  entries: source,
 }: {
   order?: 'asc' | 'desc';
   editable?: boolean;
+  entries?: LogEntry[];
 }) {
   const state = useGame();
   const dispatch = useGameDispatch();
   const { t } = useT();
   const [editing, setEditing] = useState<number | null>(null);
-  const entries = order === 'desc' ? [...state.log].reverse() : state.log;
+  const listed = source ?? state.log;
+  const entries = order === 'desc' ? [...listed].reverse() : listed;
   const editingEntry = state.log.find((e) => e.id === editing);
 
   return (

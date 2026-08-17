@@ -1,5 +1,5 @@
 import type { TFunc } from '../i18n/useT';
-import type { GameState, LogEntry, PlayerInfo, PointRecord, TeamId } from './types';
+import type { GameState, LogEntry, LogType, PlayerInfo, PointRecord, TeamId } from './types';
 
 export interface TeamStats {
   score: number;
@@ -299,4 +299,50 @@ export function formatClock(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+/**
+ * What the report's history leaves out. A turnover and a call are the two things
+ * a tracked game records by the dozen, and read back afterwards they bury the
+ * shape of the game — the goals, the breaks, the caps — in noise. They are not
+ * lost: the full log is one tap away from the same panel (see FullLogDialog),
+ * which is also what the report's own copy button deliberately does not carry.
+ *
+ * Stoppages and SOTG stay: they are neither a call nor routine, and how often
+ * play stopped is part of what happened. `undoTurnover` goes with the turnovers
+ * it corrects — on its own it would say a possession was fixed that the reader
+ * never saw recorded.
+ */
+const REPORT_HIDDEN_LOG_TYPES: readonly LogType[] = [
+  'turnover',
+  'undoTurnover',
+  'call',
+  'callResolved',
+  'travel',
+];
+
+export function reportLogEntries(log: LogEntry[]): LogEntry[] {
+  return log.filter((e) => !REPORT_HIDDEN_LOG_TYPES.includes(e.type));
+}
+
+/**
+ * The log as plain text, one indented `[mm:ss] Event — Team (detail)` line per
+ * entry. Shared by the report's copy button (which passes the filtered entries)
+ * and the full-log dialog's (which passes all of them), so the two can't drift
+ * into printing an event differently.
+ */
+export function logTextLines(state: GameState, entries: LogEntry[], t: TFunc): string[] {
+  return entries.map((e) => {
+    const team = e.team ? ` — ${state.config.teams[e.team].name}` : '';
+    // stoppageDetail renders e.detail itself (the injured player, if any), so
+    // it's left out here to avoid printing it twice.
+    const detail = e.detail && !e.stoppageKind ? ` (${e.detail})` : '';
+    const players =
+      goalPlayersDetail(state, e, t) +
+      pointDurationDetail(e, t) +
+      turnoverPlayersDetail(state, e, t);
+    const call =
+      callDetail(e, t) || stoppageDetail(e, t) || pauseDetail(e, t) || latePullDetail(e, t);
+    return `  [${formatClock(e.gameSeconds)}] ${t(`event_${e.type}` as never)}${team}${detail}${players}${call ? ` — ${call}` : ''}`;
+  });
 }

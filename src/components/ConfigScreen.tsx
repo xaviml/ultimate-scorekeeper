@@ -531,6 +531,21 @@ export default function ConfigScreen() {
             </select>
           </div>
         )}
+        {/* Only where there is a roster to ask against: Game stats has none and
+            No statistics has no Turn button, so the question can't arise there. */}
+        {showRoster && (
+          <div>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={cfg.trackTurnoverPlayers}
+                onChange={(e) => set('trackTurnoverPlayers', e.target.checked)}
+              />
+              <span className="text-sm">{t('trackTurnoverPlayersLabel')}</span>
+            </label>
+            <p className="text-xs text-chalk/50 pt-1">{t('trackTurnoverPlayersHint')}</p>
+          </div>
+        )}
       </Section>
 
       {showRoster && (

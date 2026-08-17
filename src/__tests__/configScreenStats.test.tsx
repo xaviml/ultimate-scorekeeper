@@ -81,6 +81,26 @@ describe('config screen statistics section', () => {
     expect(within(rosterSection()).getByText('Wolves')).toBeInTheDocument();
   });
 
+  it('offers the turnover-player question only where there is a roster, and off by default', () => {
+    renderConfigScreen();
+    const select = fieldSelect('What to track');
+    const checkbox = () => screen.queryByLabelText('Ask who turned it over');
+
+    expect(checkbox()).toBeNull();
+
+    fireEvent.change(select, { target: { value: 'game' } });
+    expect(checkbox()).toBeNull();
+
+    fireEvent.change(select, { target: { value: 'player' } });
+    expect(checkbox()).not.toBeChecked();
+
+    fireEvent.click(checkbox()!);
+    expect(checkbox()).toBeChecked();
+
+    fireEvent.change(select, { target: { value: 'team' } });
+    expect(checkbox()).toBeChecked();
+  });
+
   it('picking a template never touches the stats mode or tracked team', () => {
     renderConfigScreen();
     fireEvent.change(fieldSelect('What to track'), { target: { value: 'team' } });

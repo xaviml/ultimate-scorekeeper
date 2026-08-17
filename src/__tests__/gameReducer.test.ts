@@ -1484,43 +1484,49 @@ describe('recorded events (travel, calls, notes)', () => {
     expect(s.assist).toBe('resolution_contested');
   });
 
-  it('marks a turnover when an accepted stall-out call is tracked', () => {
-    let s = gameReducer(live(cfg({ statsMode: 'game' })), {
-      type: 'CALL_MADE',
-      kind: 'stallOut',
-      team: 'B',
-    });
-    const before = s.possessionTeam; // A, by default config
-    s = gameReducer(s, { type: 'CALL_RESOLVED', resolution: 'accepted' });
+  it.each(['stallOut', 'discDown'] as const)(
+    'marks a turnover when an accepted %s call is tracked',
+    (kind) => {
+      let s = gameReducer(live(cfg({ statsMode: 'game' })), {
+        type: 'CALL_MADE',
+        kind,
+        team: 'B',
+      });
+      const before = s.possessionTeam; // A, by default config
+      s = gameReducer(s, { type: 'CALL_RESOLVED', resolution: 'accepted' });
 
-    expect(s.pendingCall).toBeNull();
-    expect(s.possessionTeam).toBe(before === 'A' ? 'B' : 'A');
-    expect(s.pointTurnovers).toBe(1);
-    expect(s.turnoversCommitted[before!]).toBe(1);
-    expect(lastLog(s)).toMatchObject({ type: 'turnover', team: before });
-    // The resolution is still what gets announced — the turnover is bookkeeping,
-    // same as one tapped by hand.
-    expect(s.assist).toBe('resolution_accepted');
+      expect(s.pendingCall).toBeNull();
+      expect(s.possessionTeam).toBe(before === 'A' ? 'B' : 'A');
+      expect(s.pointTurnovers).toBe(1);
+      expect(s.turnoversCommitted[before!]).toBe(1);
+      expect(lastLog(s)).toMatchObject({ type: 'turnover', team: before });
+      // The resolution is still what gets announced — the turnover is bookkeeping,
+      // same as one tapped by hand.
+      expect(s.assist).toBe('resolution_accepted');
 
-    // It reads and undoes exactly like a manually-tapped turnover.
-    expect(canUndoTurnover(s).ok).toBe(true);
-    const undone = gameReducer(s, { type: 'UNDO_TURNOVER' });
-    expect(undone.possessionTeam).toBe(before);
-    expect(undone.pointTurnovers).toBe(0);
-    expect(lastLog(undone)).toMatchObject({ type: 'callResolved' });
-  });
+      // It reads and undoes exactly like a manually-tapped turnover.
+      expect(canUndoTurnover(s).ok).toBe(true);
+      const undone = gameReducer(s, { type: 'UNDO_TURNOVER' });
+      expect(undone.possessionTeam).toBe(before);
+      expect(undone.pointTurnovers).toBe(0);
+      expect(lastLog(undone)).toMatchObject({ type: 'callResolved' });
+    },
+  );
 
-  it('does not mark a turnover on an accepted stall-out when stats are off', () => {
-    let s = gameReducer(live(), { type: 'CALL_MADE', kind: 'stallOut', team: 'B' });
-    const before = s.possessionTeam;
-    s = gameReducer(s, { type: 'CALL_RESOLVED', resolution: 'accepted' });
+  it.each(['stallOut', 'discDown'] as const)(
+    'does not mark a turnover on an accepted %s when stats are off',
+    (kind) => {
+      let s = gameReducer(live(), { type: 'CALL_MADE', kind, team: 'B' });
+      const before = s.possessionTeam;
+      s = gameReducer(s, { type: 'CALL_RESOLVED', resolution: 'accepted' });
 
-    expect(s.possessionTeam).toBe(before);
-    expect(s.pointTurnovers).toBe(0);
-    expect(lastLog(s)).toMatchObject({ type: 'callResolved' });
-  });
+      expect(s.possessionTeam).toBe(before);
+      expect(s.pointTurnovers).toBe(0);
+      expect(lastLog(s)).toMatchObject({ type: 'callResolved' });
+    },
+  );
 
-  it('does not mark a turnover for an accepted call of any other kind, or a contested/retracted stall-out', () => {
+  it('does not mark a turnover for an accepted call of any other kind, or a contested/retracted stall-out/disc-down', () => {
     const base = live(cfg({ statsMode: 'game' }));
 
     const foul = gameReducer(gameReducer(base, { type: 'CALL_MADE', kind: 'foul', team: 'B' }), {
@@ -1530,13 +1536,15 @@ describe('recorded events (travel, calls, notes)', () => {
     expect(foul.possessionTeam).toBe(base.possessionTeam);
     expect(foul.pointTurnovers).toBe(0);
 
-    for (const resolution of ['contested', 'retracted'] as const) {
-      const s = gameReducer(gameReducer(base, { type: 'CALL_MADE', kind: 'stallOut', team: 'B' }), {
-        type: 'CALL_RESOLVED',
-        resolution,
-      });
-      expect(s.possessionTeam).toBe(base.possessionTeam);
-      expect(s.pointTurnovers).toBe(0);
+    for (const kind of ['stallOut', 'discDown'] as const) {
+      for (const resolution of ['contested', 'retracted'] as const) {
+        const s = gameReducer(gameReducer(base, { type: 'CALL_MADE', kind, team: 'B' }), {
+          type: 'CALL_RESOLVED',
+          resolution,
+        });
+        expect(s.possessionTeam).toBe(base.possessionTeam);
+        expect(s.pointTurnovers).toBe(0);
+      }
     }
   });
 

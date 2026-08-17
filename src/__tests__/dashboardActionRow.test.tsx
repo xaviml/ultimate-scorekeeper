@@ -19,7 +19,10 @@ function liveGame(overrides: Partial<GameState> = {}): GameState {
   state.possessionTeam = 'B';
   state.offenseTeam = 'B';
   state.pullingTeam = 'A';
-  state.config.statsMode = 'player';
+  // Cloned rather than mutated in place: createInitialState hands out the
+  // defaultConfig singleton by reference (see dialogs.test.tsx). Turnover players
+  // are asked for here — off by default, so a test wanting the dialog says so.
+  state.config = { ...state.config, statsMode: 'player', trackTurnoverPlayers: true };
   state.config.timeouts = { ...state.config.timeouts, enabled: true, perHalf: 2, perGame: null };
   return { ...state, ...overrides };
 }
@@ -82,6 +85,31 @@ describe('the action row', () => {
     expect(screen.queryByText('Turnover')).toBeNull(); // TurnoverDialog never opened
     const stored = JSON.parse(sessionStorage.getItem('ultimate-scorekeeper:game-state')!);
     expect(stored.log.some((e: { type: string }) => e.type === 'turnover')).toBe(true);
+  });
+
+  it('logs a turnover straight away when the game does not ask who turned it over', () => {
+    const state = liveGame();
+    // Player stats, full roster — but the setting behind the question is off,
+    // which is the default: Turn registers and the row is free again.
+    state.config = { ...state.config, trackTurnoverPlayers: false };
+    mount(state);
+
+    tap(screen.getByLabelText('Turnover — hold to undo'));
+
+    expect(screen.queryByText('Turnover')).toBeNull(); // TurnoverDialog never opened
+    const stored = JSON.parse(sessionStorage.getItem('ultimate-scorekeeper:game-state')!);
+    expect(stored.log.some((e: { type: string }) => e.type === 'turnover')).toBe(true);
+  });
+
+  it('asks who turned it over once the game is set up to ask', () => {
+    mount(liveGame());
+
+    tap(screen.getByLabelText('Turnover — hold to undo'));
+
+    expect(screen.getByText('Turnover')).toBeInTheDocument();
+    const stored = JSON.parse(sessionStorage.getItem('ultimate-scorekeeper:game-state')!);
+    // Nothing is logged until the dialog is saved — the players are part of the entry.
+    expect(stored.log.some((e: { type: string }) => e.type === 'turnover')).toBe(false);
   });
 
   it('shows both Roster and Turn in Team stats mode', () => {

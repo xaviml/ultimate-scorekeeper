@@ -116,6 +116,9 @@ export const es: typeof en = {
   statsModePlayerHint:
     'Los goles, asistencias, pérdidas y lesiones se atribuyen por jugador, en ambos equipos.',
   trackedTeamLabel: 'Equipo a seguir',
+  trackTurnoverPlayersLabel: 'Preguntar quién perdió el disco',
+  trackTurnoverPlayersHint:
+    'Desactivado, Turn solo registra la pérdida. Activado, pregunta quién perdió el disco y quién lo forzó — más detalle, pero muchos toques en un punto rápido.',
 
   playersTitle: 'Roster',
   collapseSection: 'Contraer {title}',
@@ -481,6 +484,9 @@ export const es: typeof en = {
   unassignedPlayers: 'Sin registrar',
   reportFooterCredit: 'Este partido se registró con:',
   historyTitle: 'Historial del partido',
+  btnFullLog: 'Registro completo',
+  fullLogTitle: 'Registro completo del partido',
+  copyLog: 'Copiar registro',
   colClock: 'Reloj',
   colEvent: 'Evento',
   colTeam: 'Equipo',

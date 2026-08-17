@@ -116,6 +116,9 @@ export const ca: typeof en = {
   statsModePlayerHint:
     "Els gols, assistències, pèrdues i lesions s'atribueixen per jugador, en els dos equips.",
   trackedTeamLabel: 'Equip a seguir',
+  trackTurnoverPlayersLabel: 'Preguntar qui ha perdut el disc',
+  trackTurnoverPlayersHint:
+    "Desactivat, Turn només registra la pèrdua. Activat, pregunta qui ha perdut el disc i qui l'ha forçat — més detall, però molts tocs en un punt ràpid.",
 
   playersTitle: 'Roster',
   collapseSection: 'Replegar {title}',
@@ -478,6 +481,9 @@ export const ca: typeof en = {
   unassignedPlayers: 'Sense registrar',
   reportFooterCredit: 'Aquest partit es va registrar amb:',
   historyTitle: 'Historial del partit',
+  btnFullLog: 'Registre complet',
+  fullLogTitle: 'Registre complet del partit',
+  copyLog: 'Copiar registre',
   colClock: 'Rellotge',
   colEvent: 'Esdeveniment',
   colTeam: 'Equip',

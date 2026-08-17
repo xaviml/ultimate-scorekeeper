@@ -22,6 +22,7 @@ import {
   statsTrackingEnabled,
   timeoutAvailability,
   timeoutsConfigured,
+  turnoverPlayersTracked,
 } from '../state/gameReducer';
 import { formatClock } from '../state/stats';
 import { useBackGuard } from '../hooks/useBackGuard';
@@ -852,10 +853,10 @@ export default function GameScreen() {
       flashHint(t(`assist_blocked_${check.reason}` as never));
       return;
     }
-    // Game stats mode has no roster on either side, so there's no player question
-    // for the dialog to ask — log it straight away, same as it would with no
-    // team tracked at all.
-    if (state.config.statsMode === 'game') {
+    // Unless this game asks who was involved, the turnover registers on the tap
+    // and the row is free again — which is the default, and is also all Game
+    // stats mode can do, having no roster on either side to ask against.
+    if (!turnoverPlayersTracked(state.config)) {
       dispatch({ type: 'TURNOVER' });
       return;
     }

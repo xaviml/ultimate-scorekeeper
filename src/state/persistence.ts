@@ -16,12 +16,24 @@ export function persistState(state: GameState): void {
  * checkbox with `statsMode`/`trackedTeam` still has the boolean in its persisted
  * config. Read it back as the closest new mode instead of losing tracking on
  * reload: `true` was full player-level tracking (`player`), `false` was `none`.
+ *
+ * `trackTurnoverPlayers` is the same story one deploy later: before it existed,
+ * a game with a roster always asked who turned it over, so a stored config from
+ * then comes back with it on. Defaulting it to `false` there would change what a
+ * game already in progress does halfway through it — the new default belongs to
+ * games set up under the new build, which write the field themselves.
  */
 function migrateStoredConfig(
   stored: Partial<GameConfig> & { trackPlayers?: boolean },
 ): Partial<GameConfig> {
-  if (stored.statsMode !== undefined || typeof stored.trackPlayers !== 'boolean') return stored;
-  return { ...stored, statsMode: stored.trackPlayers ? 'player' : 'none', trackedTeam: null };
+  let config = stored;
+  if (config.statsMode === undefined && typeof config.trackPlayers === 'boolean') {
+    config = { ...config, statsMode: config.trackPlayers ? 'player' : 'none', trackedTeam: null };
+  }
+  if (config.trackTurnoverPlayers === undefined) {
+    config = { ...config, trackTurnoverPlayers: true };
+  }
+  return config;
 }
 
 export function loadPersistedState(): GameState | null {

@@ -48,7 +48,7 @@ describe('predefined templates', () => {
 });
 
 describe('extractTemplateSettings', () => {
-  it('carries only the rule fields, never teams, coin toss, players or statsMode/trackedTeam', () => {
+  it('carries only the rule fields, never teams, coin toss, players or the statistics settings', () => {
     const cfg = {
       ...defaultConfig,
       teams: { A: { name: 'Foxes', color: '#fff' }, B: { name: 'Wolves', color: '#000' } },
@@ -57,6 +57,7 @@ describe('extractTemplateSettings', () => {
       startingRatio: 'male' as const,
       statsMode: 'team' as const,
       trackedTeam: 'A' as const,
+      trackTurnoverPlayers: true,
       players: { A: [{ id: '1', number: '7', name: 'Alex' }], B: [] },
       fieldNumber: '3',
     };
@@ -83,6 +84,7 @@ describe('extractTemplateSettings', () => {
     expect(settings).not.toHaveProperty('startingRatio');
     expect(settings).not.toHaveProperty('statsMode');
     expect(settings).not.toHaveProperty('trackedTeam');
+    expect(settings).not.toHaveProperty('trackTurnoverPlayers');
     expect(settings).not.toHaveProperty('players');
   });
 });

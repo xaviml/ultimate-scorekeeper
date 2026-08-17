@@ -105,12 +105,23 @@ export interface GameConfig {
   statsMode: StatsMode;
   /** The team followed in `team` mode; null in every other mode. */
   trackedTeam: TeamId | null;
+  /**
+   * Whether tapping Turn asks who lost the disc and who forced it, or just
+   * registers the turnover and gets out of the way. Off by default: a turnover is
+   * the most frequent thing on the row, and stopping for two player pickers is
+   * more than most volunteers can keep up with — the count, the possession rule
+   * and the team stats all work without it. Only meaningful in `team`/`player`
+   * mode (see `turnoverPlayersTracked`): `game` has no roster to ask against and
+   * `none` has no Turn button at all.
+   */
+  trackTurnoverPlayers: boolean;
   players: Record<TeamId, PlayerInfo[]>;
 }
 
 /**
  * Rule settings a template can carry — everything except the per-game choices
- * templates must not touch: teams, coin toss results, players, statsMode/trackedTeam.
+ * templates must not touch: teams, coin toss results, players, and the statistics
+ * settings (statsMode/trackedTeam/trackTurnoverPlayers).
  */
 export type TemplateSettings = Omit<
   GameConfig,
@@ -120,6 +131,7 @@ export type TemplateSettings = Omit<
   | 'startingRatio'
   | 'statsMode'
   | 'trackedTeam'
+  | 'trackTurnoverPlayers'
   | 'players'
   | 'startingTime'
 >;
