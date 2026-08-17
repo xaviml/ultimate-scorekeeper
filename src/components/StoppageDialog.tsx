@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import { canWaterBreak, statsTrackingEnabled } from '../state/gameReducer';
-import type { StoppageKind, TeamId } from '../state/types';
+import { benchPlayers, lineTeam, replacementsFor } from '../state/lines';
+import type { PlayerInfo, StoppageKind, TeamId } from '../state/types';
 import { InjuryAttributionDialog } from './InjuryAttributionDialog';
+import { InjurySubDialog } from './InjurySubDialog';
 import { Modal } from './Modal';
 import { contrastText, secondaryButton, teamChoiceButton } from './ui';
 
-type Step = 'kind' | 'injury' | 'technicalTeam' | 'sotgTeam';
+type Step = 'kind' | 'injury' | 'injurySub' | 'technicalTeam' | 'sotgTeam';
 
 /**
  * The three answers to "play is halting, why?": an injury (optionally attributed
@@ -45,6 +47,8 @@ export function StoppageDialog({ onClose }: { onClose: () => void }) {
   const dispatch = useGameDispatch();
   const { t } = useT();
   const [step, setStep] = useState<Step>('kind');
+  /** The injured players who were on the field, carried from the injury step into the sub step. */
+  const [comingOff, setComingOff] = useState<PlayerInfo[]>([]);
 
   const chooseKind = (kind: StoppageKind) => {
     // Technical is gated the same way regardless of statsMode: only asked while
@@ -111,9 +115,60 @@ export function StoppageDialog({ onClose }: { onClose: () => void }) {
   if (step === 'injury') {
     return (
       <InjuryAttributionDialog
+        // Recording one as it happens, so the picker narrows to whoever is out there
+        // now — somebody already substituted off cannot be hurt in the play.
+        onField={state.line}
         onCancel={onClose}
         onSubmit={({ team, players }) => {
+          // The injury is recorded first, whatever happens to the line: skipping the
+          // substitution must not also lose the stoppage.
           dispatch({ type: 'STOPPAGE', kind: 'injury', team, players });
+          // An injury is the one stoppage that routinely changes the line mid-point,
+          // and the app only knows who came on if it asks. Only worth asking when
+          // somebody named was actually on the field — and only for the line team,
+          // which is the only roster a line exists for.
+          const tracked = lineTeam(state.config);
+          const off = (players ?? [])
+            .filter((p) => p.team === tracked && state.line.includes(p.playerId))
+            .map((p) => state.config.players[p.team].find((x) => x.id === p.playerId))
+            .filter((p): p is PlayerInfo => p !== undefined);
+          if (off.length > 0) {
+            setComingOff(off);
+            setStep('injurySub');
+            return;
+          }
+          onClose();
+        }}
+      />
+    );
+  }
+
+  if (step === 'injurySub') {
+    const offIds = comingOff.map((p) => p.id);
+    return (
+      <InjurySubDialog
+        going={comingOff}
+        bench={replacementsFor(
+          state.config,
+          state.config.players[lineTeam(state.config)!],
+          state.line,
+          comingOff,
+        )}
+        // Distinguishes "the whole roster is already on" from "nobody with a matching
+        // marking is left", which are different things to tell the volunteer.
+        benchEmpty={
+          benchPlayers(state.config.players[lineTeam(state.config)!], state.line).length === 0
+        }
+        onSkip={onClose}
+        onConfirm={(ids) => {
+          dispatch({
+            type: 'SET_LINE',
+            playerIds: [...state.line.filter((id) => !offIds.includes(id)), ...ids],
+            // The name survives a forced substitution: D1 still played this point,
+            // one injury notwithstanding. That is the opposite of LineDialog, where a
+            // hand-edited selection is a deliberately different line.
+            lineName: state.lineName,
+          });
           onClose();
         }}
       />

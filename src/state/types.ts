@@ -73,6 +73,27 @@ export interface PlayerInfo {
   id: string;
   number: string;
   name: string;
+  /**
+   * MMP/FMP marking, read only by line tracking's gender check (see lines.ts).
+   * Optional and unset by default: a roster typed off a sideline list has no
+   * genders in it, and an unmarked player still has to be pickable — the check
+   * counts what it knows and says how many it doesn't, rather than refusing.
+   */
+  gender?: Gender;
+}
+
+/**
+ * A line a team plays repeatedly, named once and reused all tournament.
+ *
+ * Players are stored as `playerKey` strings (number|name, see rosterImport.ts) and
+ * not as ids, because loading a saved team re-mints every player id
+ * (ConfigScreen's `selectSavedTeam`) — ids only live as long as one game, so a
+ * saved line resolves against the current roster instead (see `resolveSavedLine`).
+ */
+export interface SavedLine {
+  id: string;
+  name: string;
+  playerKeys: string[];
 }
 
 /** A team remembered in localStorage across games, keyed by name (see rosterStorage.ts). */
@@ -80,6 +101,34 @@ export interface SavedTeam {
   name: string;
   color: string;
   players: PlayerInfo[];
+  /** Predefined lines, absent for teams saved before line tracking existed. */
+  lines?: SavedLine[];
+}
+
+/** How a registered line's gender split is checked — see `expectedSplit`. */
+export type LineGenderCheck = 'none' | 'gameRatio' | 'fixed';
+
+/**
+ * On-field line tracking: which players actually took each point.
+ *
+ * Deliberately separate from `mixedRule`/`startingRatio`. A game can be played to
+ * a ratio the app announces and still not keep it every point — outside
+ * professional play that is the norm — so the ratio the lines are *checked*
+ * against is its own setting, `'none'` included.
+ *
+ * There is no team here: line tracking only exists in `statsMode === 'team'`, so
+ * the team is already named by `trackedTeam`. Ask `lineTrackingEnabled` (lines.ts)
+ * rather than reading `enabled` directly — it is the gate every consumer shares,
+ * and it is what retires the feature when the stats mode moves away from 'team'
+ * without having to reach in and clear these settings.
+ */
+export interface LineConfig {
+  enabled: boolean;
+  genderCheck: LineGenderCheck;
+  /** With `genderCheck: 'fixed'`: how many FMP the line should carry (4-3, 6-1, ...). */
+  fixedFemale: number;
+  /** The tracked team's predefined lines, snapshotted from the saved team at START_GAME. */
+  saved: SavedLine[];
 }
 
 export interface GameConfig {
@@ -98,6 +147,14 @@ export interface GameConfig {
   halfTimeBreakSeconds: number;
   endCap: EndCapRule;
   halfCap: HalfCapRule;
+  /**
+   * Players on the field per team per point. A property of the field format rather
+   * than of tracking — which is why it lives out here with the other rules and
+   * travels in a template, while `lines` (what this game chooses to record) does not.
+   * Only line tracking reads it, but the format is true whether or not anyone is
+   * recording lines.
+   */
+  lineSize: number;
   timeouts: TimeoutConfig;
   waterBreaks: WaterBreakConfig;
   startingTime: StartingTimeConfig;
@@ -115,13 +172,21 @@ export interface GameConfig {
    * `none` has no Turn button at all.
    */
   trackTurnoverPlayers: boolean;
+  /** See `LineConfig`. Off by default: without it everything behaves as it always has. */
+  lines: LineConfig;
   players: Record<TeamId, PlayerInfo[]>;
 }
 
 /**
  * Rule settings a template can carry — everything except the per-game choices
  * templates must not touch: teams, coin toss results, players, and the statistics
- * settings (statsMode/trackedTeam/trackTurnoverPlayers).
+ * settings (statsMode/trackedTeam/trackTurnoverPlayers/lines).
+ *
+ * `lines` is excluded with the rest of the statistics settings because it hangs off
+ * `statsMode`/`trackedTeam` and carries a per-game roster snapshot in `saved`.
+ * `lineSize` is deliberately NOT in there with it: how many players take the field is
+ * a fact about grass against beach, so it belongs to the format and rides the
+ * template like every other rule.
  */
 export type TemplateSettings = Omit<
   GameConfig,
@@ -132,6 +197,7 @@ export type TemplateSettings = Omit<
   | 'statsMode'
   | 'trackedTeam'
   | 'trackTurnoverPlayers'
+  | 'lines'
   | 'players'
   | 'startingTime'
 >;
@@ -331,6 +397,30 @@ export interface PendingStoppage {
   clockStopped: boolean;
 }
 
+/**
+ * A player who took the field for a point. `sub: true` marks someone who came on
+ * once the point was already running — a swap after an injury, which is the case
+ * the flag exists for; `off: true` marks the other half of that swap, someone who
+ * left the field before the point ended.
+ *
+ * Both are about *when*, never about *whether*: a player who came off still played
+ * the point and still counts in every stat. The flag exists so the player pickers can
+ * stop offering someone who is no longer out there — an injured player who has been
+ * replaced cannot go on to score the point.
+ */
+export interface LinePlayer {
+  playerId: string;
+  sub?: true;
+  off?: true;
+}
+
+/** A line pre-registered for the next point while this one is still being played (SET_NEXT_LINE). */
+export interface PendingLine {
+  playerIds: string[];
+  /** The predefined line this came from, when one was loaded rather than hand-picked. */
+  name: string | null;
+}
+
 export interface PointRecord {
   scoredBy: TeamId;
   offense: TeamId; // team that received the pull for this point
@@ -350,6 +440,16 @@ export interface PointRecord {
    * recorded before this was tracked, and in statsMode 'none'.
    */
   possessionSeconds?: Record<TeamId, number>;
+  /**
+   * Everyone who took the field for the tracked team this point, subs flagged.
+   * Absent — rather than empty — when nothing was registered, which is what lets
+   * the report say how many points went unrecorded instead of claiming nobody
+   * played them. The team is not stored: line tracking follows `trackedTeam`,
+   * which is fixed for the game.
+   */
+  line?: LinePlayer[];
+  /** The predefined line that was in force, when one was loaded by name. */
+  lineName?: string;
 }
 
 /**
@@ -378,6 +478,10 @@ export interface GoalSnapshot {
   halfAnnounced: boolean;
   gameAnnounced: boolean;
   waterBreaksTaken: number[];
+  line: string[];
+  pointLine: LinePlayer[];
+  nextLine: PendingLine | null;
+  lineName: string | null;
 }
 
 export interface GameState {
@@ -519,6 +623,24 @@ export interface GameState {
   pendingGoalAssist: string | null;
   /** Bumped by SHOW_RATIO_SIGNAL so re-tapping the ratio chip re-keys the signal card even while assist is still 'nextRatio'. */
   ratioSignalId: number;
+  /**
+   * The tracked team's players on the field right now (see LineConfig). Empty
+   * until a line is registered, and it never carries across a point: in Ultimate
+   * the line changes nearly every point, so a stale one would silently credit the
+   * wrong players. GOAL fills it from `nextLine` or leaves it empty.
+   */
+  line: string[];
+  /**
+   * Everyone who has appeared in the point in progress, subs flagged — the
+   * accumulating record `line` is only the current snapshot of. A player taken off
+   * stays here, because "was on the field for this point" is the question a
+   * PointRecord answers. Written into the point at GOAL.
+   */
+  pointLine: LinePlayer[];
+  /** The next point's line, registered while this one is still being played. Consumed by GOAL. */
+  nextLine: PendingLine | null;
+  /** The predefined line `line` came from, when it was loaded by name rather than hand-picked. */
+  lineName: string | null;
 }
 
 export type Action =
@@ -579,6 +701,23 @@ export type Action =
   | { type: 'BACK_TO_CONFIG' }
   | { type: 'ADD_PLAYER'; team: TeamId; number: string; name: string }
   | { type: 'REMOVE_PLAYER'; team: TeamId; id: string }
+  /** Mark a roster player MMP/FMP, from the roster editor's gender toggle. */
+  | { type: 'SET_PLAYER_GENDER'; team: TeamId; id: string; gender: Gender | null }
+  /**
+   * Register who is on the field for the point in progress — between points, or as
+   * a mid-point substitution (see `canSetLine`). Merges into `pointLine` rather
+   * than replacing it: a player taken off still played the point.
+   */
+  | { type: 'SET_LINE'; playerIds: string[]; lineName?: string | null }
+  /** Pre-register the next point's line while this one is being played. Consumed by GOAL. */
+  | { type: 'SET_NEXT_LINE'; playerIds: string[]; lineName?: string | null }
+  | { type: 'CLEAR_NEXT_LINE' }
+  /**
+   * Replace the tracked team's predefined lines, when one is named or deleted during
+   * a game. The localStorage store (rosterStorage) is written alongside this — the
+   * config copy is what the dialog offers, the store is what the next game inherits.
+   */
+  | { type: 'SET_SAVED_LINES'; lines: SavedLine[] }
   | {
       type: 'SET_GOAL_PLAYERS';
       team: TeamId;

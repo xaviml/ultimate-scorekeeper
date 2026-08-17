@@ -3,7 +3,8 @@ import { useT, type Lang } from '../i18n/useT';
 import { defaultConfig } from '../state/gameReducer';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import { useBackGuard } from '../hooks/useBackGuard';
-import { deleteTeam, loadSavedTeams, saveTeam } from '../state/rosterStorage';
+import { ratioGenderCheckAvailable } from '../state/lines';
+import { deleteTeam, loadSavedTeams, saveTeam, saveTeamLines } from '../state/rosterStorage';
 import {
   BEACH_TEMPLATE,
   GRASS_TEMPLATE,
@@ -12,7 +13,16 @@ import {
   loadSavedTemplates,
   saveTemplate,
 } from '../state/templates';
-import type { GameConfig, PlayerInfo, SavedTeam, SavedTemplate, TeamId } from '../state/types';
+import type {
+  GameConfig,
+  Gender,
+  LineGenderCheck,
+  PlayerInfo,
+  SavedLine,
+  SavedTeam,
+  SavedTemplate,
+  TeamId,
+} from '../state/types';
 import {
   loadPlayersSectionCollapsed,
   loadWaterBreakSectionCollapsed,
@@ -23,6 +33,7 @@ import { AboutDialog } from './AboutDialog';
 import { ConfirmDeleteTemplateDialog } from './ConfirmDeleteTemplateDialog';
 import GuideScreen from './GuideScreen';
 import { PlayerRosterEditor } from './PlayerRosterEditor';
+import { SavedLinesEditor } from './SavedLinesEditor';
 import { RosterImportDialog } from './RosterImportDialog';
 import { SaveTemplateDialog } from './SaveTemplateDialog';
 import { TeamColorPicker } from './TeamColorPicker';
@@ -252,6 +263,27 @@ export default function ConfigScreen() {
 
   const set = <K extends keyof GameConfig>(key: K, value: GameConfig[K]) =>
     setCfg((c) => ({ ...c, [key]: value }));
+  /**
+   * Division and mixed-rule are the only two fields `ratioGenderCheckAvailable`
+   * reads, so both setters route through here: whichever one moves, if that flips
+   * whether `'gameRatio'` is even an option, the gender check follows it — landing
+   * on the default the option's availability implies rather than being left on a
+   * value the dropdown no longer offers. `'fixed'` is a split named independently
+   * of any ratio, so it rides through untouched either way.
+   */
+  const setDivisionOrMixedRule = (
+    patch: Pick<GameConfig, 'division'> | Pick<GameConfig, 'mixedRule'>,
+  ) =>
+    setCfg((c) => {
+      const next = { ...c, ...patch };
+      const wasAvailable = ratioGenderCheckAvailable(c.division, c.mixedRule);
+      const nowAvailable = ratioGenderCheckAvailable(next.division, next.mixedRule);
+      if (wasAvailable === nowAvailable || c.lines.genderCheck === 'fixed') return next;
+      return {
+        ...next,
+        lines: { ...next.lines, genderCheck: nowAvailable ? 'gameRatio' : 'none' },
+      };
+    });
   // Switching into 'team' defaults trackedTeam to 'A' unless one was already
   // picked (coming back from a previous 'team' choice); switching away clears it,
   // matching the type's own "null unless mode==='team'" contract.
@@ -261,6 +293,18 @@ export default function ConfigScreen() {
       statsMode: mode,
       trackedTeam: mode === 'team' ? (c.trackedTeam ?? 'A') : null,
     }));
+  /**
+   * `cfg.lines.saved` holds one team's lines, so moving the tracked team has to swap
+   * them for that team's — otherwise Ravens' lines would follow the pointer onto
+   * Foxes. Read from the store rather than kept per team in cfg: the store is where
+   * they live between games anyway, and a team with no entry yet correctly has none.
+   */
+  const setTrackedTeam = (id: TeamId) =>
+    setCfg((c) => {
+      const name = c.teams[id].name.trim();
+      const stored = savedTeams.find((s) => normalizeTeamName(s.name) === normalizeTeamName(name));
+      return { ...c, trackedTeam: id, lines: { ...c.lines, saved: stored?.lines ?? [] } };
+    });
   const setTeam = (id: TeamId, patch: Partial<GameConfig['teams'][TeamId]>) =>
     setCfg((c) => ({ ...c, teams: { ...c.teams, [id]: { ...c.teams[id], ...patch } } }));
   const selectSavedTeam = (id: TeamId, team: SavedTeam) =>
@@ -268,6 +312,9 @@ export default function ConfigScreen() {
       ...c,
       teams: { ...c.teams, [id]: { name: team.name, color: team.color } },
       players: { ...c.players, [id]: team.players.map((p) => ({ ...p, id: uid() })) },
+      // The lines come with the roster they are made of — but only for the team
+      // whose lines are the ones being tracked, since cfg holds a single list.
+      ...(c.trackedTeam === id ? { lines: { ...c.lines, saved: team.lines ?? [] } } : {}),
     }));
   // Renaming never touches the roster: turning a loaded "Ravens" into "Ravens B"
   // is the common way to build a second squad out of the first, and silently
@@ -280,7 +327,12 @@ export default function ConfigScreen() {
   // waiting for START_GAME. So a team can be set up (and reused next time) even
   // if this game never gets played.
   const addSavedTeam = (id: TeamId, name: string) => {
-    saveTeam({ name, color: cfg.teams[id].color, players: cfg.players[id] });
+    saveTeam({
+      name,
+      color: cfg.teams[id].color,
+      players: cfg.players[id],
+      ...(cfg.trackedTeam === id ? { lines: cfg.lines.saved } : {}),
+    });
     setSavedTeams(loadSavedTeams());
     setTeam(id, { name });
   };
@@ -304,6 +356,29 @@ export default function ConfigScreen() {
       id,
       cfg.players[id].filter((p) => p.id !== playerId),
     );
+  // A marking is a roster edit like any other, so it goes through setPlayers and is
+  // written back to the saved team for free — which is the point: a squad's markings
+  // are typed once and inherited by every game of the tournament.
+  const setGender = (id: TeamId, playerId: string, gender: Gender | null) =>
+    setPlayers(
+      id,
+      cfg.players[id].map((p) => (p.id === playerId ? { ...p, gender: gender ?? undefined } : p)),
+    );
+  const setLines = (patch: Partial<GameConfig['lines']>) =>
+    setCfg((c) => ({ ...c, lines: { ...c.lines, ...patch } }));
+  /**
+   * Exactly `setPlayers`' bargain, for the same reason: the edit always lands in cfg,
+   * and is written through to the store only for a team that is already in it. A team
+   * that has never been saved keeps its lines locally until "add as a new team" or the
+   * kickoff sync puts it there (see GameContext).
+   */
+  const setSavedLines = (lines: SavedLine[]) => {
+    setLines({ saved: lines });
+    const name = linesTeamName.trim();
+    if (!isSavedTeamName(name)) return;
+    saveTeamLines(name, lines);
+    setSavedTeams(loadSavedTeams());
+  };
 
   // Phone back button on the guide: same as tapping its own "back to setup" —
   // it's a screen reached from a link, not an external page, so the gesture
@@ -340,6 +415,29 @@ export default function ConfigScreen() {
   }[cfg.statsMode] as
     'statsModeNoneHint' | 'statsModeGameHint' | 'statsModeTeamHint' | 'statsModePlayerHint';
   const showRoster = cfg.statsMode === 'team' || cfg.statsMode === 'player';
+  // Line tracking follows the single roster Team mode watches, so the section only
+  // exists there — see lineTrackingEnabled, which is the same rule at runtime.
+  const showLines = cfg.statsMode === 'team' && cfg.trackedTeam !== null;
+  const linesTeamName = showLines
+    ? cfg.teams[cfg.trackedTeam!].name.trim() || t(cfg.trackedTeam === 'A' ? 'teamA' : 'teamB')
+    : '';
+  // The predefined lines belong to the saved team, so they are read from the store
+  // rather than from cfg: renaming the team in the form must not appear to move them.
+  const genderCheckHintKey = {
+    none: 'lineGenderCheckNoneHint',
+    gameRatio: 'lineGenderCheckRatioHint',
+    fixed: 'lineGenderCheckFixedHint',
+  }[cfg.lines.genderCheck] as
+    'lineGenderCheckNoneHint' | 'lineGenderCheckRatioHint' | 'lineGenderCheckFixedHint';
+  // The ratio hint spells the split out, so it needs the numbers the rule comes to.
+  const genderCheckVars =
+    cfg.lines.genderCheck === 'gameRatio'
+      ? {
+          size: cfg.lineSize,
+          female: Math.ceil(cfg.lineSize / 2),
+          male: cfg.lineSize - Math.ceil(cfg.lineSize / 2),
+        }
+      : undefined;
 
   return (
     <div className="min-h-dvh bg-pitch text-chalk p-4 pb-10 max-w-2xl mx-auto space-y-4">
@@ -421,7 +519,9 @@ export default function ConfigScreen() {
             <select
               className={inputClass}
               value={cfg.division}
-              onChange={(e) => set('division', e.target.value as GameConfig['division'])}
+              onChange={(e) =>
+                setDivisionOrMixedRule({ division: e.target.value as GameConfig['division'] })
+              }
             >
               <option value="open">{t('divisionOpen')}</option>
               <option value="women">{t('divisionWomen')}</option>
@@ -472,7 +572,7 @@ export default function ConfigScreen() {
             <select
               className={inputClass}
               value={cfg.mixedRule}
-              onChange={(e) => set('mixedRule', e.target.value as 'A' | 'B')}
+              onChange={(e) => setDivisionOrMixedRule({ mixedRule: e.target.value as 'A' | 'B' })}
             >
               <option value="A">{t('ruleA')}</option>
               <option value="B">{t('ruleB')}</option>
@@ -524,7 +624,7 @@ export default function ConfigScreen() {
             <select
               className={inputClass}
               value={cfg.trackedTeam ?? 'A'}
-              onChange={(e) => set('trackedTeam', e.target.value as TeamId)}
+              onChange={(e) => setTrackedTeam(e.target.value as TeamId)}
             >
               <option value="A">{cfg.teams.A.name.trim() || t('teamA')}</option>
               <option value="B">{cfg.teams.B.name.trim() || t('teamB')}</option>
@@ -546,6 +646,80 @@ export default function ConfigScreen() {
             <p className="text-xs text-chalk/50 pt-1">{t('trackTurnoverPlayersHint')}</p>
           </div>
         )}
+        {/* Line tracking sits here rather than in a section of its own: it is another
+            thing this game tracks, and it is narrower than showRoster on purpose —
+            it follows the one roster Team mode watches, so Player mode, which has
+            two, never offers it (see lineTrackingEnabled). It names no team; changing
+            the tracked team above moves it. */}
+        {showLines && (
+          <>
+            <div>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={cfg.lines.enabled}
+                  onChange={(e) => setLines({ enabled: e.target.checked })}
+                />
+                <span className="text-sm">{t('linesEnabledLabel')}</span>
+              </label>
+              <p className="text-xs text-chalk/50 pt-1">{t('linesEnabledHint')}</p>
+            </div>
+
+            {cfg.lines.enabled && (
+              <>
+                <div>
+                  <label className={fieldLabel}>{t('lineSizeLabel')}</label>
+                  <input
+                    {...numberFieldProps('lineSize', cfg.lineSize, 1, 15, (n) =>
+                      set('lineSize', n),
+                    )}
+                  />
+                </div>
+
+                <div>
+                  <label className={fieldLabel}>{t('lineGenderCheckLabel')}</label>
+                  <select
+                    className={inputClass}
+                    value={cfg.lines.genderCheck}
+                    onChange={(e) => setLines({ genderCheck: e.target.value as LineGenderCheck })}
+                  >
+                    <option value="none">{t('lineGenderCheckNone')}</option>
+                    {/* Rule B never computes a ratio and the other divisions have none,
+                    so there would be nothing for a line to be checked against. */}
+                    {ratioGenderCheckAvailable(cfg.division, cfg.mixedRule) && (
+                      <option value="gameRatio">{t('lineGenderCheckRatio')}</option>
+                    )}
+                    <option value="fixed">{t('lineGenderCheckFixed')}</option>
+                  </select>
+                  <p className="text-xs text-chalk/50 pt-1">
+                    {t(genderCheckHintKey, genderCheckVars)}
+                  </p>
+                </div>
+
+                {cfg.lines.genderCheck === 'fixed' && (
+                  <div>
+                    <label className={fieldLabel}>{t('lineFixedFemaleLabel')}</label>
+                    <input
+                      {...numberFieldProps(
+                        'lines.fixedFemale',
+                        cfg.lines.fixedFemale,
+                        0,
+                        cfg.lineSize,
+                        (n) => setLines({ fixedFemale: n }),
+                      )}
+                    />
+                    <p className="text-xs text-chalk/50 pt-1">
+                      {t('lineFixedSplit', {
+                        female: cfg.lines.fixedFemale,
+                        male: cfg.lineSize - cfg.lines.fixedFemale,
+                      })}
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        )}
       </Section>
 
       {showRoster && (
@@ -565,6 +739,7 @@ export default function ConfigScreen() {
               players={cfg.players.A}
               onAdd={(number, name) => addPlayer('A', number, name)}
               onRemove={(id) => removePlayer('A', id)}
+              onSetGender={(id, gender) => setGender('A', id, gender)}
               onImport={() => setImportingTeam('A')}
             />
           )}
@@ -574,7 +749,20 @@ export default function ConfigScreen() {
               players={cfg.players.B}
               onAdd={(number, name) => addPlayer('B', number, name)}
               onRemove={(id) => removePlayer('B', id)}
+              onSetGender={(id, gender) => setGender('B', id, gender)}
               onImport={() => setImportingTeam('B')}
+            />
+          )}
+          {/* Lines live with the roster they are made of, and the two are filled in
+              at the same moment — a tournament's squad and its lines are settled
+              together. They can still be named mid-game from the Roster button; this
+              is the door for the ones already known. */}
+          {showLines && cfg.lines.enabled && (
+            <SavedLinesEditor
+              config={cfg}
+              players={cfg.players[cfg.trackedTeam!]}
+              lines={cfg.lines.saved}
+              onChange={setSavedLines}
             />
           )}
         </Section>

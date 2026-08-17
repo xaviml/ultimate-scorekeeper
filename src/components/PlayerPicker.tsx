@@ -7,11 +7,13 @@ import { pillClass } from './ui';
 function PlayerChip({
   player,
   active,
+  showGender,
   onSelect,
   onRemove,
 }: {
   player: PlayerInfo;
   active: boolean;
+  showGender?: boolean;
   onSelect: (id: string | null) => void;
   onRemove?: (id: string) => void;
 }) {
@@ -29,6 +31,14 @@ function PlayerChip({
       {...press}
     >
       {playerLabel(player)}
+      {/* The marking rides on the chip rather than in a second row, because the one
+          place it matters is while a line is being picked against a split — reading
+          it off a legend somewhere else would mean counting twice. */}
+      {showGender && player.gender && (
+        <span className={`ml-1 text-[10px] font-board ${active ? 'opacity-70' : 'text-chalk/50'}`}>
+          {t(player.gender === 'male' ? 'genderMmp' : 'genderFmp')}
+        </span>
+      )}
     </button>
   );
 }
@@ -75,11 +85,14 @@ export function PlayerPicker({
 export function PlayerMultiPicker({
   players,
   selected,
+  showGender,
   onToggle,
   onRemove,
 }: {
   players: PlayerInfo[];
   selected: string[];
+  /** Shows each player's MMP/FMP marking on their chip — see `PlayerChip`. */
+  showGender?: boolean;
   onToggle: (id: string) => void;
   onRemove?: (id: string) => void;
 }) {
@@ -91,6 +104,7 @@ export function PlayerMultiPicker({
           key={p.id}
           player={p}
           active={selected.includes(p.id)}
+          showGender={showGender}
           onSelect={() => onToggle(p.id)}
           onRemove={onRemove}
         />

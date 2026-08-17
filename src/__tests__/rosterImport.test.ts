@@ -122,3 +122,101 @@ describe('isTextRosterFile', () => {
     expect(isTextRosterFile(file('roster.pdf', 'application/pdf'))).toBe(false);
   });
 });
+
+describe('MMP/FMP markings', () => {
+  it('reads a marking after a number and a name', () => {
+    expect(parseRoster('29 Xavi MMP').players[0]).toEqual({
+      number: '29',
+      name: 'Xavi',
+      gender: 'male',
+    });
+  });
+
+  it('reads one after a bare name', () => {
+    expect(parseRoster('Xavi MMP').players[0]).toEqual({
+      number: '',
+      name: 'Xavi',
+      gender: 'male',
+    });
+  });
+
+  it('reads one after a bare number', () => {
+    expect(parseRoster('29 MMP').players[0]).toEqual({
+      number: '29',
+      name: '',
+      gender: 'male',
+    });
+  });
+
+  it('reads FMP too', () => {
+    expect(parseRoster('7 Noa FMP').players[0]).toMatchObject({ gender: 'female' });
+  });
+
+  /**
+   * A marking with nobody attached is not a roster entry, and someone whose name
+   * really is those three letters would otherwise vanish — so a line that is *only*
+   * MMP/FMP is a player called that.
+   */
+  it('treats a line that is only MMP or FMP as a name', () => {
+    expect(parseRoster('MMP').players).toEqual([{ number: '', name: 'MMP' }]);
+    expect(parseRoster('FMP').players).toEqual([{ number: '', name: 'FMP' }]);
+  });
+
+  it('leaves a player with no marking unmarked, rather than guessing', () => {
+    expect(parseRoster('29 Xavi').players[0].gender).toBeUndefined();
+  });
+
+  it('accepts any casing, and the separators a human writes', () => {
+    expect(parseRoster('29 Xavi mmp').players[0]).toMatchObject({ gender: 'male' });
+    expect(parseRoster('29 Xavi, FMP').players[0]).toMatchObject({
+      name: 'Xavi',
+      gender: 'female',
+    });
+    expect(parseRoster('29 Xavi (MMP)').players[0]).toMatchObject({
+      name: 'Xavi',
+      gender: 'male',
+    });
+    // A tab-separated spreadsheet column falls out for free, since a tab is whitespace.
+    expect(parseRoster('29\tXavi\tFMP').players[0]).toMatchObject({
+      name: 'Xavi',
+      gender: 'female',
+    });
+  });
+
+  // Matching the abbreviations exactly, never a leading letter: "Xavi M" is a middle
+  // initial far more often than a marking.
+  it('does not read a bare M or F as a marking', () => {
+    expect(parseRoster('29 Xavi M').players[0]).toEqual({ number: '29', name: 'Xavi M' });
+  });
+
+  it('reads a marking after a trailing number', () => {
+    expect(parseRoster('Xavi #29 MMP').players[0]).toEqual({
+      number: '29',
+      name: 'Xavi',
+      gender: 'male',
+    });
+  });
+
+  it('reads a spreadsheet gender column as a header', () => {
+    const parse = parseRoster('# Name Gender\n29 Xavi MMP');
+    expect(parse.players).toEqual([{ number: '29', name: 'Xavi', gender: 'male' }]);
+    expect(parse.skipped).toBe(0);
+  });
+
+  // The marking is not part of the identity: the same person marked differently in
+  // two rows is one duplicate, not two players.
+  it('does not make a differing marking a second player', () => {
+    const parse = parseRoster('29 Xavi MMP\n29 Xavi FMP');
+    expect(parse.players).toHaveLength(1);
+    expect(parse.players[0].gender).toBe('male');
+  });
+
+  it('carries the marking through applyImport', () => {
+    const result = applyImport([], parseRoster('29 Xavi MMP\n7 Noa FMP\n3 Kim').players, false);
+    expect(result.players).toEqual([
+      { id: expect.any(String), number: '29', name: 'Xavi', gender: 'male' },
+      { id: expect.any(String), number: '7', name: 'Noa', gender: 'female' },
+      { id: expect.any(String), number: '3', name: 'Kim' },
+    ]);
+  });
+});

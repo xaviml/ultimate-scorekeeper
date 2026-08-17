@@ -172,11 +172,14 @@ describe('reportCardModel', () => {
         label: 'Alex',
         color: null,
         unassigned: false,
-        assists: '1',
-        goals: '3',
-        total: '4',
+        // Assists, Goals, Total — the column set for a game with no line tracking.
+        values: ['1', '3', '4'],
       },
     ]);
+    // Three columns are one group, and a row of labels over them would only be
+    // repeating the section title.
+    expect(reportCardModel(state, t, 'en').playerGroups).toBeNull();
+    expect(reportCardModel(state, t, 'en').playerAccent).toBe(2);
   });
 
   // The columns have to add up to the score, so what nobody was named on is
@@ -196,9 +199,7 @@ describe('reportCardModel', () => {
       label: 'Not recorded',
       color: null,
       unassigned: true,
-      assists: '1',
-      goals: '1',
-      total: '2',
+      values: ['1', '1', '2'],
     });
   });
 
@@ -253,5 +254,128 @@ describe('reportCardModel', () => {
     const model = reportCardModel(chatty, t, 'en');
     expect(model).toEqual(reportCardModel(bare, t, 'en'));
     expect(JSON.stringify(model)).not.toContain('wind picked up');
+  });
+});
+
+describe('the card with line tracking on', () => {
+  function lineTrackedState() {
+    const state = baseState();
+    state.config.statsMode = 'team';
+    state.config.trackedTeam = 'A';
+    state.config.trackTurnoverPlayers = true;
+    state.config.lineSize = 2;
+    state.config.lines = { ...state.config.lines, enabled: true };
+    state.config.players = {
+      A: [
+        { id: 'a1', number: '', name: 'Alex' },
+        { id: 'a2', number: '', name: 'Sam' },
+      ],
+      B: [],
+    };
+    state.log = [entry({ team: 'A', scorerId: 'a1', assistId: 'a2' })];
+    state.points = [
+      {
+        scoredBy: 'A',
+        offense: 'A',
+        isBreak: false,
+        durationSeconds: 30,
+        half: 1,
+        turnovers: 0,
+        line: [{ playerId: 'a1' }, { playerId: 'a2' }],
+      },
+    ];
+    return state;
+  }
+
+  // Once lines and turnover players are tracked the card carries every column the
+  // report screen hides behind its pills: an image in a chat cannot be tapped through.
+  it('carries every player column, grouped by the report screen’s views', () => {
+    const model = reportCardModel(lineTrackedState(), t, 'en');
+    expect(model.playerHeader).toEqual([
+      'Player',
+      'Pts',
+      'O',
+      'D',
+      'Won',
+      'Lost',
+      'Assists',
+      'Goals',
+      'Turns',
+      'D',
+    ]);
+    expect(model.playerGroups).toEqual([
+      { label: 'Playing', span: 5 },
+      { label: 'Scoring', span: 2 },
+      { label: 'Possession', span: 2 },
+    ]);
+    expect(model.playerRows[0]).toMatchObject({
+      label: 'Alex',
+      values: ['1', '1', '0', '1', '0', '0', '1', '0', '0'],
+    });
+  });
+
+  // Total is the one column dropped: Goals and Assists are right next to it.
+  it('leaves Total off the grouped card', () => {
+    expect(reportCardModel(lineTrackedState(), t, 'en').playerHeader).not.toContain('Total');
+  });
+
+  // The spans place the group labels, so between them they have to cover the
+  // numeric columns exactly — one short and every label after it sits wrong.
+  it('gives the groups spans that add up to the numeric columns', () => {
+    const model = reportCardModel(lineTrackedState(), t, 'en');
+    const spans = (model.playerGroups ?? []).reduce((total, g) => total + g.span, 0);
+    expect(spans).toBe(model.playerHeader.length - 1);
+  });
+
+  // Amber marks the headline figure, and with the columns grouped the rightmost one
+  // is No D — where it would celebrate the worst number on the card.
+  it('accents points played rather than the last column', () => {
+    expect(reportCardModel(lineTrackedState(), t, 'en').playerAccent).toBe(0);
+  });
+
+  // The drawer measures columns off the header length, so the table has to stay the
+  // same width all the way through the model.
+  it('gives every row exactly one value per numeric heading', () => {
+    const model = reportCardModel(lineTrackedState(), t, 'en');
+    const numeric = model.playerHeader.length - 1;
+    expect(model.playerRows.every((r) => r.values.length === numeric)).toBe(true);
+  });
+});
+
+// Possession is read off the log, not off a line, so it groups onto the card on its
+// own — the same split as the report screen's pills.
+describe('the card with turnover players tracked but no line tracking', () => {
+  function turnoverTrackedState() {
+    const state = baseState();
+    state.config.statsMode = 'player';
+    state.config.trackTurnoverPlayers = true;
+    state.config.players = { A: [{ id: 'a1', number: '', name: 'Alex' }], B: [] };
+    state.log = [
+      entry({ team: 'A', scorerId: 'a1' }),
+      entry({ type: 'turnover', team: 'B', defenseId: 'a1' }),
+    ];
+    return state;
+  }
+
+  it('groups Possession in with Scoring, and leaves Playing out', () => {
+    const model = reportCardModel(turnoverTrackedState(), t, 'en');
+    expect(model.playerHeader).toEqual(['Player', 'Assists', 'Goals', 'Turns', 'D']);
+    expect(model.playerGroups).toEqual([
+      { label: 'Scoring', span: 2 },
+      { label: 'Possession', span: 2 },
+    ]);
+    expect(model.playerRows[0]).toMatchObject({ label: 'Alex', values: ['0', '1', '0', '1'] });
+  });
+
+  // A correction made from LogEditDialog attributes a turnover regardless of the
+  // flag, so the card has to notice the data itself rather than trust the setting.
+  it('groups Possession in even with the flag off, once a turnover is attributed', () => {
+    const state = turnoverTrackedState();
+    state.config.trackTurnoverPlayers = false;
+    const model = reportCardModel(state, t, 'en');
+    expect(model.playerGroups).toEqual([
+      { label: 'Scoring', span: 2 },
+      { label: 'Possession', span: 2 },
+    ]);
   });
 });

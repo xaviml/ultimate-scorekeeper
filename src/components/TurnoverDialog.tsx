@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useT, type TFunc } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import { playerTrackingFor } from '../state/gameReducer';
+import { playersOnField } from '../state/lines';
 import type { TeamId } from '../state/types';
 import { PlayerSelectDialog, type PlayerSelectSection } from './PlayerSelectDialog';
 
@@ -49,12 +50,20 @@ export function TurnoverDialog({ attacking, onClose }: { attacking: TeamId; onCl
     onClose();
   };
 
+  // Only whoever is on the field right now can lose the disc or force a turnover, so
+  // this is `line` and not `pointLine`: a player a substitution has already taken off
+  // is out of the point and out of the picker.
+  const onField = state.line;
+  const eligible = (team: TeamId) =>
+    playersOnField(state.config, team, state.config.players[team], onField);
+
   const sections: PlayerSelectSection[] = [
     ...(playerTrackingFor(state.config, attacking)
       ? [
           {
             team: attacking,
             label: teamLedLabel(t, 'whoTurnedOver', state.config.teams[attacking].name),
+            players: eligible(attacking),
             selected: turnoverId,
             onSelect: setTurnoverId,
           } as const,
@@ -65,6 +74,7 @@ export function TurnoverDialog({ attacking, onClose }: { attacking: TeamId; onCl
           {
             team: defending,
             label: teamLedLabel(t, 'whoDefended', state.config.teams[defending].name),
+            players: eligible(defending),
             selected: defenseId,
             onSelect: setDefenseId,
           } as const,

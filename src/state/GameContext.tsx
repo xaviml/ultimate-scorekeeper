@@ -5,6 +5,7 @@ import { useAssistQueue } from '../hooks/useAssistQueue';
 import { whistle } from '../audio/whistle';
 import { currentWhistle } from './whistleSignal';
 import { loadPersistedState, persistState } from './persistence';
+import { lineTeam } from './lines';
 import { saveTeam } from './rosterStorage';
 
 export function GameProvider({ children }: { children: ReactNode }) {
@@ -38,11 +39,27 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // config.teams/config.players change also covers mid-game roster edits
   // (the Players dialog dispatches ADD_PLAYER/REMOVE_PLAYER through the
   // reducer into state.config.players).
+  // The line team's predefined lines ride along, so a team named for the first time
+  // on this screen still gets its lines stored — ConfigScreen can only write them
+  // through for a team already in the store, and this is where a new one is created.
+  // Passed only for that team: an absent `lines` means "not mine to touch", which is
+  // what keeps the other team's from being wiped (see saveTeam).
+  const lineTracked = lineTeam(state.config);
+  const savedLines = state.config.lines.saved;
   useEffect(() => {
     if (state.phase !== 'game') return;
-    saveTeam({ ...state.config.teams.A, players: state.config.players.A });
-    saveTeam({ ...state.config.teams.B, players: state.config.players.B });
-  }, [state.phase, state.config.teams, state.config.players]);
+    const lines = savedLines;
+    saveTeam({
+      ...state.config.teams.A,
+      players: state.config.players.A,
+      ...(lineTracked === 'A' ? { lines } : {}),
+    });
+    saveTeam({
+      ...state.config.teams.B,
+      players: state.config.players.B,
+      ...(lineTracked === 'B' ? { lines } : {}),
+    });
+  }, [state.phase, state.config.teams, state.config.players, lineTracked, savedLines]);
 
   // Warn before closing/refreshing while configuring or mid-game — sessionStorage
   // means a closed tab can't be recovered, so this is the only guard against

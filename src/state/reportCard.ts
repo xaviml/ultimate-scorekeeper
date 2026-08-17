@@ -13,8 +13,16 @@
  * as an image). The log stays in the copied plain text.
  */
 import type { Lang, TFunc } from '../i18n/useT';
-import { statsTrackingEnabled } from './gameReducer';
-import { formatClock, playerStatLines, possessionTopShare, teamStats } from './stats';
+import { statsTrackingEnabled, turnoverPlayersTracked } from './gameReducer';
+import { playerStatColumns, statCellText } from '../components/playerStatColumns';
+import { lineTrackingEnabled } from './lines';
+import {
+  formatClock,
+  playerStatLines,
+  possessionTopShare,
+  sortPlayerStatLines,
+  teamStats,
+} from './stats';
 import type { GameConfig, GameState, TeamId } from './types';
 
 export interface StatRow {
@@ -29,9 +37,13 @@ export interface CardPlayerRow {
   color: string | null;
   /** The per-team aggregate of unrecorded scorers and assists — drawn dimmed, since it names nobody. */
   unassigned: boolean;
-  assists: string;
-  goals: string;
-  total: string;
+  /**
+   * The numeric cells, already formatted, in the same order as `playerHeader`'s
+   * numeric columns. A list rather than named fields because which columns the card
+   * carries depends on the game (see `reportCardModel`), and the drawer derives its
+   * column positions from how many there are.
+   */
+  values: string[];
 }
 
 export interface CardLedgerColumn {
@@ -71,7 +83,27 @@ export interface ReportCardModel {
    */
   ledger: CardLedgerModel | null;
   playerTitle: string;
-  playerHeader: [string, string, string, string];
+  /**
+   * The player column, then one heading per numeric column. Always at least two
+   * entries; the drawer measures each numeric column and grows the card to fit, so
+   * this is what decides the table's shape rather than any hardcoded offset.
+   */
+  playerHeader: string[];
+  /**
+   * Labels over runs of numeric columns, in column order, or null for a table that
+   * is one group and would only be repeating itself. Nine columns of two-letter
+   * headings is a wall of numbers; the same nine under Playing / Scoring / Possession
+   * is three things a reader can take in one at a time — which is the whole
+   * difference between a card that gets read in a team chat and one that doesn't.
+   * `span` counts numeric columns, and the spans must cover them all exactly.
+   */
+  playerGroups: { label: string; span: number }[] | null;
+  /**
+   * Which numeric column carries the row's headline figure, drawn in `signal`, or
+   * null for none. The index rather than "the last one": grouped, the rightmost is
+   * whatever Possession happens to end on, which is nobody's headline.
+   */
+  playerAccent: number | null;
   playerRows: CardPlayerRow[];
 }
 
@@ -187,6 +219,46 @@ function metaSegments(state: GameState, t: TFunc, lang: Lang): string[] {
 export function reportCardModel(state: GameState, t: TFunc, lang: Lang): ReportCardModel {
   const teams = state.config.teams;
   const showTeamColors = state.config.statsMode === 'player';
+  // With either extra view active the card carries **every** player column the
+  // report screen offers behind its pills, grouped under those same names — the
+  // screen splits them because a phone is 360px wide, and an image being read in a
+  // chat has no such excuse for making the reader tap through them. Playing needs
+  // line tracking (its columns come off `PointRecord.line`); Possession needs only
+  // "Ask who turned it over" and is otherwise independent of it — see
+  // ReportScreen's identical split. With neither on, the scoring columns are all
+  // there is, so the card stays exactly what it has always been: three columns and
+  // no group row to explain.
+  //
+  // The columns are the screen's own, and the cells go through its `statCellText`, so
+  // the card cannot disagree with the table about what a figure is — including which
+  // ones are dashes because nobody was ever named.
+  const playerLines = playerStatLines(state, playerStatsTeams(state.config), t);
+  const showPlaying = lineTrackingEnabled(state.config);
+  // The config flag is the normal reason Possession has anything to show, but
+  // `LogEditDialog` can attribute a turnover as a correction whatever the flag
+  // says (see CLAUDE.md) — so a game that turned it on only after the fact, or
+  // never at all, still gets the view the moment a turn or a D is actually named.
+  const showPossession =
+    turnoverPlayersTracked(state.config) ||
+    playerLines.some((p) => !p.unassigned && (p.turns > 0 || p.defenses > 0));
+  const groups =
+    showPlaying || showPossession
+      ? [
+          ...(showPlaying
+            ? [{ label: t('viewPlaying'), columns: playerStatColumns('playing') }]
+            : []),
+          // Total is the one column the card drops: with Goals and Assists side by
+          // side it is arithmetic, and the card is short of width, not of readers.
+          {
+            label: t('viewScoring'),
+            columns: playerStatColumns('scoring').filter((c) => c.key !== 'colTotal'),
+          },
+          ...(showPossession
+            ? [{ label: t('viewPossession'), columns: playerStatColumns('possession') }]
+            : []),
+        ]
+      : null;
+  const columns = groups ? groups.flatMap((g) => g.columns) : playerStatColumns('scoring');
 
   return {
     meta: metaSegments(state, t, lang),
@@ -199,14 +271,21 @@ export function reportCardModel(state: GameState, t: TFunc, lang: Lang): ReportC
     statRows: teamStatRows(state, t),
     ledger: ledgerModel(state, t),
     playerTitle: t('playerStatsTitle'),
-    playerHeader: [t('colPlayer'), t('colAssists'), t('colGoals'), t('colTotal')],
-    playerRows: playerStatLines(state, playerStatsTeams(state.config), t).map((p) => ({
+    playerHeader: [t('colPlayer'), ...columns.map((c) => t(c.key))],
+    playerGroups: groups?.map((g) => ({ label: g.label, span: g.columns.length })) ?? null,
+    // Points played with lines on — it is the first column, the order the rows are in
+    // and the question the whole feature was added to answer. Otherwise the last
+    // column, same as ever: Total when nothing else is grouped in, or Possession's
+    // final column when that is the only extra view.
+    playerAccent: showPlaying ? 0 : columns.length - 1,
+    playerRows: sortPlayerStatLines(
+      playerLines,
+      showPlaying ? 'playing' : showPossession ? 'possession' : 'scoring',
+    ).map((p) => ({
       label: p.label,
       color: showTeamColors ? teams[p.team].color : null,
       unassigned: p.unassigned === true,
-      assists: String(p.assists),
-      goals: String(p.goals),
-      total: String(p.total),
+      values: columns.map((c) => statCellText(c, p)),
     })),
   };
 }

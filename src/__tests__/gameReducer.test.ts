@@ -6,6 +6,7 @@ import {
   canTurnover,
   canUndo,
   canUndoTurnover,
+  canSetLine,
   canWaterBreak,
   capTargetOptions,
   createInitialState,
@@ -2415,5 +2416,300 @@ describe('possession seconds per point', () => {
 
     s = gameReducer(s, { type: 'GOAL', team: 'A' });
     expect(s.points[0].possessionSeconds).toBeUndefined();
+  });
+});
+
+describe('line tracking', () => {
+  /** Seven plus two spares, so a substitution has somebody to bring on. */
+  const roster = [
+    { id: 'p1', number: '1', name: 'One', gender: 'female' as const },
+    { id: 'p2', number: '2', name: 'Two', gender: 'female' as const },
+    { id: 'p3', number: '3', name: 'Three', gender: 'female' as const },
+    { id: 'p4', number: '4', name: 'Four', gender: 'male' as const },
+    { id: 'p5', number: '5', name: 'Five', gender: 'male' as const },
+    { id: 'p6', number: '6', name: 'Six', gender: 'male' as const },
+    { id: 'p7', number: '7', name: 'Seven', gender: 'male' as const },
+    { id: 'p8', number: '8', name: 'Eight', gender: 'male' as const },
+    { id: 'p9', number: '9', name: 'Nine', gender: 'female' as const },
+  ];
+  const SEVEN = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7'];
+
+  const lineCfg = (patch: Partial<GameConfig> = {}): GameConfig =>
+    cfg({
+      statsMode: 'team',
+      trackedTeam: 'A',
+      lines: { ...defaultConfig.lines, enabled: true },
+      players: { A: roster, B: [] },
+      ...patch,
+    });
+
+  it('is off unless the stats mode is team with a tracked team', () => {
+    // The flag alone is not the gate: line tracking follows the one roster `team`
+    // mode watches, so every other mode retires it without the flag being cleared.
+    expect(canSetLine(started(lineCfg())).ok).toBe(true);
+    expect(canSetLine(started(lineCfg({ statsMode: 'player', trackedTeam: null }))).reason).toBe(
+      'lineNotTracked',
+    );
+    expect(canSetLine(started(lineCfg({ statsMode: 'none', trackedTeam: null }))).reason).toBe(
+      'lineNotTracked',
+    );
+    expect(canSetLine(started(lineCfg({ trackedTeam: null }))).reason).toBe('lineNotTracked');
+    expect(
+      canSetLine(started(lineCfg({ lines: { ...defaultConfig.lines, enabled: false } }))).reason,
+    ).toBe('lineNotTracked');
+  });
+
+  it('records the line registered between points onto the point', () => {
+    let s = started(lineCfg());
+    s = gameReducer(s, { type: 'SET_LINE', playerIds: SEVEN });
+    expect(s.line).toEqual(SEVEN);
+    expect(s.pointLine.map((p) => p.playerId)).toEqual(SEVEN);
+    // Registered before the pull, so nobody is a substitution.
+    expect(s.pointLine.every((p) => p.sub === undefined)).toBe(true);
+    s = run(s, { type: 'PULL_THROWN' }, { type: 'GOAL', team: 'A' });
+    expect(s.points[0].line?.map((p) => p.playerId)).toEqual(SEVEN);
+  });
+
+  /**
+   * The other half of a substitution. `off` is about *when*, never *whether*: the
+   * player still played part of the point and still counts in every stat — the flag is
+   * what stops the player pickers offering somebody who is no longer out there.
+   */
+  it('flags whoever came off, and clears it if they come back on', () => {
+    let s = run(
+      started(lineCfg()),
+      { type: 'SET_LINE', playerIds: SEVEN },
+      { type: 'PULL_THROWN' },
+    );
+    s = gameReducer(s, { type: 'SET_LINE', playerIds: [...SEVEN.slice(0, 6), 'p8'] });
+    expect(s.pointLine.find((p) => p.playerId === 'p7')?.off).toBe(true);
+    expect(s.pointLine.find((p) => p.playerId === 'p8')).toEqual({ playerId: 'p8', sub: true });
+
+    // p7 is patched up and comes back on for p8.
+    s = gameReducer(s, { type: 'SET_LINE', playerIds: SEVEN });
+    expect(s.pointLine.find((p) => p.playerId === 'p7')?.off).toBeUndefined();
+    expect(s.pointLine.find((p) => p.playerId === 'p8')?.off).toBe(true);
+    // Still flagged as having come on mid-point, which is also still true.
+    expect(s.pointLine.find((p) => p.playerId === 'p8')?.sub).toBe(true);
+  });
+
+  /**
+   * Between points nobody has taken the field yet, so a registration replaces rather
+   * than merges — a player pencilled in and then taken out never played, and recording
+   * them as having done so would credit a point to somebody who sat it out.
+   */
+  it('replaces rather than merges while the disc is dead', () => {
+    let s = run(started(lineCfg()), { type: 'SET_LINE', playerIds: SEVEN });
+    s = gameReducer(s, { type: 'SET_LINE', playerIds: [...SEVEN.slice(0, 6), 'p8'] });
+    expect(s.pointLine.map((p) => p.playerId)).toEqual([...SEVEN.slice(0, 6), 'p8']);
+    expect(s.pointLine.every((p) => p.sub === undefined && p.off === undefined)).toBe(true);
+  });
+
+  it('flags a mid-point change as a substitution and keeps whoever came off', () => {
+    let s = run(
+      started(lineCfg()),
+      { type: 'SET_LINE', playerIds: SEVEN },
+      { type: 'PULL_THROWN' },
+    );
+    // p7 rolls an ankle and p8 comes on.
+    s = gameReducer(s, { type: 'SET_LINE', playerIds: [...SEVEN.slice(0, 6), 'p8'] });
+    expect(s.line).toEqual([...SEVEN.slice(0, 6), 'p8']);
+    // p7 was on the field for this point, so the record keeps them.
+    expect(s.pointLine.map((p) => p.playerId)).toEqual([...SEVEN, 'p8']);
+    expect(s.pointLine.find((p) => p.playerId === 'p8')?.sub).toBe(true);
+    expect(s.pointLine.find((p) => p.playerId === 'p7')?.sub).toBeUndefined();
+    s = gameReducer(s, { type: 'GOAL', team: 'A' });
+    expect(s.points[0].line).toHaveLength(8);
+    expect(s.points[0].line?.filter((p) => p.sub)).toHaveLength(1);
+  });
+
+  // The volunteer catching up mid-point is registering the line, not seven subs.
+  it('does not flag a first registration made mid-point as substitutions', () => {
+    let s = run(started(lineCfg()), { type: 'PULL_THROWN' });
+    s = gameReducer(s, { type: 'SET_LINE', playerIds: SEVEN });
+    expect(s.pointLine.every((p) => p.sub === undefined)).toBe(true);
+  });
+
+  it('carries nothing over to the next point', () => {
+    const s = run(
+      started(lineCfg()),
+      { type: 'SET_LINE', playerIds: SEVEN },
+      { type: 'PULL_THROWN' },
+      { type: 'GOAL', team: 'A' },
+    );
+    // In Ultimate the line changes nearly every point: leaving the last one in
+    // force would silently credit the wrong seven.
+    expect(s.line).toEqual([]);
+    expect(s.pointLine).toEqual([]);
+    expect(s.lineName).toBeNull();
+  });
+
+  it('consumes a pre-registered next line at the goal', () => {
+    let s = run(
+      started(lineCfg()),
+      { type: 'SET_LINE', playerIds: SEVEN },
+      { type: 'PULL_THROWN' },
+    );
+    s = gameReducer(s, {
+      type: 'SET_NEXT_LINE',
+      playerIds: ['p1', 'p2', 'p8', 'p9'],
+      lineName: 'D1',
+    });
+    // Pre-registering must not disturb the point being played.
+    expect(s.line).toEqual(SEVEN);
+    s = gameReducer(s, { type: 'GOAL', team: 'A' });
+    expect(s.line).toEqual(['p1', 'p2', 'p8', 'p9']);
+    expect(s.pointLine.map((p) => p.playerId)).toEqual(['p1', 'p2', 'p8', 'p9']);
+    expect(s.lineName).toBe('D1');
+    expect(s.nextLine).toBeNull();
+    expect(s.points[0].line).toHaveLength(7);
+  });
+
+  it('only pre-registers a next line while the disc is live', () => {
+    // Between points, the gap the volunteer is standing in IS the next point.
+    const s = started(lineCfg());
+    expect(canSetLine(s, { next: true }).reason).toBe('lineNextNotNow');
+    expect(gameReducer(s, { type: 'SET_NEXT_LINE', playerIds: SEVEN }).nextLine).toBeNull();
+  });
+
+  // A substitution after an injury is the case the sub flag exists for, so the
+  // stoppage that brought the sub on must not be what closes the door.
+  it('stays open during a stoppage, a timeout and half-time', () => {
+    let s = run(
+      started(lineCfg()),
+      { type: 'SET_LINE', playerIds: SEVEN },
+      { type: 'PULL_THROWN' },
+    );
+    s = gameReducer(s, { type: 'STOPPAGE', kind: 'injury', team: 'A' });
+    expect(canSetLine(s).ok).toBe(true);
+    s = gameReducer(s, { type: 'SET_LINE', playerIds: [...SEVEN.slice(0, 6), 'p8'] });
+    expect(s.line).toContain('p8');
+    s = gameReducer(s, { type: 'STOPPAGE_RESOLVED' });
+    s = gameReducer(s, { type: 'TIMEOUT_START', team: 'A' });
+    expect(canSetLine(s).ok).toBe(true);
+  });
+
+  it('is closed on the setup screen and once the game has finished', () => {
+    const config = lineCfg();
+    // Still on the config screen: there is no game to register a line for.
+    expect(canSetLine(createInitialState(config)).reason).toBe('gameNotStarted');
+    let s = live(lineCfg({ targetScore: 1 }));
+    s = gameReducer(s, { type: 'GOAL', team: 'A' });
+    expect(s.status).toBe('finished');
+    expect(canSetLine(s).reason).toBe('gameFinished');
+  });
+
+  /**
+   * The first point's line is decided in the same gap as every other one — while the
+   * teams line up — so the dashboard has to take it before the pull is even possible.
+   * Without this, point one was the one point nobody could register.
+   */
+  it('is open before the game starts, and the line survives to the first pull', () => {
+    const config = lineCfg();
+    let s = gameReducer(createInitialState(config), { type: 'START_GAME', config });
+    expect(s.status).toBe('notStarted');
+    expect(canSetLine(s).ok).toBe(true);
+
+    s = gameReducer(s, { type: 'SET_LINE', playerIds: SEVEN });
+    expect(s.line).toEqual(SEVEN);
+    // Nothing between here and the goal disturbs it.
+    s = run(s, { type: 'BEGIN_PLAY' }, { type: 'PULL_THROWN' });
+    expect(s.line).toEqual(SEVEN);
+    s = gameReducer(s, { type: 'GOAL', team: 'A' });
+    expect(s.points[0].line?.map((p) => p.playerId)).toEqual(SEVEN);
+    // Registered before the pull, so nobody is a substitution.
+    expect(s.points[0].line?.every((p) => p.sub === undefined)).toBe(true);
+  });
+
+  it('is open while a scheduled kickoff is still ahead', () => {
+    // Built directly rather than through a scheduled starting time: "HH:MM today" has
+    // no value that is reliably in the future, so a literal would fail near midnight.
+    const config = lineCfg();
+    const base = gameReducer(createInitialState(config), { type: 'START_GAME', config });
+    const s: GameState = { ...base, status: 'awaitingStart' };
+    expect(canSetLine(s).ok).toBe(true);
+    expect(gameReducer(s, { type: 'SET_LINE', playerIds: SEVEN }).line).toEqual(SEVEN);
+  });
+
+  // There is no point after the one about to be played until it is being played.
+  it('still refuses a next line before the game starts', () => {
+    const config = lineCfg();
+    const s = gameReducer(createInitialState(config), { type: 'START_GAME', config });
+    expect(canSetLine(s, { next: true }).reason).toBe('lineNextNotNow');
+  });
+
+  it('records the line of a game-winning point', () => {
+    // The PointRecord is appended before GOAL's finishGame() returns, so the last
+    // point of a game must not be the one that loses its line.
+    let s = live(lineCfg({ targetScore: 1 }));
+    s = run(s, { type: 'SET_LINE', playerIds: SEVEN }, { type: 'GOAL', team: 'A' });
+    expect(s.status).toBe('finished');
+    expect(s.points[0].line).toHaveLength(7);
+  });
+
+  it('leaves the point without a line when none was registered', () => {
+    // Absent rather than empty: the report has to be able to say how many points
+    // went unrecorded, which an empty list cannot be told apart from.
+    const s = run(live(lineCfg()), { type: 'GOAL', team: 'A' });
+    expect(s.points[0].line).toBeUndefined();
+    expect(s.points[0].lineName).toBeUndefined();
+  });
+
+  it('records no line at all when tracking is off', () => {
+    const s = run(
+      live(lineCfg({ lines: { ...defaultConfig.lines, enabled: false } })),
+      { type: 'SET_LINE', playerIds: SEVEN },
+      { type: 'GOAL', team: 'A' },
+    );
+    expect(s.points[0].line).toBeUndefined();
+  });
+
+  it('restores every line field when the goal is undone', () => {
+    let s = run(
+      started(lineCfg()),
+      { type: 'SET_LINE', playerIds: SEVEN },
+      { type: 'PULL_THROWN' },
+    );
+    s = gameReducer(s, { type: 'SET_NEXT_LINE', playerIds: ['p8', 'p9'], lineName: 'D1' });
+    s = gameReducer(s, { type: 'GOAL', team: 'A' });
+    s = gameReducer(s, { type: 'UNDO_GOAL', team: 'A' });
+    expect(s.line).toEqual(SEVEN);
+    expect(s.pointLine.map((p) => p.playerId)).toEqual(SEVEN);
+    expect(s.nextLine).toEqual({ playerIds: ['p8', 'p9'], name: 'D1' });
+    // The sliced PointRecord took its own copy away with it.
+    expect(s.points).toHaveLength(0);
+  });
+
+  it('takes a removed player off the field as well as off the roster', () => {
+    let s = run(
+      started(lineCfg()),
+      { type: 'SET_LINE', playerIds: SEVEN },
+      { type: 'PULL_THROWN' },
+    );
+    s = gameReducer(s, { type: 'SET_NEXT_LINE', playerIds: ['p7', 'p8'] });
+    s = gameReducer(s, { type: 'REMOVE_PLAYER', team: 'A', id: 'p7' });
+    expect(s.line).not.toContain('p7');
+    expect(s.pointLine.map((p) => p.playerId)).not.toContain('p7');
+    expect(s.nextLine?.playerIds).toEqual(['p8']);
+  });
+
+  it('never counts the same player twice in one line', () => {
+    const s = gameReducer(started(lineCfg()), {
+      type: 'SET_LINE',
+      playerIds: ['p1', 'p1', 'p2'],
+    });
+    expect(s.line).toEqual(['p1', 'p2']);
+  });
+
+  it('marks a roster player MMP or FMP, and unmarks them again', () => {
+    let s = gameReducer(started(lineCfg()), {
+      type: 'SET_PLAYER_GENDER',
+      team: 'A',
+      id: 'p1',
+      gender: 'male',
+    });
+    expect(s.config.players.A[0].gender).toBe('male');
+    s = gameReducer(s, { type: 'SET_PLAYER_GENDER', team: 'A', id: 'p1', gender: null });
+    expect(s.config.players.A[0].gender).toBeUndefined();
   });
 });

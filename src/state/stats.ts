@@ -1,4 +1,5 @@
 import type { TFunc } from '../i18n/useT';
+import { lineTeam } from './lines';
 import type { GameState, LogEntry, LogType, PlayerInfo, PointRecord, TeamId } from './types';
 
 export interface TeamStats {
@@ -92,9 +93,52 @@ export interface PlayerStatLine {
   goals: number;
   assists: number;
   total: number; // goals + assists
+  /**
+   * Points this player took the field for, from `PointRecord.line`. Zero for every
+   * line when line tracking is off, which is what collapses the table back to the
+   * scoring columns it has always had.
+   */
+  pointsPlayed: number;
+  /** Of `pointsPlayed`, the ones their team received the pull for (O) and pulled (D). */
+  oPoints: number;
+  dPoints: number;
+  /** Points played that their team won, and won from defence. */
+  holds: number;
+  breaks: number;
+  /** Points played won minus points played lost. */
+  plusMinus: number;
+  /** Turnovers attributed to this player, from the log's `turnoverId`. */
+  turns: number;
+  /**
+   * Whether `turns` means anything for this row's team. False when the team turned
+   * the disc over but no turnover was ever attributed to a player — `trackTurnoverPlayers`
+   * off, most often — where a column of zeroes would read as a roster that never lost
+   * the disc rather than as an unasked question. A team with no turnovers at all is
+   * recorded, not unknown: nobody turned it over, and zero is the answer.
+   *
+   * True on the aggregate line whatever the team: its `turns` is the count of
+   * turnovers nobody was named on, which is exactly the figure that is missing from
+   * the players above.
+   */
+  turnsRecorded: boolean;
+  /**
+   * Turnovers this player forced, from the log's `defenseId` — the blocks and the
+   * marks that ran the stall out. The entry belongs to the team that *lost* the
+   * disc, so a defence is counted against the other roster (see `turnoverPlayersDetail`).
+   */
+  defenses: number;
+  /** As `turnsRecorded`, for the defence half of the same question. */
+  defensesRecorded: boolean;
+  /** Break chances while on the field — the same ceil(turnovers / 2) as `teamStats`. */
+  breakChances: number;
+  /** Predefined lines this player appeared in, by name, with how many points each. */
+  lines: { name: string; points: number }[];
   /** The per-team aggregate of everything nobody was named on — see `playerStatLines`. */
   unassigned?: boolean;
 }
+
+/** The three column groups the report offers behind pills — see `sortPlayerStatLines`. */
+export type PlayerStatView = 'scoring' | 'playing' | 'possession';
 
 /**
  * One line per player who has scored or assisted at least once, across the
@@ -106,9 +150,9 @@ export interface PlayerStatLine {
  *
  * Naming a player is always optional, so the columns would otherwise quietly
  * fail to add up to the score. Each team therefore gets one **aggregate line**
- * pinned below the named players, counting the goals with no scorer and the
- * goals with no assist — the report says how much went unrecorded rather than
- * dropping it. Three things about it are deliberate:
+ * pinned below the named players, counting the goals with no scorer, the goals
+ * with no assist and the turnovers with no thrower — the report says how much went
+ * unrecorded rather than dropping it. Three things about it are deliberate:
  *
  * - **A Callahan is not unrecorded.** `callahan` on the entry is an answer to
  *   "who assisted?" — nobody, by the rules — so it is skipped rather than
@@ -119,45 +163,159 @@ export interface PlayerStatLine {
  *   the whole table and it says nothing the score doesn't already — the callers
  *   hide the section on an empty result, so the line has to not be the thing
  *   that makes it non-empty.
+ *
+ * With line tracking on (see lines.ts) the same table also carries who was on the
+ * field, read off `PointRecord.line`. That widens two things. A player who took ten
+ * points without scoring now gets a row — the inclusion test is "did anything happen
+ * involving this player", not "did they score" — and the aggregate additionally
+ * counts the **points with no line recorded**, so the points column adds up to the
+ * game instead of quietly under-reporting the ones nobody registered. With line
+ * tracking off no point carries a `line`, so every one of those fields is zero, the
+ * inclusion test collapses back to goals-or-assists, and the table is exactly what
+ * it has always been.
  */
 export function playerStatLines(state: GameState, teams: TeamId[], t: TFunc): PlayerStatLine[] {
-  const counts = new Map<
-    string,
-    { team: TeamId; playerId: string; goals: number; assists: number }
-  >();
-  const unnamed = new Map<TeamId, { goals: number; assists: number }>();
-  const bump = (team: TeamId, playerId: string, field: 'goals' | 'assists') => {
-    const key = `${team}:${playerId}`;
-    const cur = counts.get(key) ?? { team, playerId, goals: 0, assists: 0 };
-    cur[field] += 1;
-    counts.set(key, cur);
+  type Acc = {
+    team: TeamId;
+    playerId: string;
+    goals: number;
+    assists: number;
+    pointsPlayed: number;
+    oPoints: number;
+    dPoints: number;
+    holds: number;
+    breaks: number;
+    plusMinus: number;
+    turns: number;
+    defenses: number;
+    breakChances: number;
+    lines: Map<string, number>;
   };
-  const bumpUnnamed = (team: TeamId, field: 'goals' | 'assists') => {
-    const cur = unnamed.get(team) ?? { goals: 0, assists: 0 };
+  const counts = new Map<string, Acc>();
+  const unnamed = new Map<
+    TeamId,
+    { goals: number; assists: number; pointsPlayed: number; turns: number; defenses: number }
+  >();
+  /** Turnovers that did name a player, per team — see `PlayerStatLine.turnsRecorded`. */
+  const namedTurns = new Map<TeamId, number>();
+  const namedDefenses = new Map<TeamId, number>();
+  const acc = (team: TeamId, playerId: string): Acc => {
+    const key = `${team}:${playerId}`;
+    const cur: Acc = counts.get(key) ?? {
+      team,
+      playerId,
+      goals: 0,
+      assists: 0,
+      pointsPlayed: 0,
+      oPoints: 0,
+      dPoints: 0,
+      holds: 0,
+      breaks: 0,
+      plusMinus: 0,
+      turns: 0,
+      defenses: 0,
+      breakChances: 0,
+      lines: new Map(),
+    };
+    counts.set(key, cur);
+    return cur;
+  };
+  const bumpUnnamed = (
+    team: TeamId,
+    field: 'goals' | 'assists' | 'pointsPlayed' | 'turns' | 'defenses',
+  ) => {
+    const cur = unnamed.get(team) ?? {
+      goals: 0,
+      assists: 0,
+      pointsPlayed: 0,
+      turns: 0,
+      defenses: 0,
+    };
     cur[field] += 1;
     unnamed.set(team, cur);
   };
+  const turnsRecordedFor = (team: TeamId) =>
+    (namedTurns.get(team) ?? 0) > 0 || (unnamed.get(team)?.turns ?? 0) === 0;
+  const defensesRecordedFor = (team: TeamId) =>
+    (namedDefenses.get(team) ?? 0) > 0 || (unnamed.get(team)?.defenses ?? 0) === 0;
   for (const e of state.log) {
-    if (e.type !== 'goal' || !e.team || !teams.includes(e.team)) continue;
-    if (e.scorerId) bump(e.team, e.scorerId, 'goals');
-    else bumpUnnamed(e.team, 'goals');
-    if (e.assistId) bump(e.team, e.assistId, 'assists');
-    else if (!e.callahan) bumpUnnamed(e.team, 'assists');
+    if (e.type === 'goal' && e.team && teams.includes(e.team)) {
+      if (e.scorerId) acc(e.team, e.scorerId).goals += 1;
+      else bumpUnnamed(e.team, 'goals');
+      if (e.assistId) acc(e.team, e.assistId).assists += 1;
+      else if (!e.callahan) bumpUnnamed(e.team, 'assists');
+    }
+    // A turnover's team is the side that lost the disc, which is who `turnoverId`
+    // belongs to; `defenseId` is the player who forced it and therefore belongs to
+    // the *other* roster — one entry feeds a turn on one side and a D on the other.
+    // An unattributed half goes to the aggregate, same as an unattributed goal, and a
+    // team with none attributed at all is what `turnsRecorded`/`defensesRecorded` report.
+    if (e.type === 'turnover' && e.team) {
+      const defending: TeamId = e.team === 'A' ? 'B' : 'A';
+      if (teams.includes(e.team)) {
+        if (e.turnoverId) {
+          acc(e.team, e.turnoverId).turns += 1;
+          namedTurns.set(e.team, (namedTurns.get(e.team) ?? 0) + 1);
+        } else {
+          bumpUnnamed(e.team, 'turns');
+        }
+      }
+      if (teams.includes(defending)) {
+        if (e.defenseId) {
+          acc(defending, e.defenseId).defenses += 1;
+          namedDefenses.set(defending, (namedDefenses.get(defending) ?? 0) + 1);
+        } else {
+          bumpUnnamed(defending, 'defenses');
+        }
+      }
+    }
   }
-  const lines = [...counts.values()].map(({ team, playerId, goals, assists }) => ({
-    team,
-    playerId,
-    label: playerLabel(findPlayer(state.config.players[team], playerId)),
-    goals,
-    assists,
-    total: goals + assists,
+
+  // Line tracking follows one team, so a point's `line` belongs to `trackedTeam`.
+  // Points recorded before it was switched on carry no `line` at all and fall to the
+  // aggregate, which is exactly how an unregistered point should read.
+  const tracked = lineTeam(state.config);
+  if (tracked && teams.includes(tracked)) {
+    for (const p of state.points) {
+      if (!p.line || p.line.length === 0) {
+        bumpUnnamed(tracked, 'pointsPlayed');
+        continue;
+      }
+      const onOffense = p.offense === tracked;
+      const won = p.scoredBy === tracked;
+      const chances = onOffense ? 0 : Math.ceil(p.turnovers / 2);
+      for (const { playerId } of p.line) {
+        const a = acc(tracked, playerId);
+        a.pointsPlayed += 1;
+        if (onOffense) a.oPoints += 1;
+        else a.dPoints += 1;
+        if (won) {
+          if (onOffense) a.holds += 1;
+          else a.breaks += 1;
+        }
+        a.plusMinus += won ? 1 : -1;
+        a.breakChances += chances;
+        if (p.lineName) a.lines.set(p.lineName, (a.lines.get(p.lineName) ?? 0) + 1);
+      }
+    }
+  }
+
+  const lines: PlayerStatLine[] = [...counts.values()].map(({ lines: named, ...rest }) => ({
+    ...rest,
+    label: playerLabel(findPlayer(state.config.players[rest.team], rest.playerId)),
+    total: rest.goals + rest.assists,
+    turnsRecorded: turnsRecordedFor(rest.team),
+    defensesRecorded: defensesRecordedFor(rest.team),
+    lines: [...named.entries()]
+      .map(([name, points]) => ({ name, points }))
+      .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name)),
   }));
   if (lines.length === 0) return [];
-  lines.sort((a, b) => b.total - a.total || b.goals - a.goals || a.label.localeCompare(b.label));
+  const sorted = sortPlayerStatLines(lines, 'scoring');
 
-  const aggregates = teams.flatMap((team) => {
+  const aggregates: PlayerStatLine[] = teams.flatMap((team) => {
     const u = unnamed.get(team);
-    if (!u || u.goals + u.assists === 0) return [];
+    if (!u || u.goals + u.assists + u.pointsPlayed + u.turns + u.defenses === 0) return [];
     return [
       {
         team,
@@ -166,11 +324,54 @@ export function playerStatLines(state: GameState, teams: TeamId[], t: TFunc): Pl
         goals: u.goals,
         assists: u.assists,
         total: u.goals + u.assists,
+        pointsPlayed: u.pointsPlayed,
+        oPoints: 0,
+        dPoints: 0,
+        holds: 0,
+        breaks: 0,
+        plusMinus: 0,
+        turns: u.turns,
+        turnsRecorded: true,
+        defenses: u.defenses,
+        defensesRecorded: true,
+        breakChances: 0,
+        lines: [],
         unassigned: true,
       },
     ];
   });
-  return [...lines, ...aggregates];
+  return [...sorted, ...aggregates];
+}
+
+/**
+ * Orders the table for one view, so the screen, the copied text and the shared card
+ * can never disagree about who is at the top. Each view sorts by the column it is
+ * about — a Defence view ranked by goals would be answering a different question —
+ * and every one falls back to the label, so the order is stable and readable.
+ *
+ * The aggregate always ends up last, whatever the view. It stands for nobody, so
+ * ranked among the players it would read as a very good one; pinning it here rather
+ * than in the caller means re-sorting a list that already contains it (which the
+ * report does on every view switch) can't shuffle it back into the middle.
+ */
+export function sortPlayerStatLines(
+  lines: PlayerStatLine[],
+  view: PlayerStatView,
+): PlayerStatLine[] {
+  const byLabel = (a: PlayerStatLine, b: PlayerStatLine) => a.label.localeCompare(b.label);
+  const rank: Record<PlayerStatView, (a: PlayerStatLine, b: PlayerStatLine) => number> = {
+    playing: (a, b) =>
+      b.pointsPlayed - a.pointsPlayed || b.plusMinus - a.plusMinus || byLabel(a, b),
+    // Ranked by the defences made, not by the first column: Turns leads the view
+    // because it is the disc's story in order, but a table sorted by it would be a
+    // leaderboard of the sloppiest player on the team.
+    possession: (a, b) =>
+      b.defenses - a.defenses || b.breakChances - a.breakChances || byLabel(a, b),
+    scoring: (a, b) => b.total - a.total || b.goals - a.goals || byLabel(a, b),
+  };
+  return [...lines].sort(
+    (a, b) => Number(a.unassigned ?? false) - Number(b.unassigned ?? false) || rank[view](a, b),
+  );
 }
 
 export function findPlayer(players: PlayerInfo[], id?: string): PlayerInfo | undefined {

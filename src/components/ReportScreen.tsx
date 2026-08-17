@@ -2,24 +2,35 @@ import { Fragment, useMemo, useState } from 'react';
 import { useReportImage } from '../hooks/useReportImage';
 import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
-import { statsTrackingEnabled } from '../state/gameReducer';
+import { statsTrackingEnabled, turnoverPlayersTracked } from '../state/gameReducer';
+import { lineTrackingEnabled } from '../state/lines';
 import { copyText } from '../state/clipboard';
 import { playerStatsTeams, reportCardModel, teamStatRows } from '../state/reportCard';
 import {
   formatClock,
   logTextLines,
   playerStatLines,
+  sortPlayerStatLines,
   reportLogEntries,
   teamStats,
 } from '../state/stats';
+import type { PlayerStatView } from '../state/stats';
 import type { TeamId } from '../state/types';
 import { FullLogDialog } from './FullLogDialog';
 import { GameLogTable } from './GameLogTable';
+import { PlayerStatsTable } from './PlayerStatsTable';
+import { playerStatColumns, statCellText } from './playerStatColumns';
 import { PossessionLedger } from './PossessionLedger';
 import { contrastText, pillClass, primaryButton, secondaryButtonOnPitch, sectionTitle } from './ui';
 
 /** Plugged into the report footer so a shared copy points back at the app. */
 const APP_URL = 'https://xaviml.github.io/ultimate-scorekeeper/';
+
+const VIEW_KEY = {
+  scoring: 'viewScoring',
+  playing: 'viewPlaying',
+  possession: 'viewPossession',
+} as const;
 
 /** Team names go into a filename, so anything a filesystem might object to comes out. */
 function slug(name: string): string {
@@ -52,6 +63,7 @@ export default function ReportScreen({
   const { t, lang } = useT();
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   const [teamFilter, setTeamFilter] = useState<TeamId | 'all'>('all');
+  const [view, setView] = useState<PlayerStatView>('scoring');
   const [showFullLog, setShowFullLog] = useState(false);
 
   const A = teamStats(state, 'A');
@@ -65,11 +77,26 @@ export default function ReportScreen({
   // both, with a filter to page through them on a small screen.
   const showTeamFilter = state.config.statsMode === 'player';
   const playerLines = playerStatLines(state, playerStatsTeams(state.config), t);
+  // Playing is read off `PointRecord.line`, so it needs line tracking. Possession
+  // is read off the log's turnoverId/defenseId, so it needs only "Ask who turned
+  // it over" — line tracking is not a gate for it at all. The config flag is the
+  // normal reason it has anything to show, but `LogEditDialog` can attribute a
+  // turnover as a correction whatever the flag says, so a game that turned the
+  // flag on late — or never — still gets the view once a turn or a D is named.
+  const showPlayingView = lineTrackingEnabled(state.config);
+  const showPossessionView =
+    turnoverPlayersTracked(state.config) ||
+    playerLines.some((p) => !p.unassigned && (p.turns > 0 || p.defenses > 0));
+  const availableViews = (['scoring', 'playing', 'possession'] as const).filter((v) =>
+    v === 'playing' ? showPlayingView : v === 'possession' ? showPossessionView : true,
+  );
   // What the history panel lists and what the copy button writes are the same
   // entries on purpose: what you read is what you take away.
   const visibleLog = reportLogEntries(state.log);
-  const visiblePlayerLines =
-    teamFilter === 'all' ? playerLines : playerLines.filter((p) => p.team === teamFilter);
+  const visiblePlayerLines = sortPlayerStatLines(
+    teamFilter === 'all' ? playerLines : playerLines.filter((p) => p.team === teamFilter),
+    view,
+  );
 
   // Memoised because the hook renders the image off it the moment it changes,
   // and a fresh object every render would redraw the canvas every render.
@@ -113,11 +140,13 @@ export default function ReportScreen({
 
     if (playerLines.length > 0) {
       lines.push(t('playerStatsTitle'));
-      for (const p of playerLines) {
+      // The archive's job is the spreadsheet, not the phone, so it carries every
+      // available view's columns on one line per player rather than paging through them.
+      const columns = availableViews.flatMap(playerStatColumns);
+      for (const p of sortPlayerStatLines(playerLines, view)) {
         const teamPrefix = showTeamFilter ? `${nameOf(p.team)} — ` : '';
-        lines.push(
-          `  ${teamPrefix}${p.label}: ${t('colAssists')} ${p.assists}, ${t('colGoals')} ${p.goals}, ${t('colTotal')} ${p.total}`,
-        );
+        const cells = columns.map((c) => `${t(c.key)} ${statCellText(c, p)}`).join(', ');
+        lines.push(`  ${teamPrefix}${p.label}: ${cells}`);
       }
       lines.push('');
     }
@@ -255,39 +284,34 @@ export default function ReportScreen({
               ))}
             </div>
           )}
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-chalk/50 text-left">
-                <th className="py-1">{t('colPlayer')}</th>
-                <th className="py-1 text-right">{t('colAssists')}</th>
-                <th className="py-1 text-right">{t('colGoals')}</th>
-                <th className="py-1 text-right">{t('colTotal')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visiblePlayerLines.map((p) => (
-                <tr
-                  key={`${p.team}:${p.playerId}`}
-                  // The aggregate names nobody, so it is dimmed rather than reading as
-                  // a player who happened to be called "Not recorded".
-                  className={`border-t border-line/50 ${p.unassigned ? 'text-chalk/50 italic' : ''}`}
+          {/* Three views over one roster, rather than one table too wide for a phone.
+              Pills are offered only for the views that have real data: Playing needs
+              line tracking, Possession needs "Ask who turned it over" — the two are
+              independent, so a game can offer either, both or neither. With only
+              Scoring available the pill row would be one tab onto the columns already
+              on screen, so it stays hidden. Playing and the team filter still never
+              share a screen (line tracking is Team mode only), but Possession can now
+              sit above the filter in Player mode, since it asks nothing of the line. */}
+          {availableViews.length > 1 && (
+            <div className="flex gap-2 mb-3">
+              {availableViews.map((v) => (
+                <button
+                  key={v}
+                  className={pillClass(view === v)}
+                  aria-pressed={view === v}
+                  onClick={() => setView(v)}
                 >
-                  <td className="py-1.5">
-                    {showTeamFilter && (
-                      <span
-                        className="inline-block w-2.5 h-2.5 rounded-full mr-2 align-middle"
-                        style={{ backgroundColor: state.config.teams[p.team].color }}
-                      />
-                    )}
-                    {p.label}
-                  </td>
-                  <td className="py-1.5 text-right font-clock">{p.assists}</td>
-                  <td className="py-1.5 text-right font-clock">{p.goals}</td>
-                  <td className="py-1.5 text-right font-clock">{p.total}</td>
-                </tr>
+                  {t(VIEW_KEY[v])}
+                </button>
               ))}
-            </tbody>
-          </table>
+            </div>
+          )}
+          <PlayerStatsTable
+            lines={visiblePlayerLines}
+            columns={playerStatColumns(view)}
+            teamColor={showTeamFilter ? (p) => state.config.teams[p.team].color : undefined}
+            t={t}
+          />
         </section>
       )}
 

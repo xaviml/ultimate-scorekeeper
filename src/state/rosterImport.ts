@@ -1,4 +1,4 @@
-import type { PlayerInfo } from './types';
+import type { Gender, PlayerInfo } from './types';
 import { uid } from './uid';
 
 /**
@@ -22,6 +22,8 @@ import { uid } from './uid';
 export interface ParsedPlayer {
   number: string;
   name: string;
+  /** MMP/FMP, when the line carried a marking — see `splitGender`. */
+  gender?: Gender;
 }
 
 export interface RosterParse {
@@ -60,6 +62,16 @@ const HEADER_WORDS = new Set([
   'apellidos',
   'cognoms',
   'surname',
+  // A spreadsheet's gender column, so "# Name Gender" is read as a header. MMP and
+  // FMP are deliberately NOT header words: a line that is only "MMP" is a player
+  // called MMP (see splitGender), and header words are dropped rather than kept.
+  'gender',
+  'genero',
+  'género',
+  'gènere',
+  'sex',
+  'sexo',
+  'sexe',
 ]);
 
 const cleanName = (raw: string) =>
@@ -72,6 +84,27 @@ const cleanNumber = (raw: string) => raw.replace(/\D/g, '').slice(0, MAX_NUMBER_
 
 const hasLetter = (s: string) => /\p{L}/u.test(s);
 
+/** A trailing MMP/FMP marking: `29 Xavi MMP`, `Xavi FMP`, `29 MMP`, `Xavi, MMP`. */
+const TRAILING_GENDER = /^(.*?)[\s,\-–:([]+(mmp|fmp)\s*[)\]]?$/i;
+
+/**
+ * Peels a trailing MMP/FMP off a line, returning what is left to parse as a player.
+ *
+ * It only counts as a marking when something else is on the line: a line that is
+ * *only* `MMP` is a player called MMP, because a marking with nobody attached is not
+ * a roster entry, and someone whose name really is those three letters would
+ * otherwise vanish. That is also why the abbreviations are matched exactly rather
+ * than a leading `M`/`F` — "Xavi M" is a middle initial far more often than a
+ * marking.
+ */
+function splitGender(line: string): { rest: string; gender?: Gender } {
+  const match = TRAILING_GENDER.exec(line);
+  if (!match) return { rest: line };
+  const rest = match[1].trim();
+  if (!rest) return { rest: line };
+  return { rest, gender: match[2].toLowerCase() === 'mmp' ? 'male' : 'female' };
+}
+
 /** A line that is nothing but a shirt number: `23`, `#23`, `23.`. */
 const NUMBER_ONLY = /^#?\s*\d{1,3}\s*\.?$/;
 /** Leading number: `12 John Doe`, `#12 - John Doe`, `12. John Doe`. */
@@ -79,21 +112,23 @@ const LEADING_NUMBER = /^#?\s*(\d{1,3})\s*[.)\-–:]?\s+(.+)$/;
 /** Trailing number: `John Doe 12`, `John Doe #12`, `John Doe - 12`. */
 const TRAILING_NUMBER = /^(.+?)[\s,\-–:]+#?\s*(\d{1,3})$/;
 
-function parseLine(line: string): ParsedPlayer | null {
+function parseLine(raw: string): ParsedPlayer | null {
+  const { rest: line, gender } = splitGender(raw);
+  const marking = gender ? { gender } : {};
   const leading = LEADING_NUMBER.exec(line);
   if (leading && hasLetter(leading[2])) {
-    return { number: cleanNumber(leading[1]), name: cleanName(leading[2]) };
+    return { number: cleanNumber(leading[1]), name: cleanName(leading[2]), ...marking };
   }
   const trailing = TRAILING_NUMBER.exec(line);
   if (trailing && hasLetter(trailing[1])) {
-    return { number: cleanNumber(trailing[2]), name: cleanName(trailing[1]) };
+    return { number: cleanNumber(trailing[2]), name: cleanName(trailing[1]), ...marking };
   }
   // Either half on its own is a valid player, matching what the roster editor
   // accepts by hand: a name with no number (nobody knows the numbers yet), or a
   // bare number (a shirt with no name attached to it, which is most of what a
   // scorekeeper can actually see from the sideline).
-  if (NUMBER_ONLY.test(line)) return { number: cleanNumber(line), name: '' };
-  if (hasLetter(line)) return { number: '', name: cleanName(line) };
+  if (NUMBER_ONLY.test(line)) return { number: cleanNumber(line), name: '', ...marking };
+  if (hasLetter(line)) return { number: '', name: cleanName(line), ...marking };
   return null;
 }
 
@@ -106,12 +141,22 @@ function isHeaderLine(line: string): boolean {
   return fields.every((f) => HEADER_WORDS.has(f));
 }
 
-const dedupeKey = (p: { number: string; name: string }) =>
+/**
+ * The identity of a player as a human typed them: trimmed, case-folded number and
+ * name. It is the import's duplicate rule (and the roster editor's), and it is also
+ * how a saved line refers to its players — ids are re-minted per game, these are
+ * not. Shared so the two can never disagree about whether two rows are the same
+ * person.
+ */
+export const playerKey = (p: { number: string; name: string }) =>
   `${p.number.trim().toLowerCase()}|${p.name.trim().toLowerCase()}`;
+
+const dedupeKey = playerKey;
 
 /**
  * Reads a pasted or uploaded roster: one player per line, as a number and a
- * name, a name on its own, or a number on its own.
+ * name, a name on its own, or a number on its own — each optionally followed by an
+ * MMP/FMP marking.
  */
 export function parseRoster(text: string): RosterParse {
   const trimmed = text.trim();
@@ -186,7 +231,14 @@ export function applyImport(
     const key = dedupeKey(p);
     if (seen.has(key)) continue;
     seen.add(key);
-    added.push({ id: uid(), number: p.number, name: p.name });
+    // The marking rides along, but it is not part of the identity: the same person
+    // marked differently in two rows is one duplicate, not two players.
+    added.push({
+      id: uid(),
+      number: p.number,
+      name: p.name,
+      ...(p.gender ? { gender: p.gender } : {}),
+    });
   }
   return {
     players: [...base, ...added],

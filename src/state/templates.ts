@@ -3,13 +3,15 @@ import type { GameConfig, SavedTemplate, TemplateSettings } from './types';
 const STORAGE_KEY = 'ultimate-scorekeeper:saved-templates';
 
 /**
- * Mixed, CAP +1 (half and game), Rule A (ABBA). Neither preset sets
- * `fieldNumber` — it's a per-game detail, not a tournament rule, so applying
- * one never clobbers whatever the volunteer already typed there.
+ * Mixed, CAP +1 (half and game), Rule A (ABBA), and the field format's line size —
+ * sevens on grass, fives on beach. Neither preset sets `fieldNumber` — it's a per-game
+ * detail, not a tournament rule, so applying one never clobbers whatever the
+ * volunteer already typed there.
  */
 export const GRASS_TEMPLATE: Omit<TemplateSettings, 'fieldNumber'> = {
   division: 'mixed',
   mixedRule: 'A',
+  lineSize: 7,
   targetScore: 15,
   halfScore: 8,
   timeLimitMinutes: 100,
@@ -30,6 +32,7 @@ export const GRASS_TEMPLATE: Omit<TemplateSettings, 'fieldNumber'> = {
 export const BEACH_TEMPLATE: Omit<TemplateSettings, 'fieldNumber'> = {
   division: 'mixed',
   mixedRule: 'A',
+  lineSize: 5,
   targetScore: 13,
   halfScore: 7,
   timeLimitMinutes: 45,
@@ -53,6 +56,7 @@ export function extractTemplateSettings(cfg: GameConfig): TemplateSettings {
     division: cfg.division,
     fieldNumber: cfg.fieldNumber,
     mixedRule: cfg.mixedRule,
+    lineSize: cfg.lineSize,
     targetScore: cfg.targetScore,
     halfScore: cfg.halfScore,
     timeLimitMinutes: cfg.timeLimitMinutes,

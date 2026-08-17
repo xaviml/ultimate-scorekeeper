@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
+import { playersOnField } from '../state/lines';
 import type { StoppagePlayer, TeamId } from '../state/types';
 import { Modal } from './Modal';
 import { PlayerMultiPicker } from './PlayerPicker';
@@ -29,12 +30,23 @@ import { contrastText, primaryButton, secondaryButton, teamChoiceButton } from '
 export function InjuryAttributionDialog({
   initialTeam,
   initialPlayers,
+  onField,
   onCancel,
   onSubmit,
 }: {
   /** The generic, no-player team attribution (see PendingStoppage.team). */
   initialTeam?: TeamId;
   initialPlayers?: StoppagePlayer[];
+  /**
+   * The line-team players who were on the field, to narrow the picker to — only
+   * somebody who was on can have been hurt in the point.
+   *
+   * Passed by `StoppageDialog`, which is recording an injury as it happens, and
+   * deliberately **not** by `LogEditDialog`: a correction is made later and may well
+   * be about a point several ago, whose line was a different seven from whoever is on
+   * now. Narrowing there would hide the very player the volunteer is trying to name.
+   */
+  onField?: string[];
   onCancel: () => void;
   onSubmit: (attribution: { team?: TeamId; players?: StoppagePlayer[] }) => void;
 }) {
@@ -68,6 +80,15 @@ export function InjuryAttributionDialog({
 
   if (state.config.statsMode === 'team' && tracked) {
     const other: TeamId = tracked === 'A' ? 'B' : 'A';
+    // Only somebody actually on the field can have been hurt in the play — when the
+    // caller says who that is (see `onField` above).
+    const eligible = playersOnField(
+      state.config,
+      tracked,
+      state.config.players[tracked],
+      onField ?? [],
+    );
+    const narrowed = eligible.length < state.config.players[tracked].length;
     return (
       <Modal title={t('injuryDialogTitle')} onClose={onCancel}>
         <p className="text-xs text-chalk/50">{t('injuryDialogHint')}</p>
@@ -76,7 +97,7 @@ export function InjuryAttributionDialog({
             {state.config.teams[tracked].name}
           </p>
           <PlayerMultiPicker
-            players={state.config.players[tracked]}
+            players={eligible}
             selected={selected.map((p) => p.playerId)}
             onToggle={(playerId) => toggle(tracked, playerId)}
             onRemove={(id) => {
@@ -84,11 +105,17 @@ export function InjuryAttributionDialog({
               if (selected.some((p) => p.playerId === id)) toggle(tracked, id);
             }}
           />
-          <PlayerRosterEditor
-            label={t('addPlayer')}
-            players={[]}
-            onAdd={(number, name) => dispatch({ type: 'ADD_PLAYER', team: tracked, number, name })}
-          />
+          {narrowed ? (
+            <p className="text-xs text-chalk/50">{t('lineOnlyOnField')}</p>
+          ) : (
+            <PlayerRosterEditor
+              label={t('addPlayer')}
+              players={[]}
+              onAdd={(number, name) =>
+                dispatch({ type: 'ADD_PLAYER', team: tracked, number, name })
+              }
+            />
+          )}
         </div>
         <label className="flex items-center gap-2">
           <input

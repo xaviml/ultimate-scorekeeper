@@ -31,6 +31,21 @@ const TABLE_HEAD_H = 26;
 const ROW_H = 30;
 const SECTION_TITLE_H = 20;
 
+// The player table. Numeric columns are measured rather than evenly spaced — the
+// headings run from "O" to "Break ch." and an even split would either ellipsise the
+// long ones or spend the card's width on the short ones — and, exactly like the
+// ledger below, the card grows *wider* rather than dropping one.
+const PLAYER_GROUP_H = 19;
+/** Breathing room to the left of a right-aligned numeric column: its whole gutter. */
+const NUM_GUTTER = 15;
+/**
+ * The name column's bounds. It asks for whatever the longest name needs and the card
+ * widens to give it — up to a point, past which one three-barrelled name would drag
+ * the whole card out of shape and an ellipsis is the lesser evil.
+ */
+const NAME_MIN = 150;
+const NAME_MAX = 280;
+
 // The possession ledger strip: column and gap match the on-screen chart, the
 // score bands sit clear of the bars, and the whole card grows *wider* rather
 // than dropping columns — a shared image is seen full or not at all.
@@ -164,7 +179,30 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
   const ledgerNeedW = ledgerCount
     ? ledgerCount * LEDGER_COL_W + (ledgerCount - 1) * LEDGER_GAP + (PAD + PANEL_PAD) * 2
     : 0;
-  const width = Math.max(WIDTH, ledgerNeedW);
+
+  // Each numeric column is as wide as the widest thing in it — its heading or one of
+  // its cells — plus a gutter, so a nine-column card and a three-column one are both
+  // laid out by the same rule and neither has to guess at an offset.
+  const hasPlayers = model.playerRows.length > 0;
+  const numericCount = model.playerHeader.length - 1;
+  const colWidths = model.playerHeader.slice(1).map((head, i) => {
+    measuring.font = board(12, 600);
+    let w = measuring.measureText(head).width;
+    measuring.font = clock(17, 600);
+    for (const row of model.playerRows) {
+      w = Math.max(w, measuring.measureText(row.values[i] ?? '').width);
+    }
+    return Math.ceil(w) + NUM_GUTTER;
+  });
+  const numericSpan = colWidths.reduce((total, w) => total + w, 0);
+  measuring.font = board(15, 500);
+  const nameNeed = model.playerRows.reduce(
+    (w, row) => Math.max(w, measuring.measureText(row.label).width + (row.color ? 18 : 0)),
+    0,
+  );
+  const nameW = Math.min(NAME_MAX, Math.max(NAME_MIN, Math.ceil(nameNeed) + 8));
+  const playersNeedW = hasPlayers ? nameW + numericSpan + (PAD + PANEL_PAD) * 2 : 0;
+  const width = Math.max(WIDTH, ledgerNeedW, playersNeedW);
 
   const contentWidth = width - PAD * 2;
   const panelWidth = contentWidth;
@@ -177,9 +215,9 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
   const scoreH = PANEL_PAD * 2 + SCORE_BOX_H + TEAM_NAME_H;
   const statsH = PANEL_PAD * 2 + TABLE_HEAD_H + model.statRows.length * ROW_H;
   const ledgerH = model.ledger ? PANEL_PAD * 2 + SECTION_TITLE_H + 10 + LEDGER_CHART_H : 0;
-  const hasPlayers = model.playerRows.length > 0;
+  const groupH = model.playerGroups ? PLAYER_GROUP_H : 0;
   const playersH = hasPlayers
-    ? PANEL_PAD * 2 + SECTION_TITLE_H + 10 + TABLE_HEAD_H + model.playerRows.length * ROW_H
+    ? PANEL_PAD * 2 + SECTION_TITLE_H + 10 + groupH + TABLE_HEAD_H + model.playerRows.length * ROW_H
     : 0;
 
   const height =
@@ -365,18 +403,65 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
     withTracking(ctx, '0px');
     pY += SECTION_TITLE_H + 10;
 
-    const totalR = right;
-    const goalsR = right - 78;
-    const assistsR = right - 156;
-    const nameMax = assistsR - left - 84;
+    // Each column's text sits on its own right edge, walked in from the panel's, so
+    // the widths measured above are what places them and the name column takes
+    // whatever is left over (never less than NAME_MIN — the card was widened for it).
+    const columnR: number[] = [];
+    let edge = right;
+    for (let i = numericCount - 1; i >= 0; i--) {
+      columnR[i] = edge;
+      edge -= colWidths[i];
+    }
+    const numericLeft = right - numericSpan;
+    const nameMax = numericLeft - left - 8;
 
+    // Group rules run the full height of the table, the first of them separating the
+    // names from the numbers. Drawn before the text so the row separators cross them
+    // like a grid rather than sitting on top.
+    if (model.playerGroups) {
+      const tableBottom = pY + groupH + TABLE_HEAD_H + model.playerRows.length * ROW_H;
+      ctx.strokeStyle = C.lineSoft;
+      ctx.lineWidth = 1;
+      let column = 0;
+      for (const group of model.playerGroups) {
+        const x = Math.round(columnR[column] - colWidths[column]) + 0.5;
+        ctx.beginPath();
+        ctx.moveTo(x, pY);
+        ctx.lineTo(x, tableBottom);
+        ctx.stroke();
+        column += group.span;
+      }
+
+      // The group name is centred over its own columns, in the dim small-caps the
+      // section titles use one size up — a label, not a heading competing with
+      // "PLAYER STATS" above it.
+      ctx.font = board(11, 700);
+      ctx.fillStyle = C.chalkDim;
+      ctx.textAlign = 'center';
+      withTracking(ctx, '1px');
+      column = 0;
+      for (const group of model.playerGroups) {
+        const from = columnR[column] - colWidths[column];
+        const to = columnR[column + group.span - 1];
+        ctx.fillText(
+          fitText(ctx, group.label.toUpperCase(), to - from - 8),
+          (from + to) / 2,
+          pY + PLAYER_GROUP_H / 2,
+        );
+        column += group.span;
+      }
+      withTracking(ctx, '0px');
+      pY += PLAYER_GROUP_H;
+    }
+
+    ctx.textAlign = 'left';
     ctx.font = board(12, 600);
     ctx.fillStyle = C.chalkDim;
     ctx.fillText(fitText(ctx, model.playerHeader[0], nameMax), left, pY + TABLE_HEAD_H / 2);
     ctx.textAlign = 'right';
-    ctx.fillText(fitText(ctx, model.playerHeader[1], 74), assistsR, pY + TABLE_HEAD_H / 2);
-    ctx.fillText(fitText(ctx, model.playerHeader[2], 74), goalsR, pY + TABLE_HEAD_H / 2);
-    ctx.fillText(fitText(ctx, model.playerHeader[3], 74), totalR, pY + TABLE_HEAD_H / 2);
+    model.playerHeader.slice(1).forEach((head, i) => {
+      ctx.fillText(fitText(ctx, head, colWidths[i] - 4), columnR[i], pY + TABLE_HEAD_H / 2);
+    });
     pY += TABLE_HEAD_H;
 
     for (const player of model.playerRows) {
@@ -393,16 +478,17 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
       ctx.textAlign = 'left';
       ctx.font = board(15, 500);
       // The aggregate row names nobody, so it is dimmed throughout — including its
-      // total, which otherwise reads in `signal` like a player's tally.
-      ctx.fillStyle = player.unassigned ? C.chalkDim : C.chalk;
+      // headline figure, which otherwise reads in `signal` like a player's tally.
+      const ink = player.unassigned ? C.chalkDim : C.chalk;
+      ctx.fillStyle = ink;
       ctx.fillText(fitText(ctx, player.label, nameMax - (nameX - left)), nameX, midY);
 
       ctx.textAlign = 'right';
       ctx.font = clock(17, 600);
-      ctx.fillText(player.assists, assistsR, midY);
-      ctx.fillText(player.goals, goalsR, midY);
-      if (!player.unassigned) ctx.fillStyle = C.signal;
-      ctx.fillText(player.total, totalR, midY);
+      player.values.forEach((value, i) => {
+        ctx.fillStyle = i === model.playerAccent && !player.unassigned ? C.signal : ink;
+        ctx.fillText(value, columnR[i], midY);
+      });
       pY += ROW_H;
     }
   }

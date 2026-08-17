@@ -121,6 +121,72 @@ export const en = {
   trackTurnoverPlayersHint:
     'Off, Turn just registers the turnover. On, it asks who lost the disc and who forced it — accurate, but a lot of taps in a fast point.',
 
+  // Line tracking. Only offered in Team stats mode, where one roster is followed —
+  // see lineTrackingEnabled. MMP/FMP are the WFDF terms and stay English in every
+  // dictionary, like the lbl* micro-labels: they are what the abbreviations are.
+  linesTitle: 'Lines',
+  linesEnabledLabel: 'Track who plays each point',
+  linesEnabledHint:
+    'Register the line that takes the field for each point, so the report can say who played most, and how their points went. Off, nothing changes.',
+  lineSizeLabel: 'Players on the field',
+  lineGenderCheckLabel: 'Check the gender split',
+  lineGenderCheckNone: "Don't check",
+  lineGenderCheckNoneHint:
+    "Lines are recorded without looking at the split. Pick this when the game keeps a ratio you can't always field.",
+  lineGenderCheckRatio: "Follow the game's ratio",
+  lineGenderCheckRatioHint:
+    'The split expected of each line follows the ratio the game is played to — {female} FMP and {male} MMP at {size}, swapping with the ratio.',
+  lineGenderCheckFixed: 'Fixed split',
+  lineGenderCheckFixedHint: 'The same split every point, whatever the game ratio says.',
+  lineFixedFemaleLabel: 'FMP on the field',
+  lineFixedSplit: '{female} FMP / {male} MMP',
+  lineSavedTitle: 'Predefined lines',
+  lineOnlyOnField: 'Only the players registered on this point are listed.',
+  lineOnlyOnFieldGoal: 'Only the players registered on that point are listed.',
+  injurySubTitle: 'Who is coming on?',
+  injurySubHint: '{players} is coming off. Pick whoever replaces them, or skip if nobody does.',
+  injurySubNoBench: 'Everyone on the roster is already on the field.',
+  injurySubNoMatch:
+    "Nobody with a matching MMP/FMP marking is off the field, and a substitution has to keep the line's split.",
+  injurySubStaysOn: 'There is nobody to bring on for {players}, so they play on.',
+  btnOk: 'OK',
+  injurySubSkip: 'No substitution',
+  lineAddTitle: 'New line',
+  lineEditTitle: 'Edit line',
+  lineAddBtn: 'Add a line',
+  lineEditSaved: 'Edit {name}',
+  lineNameTaken: 'There is already a line with that name.',
+  lineMissingPlayers: '{count} no longer on the roster',
+  lineSavedEmptySetup:
+    'None yet. Name the lines this team plays and they will be one tap away during the game, and here again next time.',
+  lineSavedForTeam: 'Saved with {team}',
+  genderMmp: 'MMP',
+  genderFmp: 'FMP',
+  genderUnset: 'Not set',
+  genderToggle: '{name} — gender: {value}',
+
+  // The line dialog, reached from the Roster button and from the between-points prompt.
+  lineDialogTitle: 'Line — {team}',
+  lineModeCurrent: 'This point',
+  lineModeNext: 'Next point',
+  lineCountOf: '{count} of {size}',
+  lineUnmarked: '{count} unmarked',
+  lineIssueSize: 'That is {count} on the field, not {size}.',
+  lineIssueRatio: 'That breaks the split this point asks for ({female} FMP / {male} MMP).',
+  lineNoRoster: 'Add players to the roster first — the line is picked from it.',
+  linePromptTitle: 'Who is on for this point?',
+  linePromptBtn: 'Register line',
+  lineNextPending: 'Next point: {count} registered',
+  btnLine: 'Line',
+  btnLineSaveAnyway: 'Save anyway',
+  btnLineConfirmAnyway: 'Tap again to save',
+  btnSaveLine: 'Save this line',
+  lineSaveNamePrompt: 'Name this line',
+  lineSaveNamePlaceholder: 'O1, D1, Zone…',
+  lineSavedConfirm: 'Saved as {name}',
+  lineDeleteSaved: 'Delete {name}',
+  lineLoadSaved: 'Load {name}',
+
   // Players / rosters
   playersTitle: 'Roster',
   collapseSection: 'Collapse {title}',
@@ -137,9 +203,9 @@ export const en = {
   rosterImportBtn: 'Import',
   rosterImportTitle: 'Import roster — {team}',
   rosterImportHint:
-    'Paste the roster below, or pick a plain text file in the same format. One player per line: a number and a name, a name on its own, or just a number.',
+    'Paste the roster below, or pick a plain text file in the same format. One player per line: a number and a name, a name on its own, or just a number. Add MMP or FMP at the end of a line to mark that player.',
   rosterImportTextareaLabel: 'Players to import',
-  rosterImportPlaceholder: '12 John Doe\n23\nJohn Doe',
+  rosterImportPlaceholder: '12 John Doe MMP\n23 FMP\nJohn Doe',
   rosterImportFileBtn: 'Choose file',
   rosterImportFileHint: 'Plain text (.txt) only',
   rosterImportFileError: "That file couldn't be read.",
@@ -489,6 +555,9 @@ export const en = {
   assist_blocked_timeoutNoneLeft: 'No timeouts left for this team.',
   assist_blocked_timeoutNotNow: 'Timeouts can only be called during play.',
   assist_blocked_noTurnoverToUndo: 'No turnover to undo in this point.',
+  assist_blocked_lineNotTracked: 'Line tracking is off for this game.',
+  assist_blocked_lineNextNotNow:
+    'The next line can only be registered while a point is being played.',
 
   // Report
   reportTitle: 'Final report',
@@ -516,6 +585,28 @@ export const en = {
   colAssists: 'Assists',
   colTotal: 'Total',
   unassignedPlayers: 'Not recorded',
+  // The player table's three views, offered as pills only when line tracking is on
+  // (with it off there is one view's worth of data). Column headers have to fit a
+  // phone-width table, so they are abbreviations with the full wording on `title`.
+  viewScoring: 'Scoring',
+  viewPlaying: 'Playing',
+  viewPossession: 'Possession',
+  colPointsPlayed: 'Pts',
+  colPointsPlayedFull: 'Points played',
+  colOPoints: 'O',
+  colOPointsFull: 'Points on offence',
+  colDPoints: 'D',
+  colDPointsFull: 'Points on defence',
+  colWon: 'Won',
+  colWonFull: 'Points won while on the field',
+  colLost: 'Lost',
+  colLostFull: 'Points lost while on the field',
+  colHolds: 'Holds',
+  colBreaks: 'Breaks',
+  colTurns: 'Turns',
+  colTurnsFull: 'Turnovers this player lost the disc on',
+  colDefenses: 'D',
+  colDefensesFull: 'Turnovers this player forced — blocks, and marks that ran the stall out',
   reportFooterCredit: 'This game was tracked with:',
   historyTitle: 'Game history',
   // The report's history leaves out the turnovers and the calls; this opens the

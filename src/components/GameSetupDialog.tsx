@@ -3,7 +3,8 @@ import type { TFunc } from '../i18n/useT';
 import { useT } from '../i18n/useT';
 import { useGame } from '../state/gameHooks';
 import { timeoutsConfigured } from '../state/gameReducer';
-import type { Division, EndCapRule, LogEntry, TeamId } from '../state/types';
+import { expectedSplit, lineTrackingEnabled } from '../state/lines';
+import type { Division, EndCapRule, GameConfig, Gender, LogEntry, TeamId } from '../state/types';
 import { Modal } from './Modal';
 import { sectionTitle } from './ui';
 
@@ -128,6 +129,19 @@ export function GameSetupDialog({ onClose }: { onClose: () => void }) {
           )}
         </Group>
 
+        {/* Omitted entirely when line tracking is off, the same way the water-break
+            block follows waterBreaks.enabled: a captain asking what is being recorded
+            is better served by the section not being there than by a row of zeroes. */}
+        {lineTrackingEnabled(cfg) && (
+          <Group
+            title={t('linesTitle')}
+            note={t('lineSavedForTeam', { team: teamName(cfg.trackedTeam!) })}
+          >
+            <Row label={t('lineSizeLabel')} value={cfg.lineSize} />
+            <Row label={t('lineGenderCheckLabel')} value={genderCheckText(cfg, state.ratio, t)} />
+          </Group>
+        )}
+
         {/* Only the automatic breaks are configuration. One can always be called by
             hand from the raised-hand button, whatever this says — see canWaterBreak. */}
         {cfg.waterBreaks.enabled && (
@@ -193,6 +207,19 @@ function formatDuration(totalSeconds: number): string {
 /** The wall-clock time play actually began, from the log's own gameStart entry. */
 function startedAt(log: LogEntry[]): string | undefined {
   return log.find((e) => e.type === 'gameStart')?.wallClock;
+}
+
+/**
+ * The split each line is checked against, as a value rather than a setting name.
+ * "Follow the game's ratio" is the name of the rule; what a captain is asking is
+ * which numbers it comes to right now, so a followed ratio resolves to them and
+ * only falls back to the rule's name when there is no ratio to resolve against.
+ */
+function genderCheckText(cfg: GameConfig, ratio: Gender | null, t: TFunc): string {
+  if (cfg.lines.genderCheck === 'none') return t('lineGenderCheckNone');
+  const split = expectedSplit(cfg, ratio);
+  if (!split) return t('lineGenderCheckRatio');
+  return t('lineFixedSplit', { female: split.female, male: split.male });
 }
 
 function endCapText(endCap: EndCapRule, t: TFunc): string {

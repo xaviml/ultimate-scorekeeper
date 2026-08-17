@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
-import type { TeamId } from '../state/types';
+import type { PlayerInfo, TeamId } from '../state/types';
 import { Modal } from './Modal';
 import { PlayerMultiPicker, PlayerPicker } from './PlayerPicker';
 import { PlayerRosterEditor } from './PlayerRosterEditor';
@@ -19,6 +19,12 @@ export type PlayerSelectSection =
       team: TeamId;
       /** Heading above the picker — a team name, or a role like "Who turned it over?". */
       label: ReactNode;
+      /**
+       * The chips to offer, when they are not simply the team's whole roster —
+       * narrowed to the registered line, so only the players who were actually on
+       * the field can be named (see `playersOnField`). Omitted means the full roster.
+       */
+      players?: PlayerInfo[];
       multi?: false;
       selected: string | null;
       onSelect: (playerId: string | null) => void;
@@ -32,6 +38,7 @@ export type PlayerSelectSection =
   | {
       team: TeamId;
       label: ReactNode;
+      players?: PlayerInfo[];
       multi: true;
       selected: string[];
       onToggle: (playerId: string) => void;
@@ -80,12 +87,19 @@ export function PlayerSelectDialog({
         // "add player" editor, placed after the last of them — same layout as
         // AssistGoalDialog, which this dialog's goalPlayers edit mirrors.
         const isLastForTeam = !sections.slice(i + 1).some((s) => s.team === section.team);
+        const roster = section.players ?? state.config.players[section.team];
+        // A player added from in here would not be on an already-registered line, so
+        // the narrowed picker could not offer them — the line is what to fix then.
+        // Whether it actually narrowed anything, not just whether an override was
+        // passed: callers pass one unconditionally and it falls back to the full
+        // roster when there is no line to narrow by (see `playersOnField`).
+        const narrowed = roster.length < state.config.players[section.team].length;
         return (
           <div key={`${section.team}-${i}`} className="space-y-2">
             <p className="text-xs uppercase tracking-wide text-chalk/60">{section.label}</p>
             {section.multi ? (
               <PlayerMultiPicker
-                players={state.config.players[section.team]}
+                players={roster}
                 selected={section.selected}
                 onToggle={section.onToggle}
                 onRemove={(id) => {
@@ -95,7 +109,7 @@ export function PlayerSelectDialog({
               />
             ) : (
               <PlayerPicker
-                players={state.config.players[section.team].filter((p) => p.id !== section.exclude)}
+                players={roster.filter((p) => p.id !== section.exclude)}
                 selected={section.selected}
                 onSelect={section.onSelect}
                 onRemove={(id) => {
@@ -104,15 +118,18 @@ export function PlayerSelectDialog({
                 }}
               />
             )}
-            {isLastForTeam && (
-              <PlayerRosterEditor
-                label={t('addPlayer')}
-                players={[]}
-                onAdd={(number, name) =>
-                  dispatch({ type: 'ADD_PLAYER', team: section.team, number, name })
-                }
-              />
-            )}
+            {isLastForTeam &&
+              (narrowed ? (
+                <p className="text-xs text-chalk/50">{t('lineOnlyOnField')}</p>
+              ) : (
+                <PlayerRosterEditor
+                  label={t('addPlayer')}
+                  players={[]}
+                  onAdd={(number, name) =>
+                    dispatch({ type: 'ADD_PLAYER', team: section.team, number, name })
+                  }
+                />
+              ))}
           </div>
         );
       })}

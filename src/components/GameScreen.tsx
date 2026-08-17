@@ -24,6 +24,7 @@ import {
   timeoutsConfigured,
   turnoverPlayersTracked,
 } from '../state/gameReducer';
+import { lineTeam, lineTrackingEnabled } from '../state/lines';
 import { formatClock } from '../state/stats';
 import { useBackGuard } from '../hooks/useBackGuard';
 import { useLongPress } from '../hooks/useLongPress';
@@ -42,6 +43,7 @@ import { GameSetupDialog } from './GameSetupDialog';
 import GuideScreen from './GuideScreen';
 import { CallIcon, LogIcon, MenuIcon, PlayersIcon, StoppageIcon, TurnIcon } from './icons';
 import { NoteDialog } from './NoteDialog';
+import { LineDialog } from './LineDialog';
 import { PlayersDialog } from './PlayersDialog';
 import ReportScreen from './ReportScreen';
 import { SignalCard } from './SignalCard';
@@ -408,6 +410,48 @@ function StoppageResolutionRow() {
   );
 }
 
+/** The statuses that are a gap between points — including the one before point one. */
+const LINE_PROMPT_STATUSES: GameState['status'][] = ['notStarted', 'awaitingStart', 'awaitingPull'];
+
+/**
+ * The between-points nudge to say who is on for this point.
+ *
+ * It shares `StoppageResolutionRow`'s slot above the clocks rather than the action
+ * row's reserved one, because that slot is occupied by "Pull thrown" — and, before
+ * the game starts, by "Start game" — in exactly the statuses this prompt is needed
+ * in. Only one row can be there at a time, and an open stoppage is the more urgent
+ * of the two, so this yields to it.
+ *
+ * Shown before the first pull as well as between points: the first point's line is
+ * decided in the same gap as every other one, while the teams line up, and asking
+ * then is what stops point one being the one nobody registered.
+ *
+ * Shown only when nothing has been registered yet: nothing carries over between
+ * points, so the empty `pointLine` is precisely the state that needs asking about,
+ * and it disappears the moment it has been answered.
+ */
+function LinePromptRow({ onOpen }: { onOpen: () => void }) {
+  const state = useGame();
+  const { t } = useT();
+  if (!lineTrackingEnabled(state.config)) return null;
+  if (!LINE_PROMPT_STATUSES.includes(state.status) || state.pointLine.length > 0) return null;
+  if (state.pendingStoppage && !state.pendingStoppage.clockStopped) return null;
+
+  return (
+    <div className="space-y-1 lscape:space-y-0.5">
+      <p className="text-[10px] lscape:text-[8px] uppercase tracking-widest text-signal">
+        {t('linePromptTitle')}
+      </p>
+      <button
+        className="w-full rounded-lg bg-signal/20 border border-signal text-signal px-2 py-2 lscape:px-1 lscape:py-1 text-xs sm:text-sm lscape:text-[9px] font-board uppercase tracking-wide active:scale-95"
+        onClick={onOpen}
+      >
+        {t('linePromptBtn')}
+      </button>
+    </div>
+  );
+}
+
 /**
  * What the game — or the half — is being played to, and, while a cap is still in
  * doubt, the control that settles it.
@@ -598,6 +642,7 @@ export default function GameScreen() {
   const now = useNow();
   const [showLog, setShowLog] = useState(false);
   const [showPlayers, setShowPlayers] = useState(false);
+  const [showLine, setShowLine] = useState(false);
   // The header menu and the two read-only surfaces behind it. The guide is a
   // whole screen rather than a dialog (see the early return below), which is why
   // it isn't grouped with the rest of the dialog state at the bottom.
@@ -941,6 +986,9 @@ export default function GameScreen() {
   // that mode's turnover carries no player.
   const showRosterBtn = state.config.statsMode === 'team' || state.config.statsMode === 'player';
   const showTurnBtn = statsTrackingEnabled(state.config);
+  // The team whose lines are recorded, or null when line tracking is off — which is
+  // also what decides whether the Roster button opens a chooser or the editor.
+  const lineTracked = lineTeam(state.config);
   // The possession rule under the score panels, and the border it carries for the
   // action row below it — both stand or fall together.
   const possessionRule = possessionTracked(state);
@@ -1181,6 +1229,9 @@ export default function GameScreen() {
             at once anyway, since an open stoppage means playHalted. */}
         <StoppageResolutionRow />
 
+        {/* The same slot, when it is free: between points, asking who is on. */}
+        <LinePromptRow onOpen={() => setShowLine(true)} />
+
         {/* Clocks and action buttons stack in portrait; landscape has the height to
             spare but not the width, so they share one row instead — clocks first,
             then buttons, each keeping its own internal grid. */}
@@ -1311,7 +1362,22 @@ export default function GameScreen() {
           }}
         />
       )}
-      {showPlayers && <PlayersDialog onClose={() => setShowPlayers(false)} />}
+      {showPlayers && (
+        <PlayersDialog
+          onClose={() => setShowPlayers(false)}
+          onOpenLine={
+            lineTracked
+              ? () => {
+                  setShowPlayers(false);
+                  setShowLine(true);
+                }
+              : undefined
+          }
+        />
+      )}
+      {showLine && lineTracked && (
+        <LineDialog team={lineTracked} onClose={() => setShowLine(false)} />
+      )}
       {showMenu && (
         <GameMenuDialog
           leave={leaveKind}

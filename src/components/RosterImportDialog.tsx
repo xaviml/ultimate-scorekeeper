@@ -121,6 +121,14 @@ export function RosterImportDialog({
                   <span className={p.name ? '' : 'text-chalk/40 italic'}>
                     {p.name || t('rosterImportNoName')}
                   </span>
+                  {/* The marking is shown so the preview can be checked against the
+                      source — a line whose "MMP" was read as part of the name looks
+                      wrong here, which is the whole point of previewing. */}
+                  {p.gender && (
+                    <span className="ml-auto text-[11px] font-board text-chalk/50">
+                      {t(p.gender === 'male' ? 'genderMmp' : 'genderFmp')}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>

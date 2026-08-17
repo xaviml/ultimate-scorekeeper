@@ -47,3 +47,27 @@ describe('restoring a game stored by an older build', () => {
     expect(loadPersistedState()!.config.trackTurnoverPlayers).toBe(false);
   });
 });
+
+describe('restoring a game stored before line tracking existed', () => {
+  // A new top-level config key needs no migration code: loadPersistedState spreads
+  // defaultConfig underneath the stored config, so the default fills the gap.
+  it('defaults the line settings rather than crashing on their absence', () => {
+    storeAsOlderBuild(playerModeGame(), ['lines']);
+    const config = loadPersistedState()!.config;
+    expect(config.lines).toEqual(defaultConfig.lines);
+    expect(config.lines.enabled).toBe(false);
+  });
+
+  it('defaults the live line state the same way', () => {
+    const state = playerModeGame();
+    const raw = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+    for (const key of ['line', 'pointLine', 'nextLine', 'lineName']) delete raw[key];
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(raw));
+
+    const restored = loadPersistedState()!;
+    expect(restored.line).toEqual([]);
+    expect(restored.pointLine).toEqual([]);
+    expect(restored.nextLine).toBeNull();
+    expect(restored.lineName).toBeNull();
+  });
+});

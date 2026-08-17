@@ -4,6 +4,7 @@ import type {
   GameState,
   Gender,
   GoalSnapshot,
+  LinePlayer,
   LogEdit,
   LogEntry,
   LogType,
@@ -12,6 +13,7 @@ import type {
   TimeoutConfig,
 } from './types';
 import { findPlayer, playerLabel } from './stats';
+import { lineTrackedFor, lineTrackingEnabled } from './lines';
 import { uid } from './uid';
 
 export const defaultConfig: GameConfig = {
@@ -32,6 +34,7 @@ export const defaultConfig: GameConfig = {
   halfTimeBreakSeconds: 75,
   endCap: { kind: 'cap', plus: 1 },
   halfCap: { kind: 'cap', plus: 1 },
+  lineSize: 7,
   timeouts: {
     enabled: true,
     perHalf: 2,
@@ -47,6 +50,12 @@ export const defaultConfig: GameConfig = {
   statsMode: 'none',
   trackedTeam: null,
   trackTurnoverPlayers: false,
+  // Tracking itself is off by default, so a game set up the way it always has been
+  // is untouched. The gender check, once turned on, defaults to following the ratio
+  // this default config is already set to play (mixed, Rule A — see
+  // ratioGenderCheckAvailable, which ConfigScreen re-derives this against as the
+  // division/mixedRule fields change).
+  lines: { enabled: false, genderCheck: 'gameRatio', fixedFemale: 3, saved: [] },
   players: { A: [], B: [] },
 };
 
@@ -218,6 +227,10 @@ export function createInitialState(config: GameConfig = defaultConfig): GameStat
     assist: 'welcome',
     pendingGoalAssist: null,
     ratioSignalId: 0,
+    line: [],
+    pointLine: [],
+    nextLine: null,
+    lineName: null,
   };
 }
 
@@ -379,6 +392,35 @@ export function canWaterBreak(state: GameState): { ok: boolean; reason?: string 
   // started under one would be frozen by it anyway (see playHalted).
   if (playHalted(state)) return { ok: false, reason: 'stoppageInProgress' };
   if (state.status !== 'awaitingPull') return { ok: false, reason: 'waterBreakNotNow' };
+  return { ok: true };
+}
+
+/**
+ * May the line be registered right now? Open for the whole game — including
+ * **before it starts**, where the first point's line is decided exactly as every
+ * other one is, in the gap while the teams line up. `notStarted` and
+ * `awaitingStart` are that gap for point one, and nothing between there and the
+ * first pull disturbs it: `beginPlay` and `PULL_THROWN` both leave the line alone.
+ *
+ * The `next` form is the exception, open only while the disc is live — anywhere
+ * else the gap the volunteer is standing in *is* the next point, so there is
+ * nothing further ahead to pre-register.
+ *
+ * Deliberately not built on `canRecordEvent`, and deliberately blind to
+ * `playHalted`: a substitution after an injury is the single case the `sub` flag
+ * exists for, so a stoppage — the very thing that brought the sub on — must not be
+ * what closes the door. A timeout and half-time stay open for the same reason,
+ * since that is when a line is decided. Nothing here touches the score, the clock
+ * or possession, so there is no play to get ahead of.
+ */
+export function canSetLine(
+  state: GameState,
+  opts: { next?: boolean } = {},
+): { ok: boolean; reason?: string } {
+  if (!lineTrackingEnabled(state.config)) return { ok: false, reason: 'lineNotTracked' };
+  if (state.phase !== 'game') return { ok: false, reason: 'gameNotStarted' };
+  if (state.status === 'finished') return { ok: false, reason: 'gameFinished' };
+  if (opts.next && state.status !== 'live') return { ok: false, reason: 'lineNextNotNow' };
   return { ok: true };
 }
 
@@ -645,6 +687,11 @@ export function timeoutAvailability(
   return { ok: true };
 }
 
+/** Order-preserving de-dupe, so a line is never able to count the same player twice. */
+function dedupeIds(ids: string[]): string[] {
+  return [...new Set(ids)];
+}
+
 function snapshot(state: GameState): GoalSnapshot {
   return {
     scores: { ...state.scores },
@@ -664,6 +711,12 @@ function snapshot(state: GameState): GoalSnapshot {
     waterBreaksTaken: [...state.waterBreaksTaken],
     halfAnnounced: state.halfAnnounced,
     gameAnnounced: state.gameAnnounced,
+    line: [...state.line],
+    pointLine: state.pointLine.map((p) => ({ ...p })),
+    nextLine: state.nextLine
+      ? { ...state.nextLine, playerIds: [...state.nextLine.playerIds] }
+      : null,
+    lineName: state.lineName,
   };
 }
 
@@ -932,6 +985,18 @@ export function gameReducer(state: GameState, action: Action): GameState {
             ...(statsTrackingEnabled(s.config)
               ? { possessionSeconds: { ...s.possessionSeconds } }
               : {}),
+            // Absent rather than empty when nothing was registered, exactly like
+            // possessionSeconds above and for the same reason: the report has to be
+            // able to say how many points went unrecorded, which an empty list
+            // cannot be told apart from a point nobody played. This sits before
+            // every finishGame() return below, so a game-winning point keeps its
+            // line too.
+            ...(lineTrackingEnabled(s.config) && s.pointLine.length > 0
+              ? {
+                  line: s.pointLine.map((p) => ({ ...p })),
+                  ...(s.lineName ? { lineName: s.lineName } : {}),
+                }
+              : {}),
           },
         ],
       };
@@ -1066,6 +1131,14 @@ export function gameReducer(state: GameState, action: Action): GameState {
         possessionSeconds: { A: 0, B: 0 },
         pointStartSeconds: null,
         nextRatio,
+        // Nothing carries over. In Ultimate the line changes nearly every point, so
+        // leaving the last one in force would silently credit the wrong seven; a line
+        // registered ahead of time (SET_NEXT_LINE) is the only thing that survives a
+        // goal, and it is consumed here.
+        line: s.nextLine ? [...s.nextLine.playerIds] : [],
+        pointLine: s.nextLine ? s.nextLine.playerIds.map((playerId) => ({ playerId })) : [],
+        lineName: s.nextLine ? s.nextLine.name : null,
+        nextLine: null,
         secondary: reachHalf ? null : { kind: 'pull', seconds: 0, total: 75 },
         assist: trackingPlayers ? s.assist : goalAssist,
         pendingGoalAssist: trackingPlayers ? goalAssist : null,
@@ -1159,6 +1232,14 @@ export function gameReducer(state: GameState, action: Action): GameState {
         gameAnnounced: prev.gameAnnounced,
         status: prev.status,
         pointStartSeconds: prev.pointStartSeconds,
+        // The line comes back with the point it was played by. The sliced PointRecord
+        // above took its own copy away, so there is nothing to reconcile.
+        line: [...prev.line],
+        pointLine: prev.pointLine.map((p) => ({ ...p })),
+        nextLine: prev.nextLine
+          ? { ...prev.nextLine, playerIds: [...prev.nextLine.playerIds] }
+          : null,
+        lineName: prev.lineName,
         secondary: null,
         assist: 'undoDone',
         pendingGoalAssist: null,
@@ -1733,6 +1814,12 @@ export function gameReducer(state: GameState, action: Action): GameState {
 
     case 'REMOVE_PLAYER': {
       if (state.phase !== 'game') return state;
+      // Removing someone takes them off the field too, otherwise the composition
+      // counters would keep counting a player who is no longer on the roster and the
+      // size check would read one too many. Log entries and closed PointRecords keep
+      // their dangling id on purpose, exactly as goal attribution already does — what
+      // happened happened, and the report renders an unknown id as a blank label.
+      const tracked = lineTrackedFor(state.config, action.team);
       return {
         ...state,
         config: {
@@ -1742,8 +1829,91 @@ export function gameReducer(state: GameState, action: Action): GameState {
             [action.team]: state.config.players[action.team].filter((p) => p.id !== action.id),
           },
         },
+        ...(tracked
+          ? {
+              line: state.line.filter((id) => id !== action.id),
+              pointLine: state.pointLine.filter((p) => p.playerId !== action.id),
+              nextLine: state.nextLine
+                ? {
+                    ...state.nextLine,
+                    playerIds: state.nextLine.playerIds.filter((id) => id !== action.id),
+                  }
+                : null,
+            }
+          : {}),
       };
     }
+
+    case 'SET_PLAYER_GENDER': {
+      if (state.phase !== 'game') return state;
+      return {
+        ...state,
+        config: {
+          ...state.config,
+          players: {
+            ...state.config.players,
+            [action.team]: state.config.players[action.team].map((p) =>
+              p.id === action.id ? { ...p, gender: action.gender ?? undefined } : p,
+            ),
+          },
+        },
+      };
+    }
+
+    // Who is on the field for the point in progress. Merged into `pointLine` rather
+    // than replacing it: a player taken off still played the point, which is the
+    // question the PointRecord answers.
+    case 'SET_LINE': {
+      if (!canSetLine(state).ok) return state;
+      const ids = dedupeIds(action.playerIds);
+      const lineName = action.lineName ?? null;
+      // Mid-point only once the disc is live AND somebody was already recorded for
+      // this point. Between points nobody has taken the field yet, so the registration
+      // simply *is* the line and replaces whatever was pencilled in — a player removed
+      // there never played and must not be recorded as having done so. A first
+      // registration made late (the volunteer catching up) lands here too, which is
+      // why it is not seven substitutions.
+      if (state.status !== 'live' || state.pointLine.length === 0) {
+        return {
+          ...state,
+          line: ids,
+          lineName,
+          pointLine: ids.map((playerId) => ({ playerId })),
+        };
+      }
+      // Mid-point: merge, flagging both halves of the swap. Whoever came off stays in
+      // the record — they played part of the point — but is marked `off` so the player
+      // pickers stop offering them (see `onFieldIds`). Somebody coming back on has the
+      // flag cleared again.
+      const seen = new Set(state.pointLine.map((p) => p.playerId));
+      const pointLine: LinePlayer[] = [
+        ...state.pointLine.map((p) => ({
+          playerId: p.playerId,
+          ...(p.sub ? { sub: p.sub } : {}),
+          ...(ids.includes(p.playerId) ? {} : { off: true as const }),
+        })),
+        ...ids.filter((id) => !seen.has(id)).map((playerId) => ({ playerId, sub: true as const })),
+      ];
+      return { ...state, line: ids, lineName, pointLine };
+    }
+
+    case 'SET_NEXT_LINE': {
+      if (!canSetLine(state, { next: true }).ok) return state;
+      return {
+        ...state,
+        nextLine: { playerIds: dedupeIds(action.playerIds), name: action.lineName ?? null },
+      };
+    }
+
+    case 'CLEAR_NEXT_LINE':
+      return state.nextLine === null ? state : { ...state, nextLine: null };
+
+    case 'SET_SAVED_LINES':
+      if (!lineTrackingEnabled(state.config)) return state;
+      return {
+        ...state,
+        config: { ...state.config, lines: { ...state.config.lines, saved: action.lines } },
+      };
 
     case 'SET_GOAL_PLAYERS': {
       if (state.points.length === 0) return state;

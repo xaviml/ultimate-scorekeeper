@@ -58,6 +58,10 @@ describe('extractTemplateSettings', () => {
       statsMode: 'team' as const,
       trackedTeam: 'A' as const,
       trackTurnoverPlayers: true,
+      // Tracking settings never travel — but the line SIZE does: how many take the
+      // field is a fact about grass against beach, not about what this game records.
+      lines: { ...defaultConfig.lines, enabled: true, genderCheck: 'fixed' as const },
+      lineSize: 5,
       players: { A: [{ id: '1', number: '7', name: 'Alex' }], B: [] },
       fieldNumber: '3',
     };
@@ -68,6 +72,7 @@ describe('extractTemplateSettings', () => {
       division: cfg.division,
       fieldNumber: '3',
       mixedRule: cfg.mixedRule,
+      lineSize: 5,
       targetScore: cfg.targetScore,
       halfScore: cfg.halfScore,
       timeLimitMinutes: cfg.timeLimitMinutes,
@@ -115,5 +120,23 @@ describe('saved template storage', () => {
     saveTemplate({ name: 'Summer League', settings: extractTemplateSettings(defaultConfig) });
     deleteTemplate('  SUMMER LEAGUE ');
     expect(loadSavedTemplates()).toEqual([]);
+  });
+});
+
+describe('the line size in the predefined templates', () => {
+  // How many players take the field is a property of the field format, so it comes
+  // with the format rather than being typed in every game.
+  it('is sevens on grass and fives on beach', () => {
+    expect(GRASS_TEMPLATE.lineSize).toBe(7);
+    expect(BEACH_TEMPLATE.lineSize).toBe(5);
+  });
+
+  // The tracking settings are excluded, so applying a template can never switch line
+  // tracking on or off, or wipe a team's predefined lines.
+  it('carries no line-tracking settings alongside it', () => {
+    for (const template of [GRASS_TEMPLATE, BEACH_TEMPLATE]) {
+      expect(template).not.toHaveProperty('lines');
+      expect(template).not.toHaveProperty('statsMode');
+    }
   });
 });
