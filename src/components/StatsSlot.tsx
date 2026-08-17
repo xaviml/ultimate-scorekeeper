@@ -59,8 +59,8 @@ const arrowButton =
  * all outrank it, and the slot's fixed height means it appearing or paging can
  * never move the score panels above.
  *
- * With stats tracking on it is three pages — possession ledger, pace of this
- * point, team figures — cycled by the two thin chevron buttons flanking the
+ * With stats tracking on it is three pages — team figures, possession ledger,
+ * pace of this point — cycled by the two thin chevron buttons flanking the
  * panel (looping). In statsMode 'none' there is no Turn button and so no
  * possession to draw, and it collapses to a single holds/breaks page with no
  * arrows. Portrait only: landscape has no height to give it, and it hides
@@ -143,6 +143,17 @@ export function StatsSlot() {
 
   const pages = [
     {
+      label: t('slotPageTeam'),
+      summary: ([top, bottom] as TeamId[])
+        .map((id, i) =>
+          `${nameOf(id)}: ${figureRows[i].values
+            .map((v, j) => `${v} ${figureHeaders[j]}`)
+            .join(', ')}`.toLowerCase(),
+        )
+        .join(' — '),
+      node: <StatFiguresGrid headers={figureHeaders} rows={figureRows} />,
+    },
+    {
       label: t('slotPagePossession'),
       summary: `${t('slotPagePossession')} — ${nameOf(top)}: ${formatClock(
         state.possessionSeconds[top],
@@ -174,17 +185,6 @@ export function StatsSlot() {
           notches={notches}
         />
       ),
-    },
-    {
-      label: t('slotPageTeam'),
-      summary: ([top, bottom] as TeamId[])
-        .map((id, i) =>
-          `${nameOf(id)}: ${figureRows[i].values
-            .map((v, j) => `${v} ${figureHeaders[j]}`)
-            .join(', ')}`.toLowerCase(),
-        )
-        .join(' — '),
-      node: <StatFiguresGrid headers={figureHeaders} rows={figureRows} />,
     },
   ];
 

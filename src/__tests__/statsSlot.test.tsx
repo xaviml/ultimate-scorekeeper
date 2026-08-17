@@ -59,10 +59,16 @@ describe('the stats slot', () => {
     expect(ledger()).toBeNull();
   });
 
-  it('cycles ledger → pace → figures → ledger with the chevrons, looping both ways', () => {
+  it('cycles figures → ledger → pace → figures with the chevrons, looping both ways', () => {
     mount(liveGame());
 
-    // Page 1 is the ledger.
+    // Page 1 is the team figures, in the requested order: Holds, Breaks, Break ch., Turns.
+    const slot = pager() as HTMLElement;
+    expect(slot.textContent).toMatch(/Holds.*Breaks.*Break ch\..*Turns/);
+    expect(slot.textContent).not.toContain('Clean');
+    expect(ledger()).toBeNull();
+
+    fireEvent.click(next());
     expect(ledger()).not.toBeNull();
 
     fireEvent.click(next());
@@ -71,16 +77,10 @@ describe('the stats slot', () => {
     expect(screen.getAllByText(/This point/).length).toBeGreaterThan(0);
 
     fireEvent.click(next());
-    // Team figures, in the requested order: Holds, Breaks, Break ch., Turns.
-    const slot = pager() as HTMLElement;
-    expect(slot.textContent).toMatch(/Holds.*Breaks.*Break ch\..*Turns/);
-    expect(slot.textContent).not.toContain('Clean');
-
-    fireEvent.click(next());
-    expect(ledger()).not.toBeNull(); // looped back around
+    expect(slot.textContent).toMatch(/Holds.*Breaks.*Break ch\..*Turns/); // looped back around
 
     fireEvent.click(screen.getByLabelText('Previous statistic'));
-    expect(slot.textContent).toMatch(/Break ch\./); // and backwards past the start
+    expect(screen.getAllByText(/This point/).length).toBeGreaterThan(0); // and backwards past the start
   });
 
   it('comes back on the page it was on after the slot changes hands', () => {
@@ -88,12 +88,11 @@ describe('the stats slot', () => {
     // pager unmounts whenever a button borrows the slot, and must not reset.
     sessionStorage.setItem(
       'ultimate-scorekeeper:stats-slot-page',
-      JSON.stringify({ game: 0, page: 2 }),
+      JSON.stringify({ game: 0, page: 1 }),
     );
     mount(liveGame());
 
-    expect(ledger()).toBeNull();
-    expect((pager() as HTMLElement).textContent).toMatch(/Break ch\./);
+    expect(ledger()).not.toBeNull();
   });
 
   it('cedes the slot to the amber advance button while awaiting the pull', () => {
@@ -129,6 +128,7 @@ describe('the stats slot', () => {
     );
 
     expect(pager()).toBeInTheDocument();
+    fireEvent.click(next());
     const strip = ledger() as HTMLElement;
     const cols = strip.querySelectorAll('span.relative');
     // Two columns — the legacy point and the one in progress. The legacy one
@@ -157,6 +157,7 @@ describe('the stats slot', () => {
       }),
     );
 
+    fireEvent.click(next());
     const cols = [...(ledger() as HTMLElement).querySelectorAll('span.relative')];
     // One bar on the scorer's side, nothing opposite — plus its score label.
     expect(cols[0].querySelectorAll('[data-bar]')).toHaveLength(1);
@@ -191,6 +192,7 @@ describe('the stats slot', () => {
       }),
     );
 
+    fireEvent.click(next());
     const cols = [...(ledger() as HTMLElement).querySelectorAll('span.relative')];
     const dotSide = (col: Element) =>
       (col.querySelector('[data-offense-dot]') as HTMLElement).style.top === '0px'
@@ -236,6 +238,7 @@ describe('the stats slot', () => {
       }),
     );
 
+    fireEvent.click(next());
     const cols = [...(ledger() as HTMLElement).querySelectorAll('span.relative')];
     // Running score per scorer: A 1, B 1, A 2 — and the open point is unlabelled.
     expect(cols.map((c) => c.textContent)).toEqual(['1', '1', '2', '']);
