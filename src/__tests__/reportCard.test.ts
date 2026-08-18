@@ -64,7 +64,8 @@ describe('teamStatRows', () => {
 
   it('formats the average times as a clock, and an absent average as a dash', () => {
     const state = baseState();
-    state.config.statsMode = 'game';
+    state.config.statsMode = 'teams';
+    state.config.trackTurnovers = true;
     state.points = [point({ scoredBy: 'A', offense: 'A', isBreak: false, durationSeconds: 95 })];
 
     const rows = teamStatRows(state, t);
@@ -133,7 +134,8 @@ describe('reportCardModel', () => {
 
   it('gives every player row a team colour in Player mode, and none in Team mode', () => {
     const state = baseState();
-    state.config.statsMode = 'player';
+    state.config.statsMode = 'players';
+    state.config.trackTurnovers = true;
     state.config.teams = {
       A: { name: 'Foxes', color: '#ff0000' },
       B: { name: 'Wolves', color: '#0000ff' },
@@ -151,7 +153,8 @@ describe('reportCardModel', () => {
     expect(both.map((p) => p.color)).toEqual(['#ff0000', '#0000ff', '#ff0000', '#0000ff']);
 
     // Team mode lists one roster, so a colour dot would distinguish nothing.
-    state.config.statsMode = 'team';
+    state.config.statsMode = 'players';
+    state.config.trackTurnovers = true;
     state.config.trackedTeam = 'A';
     const tracked = reportCardModel(state, t, 'en').playerRows;
     expect(tracked.map((p) => p.label)).toEqual(['#7 Alex', 'Not recorded']);
@@ -160,7 +163,8 @@ describe('reportCardModel', () => {
 
   it('counts assists and goals separately and totals them', () => {
     const state = baseState();
-    state.config.statsMode = 'team';
+    state.config.statsMode = 'players';
+    state.config.trackTurnovers = true;
     state.config.trackedTeam = 'A';
     state.config.players = { A: [{ id: 'a1', number: '', name: 'Alex' }], B: [] };
     state.log = [
@@ -188,7 +192,8 @@ describe('reportCardModel', () => {
   // carried by one dimmed row per team rather than silently dropped.
   it('adds a per-team row for the goals nobody was named on', () => {
     const state = baseState();
-    state.config.statsMode = 'team';
+    state.config.statsMode = 'players';
+    state.config.trackTurnovers = true;
     state.config.trackedTeam = 'A';
     state.config.players = { A: [{ id: 'a1', number: '', name: 'Alex' }], B: [] };
     state.log = [
@@ -207,7 +212,8 @@ describe('reportCardModel', () => {
 
   it('has no player section at all when nobody was attributed', () => {
     const state = baseState();
-    state.config.statsMode = 'game';
+    state.config.statsMode = 'teams';
+    state.config.trackTurnovers = true;
     state.points = [point()];
     state.log = [entry({ team: 'A' })];
 
@@ -216,7 +222,8 @@ describe('reportCardModel', () => {
 
   it('builds the possession ledger with running scores, and none when nothing was tracked', () => {
     const state = baseState();
-    state.config.statsMode = 'game';
+    state.config.statsMode = 'teams';
+    state.config.trackTurnovers = true;
     state.config.startingSide = 'A';
     state.points = [
       point({ scoredBy: 'A', possessionSeconds: { A: 30, B: 10 } }),
@@ -277,7 +284,8 @@ describe('reportCardModel', () => {
 describe('the card with line tracking on', () => {
   function lineTrackedState() {
     const state = baseState();
-    state.config.statsMode = 'team';
+    state.config.statsMode = 'players';
+    state.config.trackTurnovers = true;
     state.config.trackedTeam = 'A';
     state.config.trackTurnoverPlayers = true;
     state.config.lineSize = 2;
@@ -364,7 +372,8 @@ describe('the card with line tracking on', () => {
 describe('the card with turnover players tracked but no line tracking', () => {
   function turnoverTrackedState() {
     const state = baseState();
-    state.config.statsMode = 'player';
+    state.config.statsMode = 'players';
+    state.config.trackTurnovers = true;
     state.config.trackTurnoverPlayers = true;
     state.config.players = { A: [{ id: 'a1', number: '', name: 'Alex' }], B: [] };
     state.log = [

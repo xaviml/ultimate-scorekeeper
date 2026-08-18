@@ -1,4 +1,5 @@
 import { useT } from '../i18n/useT';
+import { CheckField } from './CheckField';
 
 /**
  * "This goal had no assist" — the one answer to "who assisted?" that isn't a
@@ -21,10 +22,7 @@ export function CallahanToggle({
   onChange: (checked: boolean) => void;
 }) {
   const { t } = useT();
-  return (
-    <label className="flex items-center gap-2">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-      <span className="text-sm">{t('callahanToggle')}</span>
-    </label>
-  );
+  // The tick rather than the switch: this answers the question on screen, it is not
+  // a setting left standing.
+  return <CheckField label={t('callahanToggle')} checked={checked} onChange={onChange} />;
 }

@@ -23,7 +23,7 @@ function fieldSelect(labelText: string): HTMLSelectElement {
 /** The importer lives in the Roster section, which only exists — and only expands — for a roster mode. */
 function openImporter(team: 'A' | 'B' = 'A') {
   renderConfigScreen();
-  fireEvent.change(fieldSelect('What to track'), { target: { value: 'player' } });
+  fireEvent.change(fieldSelect('Track'), { target: { value: 'players' } });
   fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
   const buttons = screen.getAllByRole('button', { name: 'Import' });
   fireEvent.click(buttons[team === 'A' ? 0 : 1]);

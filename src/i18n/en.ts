@@ -115,24 +115,29 @@ export const en = {
 
   // Statistics
   statsTitle: 'Statistics',
-  statsModeLabel: 'What to track',
-  statsModeNone: 'No statistics',
-  statsModeNoneHint: 'Just the score, clock and gender ratio — nothing else is logged.',
-  statsModeGame: 'Game stats',
-  statsModeGameHint:
-    'Turnovers and calls are logged by team, with no player detail — no roster needed.',
-  statsModeTeam: 'Team stats',
-  statsModeTeamHint:
-    'Goals, assists, turnovers and injuries are attributed by player for the team you pick below. The other team stays at game-stats detail — team only, never a player.',
-  statsModePlayer: 'Player stats',
-  statsModePlayerHint:
-    'Goals, assists, turnovers and injuries are attributed by player, for both teams.',
-  trackedTeamLabel: 'Team to track',
+  statsModeLabel: 'Track',
+  statsModeNone: 'Score only',
+  statsModeNoneHint:
+    'Score, clocks and ratio. Calls and stoppages still go in the log, but without saying who they were for.',
+  statsModeTeams: 'By team',
+  statsModeTeamsHint:
+    'Adds the question "which team?" to every call, travel and stoppage. No roster needed, and nobody is ever named.',
+  statsModePlayers: 'By player',
+  statsModePlayersHint:
+    'Adds a roster, so goals, assists, turnovers and injuries can name a player. Type it in below.',
+  trackedTeamLabel: 'Players of',
+  trackedTeamBoth: 'Both teams',
+  trackTurnoversLabel: 'Turnovers',
+  trackTurnoversHint:
+    'Puts the Turn button on the game screen, and with it the possession bar, the live stats and the turnover figures in the report.',
+  trackGoalPlayersLabel: 'Ask who scored',
+  trackGoalPlayersHint:
+    'Off, a goal is just a goal. On, it asks for the scorer and the assist — you can always fill them in later from the log.',
   trackTurnoverPlayersLabel: 'Ask who turned it over',
   trackTurnoverPlayersHint:
     'Off, Turn just registers the turnover. On, it asks who lost the disc and who forced it — accurate, but a lot of taps in a fast point.',
 
-  // Line tracking. Only offered in Team stats mode, where one roster is followed —
+  // Line tracking. Only offered where a single roster is followed —
   // see lineTrackingEnabled. MMP/FMP are the WFDF terms and stay English in every
   // dictionary, like the lbl* micro-labels: they are what the abbreviations are.
   linesTitle: 'Lines',
@@ -732,7 +737,7 @@ export const en = {
     'Type each name, or pick a team you saved earlier. Choose a colour close to the shirts each team is wearing: the score panels are painted in those colours all game, so you never have to remember which side is which.',
   guideStep1Players: 'Statistics',
   guideStep1PlayersBody:
-    'Choose what this game tracks. "No statistics" is the default — score, clocks and ratio only, with calls, travels and technical stoppages logged with no team. "Game stats" adds turnovers and calls by team, no roster needed. "Team stats" and "Player stats" attribute goals, assists, turnovers and injuries to a player, once you add the roster below — Team stats for the side you pick, Player stats for both. Anything above "No statistics" also adds two more buttons on the game screen, Roster and Turn.',
+    'Two questions. First, how much detail: "Score only" is the default — score, clocks and ratio, with calls, travels and technical stoppages logged with no team. "By team" attributes everything to a team, no roster needed. "By player" attributes goals, assists, turnovers and injuries to a named player, once you add the roster below, for one team or for both. Second, the switches under it: what this game actually records. Turnovers puts the Turn button on the game screen; the rest ask who scored, who lost the disc, and who played each point. Turn them on for the ones you can keep up with, and leave the rest off.',
   guideStep1Time: 'Scheduled starting time',
   guideStep1TimeBody:
     'Optional. Tick it and the app counts down to the kickoff and unlocks play on its own when it arrives.',

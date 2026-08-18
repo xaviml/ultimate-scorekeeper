@@ -22,7 +22,7 @@ function liveGame(overrides: Partial<GameState> = {}): GameState {
   state.pointStartSeconds = 0;
   // Copied rather than mutated: createInitialState()'s default config object is
   // shared, and flipping statsMode on it would leak into other test files.
-  state.config = { ...state.config, statsMode: 'game' };
+  state.config = { ...state.config, statsMode: 'teams', trackTurnovers: true };
   return { ...state, ...overrides };
 }
 

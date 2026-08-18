@@ -25,7 +25,8 @@ function lineGame(overrides: Partial<GameState> = {}): GameState {
   state.status = 'awaitingPull';
   state.config = {
     ...state.config,
-    statsMode: 'team',
+    statsMode: 'players',
+    trackTurnovers: true,
     trackedTeam: 'A',
     lineSize: 3,
     lines: { enabled: true, genderCheck: 'gameRatio', fixedFemale: 2, saved: [] },
@@ -138,7 +139,12 @@ describe('the between-points prompt', () => {
 
   it('never appears in player mode', () => {
     const state = lineGame();
-    state.config = { ...state.config, statsMode: 'player', trackedTeam: null };
+    state.config = {
+      ...state.config,
+      statsMode: 'players',
+      trackTurnovers: true,
+      trackedTeam: null,
+    };
     mount(state);
     expect(screen.queryByRole('button', { name: /register line/i })).toBeNull();
   });

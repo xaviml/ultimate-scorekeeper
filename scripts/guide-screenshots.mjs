@@ -87,7 +87,10 @@ async function main() {
     await marker(setup.locator('select').first(), setupClip, -0.04),
     await marker(setup.locator('select').nth(1), setupClip, -0.04),
     await marker(page.getByLabel('Team 1', { exact: true }), setupClip, -0.04),
-    await marker(setup.locator('input[type=checkbox]'), setupClip),
+    // The switch's painted track, not the <input>: CheckField keeps the real
+    // checkbox in the DOM but `sr-only`, so measuring the input would put the
+    // marker on a 1px box in the corner of the row.
+    await marker(setup.locator('label:has(input[type=checkbox]) > span').first(), setupClip),
     await marker(stats.locator('h2'), setupClip, 1.05),
   ];
 

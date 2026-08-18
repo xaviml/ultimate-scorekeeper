@@ -21,7 +21,8 @@ function run(state: GameState, ...actions: Action[]): GameState {
 /** A live game with both rosters tracked, so every attribution question applies. */
 function live(patch: Partial<GameConfig> = {}): GameState {
   const config = cfg({
-    statsMode: 'player',
+    statsMode: 'players',
+    trackTurnovers: true,
     players: {
       A: [
         { id: 'a1', number: '7', name: 'Alex' },
@@ -75,7 +76,7 @@ describe('which rows offer an edit', () => {
   });
 
   it('offers the team but not the players when only teams are tracked', () => {
-    const s = run(live({ statsMode: 'game', players: { A: [], B: [] } }), {
+    const s = run(live({ statsMode: 'teams', trackTurnovers: true, players: { A: [], B: [] } }), {
       type: 'TRAVEL',
       team: 'A',
     });
@@ -85,8 +86,11 @@ describe('which rows offer an edit', () => {
     expect(logEditKind(goal, find(goal, 'goal'))).toBeNull();
   });
 
-  it('offers players only for the tracked side in Team stats mode', () => {
-    const s = run(live({ statsMode: 'team', trackedTeam: 'A' }), { type: 'GOAL', team: 'B' });
+  it('offers players only for the followed side when one team is followed', () => {
+    const s = run(live({ statsMode: 'players', trackTurnovers: true, trackedTeam: 'A' }), {
+      type: 'GOAL',
+      team: 'B',
+    });
     expect(logEditKind(s, find(s, 'goal'))).toBeNull();
 
     const own = run(s, { type: 'PULL_THROWN' }, { type: 'GOAL', team: 'A' });

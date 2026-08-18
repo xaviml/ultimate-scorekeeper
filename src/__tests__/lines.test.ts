@@ -29,7 +29,8 @@ const cfg = (
   const { size, ...rest } = lines;
   return {
     ...defaultConfig,
-    statsMode: 'team',
+    statsMode: 'players',
+    trackTurnovers: true,
     trackedTeam: 'A',
     ...(size !== undefined ? { lineSize: size } : {}),
     lines: { ...defaultConfig.lines, enabled: true, ...rest },
@@ -60,11 +61,12 @@ const roster: PlayerInfo[] = [
 describe('lineTrackingEnabled', () => {
   // The gate, not the flag: every consumer asks this, which is what lets the stats
   // mode retire line tracking without anything having to clear the setting.
-  it('needs the flag, team mode and a tracked team all at once', () => {
+  it('needs the flag, player detail and a single followed team all at once', () => {
     expect(lineTrackingEnabled(cfg())).toBe(true);
     expect(lineTrackingEnabled(cfg({ enabled: false }))).toBe(false);
-    expect(lineTrackingEnabled(cfg({}, { statsMode: 'player', trackedTeam: null }))).toBe(false);
-    expect(lineTrackingEnabled(cfg({}, { statsMode: 'game', trackedTeam: null }))).toBe(false);
+    // Player detail, but following both teams: two lines a point is nobody's job.
+    expect(lineTrackingEnabled(cfg({}, { statsMode: 'players', trackedTeam: null }))).toBe(false);
+    expect(lineTrackingEnabled(cfg({}, { statsMode: 'teams', trackedTeam: null }))).toBe(false);
     expect(lineTrackingEnabled(cfg({}, { statsMode: 'none', trackedTeam: null }))).toBe(false);
     expect(lineTrackingEnabled(cfg({}, { trackedTeam: null }))).toBe(false);
   });

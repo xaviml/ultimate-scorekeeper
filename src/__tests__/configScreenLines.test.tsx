@@ -28,10 +28,11 @@ function fieldInput(labelText: string): HTMLInputElement {
 const statsSection = () => screen.getByText('Statistics').closest('section') as HTMLElement;
 const rosterSection = () => screen.getByText('Roster').closest('section') as HTMLElement;
 
-/** Team stats mode with a tracked team is the only mode line tracking exists in. */
+/** Player detail narrowed to one team is the only place line tracking exists. */
 function intoTeamMode() {
   renderConfigScreen();
-  fireEvent.change(fieldSelect('What to track'), { target: { value: 'team' } });
+  fireEvent.change(fieldSelect('Track'), { target: { value: 'players' } });
+  fireEvent.change(fieldSelect('Players of'), { target: { value: 'A' } });
 }
 
 /** Ticks the line-tracking checkbox in the Statistics section. */
@@ -47,30 +48,36 @@ beforeEach(() => {
 describe('the line-tracking option', () => {
   const lineToggle = () => within(statsSection()).queryByLabelText('Track who plays each point');
 
-  // Line tracking follows the single roster Team mode watches, so Player mode —
-  // which has two — never offers it. This is the config-screen half of the same
-  // rule lineTrackingEnabled enforces at runtime.
-  it('is offered only in Team stats mode', () => {
+  // Line tracking follows a single roster, so following both teams never offers it.
+  // This is the config-screen half of the same rule lineTrackingEnabled enforces at
+  // runtime.
+  it('is offered only where one team is followed', () => {
     renderConfigScreen();
     expect(lineToggle()).toBeNull();
 
-    fireEvent.change(fieldSelect('What to track'), { target: { value: 'game' } });
+    fireEvent.change(fieldSelect('Track'), { target: { value: 'teams' } });
     expect(lineToggle()).toBeNull();
 
-    fireEvent.change(fieldSelect('What to track'), { target: { value: 'player' } });
+    // Player detail, but following both teams — two lines a point is nobody's job.
+    fireEvent.change(fieldSelect('Track'), { target: { value: 'players' } });
     expect(lineToggle()).toBeNull();
 
-    fireEvent.change(fieldSelect('What to track'), { target: { value: 'team' } });
+    fireEvent.change(fieldSelect('Players of'), { target: { value: 'A' } });
     expect(lineToggle()).not.toBeNull();
+
+    // ...and moving back to both teams retires it again.
+    fireEvent.change(fieldSelect('Players of'), { target: { value: 'both' } });
+    expect(lineToggle()).toBeNull();
   });
 
   // It is another thing this game tracks, so it belongs with the rest of them rather
   // than in a section of its own.
-  it('sits in the Statistics section, under the turnover-players option', () => {
+  it('sits in the Statistics section, last of the things this game records', () => {
     intoTeamMode();
     expect(screen.queryByText('Lines')).toBeNull();
     const labels = [...statsSection().querySelectorAll('span.text-sm')].map((s) => s.textContent);
-    expect(labels).toEqual(['Ask who turned it over', 'Track who plays each point']);
+    // Turnovers is off by default, so its nested "ask who" is not offered yet.
+    expect(labels).toEqual(['Turnovers', 'Ask who scored', 'Track who plays each point']);
   });
 
   it('is off to begin with, and asks nothing else until it is on', () => {
@@ -85,7 +92,7 @@ describe('the line-tracking option', () => {
     intoTeamMode();
     enableLines();
     const selects = [...statsSection().querySelectorAll('select')];
-    // What to track, Team to track, and the gender check — nothing else.
+    // Track, Players of, and the gender check — nothing else.
     expect(selects).toHaveLength(3);
   });
 
@@ -162,9 +169,9 @@ describe('the roster markings', () => {
     expect(screen.getByRole('button', { name: 'Alex — gender: Not set' })).toBeTruthy();
   });
 
-  it('offers it for both rosters in Player mode, where lines never apply', () => {
+  it('offers it for both rosters when both are followed, where lines never apply', () => {
     renderConfigScreen();
-    fireEvent.change(fieldSelect('What to track'), { target: { value: 'player' } });
+    fireEvent.change(fieldSelect('Track'), { target: { value: 'players' } });
     fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
     const roster = rosterSection();
     const nameFields = within(roster).getAllByPlaceholderText('Name');
@@ -413,7 +420,7 @@ describe('predefined lines on the config screen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
     expect(screen.getByRole('button', { name: 'Edit O1' })).toBeTruthy();
 
-    fireEvent.change(fieldSelect('Team to track'), { target: { value: 'B' } });
+    fireEvent.change(fieldSelect('Players of'), { target: { value: 'B' } });
     expect(screen.queryByRole('button', { name: 'Edit O1' })).toBeNull();
   });
 });

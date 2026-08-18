@@ -38,9 +38,9 @@ function loadRavensIntoTeamA() {
 
 /** The Roster section (and its Expand/Collapse toggle) only exists once a mode with a roster is picked. */
 function pickPlayerStats() {
-  const label = screen.getByText('What to track');
+  const label = screen.getByText('Track');
   const select = label.parentElement!.querySelector('select') as HTMLSelectElement;
-  fireEvent.change(select, { target: { value: 'player' } });
+  fireEvent.change(select, { target: { value: 'players' } });
 }
 
 beforeEach(() => {

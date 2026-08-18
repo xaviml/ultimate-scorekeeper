@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useT } from '../i18n/useT';
 import { applyImport, isTextRosterFile, parseRoster } from '../state/rosterImport';
 import type { PlayerInfo } from '../state/types';
+import { CheckField } from './CheckField';
 import { Modal } from './Modal';
 import { primaryButton, secondaryButton } from './ui';
 
@@ -147,10 +148,11 @@ export function RosterImportDialog({
       )}
 
       {existing.length > 0 && (
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={replace} onChange={(e) => setReplace(e.target.checked)} />
-          <span>{t('rosterImportReplace', { count: existing.length })}</span>
-        </label>
+        <CheckField
+          label={t('rosterImportReplace', { count: existing.length })}
+          checked={replace}
+          onChange={setReplace}
+        />
       )}
 
       <div className="grid grid-cols-2 gap-3">

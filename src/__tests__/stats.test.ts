@@ -141,7 +141,8 @@ describe('teamStats', () => {
 describe('playerStatLines', () => {
   function withRoster(): GameState {
     const config = cfg({
-      statsMode: 'player',
+      statsMode: 'players',
+      trackTurnovers: true,
       players: {
         A: [
           { id: 'a1', number: '', name: 'Alex' },
@@ -185,7 +186,8 @@ describe('playerStatLines', () => {
     /** Two A goals: one fully named, one with nobody named at all. */
     function withGaps(): GameState {
       const config = cfg({
-        statsMode: 'player',
+        statsMode: 'players',
+        trackTurnovers: true,
         players: { A: [{ id: 'a1', number: '', name: 'Alex' }], B: [] },
       });
       let s = liveGame(config);
@@ -232,7 +234,7 @@ describe('playerStatLines', () => {
     // With nothing attributed anywhere the aggregate would be the whole table, and
     // it says nothing the score doesn't — the callers hide the section on [].
     it('never stands alone when no player was named at all', () => {
-      const config = cfg({ statsMode: 'player', players: { A: [], B: [] } });
+      const config = cfg({ statsMode: 'players', trackTurnovers: true, players: { A: [], B: [] } });
       let s = liveGame(config);
       s = gameReducer(s, { type: 'GOAL', team: 'A' });
       expect(playerStatLines(s, ['A', 'B'], t)).toEqual([]);
@@ -303,7 +305,8 @@ describe('per-player line stats', () => {
     { id: 'p3', number: '3', name: 'Three' },
   ];
   const lineCfg = cfg({
-    statsMode: 'team',
+    statsMode: 'players',
+    trackTurnovers: true,
     trackedTeam: 'A',
     lineSize: 2,
     lines: { ...defaultConfig.lines, enabled: true },
@@ -468,7 +471,8 @@ describe('per-player line stats', () => {
   // The default-off invariant: nothing about the table changes until lines are on.
   it('leaves every line field at zero when line tracking is off', () => {
     const off = cfg({
-      statsMode: 'team',
+      statsMode: 'players',
+      trackTurnovers: true,
       trackedTeam: 'A',
       players: { A: roster, B: [] },
     });

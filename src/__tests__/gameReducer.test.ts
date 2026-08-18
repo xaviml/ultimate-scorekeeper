@@ -1400,13 +1400,19 @@ describe('undoing a turnover', () => {
 
   it('puts the possession chip on screen for any tracked mode from the first pull, with no need to wait for a turnover', () => {
     expect(possessionTracked(live())).toBe(false); // statsMode 'none' by default
-    expect(possessionTracked(live(cfg({ statsMode: 'game' })))).toBe(true);
-    expect(possessionTracked(live(cfg({ statsMode: 'team', trackedTeam: 'A' })))).toBe(true);
-    expect(possessionTracked(live(cfg({ statsMode: 'player' })))).toBe(true);
+    expect(possessionTracked(live(cfg({ statsMode: 'teams', trackTurnovers: true })))).toBe(true);
+    expect(
+      possessionTracked(
+        live(cfg({ statsMode: 'players', trackTurnovers: true, trackedTeam: 'A' })),
+      ),
+    ).toBe(true);
+    expect(possessionTracked(live(cfg({ statsMode: 'players', trackTurnovers: true })))).toBe(true);
 
     // A turnover (or undoing one) never changes whether the chip is on the board —
     // only statsMode does — just what it currently says.
-    const s = gameReducer(live(cfg({ statsMode: 'game' })), { type: 'TURNOVER' });
+    const s = gameReducer(live(cfg({ statsMode: 'teams', trackTurnovers: true })), {
+      type: 'TURNOVER',
+    });
     expect(possessionTracked(s)).toBe(true);
     expect(possessionTracked(gameReducer(s, { type: 'UNDO_TURNOVER' }))).toBe(true);
   });
@@ -1544,7 +1550,7 @@ describe('recorded events (travel, calls, notes)', () => {
   it.each(['stallOut', 'discDown'] as const)(
     'marks a turnover when an accepted %s call is tracked',
     (kind) => {
-      let s = gameReducer(live(cfg({ statsMode: 'game' })), {
+      let s = gameReducer(live(cfg({ statsMode: 'teams', trackTurnovers: true })), {
         type: 'CALL_MADE',
         kind,
         team: 'B',
@@ -1584,7 +1590,7 @@ describe('recorded events (travel, calls, notes)', () => {
   );
 
   it('does not mark a turnover for an accepted call of any other kind, or a contested/retracted stall-out/disc-down', () => {
-    const base = live(cfg({ statsMode: 'game' }));
+    const base = live(cfg({ statsMode: 'teams', trackTurnovers: true }));
 
     const foul = gameReducer(gameReducer(base, { type: 'CALL_MADE', kind: 'foul', team: 'B' }), {
       type: 'CALL_RESOLVED',
@@ -2301,31 +2307,33 @@ describe('water breaks', () => {
 describe('stats modes', () => {
   it('statsTrackingEnabled is only false for none', () => {
     expect(statsTrackingEnabled(cfg({ statsMode: 'none' }))).toBe(false);
-    expect(statsTrackingEnabled(cfg({ statsMode: 'game' }))).toBe(true);
-    expect(statsTrackingEnabled(cfg({ statsMode: 'team', trackedTeam: 'A' }))).toBe(true);
-    expect(statsTrackingEnabled(cfg({ statsMode: 'player' }))).toBe(true);
+    expect(statsTrackingEnabled(cfg({ statsMode: 'teams', trackTurnovers: true }))).toBe(true);
+    expect(
+      statsTrackingEnabled(cfg({ statsMode: 'players', trackTurnovers: true, trackedTeam: 'A' })),
+    ).toBe(true);
+    expect(statsTrackingEnabled(cfg({ statsMode: 'players', trackTurnovers: true }))).toBe(true);
   });
 
   it('playerTrackingFor is per-team only in team mode, both teams in player mode, neither otherwise', () => {
     expect(playerTrackingFor(cfg({ statsMode: 'none' }), 'A')).toBe(false);
-    expect(playerTrackingFor(cfg({ statsMode: 'game' }), 'A')).toBe(false);
-    expect(playerTrackingFor(cfg({ statsMode: 'game' }), 'B')).toBe(false);
+    expect(playerTrackingFor(cfg({ statsMode: 'teams', trackTurnovers: true }), 'A')).toBe(false);
+    expect(playerTrackingFor(cfg({ statsMode: 'teams', trackTurnovers: true }), 'B')).toBe(false);
 
-    const teamA = cfg({ statsMode: 'team', trackedTeam: 'A' });
+    const teamA = cfg({ statsMode: 'players', trackTurnovers: true, trackedTeam: 'A' });
     expect(playerTrackingFor(teamA, 'A')).toBe(true);
     expect(playerTrackingFor(teamA, 'B')).toBe(false);
 
-    const teamB = cfg({ statsMode: 'team', trackedTeam: 'B' });
+    const teamB = cfg({ statsMode: 'players', trackTurnovers: true, trackedTeam: 'B' });
     expect(playerTrackingFor(teamB, 'A')).toBe(false);
     expect(playerTrackingFor(teamB, 'B')).toBe(true);
 
-    const player = cfg({ statsMode: 'player' });
+    const player = cfg({ statsMode: 'players', trackTurnovers: true });
     expect(playerTrackingFor(player, 'A')).toBe(true);
     expect(playerTrackingFor(player, 'B')).toBe(true);
   });
 
   it('holds the goal message back for the scorer/assist dialog only when the scoring team is player-tracked', () => {
-    const base = live(cfg({ statsMode: 'team', trackedTeam: 'A' }));
+    const base = live(cfg({ statsMode: 'players', trackTurnovers: true, trackedTeam: 'A' }));
     const beforeAssist = base.assist;
 
     // Tracked team scores: the dialog is about to open over this goal, so the
@@ -2341,8 +2349,8 @@ describe('stats modes', () => {
   });
 
   it('an injury can name a specific player and, independently, a whole other team with no player', () => {
-    // Team stats mode's hybrid step: a named player from the tracked team, plus
-    // the untracked team marked with no one named — same shape Game stats mode's
+    // The single-roster hybrid step: a named player from the tracked team, plus
+    // the other team marked with no one named — same shape team-level detail's
     // team-only step dispatches on its own.
     const s = gameReducer(live(), {
       type: 'STOPPAGE',
@@ -2416,7 +2424,7 @@ describe('turnover stats', () => {
 });
 
 describe('possession seconds per point', () => {
-  const tracked = () => live(cfg({ statsMode: 'game' }));
+  const tracked = () => live(cfg({ statsMode: 'teams', trackTurnovers: true }));
 
   it('accrues to whoever holds the disc, and to the other team after a turnover', () => {
     let s = ticks(tracked(), 5); // A received the pull (default startingOffense)
@@ -2492,7 +2500,8 @@ describe('line tracking', () => {
 
   const lineCfg = (patch: Partial<GameConfig> = {}): GameConfig =>
     cfg({
-      statsMode: 'team',
+      statsMode: 'players',
+      trackTurnovers: true,
       trackedTeam: 'A',
       lines: { ...defaultConfig.lines, enabled: true },
       players: { A: roster, B: [] },
@@ -2503,9 +2512,11 @@ describe('line tracking', () => {
     // The flag alone is not the gate: line tracking follows the one roster `team`
     // mode watches, so every other mode retires it without the flag being cleared.
     expect(canSetLine(started(lineCfg())).ok).toBe(true);
-    expect(canSetLine(started(lineCfg({ statsMode: 'player', trackedTeam: null }))).reason).toBe(
-      'lineNotTracked',
-    );
+    expect(
+      canSetLine(
+        started(lineCfg({ statsMode: 'players', trackTurnovers: true, trackedTeam: null })),
+      ).reason,
+    ).toBe('lineNotTracked');
     expect(canSetLine(started(lineCfg({ statsMode: 'none', trackedTeam: null }))).reason).toBe(
       'lineNotTracked',
     );

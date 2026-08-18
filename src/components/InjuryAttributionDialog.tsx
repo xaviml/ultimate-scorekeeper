@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useT } from '../i18n/useT';
+import { rosterTeams } from '../state/gameReducer';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import { playersOnField } from '../state/lines';
 import type { StoppagePlayer, TeamId } from '../state/types';
+import { CheckField } from './CheckField';
 import { Modal } from './Modal';
 import { PlayerMultiPicker } from './PlayerPicker';
 import { PlayerRosterEditor } from './PlayerRosterEditor';
@@ -15,16 +17,16 @@ import { contrastText, primaryButton, secondaryButton, teamChoiceButton } from '
  * from the log (LogEditDialog). Attribution is always optional: submitting with
  * nobody picked logs the injury with no one attached.
  *
- * Which picker appears depends on `statsMode`, because it decides which rosters
- * exist at all:
+ * Which picker appears depends on how many rosters this game keeps (`rosterTeams`),
+ * because that is what decides who can be named at all:
  *
- * - `game` — no roster on either side, so the only question is which team, and
+ * - none — no roster on either side, so the only question is which team, and
  *   picking one submits on the spot (there is nothing else to answer). "No team"
  *   is a real answer here, not a cancel.
- * - `team` — the usual named-player picker for `trackedTeam`, plus one checkbox
+ * - one — the usual named-player picker for the followed team, plus one checkbox
  *   naming the other team with no player, since that side never gets a player
  *   question.
- * - `player` — one picker per roster: a collision can hurt opponents at once, so
+ * - both — one picker per roster: a collision can hurt opponents at once, so
  *   any number of players from either team can be named.
  */
 export function InjuryAttributionDialog({
@@ -53,17 +55,18 @@ export function InjuryAttributionDialog({
   const state = useGame();
   const dispatch = useGameDispatch();
   const { t } = useT();
-  const tracked = state.config.trackedTeam;
+  const rosters = rosterTeams(state.config);
+  // The one followed team, when this game follows exactly one — null when it keeps
+  // both rosters or neither, which are the other two branches below.
+  const tracked = rosters.length === 1 ? rosters[0] : null;
   // Any number of players can be hurt in the same stoppage, from either team — e.g.
-  // a collision between opponents — so this is a list, not a single pick. In `team`
-  // mode it only ever holds `trackedTeam` entries; the other side's involvement (if
+  // a collision between opponents — so this is a list, not a single pick. With one
+  // roster it only ever holds that team's entries; the other side's involvement (if
   // any) is the checkbox below instead.
   const [selected, setSelected] = useState<StoppagePlayer[]>(
-    state.config.statsMode === 'team' && tracked
-      ? (initialPlayers ?? []).filter((p) => p.team === tracked)
-      : (initialPlayers ?? []),
+    tracked ? (initialPlayers ?? []).filter((p) => p.team === tracked) : (initialPlayers ?? []),
   );
-  // `team` mode's hybrid step only: the untracked team, named with no player.
+  // The single-roster hybrid step only: the untracked team, named with no player.
   const [otherTeamInjured, setOtherTeamInjured] = useState(
     initialTeam !== undefined && initialTeam !== tracked,
   );
@@ -78,7 +81,7 @@ export function InjuryAttributionDialog({
     );
   };
 
-  if (state.config.statsMode === 'team' && tracked) {
+  if (tracked) {
     const other: TeamId = tracked === 'A' ? 'B' : 'A';
     // Only somebody actually on the field can have been hurt in the play — when the
     // caller says who that is (see `onField` above).
@@ -117,16 +120,11 @@ export function InjuryAttributionDialog({
             />
           )}
         </div>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={otherTeamInjured}
-            onChange={(e) => setOtherTeamInjured(e.target.checked)}
-          />
-          <span className="text-sm">
-            {t('injuryOtherTeamToggle', { team: state.config.teams[other].name })}
-          </span>
-        </label>
+        <CheckField
+          label={t('injuryOtherTeamToggle', { team: state.config.teams[other].name })}
+          checked={otherTeamInjured}
+          onChange={setOtherTeamInjured}
+        />
         <div className="grid grid-cols-2 gap-3">
           <button className={secondaryButton} onClick={onCancel}>
             {t('btnCancel')}
@@ -147,12 +145,12 @@ export function InjuryAttributionDialog({
     );
   }
 
-  if (state.config.statsMode === 'player') {
+  if (rosters.length > 1) {
     return (
       <PlayerSelectDialog
         title={t('injuryDialogTitle')}
         hint={t('injuryDialogHint')}
-        sections={(['A', 'B'] as TeamId[]).map((id) => ({
+        sections={rosters.map((id) => ({
           team: id,
           label: (
             <strong className="font-semibold text-signal">{state.config.teams[id].name}</strong>

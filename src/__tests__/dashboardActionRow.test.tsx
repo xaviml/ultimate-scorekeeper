@@ -23,7 +23,12 @@ function liveGame(overrides: Partial<GameState> = {}): GameState {
   // Cloned rather than mutated in place: createInitialState hands out the
   // defaultConfig singleton by reference (see dialogs.test.tsx). Turnover players
   // are asked for here — off by default, so a test wanting the dialog says so.
-  state.config = { ...state.config, statsMode: 'player', trackTurnoverPlayers: true };
+  state.config = {
+    ...state.config,
+    statsMode: 'players',
+    trackTurnovers: true,
+    trackTurnoverPlayers: true,
+  };
   state.config.timeouts = { ...state.config.timeouts, enabled: true, perHalf: 2, perGame: null };
   return { ...state, ...overrides };
 }
@@ -67,18 +72,31 @@ describe('the action row', () => {
     expect(screen.getByLabelText('What was called?')).toBeInTheDocument();
   });
 
-  it('keeps Turn but drops Roster in Game stats mode, with no roster to view', () => {
+  // The tournament scorekeeper's game: players are named on goals, but the most
+  // frequent button on the row is not wanted at all.
+  it('drops Turn but keeps Roster when the game names players and skips turnovers', () => {
     const state = liveGame();
-    state.config = { ...state.config, statsMode: 'game' };
+    state.config = { ...state.config, statsMode: 'players', trackTurnovers: false };
+    mount(state);
+
+    expect(screen.getByLabelText('Roster')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Turnover — hold to undo')).toBeNull();
+    // And nothing is left on the board claiming to follow the disc.
+    expect(document.querySelector('[data-possession]')).toBeNull();
+  });
+
+  it('keeps Turn but drops Roster with team-level detail, having no roster to view', () => {
+    const state = liveGame();
+    state.config = { ...state.config, statsMode: 'teams', trackTurnovers: true };
     mount(state);
 
     expect(screen.queryByLabelText('Roster')).toBeNull();
     expect(screen.getByLabelText('Turnover — hold to undo')).toBeInTheDocument();
   });
 
-  it('logs a turnover straight away in Game stats mode, with no player dialog to ask', () => {
+  it('logs a turnover straight away with team-level detail, with no player dialog to ask', () => {
     const state = liveGame();
-    state.config = { ...state.config, statsMode: 'game' };
+    state.config = { ...state.config, statsMode: 'teams', trackTurnovers: true };
     mount(state);
 
     tap(screen.getByLabelText('Turnover — hold to undo'));
@@ -90,7 +108,7 @@ describe('the action row', () => {
 
   it('logs a turnover straight away when the game does not ask who turned it over', () => {
     const state = liveGame();
-    // Player stats, full roster — but the setting behind the question is off,
+    // Player detail, full roster — but the setting behind the question is off,
     // which is the default: Turn registers and the row is free again.
     state.config = { ...state.config, trackTurnoverPlayers: false };
     mount(state);
@@ -113,9 +131,14 @@ describe('the action row', () => {
     expect(stored.log.some((e: { type: string }) => e.type === 'turnover')).toBe(false);
   });
 
-  it('shows both Roster and Turn in Team stats mode', () => {
+  it('shows both Roster and Turn when a single team is followed', () => {
     const state = liveGame();
-    state.config = { ...state.config, statsMode: 'team', trackedTeam: 'A' };
+    state.config = {
+      ...state.config,
+      statsMode: 'players',
+      trackTurnovers: true,
+      trackedTeam: 'A',
+    };
     mount(state);
 
     expect(screen.getByLabelText('Roster')).toBeInTheDocument();

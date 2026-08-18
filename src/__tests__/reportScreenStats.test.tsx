@@ -84,9 +84,27 @@ describe('report screen — team stats table', () => {
     expect(screen.queryByText('Clean breaks')).toBeNull();
   });
 
-  it('adds clean hold/break, break chances and turnovers, correctly valued, once tracking is on', () => {
+  // The extended rows are all turnover-derived, so they follow the turnover flag
+  // rather than the detail: a game naming players but never recording a turnover has
+  // no clean holds to distinguish from plain ones.
+  it('shows only the base rows when players are named but turnovers are not recorded', () => {
     const state = baseState();
-    state.config.statsMode = 'game';
+    state.config.statsMode = 'players';
+    state.config.trackTurnovers = false;
+    state.points = [point()];
+    renderReport(state);
+
+    expect(screen.getByText('O-line holds')).toBeInTheDocument();
+    expect(screen.queryByText('Clean holds')).toBeNull();
+    expect(screen.queryByText('Turnovers')).toBeNull();
+    // And no possession ledger either — it would be a strip of flat columns.
+    expect(screen.queryByText('Possession')).toBeNull();
+  });
+
+  it('adds clean hold/break, break chances and turnovers, correctly valued, once turnovers are recorded', () => {
+    const state = baseState();
+    state.config.statsMode = 'teams';
+    state.config.trackTurnovers = true;
     state.points = [
       point({ scoredBy: 'A', offense: 'A', isBreak: false, turnovers: 0 }), // clean hold, A
       point({ scoredBy: 'A', offense: 'B', isBreak: true, turnovers: 1 }), // clean break, A
@@ -104,18 +122,20 @@ describe('report screen — team stats table', () => {
 });
 
 describe('report screen — player stats table', () => {
-  it('has no player stats table in Game stats mode — there is no player detail to show', () => {
+  it('has no player stats table with team-level detail — there is no player detail to show', () => {
     const state = baseState();
-    state.config.statsMode = 'game';
+    state.config.statsMode = 'teams';
+    state.config.trackTurnovers = true;
     state.points = [point()];
     renderReport(state);
 
     expect(screen.queryByText('Player stats')).toBeNull();
   });
 
-  it("shows only the tracked team's players in Team stats mode, with no filter and no team circle", () => {
+  it("shows only the followed team's players when one team is followed, with no filter and no team circle", () => {
     const state = baseState();
-    state.config.statsMode = 'team';
+    state.config.statsMode = 'players';
+    state.config.trackTurnovers = true;
     state.config.trackedTeam = 'A';
     state.config.players = {
       A: [
@@ -139,7 +159,8 @@ describe('report screen — player stats table', () => {
 
   it('shows both teams with a team filter and a colored circle per row in Player stats mode', () => {
     const state = baseState();
-    state.config.statsMode = 'player';
+    state.config.statsMode = 'players';
+    state.config.trackTurnovers = true;
     state.config.teams = {
       A: { name: 'Foxes', color: '#ff0000' },
       B: { name: 'Wolves', color: '#0000ff' },
@@ -172,7 +193,8 @@ describe('report screen — player stats table', () => {
 
   it('lists Assists, Goals then Total, with Total as their sum', () => {
     const state = baseState();
-    state.config.statsMode = 'team';
+    state.config.statsMode = 'players';
+    state.config.trackTurnovers = true;
     state.config.trackedTeam = 'A';
     state.config.players = { A: [{ id: 'a1', number: '', name: 'Alex' }], B: [] };
     state.points = [
@@ -204,7 +226,8 @@ describe('report screen — clipboard text', () => {
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
 
     const state = baseState();
-    state.config.statsMode = 'player';
+    state.config.statsMode = 'players';
+    state.config.trackTurnovers = true;
     state.config.players = { A: [{ id: 'a1', number: '', name: 'Alex' }], B: [] };
     state.points = [
       point({ scoredBy: 'A', offense: 'A', isBreak: false, turnovers: 0 }),
@@ -238,7 +261,8 @@ describe('the player-stat views', () => {
    */
   function lineTrackedState(): GameState {
     const state = baseState();
-    state.config.statsMode = 'team';
+    state.config.statsMode = 'players';
+    state.config.trackTurnovers = true;
     state.config.trackedTeam = 'A';
     state.config.trackTurnoverPlayers = true;
     state.config.lineSize = 2;
@@ -289,7 +313,8 @@ describe('the player-stat views', () => {
   // worth of data, so pills would be tabs onto the same columns already on screen.
   it('offers no view pills when nothing beyond scoring is tracked', () => {
     const state = baseState();
-    state.config.statsMode = 'player';
+    state.config.statsMode = 'players';
+    state.config.trackTurnovers = true;
     state.config.players = { A: [{ id: 'a1', number: '', name: 'Alex' }], B: [] };
     state.log = [goalEntry({ team: 'A', scorerId: 'a1', assistId: 'a1' })];
     renderReport(state);
@@ -302,7 +327,8 @@ describe('the player-stat views', () => {
   // does not need line tracking at all — only "Ask who turned it over".
   it('offers the possession pill without line tracking, when turnover players are tracked', () => {
     const state = baseState();
-    state.config.statsMode = 'player';
+    state.config.statsMode = 'players';
+    state.config.trackTurnovers = true;
     state.config.trackTurnoverPlayers = true;
     state.config.players = { A: [{ id: 'a1', number: '', name: 'Alex' }], B: [] };
     state.log = [goalEntry({ team: 'A', scorerId: 'a1', assistId: 'a1' })];
@@ -316,7 +342,8 @@ describe('the player-stat views', () => {
   // the time — the view has to notice the data even though the flag never turned on.
   it('offers the possession pill once a turnover is attributed, even with the flag off', () => {
     const state = baseState();
-    state.config.statsMode = 'player';
+    state.config.statsMode = 'players';
+    state.config.trackTurnovers = true;
     state.config.trackTurnoverPlayers = false;
     state.config.players = { A: [{ id: 'a1', number: '', name: 'Alex' }], B: [] };
     state.log = [

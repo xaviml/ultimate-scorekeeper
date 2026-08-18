@@ -15,7 +15,8 @@ function midGameState(): GameState {
   state.pullingTeam = 'A';
   state.offenseTeam = 'B';
   state.secondary = { kind: 'pull', seconds: 0, total: 75 };
-  state.config.statsMode = 'player';
+  state.config.statsMode = 'players';
+  state.config.trackTurnovers = true;
   state.config.players.A = [{ id: 'p1', number: '7', name: 'Alex' }];
   state.points = [
     { scoredBy: 'A', offense: 'A', isBreak: false, durationSeconds: 30, half: 1, turnovers: 0 },

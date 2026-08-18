@@ -111,19 +111,24 @@ export const ca: typeof en = {
   dismissBanner: 'Descartar',
 
   statsTitle: 'Estadístiques',
-  statsModeLabel: 'Què registrar',
-  statsModeNone: 'Sense estadístiques',
-  statsModeNoneHint: 'Només el marcador, el rellotge i la ràtio de gènere — res més es registra.',
-  statsModeGame: 'Estadístiques de partit',
-  statsModeGameHint:
-    'Les pèrdues i els calls es registren per equip, sense detall de jugador — no cal roster.',
-  statsModeTeam: "Estadístiques d'equip",
-  statsModeTeamHint:
-    "Els gols, assistències, pèrdues i lesions s'atribueixen per jugador per a l'equip que triïs a sota. L'altre equip es queda amb el detall d'estadístiques de partit — només per equip, mai per jugador.",
-  statsModePlayer: 'Estadístiques de jugador',
-  statsModePlayerHint:
-    "Els gols, assistències, pèrdues i lesions s'atribueixen per jugador, en els dos equips.",
-  trackedTeamLabel: 'Equip a seguir',
+  statsModeLabel: 'Registrar',
+  statsModeNone: 'Només el marcador',
+  statsModeNoneHint:
+    'Marcador, rellotges i ràtio. Les faltes i les aturades continuen quedant al registre, però sense dir de qui van ser.',
+  statsModeTeams: 'Per equip',
+  statsModeTeamsHint:
+    'Afegeix la pregunta "quin equip?" a cada falta, travelling i aturada. No cal roster, i mai s\'anomena ningú.',
+  statsModePlayers: 'Per jugador',
+  statsModePlayersHint:
+    'Afegeix un roster, perquè els gols, assistències, pèrdues i lesions puguin anomenar un jugador. Escriu-lo a sota.',
+  trackedTeamLabel: 'Jugadors de',
+  trackedTeamBoth: 'Els dos equips',
+  trackTurnoversLabel: 'Pèrdues',
+  trackTurnoversHint:
+    "Afegeix el botó Turn a la pantalla de joc, i amb ell la barra de possessió, les estadístiques en directe i les xifres de pèrdues de l'informe.",
+  trackGoalPlayersLabel: 'Preguntar qui ha marcat',
+  trackGoalPlayersHint:
+    "Desactivat, un gol és només un gol. Activat, pregunta per l'anotador i l'assistència — sempre pots omplir-los després des del registre.",
   trackTurnoverPlayersLabel: 'Preguntar qui ha perdut el disc',
   trackTurnoverPlayersHint:
     "Desactivat, Turn només registra la pèrdua. Activat, pregunta qui ha perdut el disc i qui l'ha forçat — més detall, però molts tocs en un punt ràpid.",
@@ -677,7 +682,7 @@ export const ca: typeof en = {
     'Escriu cada nom, o tria un equip que hagis desat abans. Tria un color semblant al de les samarretes de cada equip: els panells del marcador van pintats amb aquests colors tot el partit, així no has de recordar mai quina banda és quina.',
   guideStep1Players: 'Estadístiques',
   guideStep1PlayersBody:
-    'Tria què registra aquest partit. "Sense estadístiques" és el valor per defecte: només marcador, rellotges i ràtio, amb faltes, travellings i aturades tècniques registrades sense equip. "Estadístiques de partit" afegeix pèrdues i faltes per equip, sense necessitat de plantilla. "Estadístiques d\'equip" i "Estadístiques de jugador" atribueixen gols, assistències, pèrdues i lesions a un jugador, un cop afegeixis la plantilla de sota: d\'equip per al costat que triïs, de jugador per a tots dos. Qualsevol opció per sobre de "Sense estadístiques" afegeix a més dos botons més a la pantalla de joc, Roster i Turn.',
+    'Dues preguntes. Primer, quant detall: "Només el marcador" és el valor per defecte — marcador, rellotges i ràtio, amb faltes, travellings i aturades tècniques registrades sense equip. "Per equip" ho atribueix tot a un equip, sense necessitat de roster. "Per jugador" atribueix gols, assistències, pèrdues i lesions a un jugador concret, un cop afegeixis el roster de sota, per a un equip o per a tots dos. Segon, els interruptors de sota: què registra realment aquest partit. Pèrdues afegeix el botó Turn a la pantalla de joc; la resta pregunten qui ha marcat, qui ha perdut el disc i qui ha jugat cada punt. Activa els que puguis seguir i deixa la resta apagats.',
   guideStep1Time: "Hora d'inici prevista",
   guideStep1TimeBody:
     "Opcional. Marca-ho i l'aplicació fa el compte enrere fins a l'hora d'inici i desbloqueja el joc sola quan arriba.",

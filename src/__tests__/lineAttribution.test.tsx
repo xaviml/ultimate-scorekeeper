@@ -28,7 +28,8 @@ function lineGame(overrides: Partial<GameState> = {}): GameState {
   state.pullingTeam = 'B';
   state.config = {
     ...state.config,
-    statsMode: 'team',
+    statsMode: 'players',
+    trackTurnovers: true,
     trackedTeam: 'A',
     lineSize: 2,
     trackTurnoverPlayers: true,

@@ -49,6 +49,8 @@ export const defaultConfig: GameConfig = {
   startingTime: { enabled: false, time: '' },
   statsMode: 'none',
   trackedTeam: null,
+  trackTurnovers: false,
+  trackGoalPlayers: true,
   trackTurnoverPlayers: false,
   // Tracking itself is off by default, so a game set up the way it always has been
   // is untouched. The gender check, once turned on, defaults to following the ratio
@@ -59,32 +61,62 @@ export const defaultConfig: GameConfig = {
   players: { A: [], B: [] },
 };
 
-/** Whether this game logs anything beyond the bare score — any mode but `none`. */
+/**
+ * Whether anything at all is attributed in this game — any mode but `none`. This
+ * is the "is there a team to name?" gate: the team a call, a travel or a stoppage
+ * is recorded against. It deliberately says nothing about *what* gets recorded;
+ * for turnovers ask `turnoversTracked`, and for a roster `playerTrackingFor`.
+ */
 export function statsTrackingEnabled(config: GameConfig): boolean {
   return config.statsMode !== 'none';
 }
 
 /**
+ * Whether this game records turnovers — the Turn button and everything derived
+ * from it: the possession rule, per-point possession seconds, the live possession
+ * ledger and the turnover-derived rows of the report.
+ *
+ * The flag alone isn't enough: with nothing attributed there is no team to record
+ * a turnover against, so `none` refuses whatever the flag says (which is what
+ * makes the flag safe to leave set while switching detail on the config screen).
+ */
+export function turnoversTracked(config: GameConfig): boolean {
+  return statsTrackingEnabled(config) && config.trackTurnovers;
+}
+
+/**
  * Whether `team`'s specific players get attributed in this game — the goal/assist
- * picker, a turnover's role (drop or D), an injury's named-player picker. True for
- * both teams in `player` mode, true for only `trackedTeam` in `team` mode (the
- * other team stays at `game`-mode, team-only detail), false otherwise.
+ * picker, a turnover's role (drop or D), an injury's named-player picker. True in
+ * `players` mode for the team named by `trackedTeam`, or for both when it is null.
+ * The team a game does not follow stays at team-only detail, never a player picker.
  */
 export function playerTrackingFor(config: GameConfig, team: TeamId): boolean {
   return (
-    config.statsMode === 'player' || (config.statsMode === 'team' && config.trackedTeam === team)
+    config.statsMode === 'players' && (config.trackedTeam === null || config.trackedTeam === team)
   );
+}
+
+/** The teams this game keeps a roster for, in board order. Empty without player detail. */
+export function rosterTeams(config: GameConfig): TeamId[] {
+  return (['A', 'B'] as TeamId[]).filter((team) => playerTrackingFor(config, team));
+}
+
+/**
+ * Whether a goal by `team` stops to ask who scored and who assisted. Needs both
+ * the flag and a roster for that team — the question has no answers otherwise.
+ */
+export function goalPlayersTracked(config: GameConfig, team: TeamId): boolean {
+  return config.trackGoalPlayers && playerTrackingFor(config, team);
 }
 
 /**
  * Whether tapping Turn stops to ask who lost the disc and who forced it. The
- * setting alone isn't enough: a mode with no roster on either side has no player
- * question to ask, so `game` and `none` register the turnover straight away
- * whatever the flag says (which is also what makes the flag safe to leave set
- * while switching modes on the config screen).
+ * setting alone isn't enough on either side: turnovers have to be recorded at all
+ * for there to be a tap, and a game with no roster has no player question to ask.
  */
 export function turnoverPlayersTracked(config: GameConfig): boolean {
   return (
+    turnoversTracked(config) &&
     config.trackTurnoverPlayers &&
     (playerTrackingFor(config, 'A') || playerTrackingFor(config, 'B'))
   );
@@ -306,14 +338,14 @@ export function canUndoTurnover(state: GameState): { ok: boolean; reason?: strin
 }
 
 /**
- * Whether the possession chip belongs on the scoreboard. Any stats mode but `none`
- * shows it from the first pull onward — Game/Team/Player stats all put a Turn
- * button on screen, so there's no reason to wait for a first press of it before
- * telling the volunteer who has the disc. In `none` there is no Turn button at
- * all, so a possession chip would just repeat the pull chip and never change.
+ * Whether the possession rule belongs on the scoreboard. It follows the Turn
+ * button rather than tracking in general: a game recording turnovers shows it from
+ * the first pull onward, with no reason to wait for a first press before telling
+ * the volunteer who has the disc — but without turnovers possession can only
+ * change at a goal, where the rule would just repeat the pull chip.
  */
 export function possessionTracked(state: GameState): boolean {
-  return state.config.statsMode !== 'none';
+  return turnoversTracked(state.config);
 }
 
 /**
@@ -486,10 +518,13 @@ export function episodeIndices(log: LogEntry[], index: number): number[] {
  * Which question the log dialog's pencil asks for an entry, or null when there is
  * nothing to fix — in which case the row shows no pencil at all.
  *
- * It mirrors this game's stats mode rather than widening it: an edit re-asks the
+ * It mirrors this game's stats detail rather than widening it: an edit re-asks the
  * question the app asked when the event was recorded, so a game that never asked
  * which team (statsMode 'none') has nothing to edit on a call, and a team whose
- * players are not tracked has nothing to edit on its goals. What is deliberately
+ * players are not tracked has nothing to edit on its goals. It reads the detail
+ * and not the track* flags, though — attaching players to a goal or a turnover
+ * afterwards is a correction, and corrections stay available whatever the game was
+ * set up to ask at the time. What is deliberately
  * NOT here: which team scored, whether a goal happened at all, the kind of call or
  * stoppage, and a timeout's team — the first two are what undo is for, and the
  * rest would rewrite what the event *was* rather than who it involved.
@@ -1034,10 +1069,10 @@ export function gameReducer(state: GameState, action: Action): GameState {
             durationSeconds: duration,
             half: s.half,
             turnovers: s.pointTurnovers,
-            // Only meaningful when possession is actually tracked — in 'none'
-            // the disc never changes hands, so the pair is left absent rather
-            // than crediting the whole point to the receiving team.
-            ...(statsTrackingEnabled(s.config)
+            // The same gate TICK credits these seconds under: without turnovers the
+            // disc never changes hands, so the pair is left absent rather than
+            // recorded as a zeroed pair that the report would have to second-guess.
+            ...(turnoversTracked(s.config)
               ? { possessionSeconds: { ...s.possessionSeconds } }
               : {}),
             // Absent rather than empty when nothing was registered, exactly like
@@ -1168,14 +1203,16 @@ export function gameReducer(state: GameState, action: Action): GameState {
                   : announceHalf
                     ? 'halfAt'
                     : 'goalScored';
-      // When the scoring team is player-tracked, the scorer/assist picker is about
-      // to pop up over this same goal — hold the sign/message back so it doesn't
-      // fight the dialog for the volunteer's attention, and release it
-      // (REVEAL_GOAL_ASSIST) once the dialog closes instead. In `team` mode a goal
-      // by the untracked side never opens that dialog, so nothing needs holding
-      // back there. The gender-ratio auto-reveal piggybacks on this for free: it
-      // only arms off `assist === 'goalScored'`, so it naturally waits too.
-      const trackingPlayers = playerTrackingFor(s.config, team);
+      // When this goal is about to be asked about, the scorer/assist picker is
+      // popping up over it — hold the sign/message back so it doesn't fight the
+      // dialog for the volunteer's attention, and release it (REVEAL_GOAL_ASSIST)
+      // once the dialog closes instead. It follows `goalPlayersTracked`, exactly the
+      // condition GameScreen opens the dialog on: a goal by a team with no roster
+      // never opens it, and neither does a game that has turned the question off, so
+      // nothing needs holding back in either case. The gender-ratio auto-reveal
+      // piggybacks on this for free: it only arms off `assist === 'goalScored'`, so
+      // it naturally waits too.
+      const trackingPlayers = goalPlayersTracked(s.config, team);
       s = {
         ...s,
         status: reachHalf ? s.status : 'awaitingPull',
@@ -1515,7 +1552,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
       // An accepted stall-out or disc-down is a turnover under the rules — the
       // thrower held the disc past the count, or the pass hit the ground — so it is
       // marked as one automatically rather than asking the volunteer to also tap
-      // Turn. Only when stats are tracked at all: with statsMode 'none' there is no
+      // Turn. Only where turnovers are recorded at all: without them there is no
       // Turn button, no pointTurnovers counter and no possession rule on screen for
       // it to move. It logs as an ordinary 'turnover' entry (see TURNOVER above), so
       // it is editable and undoable the same way — including by long-pressing Turn,
@@ -1523,7 +1560,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
       if (
         action.resolution === 'accepted' &&
         (pending.kind === 'stallOut' || pending.kind === 'discDown') &&
-        statsTrackingEnabled(s.config) &&
+        turnoversTracked(s.config) &&
         s.possessionTeam !== null
       ) {
         const attacking = s.possessionTeam;
@@ -1771,15 +1808,15 @@ export function gameReducer(state: GameState, action: Action): GameState {
       // the disc is genuinely live: same `halted` freeze as every other stretch
       // of play, plus an open call — the disc is dead mid-dispute, so those
       // seconds belong to neither team (which is what keeps the pair summing to
-      // at most the point's duration). Skipped entirely in statsMode 'none',
-      // where possession never changes hands and the whole point would be
-      // credited to the receiving team.
+      // at most the point's duration). Skipped entirely where turnovers are not
+      // recorded, since possession never changes hands there and the whole point
+      // would be credited to the receiving team.
       if (
         s.status === 'live' &&
         !halted &&
         s.pendingCall === null &&
         s.possessionTeam !== null &&
-        statsTrackingEnabled(s.config)
+        turnoversTracked(s.config)
       ) {
         const holder = s.possessionTeam;
         s = {

@@ -55,7 +55,8 @@ describe('extractTemplateSettings', () => {
       startingOffense: 'B' as const,
       startingSide: 'B' as const,
       startingRatio: 'male' as const,
-      statsMode: 'team' as const,
+      statsMode: 'players' as const,
+      trackTurnovers: true,
       trackedTeam: 'A' as const,
       trackTurnoverPlayers: true,
       // Tracking settings never travel — but the line SIZE does: how many take the

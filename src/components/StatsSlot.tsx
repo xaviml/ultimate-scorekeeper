@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useT } from '../i18n/useT';
 import { useGame } from '../state/gameHooks';
-import { statsTrackingEnabled } from '../state/gameReducer';
+import { turnoversTracked } from '../state/gameReducer';
 import { formatClock, teamStats } from '../state/stats';
 import type { GameState, TeamId } from '../state/types';
 import { ChevronLeftIcon, ChevronRightIcon } from './icons';
@@ -59,12 +59,12 @@ const arrowButton =
  * all outrank it, and the slot's fixed height means it appearing or paging can
  * never move the score panels above.
  *
- * With stats tracking on it is three pages — team figures, possession ledger,
+ * With turnovers recorded it is three pages — team figures, possession ledger,
  * pace of this point — cycled by the two thin chevron buttons flanking the
- * panel (looping). In statsMode 'none' there is no Turn button and so no
- * possession to draw, and it collapses to a single holds/breaks page with no
- * arrows. Portrait only: landscape has no height to give it, and it hides
- * rather than compressing into illegibility.
+ * panel (looping). Without them there is no Turn button and so no possession to
+ * draw, and it collapses to a single holds/breaks page with no arrows. Portrait
+ * only: landscape has no height to give it, and it hides rather than compressing
+ * into illegibility.
  */
 export function StatsSlot() {
   const state = useGame();
@@ -88,9 +88,9 @@ export function StatsSlot() {
   const nameOf = (id: TeamId) => state.config.teams[id].name;
   const statsFor = { [top]: teamStats(state, top), [bottom]: teamStats(state, bottom) };
 
-  // statsMode 'none': one page, no arrows — only what points[] records without
-  // turnover tracking.
-  if (!statsTrackingEnabled(state.config)) {
+  // No turnovers recorded: one page, no arrows — only what points[] records
+  // without them.
+  if (!turnoversTracked(state.config)) {
     const summary = ([top, bottom] as TeamId[])
       .map(
         (id) =>

@@ -111,19 +111,24 @@ export const es: typeof en = {
   dismissBanner: 'Descartar',
 
   statsTitle: 'Estadísticas',
-  statsModeLabel: 'Qué registrar',
-  statsModeNone: 'Sin estadísticas',
-  statsModeNoneHint: 'Solo el marcador, el reloj y la ratio de género — nada más se registra.',
-  statsModeGame: 'Estadísticas de partido',
-  statsModeGameHint:
-    'Las pérdidas y las faltas se registran por equipo, sin detalle de jugador — no hace falta plantilla.',
-  statsModeTeam: 'Estadísticas de equipo',
-  statsModeTeamHint:
-    'Los goles, asistencias, pérdidas y lesiones se atribuyen por jugador para el equipo que elijas debajo. El otro equipo se queda con el detalle de estadísticas de partido — solo por equipo, nunca por jugador.',
-  statsModePlayer: 'Estadísticas de jugador',
-  statsModePlayerHint:
-    'Los goles, asistencias, pérdidas y lesiones se atribuyen por jugador, en ambos equipos.',
-  trackedTeamLabel: 'Equipo a seguir',
+  statsModeLabel: 'Registrar',
+  statsModeNone: 'Solo el marcador',
+  statsModeNoneHint:
+    'Marcador, relojes y ratio. Las faltas y las paradas siguen quedando en el registro, pero sin decir de quién fueron.',
+  statsModeTeams: 'Por equipo',
+  statsModeTeamsHint:
+    'Añade la pregunta "¿qué equipo?" a cada falta, travelling y parada. No hace falta plantilla, y nunca se nombra a nadie.',
+  statsModePlayers: 'Por jugador',
+  statsModePlayersHint:
+    'Añade una plantilla, para que los goles, asistencias, pérdidas y lesiones puedan nombrar a un jugador. Escríbela debajo.',
+  trackedTeamLabel: 'Jugadores de',
+  trackedTeamBoth: 'Ambos equipos',
+  trackTurnoversLabel: 'Pérdidas',
+  trackTurnoversHint:
+    'Añade el botón Turn a la pantalla de juego, y con él la barra de posesión, las estadísticas en vivo y las cifras de pérdidas del informe.',
+  trackGoalPlayersLabel: 'Preguntar quién marcó',
+  trackGoalPlayersHint:
+    'Desactivado, un gol es solo un gol. Activado, pregunta por el anotador y la asistencia — siempre puedes rellenarlos después desde el registro.',
   trackTurnoverPlayersLabel: 'Preguntar quién perdió el disco',
   trackTurnoverPlayersHint:
     'Desactivado, Turn solo registra la pérdida. Activado, pregunta quién perdió el disco y quién lo forzó — más detalle, pero muchos toques en un punto rápido.',
@@ -679,7 +684,7 @@ export const es: typeof en = {
     'Escribe cada nombre, o elige un equipo que guardaste antes. Elige un color parecido al de las camisetas de cada equipo: los paneles del marcador van pintados con esos colores todo el partido, así nunca tienes que recordar qué lado es cuál.',
   guideStep1Players: 'Estadísticas',
   guideStep1PlayersBody:
-    'Elige qué registra este partido. "Sin estadísticas" es lo predeterminado: solo marcador, relojes y ratio, con faltas, travelling y paradas técnicas registradas sin equipo. "Estadísticas de partido" añade pérdidas y faltas por equipo, sin necesidad de plantilla. "Estadísticas de equipo" y "Estadísticas de jugador" atribuyen goles, asistencias, pérdidas y lesiones a un jugador, una vez añadas la plantilla de abajo: de equipo para el lado que elijas, de jugador para ambos. Cualquier opción por encima de "Sin estadísticas" añade además dos botones más en la pantalla de juego, Roster y Turn.',
+    'Dos preguntas. Primero, cuánto detalle: "Solo el marcador" es lo predeterminado — marcador, relojes y ratio, con faltas, travelling y paradas técnicas registradas sin equipo. "Por equipo" lo atribuye todo a un equipo, sin necesidad de plantilla. "Por jugador" atribuye goles, asistencias, pérdidas y lesiones a un jugador concreto, una vez añadas la plantilla de abajo, para un equipo o para ambos. Segundo, los interruptores de debajo: qué registra realmente este partido. Pérdidas añade el botón Turn a la pantalla de juego; los demás preguntan quién marcó, quién perdió el disco y quién jugó cada punto. Activa los que puedas seguir y deja el resto apagados.',
   guideStep1Time: 'Hora de inicio prevista',
   guideStep1TimeBody:
     'Opcional. Márcalo y la aplicación hace la cuenta atrás hasta la hora de inicio y desbloquea el juego sola cuando llega.',

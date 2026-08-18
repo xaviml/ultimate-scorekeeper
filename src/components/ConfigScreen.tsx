@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useT, type Lang } from '../i18n/useT';
-import { defaultConfig } from '../state/gameReducer';
+import { defaultConfig, rosterTeams, statsTrackingEnabled } from '../state/gameReducer';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import { useBackGuard } from '../hooks/useBackGuard';
 import { ratioGenderCheckAvailable } from '../state/lines';
@@ -30,6 +30,7 @@ import {
   saveWaterBreakSectionCollapsed,
 } from '../state/uiPreferences';
 import { AboutDialog } from './AboutDialog';
+import { CheckField } from './CheckField';
 import { ConfigMenuDialog } from './ConfigMenuDialog';
 import { ConfirmDeleteTemplateDialog } from './ConfirmDeleteTemplateDialog';
 import GuideScreen from './GuideScreen';
@@ -290,23 +291,28 @@ export default function ConfigScreen() {
         lines: { ...next.lines, genderCheck: nowAvailable ? 'gameRatio' : 'none' },
       };
     });
-  // Switching into 'team' defaults trackedTeam to 'A' unless one was already
-  // picked (coming back from a previous 'team' choice); switching away clears it,
-  // matching the type's own "null unless mode==='team'" contract.
+  /**
+   * Changing the detail always clears the scope: `trackedTeam` is null for both
+   * "no roster at all" and "both rosters", so there is nothing to preserve across a
+   * switch — the scope dropdown is right underneath, and both teams is the wider,
+   * safer landing place. The feature flags below are deliberately left alone: they
+   * are visible on the same screen, so silently rewriting them on a mode change is
+   * the surprising behaviour, not keeping them.
+   */
   const setStatsMode = (mode: GameConfig['statsMode']) =>
-    setCfg((c) => ({
-      ...c,
-      statsMode: mode,
-      trackedTeam: mode === 'team' ? (c.trackedTeam ?? 'A') : null,
-    }));
+    setCfg((c) => ({ ...c, statsMode: mode, trackedTeam: null }));
   /**
    * `cfg.lines.saved` holds one team's lines, so moving the tracked team has to swap
    * them for that team's — otherwise Ravens' lines would follow the pointer onto
    * Foxes. Read from the store rather than kept per team in cfg: the store is where
    * they live between games anyway, and a team with no entry yet correctly has none.
    */
-  const setTrackedTeam = (id: TeamId) =>
+  const setTrackedTeam = (id: TeamId | null) =>
     setCfg((c) => {
+      // Following both teams has no single team's lines to hold, and line tracking
+      // is off there anyway (see showLines) — the list is left as it is so picking
+      // the team back brings its lines with it.
+      if (id === null) return { ...c, trackedTeam: null };
       const name = c.teams[id].name.trim();
       const stored = savedTeams.find((s) => normalizeTeamName(s.name) === normalizeTeamName(name));
       return { ...c, trackedTeam: id, lines: { ...c.lines, saved: stored?.lines ?? [] } };
@@ -420,15 +426,14 @@ export default function ConfigScreen() {
 
   const statsModeHintKey = {
     none: 'statsModeNoneHint',
-    game: 'statsModeGameHint',
-    team: 'statsModeTeamHint',
-    player: 'statsModePlayerHint',
-  }[cfg.statsMode] as
-    'statsModeNoneHint' | 'statsModeGameHint' | 'statsModeTeamHint' | 'statsModePlayerHint';
-  const showRoster = cfg.statsMode === 'team' || cfg.statsMode === 'player';
-  // Line tracking follows the single roster Team mode watches, so the section only
-  // exists there — see lineTrackingEnabled, which is the same rule at runtime.
-  const showLines = cfg.statsMode === 'team' && cfg.trackedTeam !== null;
+    teams: 'statsModeTeamsHint',
+    players: 'statsModePlayersHint',
+  }[cfg.statsMode] as 'statsModeNoneHint' | 'statsModeTeamsHint' | 'statsModePlayersHint';
+  const rosters = rosterTeams(cfg);
+  const showRoster = rosters.length > 0;
+  // Line tracking follows a single roster, so the section only exists where one team
+  // is followed — see lineTrackingEnabled, which is the same rule at runtime.
+  const showLines = cfg.statsMode === 'players' && cfg.trackedTeam !== null;
   const linesTeamName = showLines
     ? cfg.teams[cfg.trackedTeam!].name.trim() || t(cfg.trackedTeam === 'A' ? 'teamA' : 'teamB')
     : '';
@@ -614,16 +619,12 @@ export default function ConfigScreen() {
           </div>
         )}
 
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={cfg.startingTime.enabled}
-            onChange={(e) =>
-              set('startingTime', { ...cfg.startingTime, enabled: e.target.checked })
-            }
-          />
-          <span>{t('startingTimeEnabled')}</span>
-        </label>
+        <CheckField
+          variant="switch"
+          label={t('startingTimeEnabled')}
+          checked={cfg.startingTime.enabled}
+          onChange={(v) => set('startingTime', { ...cfg.startingTime, enabled: v })}
+        />
         {cfg.startingTime.enabled && (
           <div>
             <label className={fieldLabel}>{t('startingTimeLabel')}</label>
@@ -646,58 +647,80 @@ export default function ConfigScreen() {
             onChange={(e) => setStatsMode(e.target.value as GameConfig['statsMode'])}
           >
             <option value="none">{t('statsModeNone')}</option>
-            <option value="game">{t('statsModeGame')}</option>
-            <option value="team">{t('statsModeTeam')}</option>
-            <option value="player">{t('statsModePlayer')}</option>
+            <option value="teams">{t('statsModeTeams')}</option>
+            <option value="players">{t('statsModePlayers')}</option>
           </select>
           <p className="text-xs text-chalk/50 pt-1">{t(statsModeHintKey)}</p>
         </div>
-        {cfg.statsMode === 'team' && (
+        {/* Which rosters, once there are players to name. "Both teams" is the value
+            `trackedTeam: null` carries here — the same null that means "no roster at
+            all" in the other modes, which is why nothing tries to remember it. */}
+        {cfg.statsMode === 'players' && (
           <div>
             <label className={fieldLabel}>{t('trackedTeamLabel')}</label>
             <select
               className={inputClass}
-              value={cfg.trackedTeam ?? 'A'}
-              onChange={(e) => setTrackedTeam(e.target.value as TeamId)}
+              value={cfg.trackedTeam ?? 'both'}
+              onChange={(e) =>
+                setTrackedTeam(e.target.value === 'both' ? null : (e.target.value as TeamId))
+              }
             >
               <option value="A">{cfg.teams.A.name.trim() || t('teamA')}</option>
               <option value="B">{cfg.teams.B.name.trim() || t('teamB')}</option>
+              <option value="both">{t('trackedTeamBoth')}</option>
             </select>
           </div>
         )}
-        {/* Only where there is a roster to ask against: Game stats has none and
-            No statistics has no Turn button, so the question can't arise there. */}
-        {showRoster && (
-          <div>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={cfg.trackTurnoverPlayers}
-                onChange={(e) => set('trackTurnoverPlayers', e.target.checked)}
-              />
-              <span className="text-sm">{t('trackTurnoverPlayersLabel')}</span>
-            </label>
-            <p className="text-xs text-chalk/50 pt-1">{t('trackTurnoverPlayersHint')}</p>
+        {/* What this game records, on top of the detail above. Each is opt-in for the
+            same reason line tracking is: the volunteer who wants goals and assists for
+            a tournament has no use for the most frequent button on the action row, and
+            the coach tracking lines may not want a dialog after every goal. Nothing is
+            offered where the detail above has no answer for it. */}
+        {statsTrackingEnabled(cfg) && (
+          <CheckField
+            variant="switch"
+            label={t('trackTurnoversLabel')}
+            hint={t('trackTurnoversHint')}
+            checked={cfg.trackTurnovers}
+            onChange={(v) => set('trackTurnovers', v)}
+          />
+        )}
+        {/* Nested under Turnovers, and only where there is a roster to ask against:
+            without one the tap has nobody to attribute the disc to. */}
+        {showRoster && cfg.trackTurnovers && (
+          <div className="pl-6">
+            <CheckField
+              variant="switch"
+              label={t('trackTurnoverPlayersLabel')}
+              hint={t('trackTurnoverPlayersHint')}
+              checked={cfg.trackTurnoverPlayers}
+              onChange={(v) => set('trackTurnoverPlayers', v)}
+            />
           </div>
+        )}
+        {showRoster && (
+          <CheckField
+            variant="switch"
+            label={t('trackGoalPlayersLabel')}
+            hint={t('trackGoalPlayersHint')}
+            checked={cfg.trackGoalPlayers}
+            onChange={(v) => set('trackGoalPlayers', v)}
+          />
         )}
         {/* Line tracking sits here rather than in a section of its own: it is another
             thing this game tracks, and it is narrower than showRoster on purpose —
-            it follows the one roster Team mode watches, so Player mode, which has
-            two, never offers it (see lineTrackingEnabled). It names no team; changing
-            the tracked team above moves it. */}
+            it follows a single roster, so "Both teams" never offers it (see
+            lineTrackingEnabled). It names no team; changing the followed team above
+            moves it. */}
         {showLines && (
           <>
-            <div>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={cfg.lines.enabled}
-                  onChange={(e) => setLines({ enabled: e.target.checked })}
-                />
-                <span className="text-sm">{t('linesEnabledLabel')}</span>
-              </label>
-              <p className="text-xs text-chalk/50 pt-1">{t('linesEnabledHint')}</p>
-            </div>
+            <CheckField
+              variant="switch"
+              label={t('linesEnabledLabel')}
+              hint={t('linesEnabledHint')}
+              checked={cfg.lines.enabled}
+              onChange={(v) => setLines({ enabled: v })}
+            />
 
             {cfg.lines.enabled && (
               <>
@@ -767,7 +790,7 @@ export default function ConfigScreen() {
           })}
         >
           <p className="text-xs text-chalk/50">{t('rosterHelp')}</p>
-          {(cfg.statsMode === 'player' || cfg.trackedTeam === 'A') && (
+          {rosters.includes('A') && (
             <PlayerRosterEditor
               label={cfg.teams.A.name.trim() || t('teamA')}
               players={cfg.players.A}
@@ -777,7 +800,7 @@ export default function ConfigScreen() {
               onImport={() => setImportingTeam('A')}
             />
           )}
-          {(cfg.statsMode === 'player' || cfg.trackedTeam === 'B') && (
+          {rosters.includes('B') && (
             <PlayerRosterEditor
               label={cfg.teams.B.name.trim() || t('teamB')}
               players={cfg.players.B}
@@ -975,27 +998,21 @@ export default function ConfigScreen() {
             />
           </div>
         </div>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={cfg.halfCap.kind === 'cap'}
-            onChange={(e) =>
-              set('halfCap', e.target.checked ? { kind: 'cap', plus: 1 } : { kind: 'none' })
-            }
-          />
-          <span>{t('halfCapPlus')}</span>
-        </label>
+        <CheckField
+          variant="switch"
+          label={t('halfCapPlus')}
+          checked={cfg.halfCap.kind === 'cap'}
+          onChange={(v) => set('halfCap', v ? { kind: 'cap', plus: 1 } : { kind: 'none' })}
+        />
       </Section>
 
       <Section title={t('timeoutsTitle')}>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={cfg.timeouts.enabled}
-            onChange={(e) => set('timeouts', { ...cfg.timeouts, enabled: e.target.checked })}
-          />
-          <span className="text-sm">{t('timeoutsEnabled')}</span>
-        </label>
+        <CheckField
+          variant="switch"
+          label={t('timeoutsEnabled')}
+          checked={cfg.timeouts.enabled}
+          onChange={(v) => set('timeouts', { ...cfg.timeouts, enabled: v })}
+        />
         <div
           className={`grid grid-cols-2 gap-3 ${cfg.timeouts.enabled ? '' : 'opacity-40'}`}
           aria-disabled={!cfg.timeouts.enabled}
@@ -1053,17 +1070,15 @@ export default function ConfigScreen() {
               disabled={!cfg.timeouts.enabled}
             />
           </div>
-          <label className="flex items-center gap-2 col-span-2">
-            <input
-              type="checkbox"
+          <div className="col-span-2">
+            <CheckField
+              variant="switch"
+              label={t('timeoutLastFive')}
               disabled={!cfg.timeouts.enabled}
               checked={cfg.timeouts.disallowLastFiveMinutes}
-              onChange={(e) =>
-                set('timeouts', { ...cfg.timeouts, disallowLastFiveMinutes: e.target.checked })
-              }
+              onChange={(v) => set('timeouts', { ...cfg.timeouts, disallowLastFiveMinutes: v })}
             />
-            <span className="text-sm">{t('timeoutLastFive')}</span>
-          </label>
+          </div>
         </div>
       </Section>
 
@@ -1081,14 +1096,12 @@ export default function ConfigScreen() {
         })}
       >
         <p className="text-xs text-chalk/50">{t('waterBreakHelp')}</p>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={cfg.waterBreaks.enabled}
-            onChange={(e) => set('waterBreaks', { ...cfg.waterBreaks, enabled: e.target.checked })}
-          />
-          <span className="text-sm">{t('waterBreakEnabled')}</span>
-        </label>
+        <CheckField
+          variant="switch"
+          label={t('waterBreakEnabled')}
+          checked={cfg.waterBreaks.enabled}
+          onChange={(v) => set('waterBreaks', { ...cfg.waterBreaks, enabled: v })}
+        />
         <div className="grid grid-cols-2 gap-3">
           <div className={cfg.waterBreaks.enabled ? '' : 'opacity-40'}>
             <label className={fieldLabel} htmlFor="water-break-scores">

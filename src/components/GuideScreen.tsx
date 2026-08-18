@@ -15,11 +15,11 @@ type Key = keyof Dict;
 type Marker = readonly [x: number, y: number];
 
 const FIG_SETUP: readonly Marker[] = [
-  [5.1, 25.9],
-  [6.9, 35.6],
-  [5.8, 45.4],
-  [10.1, 70.8],
-  [95.7, 80.3],
+  [5.1, 25.6],
+  [6.9, 35.2],
+  [5.8, 44.9],
+  [14.1, 70.6],
+  [95.7, 80.5],
 ];
 const FIG_TOSS: readonly Marker[] = [
   [5.1, 41.8],

@@ -3,7 +3,7 @@ import { handOverBackGuard, useBackGuard } from '../hooks/useBackGuard';
 import { useReportImage } from '../hooks/useReportImage';
 import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
-import { statsTrackingEnabled, turnoverPlayersTracked } from '../state/gameReducer';
+import { turnoverPlayersTracked, turnoversTracked } from '../state/gameReducer';
 import { lineTrackingEnabled } from '../state/lines';
 import { copyText } from '../state/clipboard';
 import { playerStatsTeams, reportCardModel, teamStatRows } from '../state/reportCard';
@@ -104,11 +104,14 @@ export default function ReportScreen({
 
   const fmt = (s: number | null) => (s === null ? '—' : formatClock(s));
 
-  const trackingOn = statsTrackingEnabled(state.config);
-  // Team mode only ever has player detail for the tracked side; Player mode has
-  // both, with a filter to page through them on a small screen.
-  const showTeamFilter = state.config.statsMode === 'player';
-  const playerLines = playerStatLines(state, playerStatsTeams(state.config), t);
+  // The extended team-stat rows are all turnover-derived (see teamStatRows), which
+  // is a narrower question than whether this game tracks anything.
+  const trackingOn = turnoversTracked(state.config);
+  const playerStatTeams = playerStatsTeams(state.config);
+  // A game following one team has player detail for that side only; following both
+  // gets a filter to page through them on a small screen.
+  const showTeamFilter = playerStatTeams.length > 1;
+  const playerLines = playerStatLines(state, playerStatTeams, t);
   // Playing is read off `PointRecord.line`, so it needs line tracking. Possession
   // is read off the log's turnoverId/defenseId, so it needs only "Ask who turned
   // it over" — line tracking is not a gate for it at all. The config flag is the
@@ -206,9 +209,9 @@ export default function ReportScreen({
   const statRows = teamStatRows(state, t);
 
   // The possession ledger, reused from the live-stats slot. Only worth drawing
-  // once at least one point actually tracked possession — a game recorded in
-  // statsMode 'none' (or restored from before this was tracked) has nothing but
-  // flat columns to show. The board's fixed left team stays on top, the same
+  // once at least one point actually tracked possession — a game that never
+  // recorded turnovers (or one restored from before this was tracked) has nothing
+  // but flat columns to show. The board's fixed left team stays on top, the same
   // orientation the volunteer watched all game.
   const ledgerTop: TeamId = state.config.startingSide;
   const ledgerBottom: TeamId = ledgerTop === 'A' ? 'B' : 'A';

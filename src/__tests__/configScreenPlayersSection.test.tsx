@@ -27,7 +27,7 @@ const ROSTER_HELP_TEXT =
 
 /** The Roster section only exists at all once a mode with a roster is picked. */
 function pickPlayerStats() {
-  fireEvent.change(fieldSelect('What to track'), { target: { value: 'player' } });
+  fireEvent.change(fieldSelect('Track'), { target: { value: 'players' } });
 }
 
 /**
@@ -46,7 +46,8 @@ function GameThenBackToConfig() {
             type: 'START_GAME',
             config: {
               ...defaultConfig,
-              statsMode: 'player',
+              statsMode: 'players',
+              trackTurnovers: true,
               teams: {
                 A: { ...defaultConfig.teams.A, name: 'Foxes' },
                 B: { ...defaultConfig.teams.B, name: 'Wolves' },
@@ -85,11 +86,11 @@ describe('config screen players section', () => {
     expect(screen.queryByText(ROSTER_HELP_TEXT)).toBeNull();
     expect(screen.queryByRole('button', { name: 'Expand Roster' })).toBeNull();
 
-    fireEvent.change(fieldSelect('What to track'), { target: { value: 'game' } });
+    fireEvent.change(fieldSelect('Track'), { target: { value: 'teams' } });
     expect(screen.queryByRole('button', { name: 'Expand Roster' })).toBeNull();
   });
 
-  it('appears, collapsed by default, once Team or Player stats is picked', () => {
+  it('appears, collapsed by default, once player detail is picked', () => {
     renderConfigScreen();
     pickPlayerStats();
 

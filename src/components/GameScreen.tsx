@@ -12,17 +12,19 @@ import {
   capTargetOptions,
   effectiveHalfTarget,
   effectiveTarget,
+  goalPlayersTracked,
   isUniversePoint,
   playHalted,
-  playerTrackingFor,
   possessionTracked,
   pullFromSide,
+  rosterTeams,
   secondHalfPuller,
   secondHalfPullSide,
   statsTrackingEnabled,
   timeoutAvailability,
   timeoutsConfigured,
   turnoverPlayersTracked,
+  turnoversTracked,
 } from '../state/gameReducer';
 import { lineTeam, lineTrackingEnabled } from '../state/lines';
 import { formatClock } from '../state/stats';
@@ -773,7 +775,7 @@ export default function GameScreen() {
   const pendingAssistPoint =
     state.points.length > dismissedUpTo &&
     lastPoint &&
-    playerTrackingFor(state.config, lastPoint.scoredBy)
+    goalPlayersTracked(state.config, lastPoint.scoredBy)
       ? lastPoint
       : null;
   const resolveAssistDialog = () => {
@@ -903,8 +905,8 @@ export default function GameScreen() {
       return;
     }
     // Unless this game asks who was involved, the turnover registers on the tap
-    // and the row is free again — which is the default, and is also all Game
-    // stats mode can do, having no roster on either side to ask against.
+    // and the row is free again — which is the default, and is also all a game
+    // with no roster on either side can do, having nobody to ask about.
     if (!turnoverPlayersTracked(state.config)) {
       dispatch({ type: 'TURNOVER' });
       return;
@@ -984,12 +986,11 @@ export default function GameScreen() {
   // all three, so the buttons say so rather than doing nothing.
   const stoppageBlocksPlay = state.pendingStoppage !== null;
 
-  // Roster only has something to show once a roster exists to view — Team stats
-  // mode has one (the tracked team's), Game stats mode never does. Turn appears
-  // for any mode that logs a turnover at all, Game stats included, even though
-  // that mode's turnover carries no player.
-  const showRosterBtn = state.config.statsMode === 'team' || state.config.statsMode === 'player';
-  const showTurnBtn = statsTrackingEnabled(state.config);
+  // Roster only has something to show once a roster exists to view. Turn appears
+  // for any game recording a turnover at all — team-level detail included, even
+  // though that game's turnover carries no player.
+  const showRosterBtn = rosterTeams(state.config).length > 0;
+  const showTurnBtn = turnoversTracked(state.config);
   // The team whose lines are recorded, or null when line tracking is off — which is
   // also what decides whether the Roster button opens a chooser or the editor.
   const lineTracked = lineTeam(state.config);
@@ -1304,7 +1305,8 @@ export default function GameScreen() {
             read (left) to the ones that record something (right), so the thumb's
             reach matches how consequential the button is. Timeouts left this row
             for the score panels; Roster and Turn each hide on their own depending
-            on statsMode (see showRosterBtn/showTurnBtn), leaving three to five. */}
+            on what this game records (see showRosterBtn/showTurnBtn), leaving
+            three to five. */}
           <div className={`grid ${actionRowColsClass} gap-2 lscape:gap-1 lscape:flex-1`}>
             {showRosterBtn && (
               <ActionButton

@@ -12,28 +12,61 @@ export function persistState(state: GameState): void {
 }
 
 /**
- * A tab left open across the deploy that replaced the old "Track game activity"
- * checkbox with `statsMode`/`trackedTeam` still has the boolean in its persisted
- * config. Read it back as the closest new mode instead of losing tracking on
- * reload: `true` was full player-level tracking (`player`), `false` was `none`.
+ * Every stored config, from any build, read back as one this build behaves the same
+ * way on. The rule throughout is that a setting added since must come back as
+ * whatever that game was already doing — a tab left open across a deploy, or a game
+ * filed in the archive months ago, must not change behaviour halfway through or
+ * re-render its report differently. The new defaults belong to games set up under
+ * the new build, which write the fields themselves.
  *
- * `trackTurnoverPlayers` is the same story one deploy later: before it existed,
- * a game with a roster always asked who turned it over, so a stored config from
- * then comes back with it on. Defaulting it to `false` there would change what a
- * game already in progress does halfway through it — the new default belongs to
- * games set up under the new build, which write the field themselves.
+ * Three deploys are layered here, oldest first:
+ *
+ * - The "Track game activity" checkbox that `statsMode` replaced: `true` was full
+ *   player-level tracking, `false` was nothing.
+ * - The four-value `statsMode` (`none`/`game`/`team`/`player`) that the detail +
+ *   opt-in-features split replaced. `game` became `teams`; `team` and `player`
+ *   became `players`, differing only in whether one team is named. All of them
+ *   recorded turnovers, and the two with a roster asked who scored, so those flags
+ *   come back on.
+ * - `trackTurnoverPlayers`: before it existed a game with a roster always asked who
+ *   turned it over.
  */
-function migrateStoredConfig(
-  stored: Partial<GameConfig> & { trackPlayers?: boolean },
-): Partial<GameConfig> {
+/** A stored config's `statsMode` is whatever the build that wrote it used, so it is read as a plain string and narrowed here. */
+type StoredConfig = Omit<Partial<GameConfig>, 'statsMode'> & {
+  trackPlayers?: boolean;
+  statsMode?: string;
+};
+
+function migrateStoredConfig(stored: StoredConfig): Partial<GameConfig> {
   let config = stored;
   if (config.statsMode === undefined && typeof config.trackPlayers === 'boolean') {
     config = { ...config, statsMode: config.trackPlayers ? 'player' : 'none', trackedTeam: null };
   }
+  // The legacy four-value set. `trackedTeam` is kept as stored for 'team' (the one
+  // mode that named a team) and cleared for 'player', which followed both.
+  if (config.statsMode === 'game') {
+    config = { ...config, statsMode: 'teams', trackedTeam: null, trackTurnovers: true };
+  } else if (config.statsMode === 'team' || config.statsMode === 'player') {
+    config = {
+      ...config,
+      statsMode: 'players',
+      trackedTeam: config.statsMode === 'team' ? (config.trackedTeam ?? 'A') : null,
+      trackTurnovers: true,
+      trackGoalPlayers: true,
+    };
+  }
+  if (config.trackTurnovers === undefined) {
+    // Anything still unmigrated predates the flag, where tracking at all meant a
+    // Turn button; 'none' ignores it either way (see turnoversTracked).
+    config = { ...config, trackTurnovers: true };
+  }
+  if (config.trackGoalPlayers === undefined) {
+    config = { ...config, trackGoalPlayers: true };
+  }
   if (config.trackTurnoverPlayers === undefined) {
     config = { ...config, trackTurnoverPlayers: true };
   }
-  return config;
+  return config as Partial<GameConfig>;
 }
 
 /**

@@ -15,7 +15,7 @@
  * it always was, in the copied plain text and the full-log dialog.
  */
 import type { Lang, TFunc } from '../i18n/useT';
-import { statsTrackingEnabled, turnoverPlayersTracked } from './gameReducer';
+import { rosterTeams, turnoverPlayersTracked, turnoversTracked } from './gameReducer';
 import { playerStatColumns, statCellText } from '../components/playerStatColumns';
 import { lineTrackingEnabled } from './lines';
 import {
@@ -137,25 +137,23 @@ export interface ReportCardModel {
 const LOCALES: Record<Lang, string> = { en: 'en-GB', es: 'es-ES', ca: 'ca-ES' };
 
 /**
- * Which rosters the player table draws from — Team mode has detail for the
- * tracked side only, Player mode for both, Game mode for neither. Shared with
- * ReportScreen so the table and the image can never disagree about it.
+ * Which rosters the player table draws from — the followed team, both, or neither
+ * where nothing is attributed to players. Shared with ReportScreen so the table and
+ * the image can never disagree about it.
  */
 export function playerStatsTeams(config: GameConfig): TeamId[] {
-  if (config.statsMode === 'team') return config.trackedTeam ? [config.trackedTeam] : [];
-  if (config.statsMode === 'player') return ['A', 'B'];
-  return [];
+  return rosterTeams(config);
 }
 
 /**
- * The paired team-stat rows, in report order. The extended rows only exist once
- * activity tracking is on — with it off there are no turnovers to count, so
+ * The paired team-stat rows, in report order. The extended rows are all derived
+ * from turnovers, so they only exist once turnovers are recorded — without them
  * "clean" holds and breaks would be indistinguishable from plain ones.
  */
 export function teamStatRows(state: GameState, t: TFunc): StatRow[] {
   const A = teamStats(state, 'A');
   const B = teamStats(state, 'B');
-  const tracking = statsTrackingEnabled(state.config);
+  const tracking = turnoversTracked(state.config);
   const clock = (s: number | null) => (s === null ? '—' : formatClock(s));
   const row = (label: string, a: string | number, b: string | number): StatRow => ({
     label,
@@ -182,7 +180,7 @@ export function teamStatRows(state: GameState, t: TFunc): StatRow[] {
  * a strip of flat columns says nothing the score boxes don't.
  */
 function ledgerModel(state: GameState, t: TFunc): CardLedgerModel | null {
-  if (!statsTrackingEnabled(state.config)) return null;
+  if (!turnoversTracked(state.config)) return null;
   // Any point recorded with tracking on carries the pair — a zero-second point
   // included, since possessionTopShare gives that one a share too.
   if (!state.points.some((p) => p.possessionSeconds !== undefined)) return null;
@@ -255,7 +253,9 @@ function metaSegments(state: GameState, t: TFunc, lang: Lang): string[] {
 
 export function reportCardModel(state: GameState, t: TFunc, lang: Lang): ReportCardModel {
   const teams = state.config.teams;
-  const showTeamColors = state.config.statsMode === 'player';
+  // A dot per row only when both rosters are listed and a name alone wouldn't say
+  // which side it is.
+  const showTeamColors = playerStatsTeams(state.config).length > 1;
   // With either extra view active the card carries **every** player column the
   // report screen offers behind its pills, grouped under those same names — the
   // screen splits them because a phone is 360px wide, and an image being read in a

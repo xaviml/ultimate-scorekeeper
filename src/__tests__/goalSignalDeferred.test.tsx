@@ -15,7 +15,8 @@ function liveGame(): GameState {
   state.possessionTeam = 'A';
   state.offenseTeam = 'A';
   state.pullingTeam = 'B';
-  state.config.statsMode = 'player';
+  state.config.statsMode = 'players';
+  state.config.trackTurnovers = true;
   return state;
 }
 
@@ -102,5 +103,19 @@ describe('the goal sign and gender-ratio sign, with player tracking on', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  // The coach who tracks lines and turns but does not want a dialog after every
+  // goal. Nothing is held back then — there is no dialog to wait for.
+  it('scores without asking, and signs the goal at once, when the game does not ask who scored', () => {
+    const state = liveGame();
+    state.config = { ...state.config, trackGoalPlayers: false };
+    mount(state);
+
+    tap(screen.getByLabelText('Team A: 0'));
+
+    expect(screen.getByLabelText('Team A: 1')).toBeInTheDocument();
+    expect(screen.queryByText(/Who scored/i)).toBeNull();
+    expect(screen.getByRole('img', { name: 'Goal' })).toBeInTheDocument();
   });
 });

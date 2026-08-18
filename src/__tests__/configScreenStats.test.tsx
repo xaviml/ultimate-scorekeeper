@@ -31,84 +31,130 @@ beforeEach(() => {
 });
 
 describe('config screen statistics section', () => {
-  it('defaults to No statistics, with no team picker and no Roster section', () => {
+  it('defaults to Score only, with no scope picker and no Roster section', () => {
     renderConfigScreen();
 
-    expect(fieldSelect('What to track').value).toBe('none');
-    expect(screen.queryByText('Team to track')).toBeNull();
+    expect(fieldSelect('Track').value).toBe('none');
+    expect(screen.queryByText('Players of')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Expand Roster' })).toBeNull();
   });
 
-  it('offers all four levels, and only Team stats shows a team picker', () => {
+  // The detail axis answers "who gets named", and only naming players needs a scope.
+  it('offers three levels, and only player detail shows the scope picker', () => {
     renderConfigScreen();
-    const select = fieldSelect('What to track');
+    const select = fieldSelect('Track');
 
-    fireEvent.change(select, { target: { value: 'game' } });
-    expect(screen.queryByText('Team to track')).toBeNull();
+    fireEvent.change(select, { target: { value: 'teams' } });
+    expect(screen.queryByText('Players of')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Expand Roster' })).toBeNull();
 
-    fireEvent.change(select, { target: { value: 'team' } });
-    expect(screen.getByText('Team to track')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Expand Roster' })).toBeInTheDocument();
-
-    fireEvent.change(select, { target: { value: 'player' } });
-    expect(screen.queryByText('Team to track')).toBeNull();
+    fireEvent.change(select, { target: { value: 'players' } });
+    expect(screen.getByText('Players of')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Expand Roster' })).toBeInTheDocument();
   });
 
-  it('defaults the tracked team to Team 1 and lets it be switched to Team 2', () => {
+  // Both teams is the wider landing place, and is what `trackedTeam: null` carries
+  // at player detail.
+  it('starts at both teams and narrows to either one', () => {
     renderConfigScreen();
-    fireEvent.change(fieldSelect('What to track'), { target: { value: 'team' } });
+    fireEvent.change(fieldSelect('Track'), { target: { value: 'players' } });
 
-    expect(fieldSelect('Team to track').value).toBe('A');
+    expect(fieldSelect('Players of').value).toBe('both');
 
-    fireEvent.change(fieldSelect('Team to track'), { target: { value: 'B' } });
-    expect(fieldSelect('Team to track').value).toBe('B');
+    fireEvent.change(fieldSelect('Players of'), { target: { value: 'B' } });
+    expect(fieldSelect('Players of').value).toBe('B');
   });
 
-  it("only shows the tracked team's roster editor in Team stats mode", () => {
+  it('lists both rosters for both teams, and only the followed one when narrowed', () => {
     renderConfigScreen();
     fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'Foxes' } });
     fireEvent.change(screen.getByLabelText('Team 2'), { target: { value: 'Wolves' } });
-    fireEvent.change(fieldSelect('What to track'), { target: { value: 'team' } });
+    fireEvent.change(fieldSelect('Track'), { target: { value: 'players' } });
     fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
 
     expect(within(rosterSection()).getByText('Foxes')).toBeInTheDocument();
+    expect(within(rosterSection()).getByText('Wolves')).toBeInTheDocument();
+
+    fireEvent.change(fieldSelect('Players of'), { target: { value: 'A' } });
+    expect(within(rosterSection()).getByText('Foxes')).toBeInTheDocument();
     expect(within(rosterSection()).queryByText('Wolves')).toBeNull();
 
-    fireEvent.change(fieldSelect('Team to track'), { target: { value: 'B' } });
+    fireEvent.change(fieldSelect('Players of'), { target: { value: 'B' } });
     expect(within(rosterSection()).queryByText('Foxes')).toBeNull();
     expect(within(rosterSection()).getByText('Wolves')).toBeInTheDocument();
   });
 
-  it('offers the turnover-player question only where there is a roster, and off by default', () => {
+  // The Turn button is opt-in: the tournament scorekeeper tracking goals and assists
+  // has no use for the most frequent button on the action row.
+  it('offers turnovers wherever anything is tracked, off by default', () => {
     renderConfigScreen();
-    const select = fieldSelect('What to track');
-    const checkbox = () => screen.queryByLabelText('Ask who turned it over');
+    const select = fieldSelect('Track');
+    const turnovers = () => screen.queryByLabelText('Turnovers');
 
-    expect(checkbox()).toBeNull();
+    expect(turnovers()).toBeNull();
 
-    fireEvent.change(select, { target: { value: 'game' } });
-    expect(checkbox()).toBeNull();
+    fireEvent.change(select, { target: { value: 'teams' } });
+    expect(turnovers()).not.toBeChecked();
 
-    fireEvent.change(select, { target: { value: 'player' } });
-    expect(checkbox()).not.toBeChecked();
+    fireEvent.click(turnovers()!);
+    expect(turnovers()).toBeChecked();
 
-    fireEvent.click(checkbox()!);
-    expect(checkbox()).toBeChecked();
-
-    fireEvent.change(select, { target: { value: 'team' } });
-    expect(checkbox()).toBeChecked();
+    // The flag survives a change of detail — it is visible on the same screen, so
+    // rewriting it underneath the user would be the surprising behaviour.
+    fireEvent.change(select, { target: { value: 'players' } });
+    expect(turnovers()).toBeChecked();
   });
 
-  it('picking a template never touches the stats mode or tracked team', () => {
+  // Nested under Turnovers: without the tap there is nothing to ask about, and
+  // without a roster there is nobody to name.
+  it('asks who turned it over only with turnovers on and a roster to ask against', () => {
     renderConfigScreen();
-    fireEvent.change(fieldSelect('What to track'), { target: { value: 'team' } });
-    fireEvent.change(fieldSelect('Team to track'), { target: { value: 'B' } });
+    const select = fieldSelect('Track');
+    const askWho = () => screen.queryByLabelText('Ask who turned it over');
+
+    fireEvent.change(select, { target: { value: 'teams' } });
+    fireEvent.click(screen.getByLabelText('Turnovers'));
+    expect(askWho()).toBeNull();
+
+    fireEvent.change(select, { target: { value: 'players' } });
+    expect(askWho()).not.toBeChecked();
+
+    fireEvent.click(askWho()!);
+    expect(askWho()).toBeChecked();
+
+    // Turning turnovers back off takes the question with it.
+    fireEvent.click(screen.getByLabelText('Turnovers'));
+    expect(askWho()).toBeNull();
+  });
+
+  // The reason to have typed a roster, so it is on wherever there is one.
+  it('asks who scored wherever there is a roster, on by default', () => {
+    renderConfigScreen();
+    const select = fieldSelect('Track');
+    const askScorer = () => screen.queryByLabelText('Ask who scored');
+
+    expect(askScorer()).toBeNull();
+
+    fireEvent.change(select, { target: { value: 'teams' } });
+    expect(askScorer()).toBeNull();
+
+    fireEvent.change(select, { target: { value: 'players' } });
+    expect(askScorer()).toBeChecked();
+
+    fireEvent.click(askScorer()!);
+    expect(askScorer()).not.toBeChecked();
+  });
+
+  it('picking a template never touches the stats settings', () => {
+    renderConfigScreen();
+    fireEvent.change(fieldSelect('Track'), { target: { value: 'players' } });
+    fireEvent.change(fieldSelect('Players of'), { target: { value: 'B' } });
+    fireEvent.click(screen.getByLabelText('Turnovers'));
 
     fireEvent.change(screen.getByLabelText('Template'), { target: { value: 'predefined:beach' } });
 
-    expect(fieldSelect('What to track').value).toBe('team');
-    expect(fieldSelect('Team to track').value).toBe('B');
+    expect(fieldSelect('Track').value).toBe('players');
+    expect(fieldSelect('Players of').value).toBe('B');
+    expect(screen.getByLabelText('Turnovers')).toBeChecked();
   });
 });

@@ -4,19 +4,28 @@ export type MixedRule = 'A' | 'B';
 export type Gender = 'male' | 'female';
 
 /**
- * The four levels of "how much do we log":
- * - `none` — the basic app: score, clock, ratio. No Roster/Turn buttons, a
- *   call/travel/technical/SOTG stoppage logs with no team attached.
- * - `game` — Turn appears and a call/travel/stoppage asks which team, but
- *   nothing is ever attributed to a specific player (no roster either).
- * - `team` — `game`-level detail for both teams, PLUS a roster and
- *   player-level attribution (goal/assist, a turnover's role, injury) for
- *   `trackedTeam` only. Anything about the other team behaves exactly like
- *   `game` — team-only, never a player picker.
- * - `player` — full detail: a roster and player-level attribution for both
- *   teams, same as this app always behaved before this mode existed.
+ * How much detail this game attributes — *who gets named*, and nothing else.
+ * What is actually recorded (turnovers, who scored, lines) is a separate set of
+ * opt-in flags on `GameConfig`, so a game can name players without wanting the
+ * Turn button, or record turnovers without ever naming anyone.
+ *
+ * - `none` — the basic app: score, clock, ratio. Nothing is attributed, so a
+ *   call/travel/technical/SOTG stoppage logs with no team attached and there is
+ *   no roster and no Turn button.
+ * - `teams` — everything is attributed to a team: a call/travel/stoppage asks
+ *   which one, and turnovers (with `trackTurnovers`) are counted per team. No
+ *   roster, so nothing is ever attributed to a specific player.
+ * - `players` — a roster and player-level attribution (goal/assist, a turnover's
+ *   role, injury), for the team named by `trackedTeam` or for both when it is
+ *   null. The team a game does not follow behaves exactly like `teams` —
+ *   team-only, never a player picker.
+ *
+ * The values are plural on purpose: they replaced an older four-value set
+ * (`none`/`game`/`team`/`player`) whose `team`/`player` meant something narrower,
+ * so a stored config is unambiguously identifiable as legacy (see
+ * `migrateStoredConfig`).
  */
-export type StatsMode = 'none' | 'game' | 'team' | 'player';
+export type StatsMode = 'none' | 'teams' | 'players';
 
 export type EndCapRule =
   | { kind: 'none' } // Option A: finish the current point, no cap
@@ -116,11 +125,12 @@ export type LineGenderCheck = 'none' | 'gameRatio' | 'fixed';
  * professional play that is the norm — so the ratio the lines are *checked*
  * against is its own setting, `'none'` included.
  *
- * There is no team here: line tracking only exists in `statsMode === 'team'`, so
- * the team is already named by `trackedTeam`. Ask `lineTrackingEnabled` (lines.ts)
- * rather than reading `enabled` directly — it is the gate every consumer shares,
- * and it is what retires the feature when the stats mode moves away from 'team'
- * without having to reach in and clear these settings.
+ * There is no team here: line tracking only exists where a single roster is
+ * followed (`statsMode === 'players'` with a `trackedTeam`), so the team is
+ * already named. Ask `lineTrackingEnabled` (lines.ts) rather than reading
+ * `enabled` directly — it is the gate every consumer shares, and it is what
+ * retires the feature when the game stops following one team, without having to
+ * reach in and clear these settings.
  */
 export interface LineConfig {
   enabled: boolean;
@@ -158,18 +168,36 @@ export interface GameConfig {
   timeouts: TimeoutConfig;
   waterBreaks: WaterBreakConfig;
   startingTime: StartingTimeConfig;
-  /** See `StatsMode`. Replaces the old "Track game activity" checkbox with four levels. */
+  /** How much this game attributes — see `StatsMode`. */
   statsMode: StatsMode;
-  /** The team followed in `team` mode; null in every other mode. */
+  /**
+   * Which roster is followed in `players` mode: one team, or null for both. Always
+   * null in the other modes, which have no roster at all. Ask `playerTrackingFor`
+   * or `rosterTeams` rather than reading this with `statsMode` by hand.
+   */
   trackedTeam: TeamId | null;
+  /**
+   * Whether this game records turnovers at all — the Turn button, the possession
+   * rule, per-point possession time and every turnover-derived figure in the
+   * report. Off by default: the tournament scorekeeper wanting goals and assists
+   * has no use for the most frequent button on the row, and a game that never
+   * taps it would otherwise show a possession ledger of flat columns.
+   * See `turnoversTracked`.
+   */
+  trackTurnovers: boolean;
+  /**
+   * Whether a goal stops to ask who scored and who assisted. On by default
+   * wherever there is a roster — it is the reason to have typed one — but a coach
+   * tracking only lines and turns can turn the dialog off. See `goalPlayersTracked`.
+   */
+  trackGoalPlayers: boolean;
   /**
    * Whether tapping Turn asks who lost the disc and who forced it, or just
    * registers the turnover and gets out of the way. Off by default: a turnover is
    * the most frequent thing on the row, and stopping for two player pickers is
    * more than most volunteers can keep up with — the count, the possession rule
-   * and the team stats all work without it. Only meaningful in `team`/`player`
-   * mode (see `turnoverPlayersTracked`): `game` has no roster to ask against and
-   * `none` has no Turn button at all.
+   * and the team stats all work without it. Only meaningful with a roster to ask
+   * against and turnovers being recorded at all (see `turnoverPlayersTracked`).
    */
   trackTurnoverPlayers: boolean;
   /** See `LineConfig`. Off by default: without it everything behaves as it always has. */
@@ -180,7 +208,7 @@ export interface GameConfig {
 /**
  * Rule settings a template can carry — everything except the per-game choices
  * templates must not touch: teams, coin toss results, players, and the statistics
- * settings (statsMode/trackedTeam/trackTurnoverPlayers/lines).
+ * settings (statsMode/trackedTeam, the track* flags and lines).
  *
  * `lines` is excluded with the rest of the statistics settings because it hangs off
  * `statsMode`/`trackedTeam` and carries a per-game roster snapshot in `saved`.
@@ -196,6 +224,8 @@ export type TemplateSettings = Omit<
   | 'startingRatio'
   | 'statsMode'
   | 'trackedTeam'
+  | 'trackTurnovers'
+  | 'trackGoalPlayers'
   | 'trackTurnoverPlayers'
   | 'lines'
   | 'players'
@@ -508,7 +538,7 @@ export interface GameState {
   statusBeforeTimeout: GameStatus | null;
   /** True while the open pause was started silently (the clock button, not the SOTG record-event entry) — decides the wording used when it closes. */
   pauseSilent: boolean;
-  /** Team that called the open SOTG pause, when `config.trackPlayers` asked — carried from `sotgStart` to `sotgEnd` the same way `pendingStoppage.team` survives to `stoppageResolved`. Null for a silent pause or when tracking is off. */
+  /** Team that called the open SOTG pause, when `statsTrackingEnabled` asked — carried from `sotgStart` to `sotgEnd` the same way `pendingStoppage.team` survives to `stoppageResolved`. Null for a silent pause or when tracking is off. */
   pauseTeam: TeamId | null;
   /**
    * How long the clock has been stopped, ticked every TICK while `status` is
@@ -546,9 +576,9 @@ export interface GameState {
    * `pointTurnovers`, written into the PointRecord at GOAL, and restored by
    * UNDO_GOAL from the GoalSnapshot — exactly like `pointTurnovers`.
    *
-   * Only meaningful when `statsTrackingEnabled(config)`: with statsMode 'none'
-   * there is no Turn button, so `possessionTeam` never changes hands and this
-   * would credit the entire point to the receiving team.
+   * Only meaningful when `turnoversTracked(config)`: without the Turn button
+   * `possessionTeam` never changes hands, and this would credit the entire point
+   * to the receiving team.
    */
   possessionSeconds: Record<TeamId, number>;
   /**
@@ -624,8 +654,8 @@ export interface GameState {
   /** Transient hint key for the Assistance Message Bar. */
   assist: string;
   /**
-   * The `assist` a just-scored goal would show, held back while `config.trackPlayers`
-   * is on so the scorer/assist picker isn't fighting the goal (and gender-ratio, which
+   * The `assist` a just-scored goal would show, held back while `goalPlayersTracked`
+   * so the scorer/assist picker isn't fighting the goal (and gender-ratio, which
    * only auto-reveals off `assist === 'goalScored'`) sign for the volunteer's attention.
    * Released into `assist` by REVEAL_GOAL_ASSIST once the dialog closes (save or cancel).
    */
@@ -689,8 +719,8 @@ export type Action =
    * `silent` pauses the clock without the SOTG call-out/signal — the generic pause
    * button covers reasons (technical, weather, prolonged stoppage) that aren't
    * spirit-related. `team` attributes which team called it, asked for only when
-   * `config.trackPlayers` is on; the caller (StoppageDialog) never sends it for a
-   * silent pause.
+   * `statsTrackingEnabled(config)`; the caller (StoppageDialog) never sends it for
+   * a silent pause.
    */
   | { type: 'SOTG_TOGGLE'; silent?: boolean; team?: TeamId }
   | { type: 'HALFTIME_END' }

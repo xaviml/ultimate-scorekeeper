@@ -25,7 +25,8 @@ function reportState(log: LogEntry[]): GameState {
   const state = createInitialState(structuredClone(defaultConfig));
   state.phase = 'report';
   state.status = 'finished';
-  state.config.statsMode = 'player';
+  state.config.statsMode = 'players';
+  state.config.trackTurnovers = true;
   state.log = log;
   return state;
 }

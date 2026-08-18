@@ -14,19 +14,20 @@ import type { Gender, GameConfig, LinePlayer, PlayerInfo, SavedLine, TeamId } fr
  */
 
 /**
- * The single gate for the whole feature. Line tracking only exists in `team` stats
- * mode, where exactly one roster is followed, so the line team is `trackedTeam` and
- * `LineConfig` carries no team of its own.
+ * The single gate for the whole feature. Line tracking only exists where exactly
+ * one roster is followed — player detail with a `trackedTeam` — so the line team is
+ * that team and `LineConfig` carries none of its own. Following both rosters is not
+ * enough: two lines a point is more than anyone tracks from a sideline.
  *
  * Every consumer asks this rather than reading `config.lines.enabled`, which is why
- * moving the stats mode away from 'team' retires line tracking on its own and moving
- * back restores the settings the user had chosen — nothing has to reach in and clear
- * the flag. Mirrors the shape of `statsTrackingEnabled`/`playerTrackingFor` in
- * gameReducer.ts; it lives here because this module imports only types, so the
+ * moving the stats detail off a single team retires line tracking on its own and
+ * moving back restores the settings the user had chosen — nothing has to reach in
+ * and clear the flag. Mirrors the shape of `statsTrackingEnabled`/`playerTrackingFor`
+ * in gameReducer.ts; it lives here because this module imports only types, so the
  * reducer can depend on it without a cycle.
  */
 export function lineTrackingEnabled(config: GameConfig): boolean {
-  return config.lines.enabled && config.statsMode === 'team' && config.trackedTeam !== null;
+  return config.lines.enabled && config.statsMode === 'players' && config.trackedTeam !== null;
 }
 
 /** The team whose lines are recorded, or null when line tracking is not in force. */
