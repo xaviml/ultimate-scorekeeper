@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '../i18n';
 import { GameProvider } from '../state/GameContext';
 import { createInitialState, gameReducer, secondHalfPullSide } from '../state/gameReducer';
+import App from '../App';
 import GameScreen from '../components/GameScreen';
 import type { GameState } from '../state/types';
 import { hold, tap } from './gestures';
@@ -629,5 +630,58 @@ describe('the header menu', () => {
     expect(screen.getByText('How this app works')).toBeInTheDocument();
     // The dashboard is gone while it is up — it is an early return, not an overlay.
     expect(screen.queryByLabelText('Menu')).toBeNull();
+  });
+});
+
+/**
+ * The report is a layer over the game rather than the end of the line: it is
+ * reached from the menu with the game still running, and every way in has a way
+ * back. Which is why it is App that is mounted here — the round trip crosses the
+ * phase boundary, and that is the thing being tested.
+ */
+describe('leaving for the report, and coming back', () => {
+  const mountApp = (state: GameState) => {
+    sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
+    return render(
+      <I18nProvider>
+        <GameProvider>
+          <App />
+        </GameProvider>
+      </I18nProvider>,
+    );
+  };
+
+  it('leaves a game in progress on "Resume game", with no words claiming it is over', () => {
+    mountApp(liveGame());
+    fireEvent.click(screen.getByLabelText('Menu'));
+    fireEvent.click(screen.getByText('End game'));
+    fireEvent.click(screen.getByRole('button', { name: 'End game' }));
+
+    // The report, with the same furniture the mid-game one has: a way back, and
+    // nothing headed "Final". Starting a new game is offered here, where the game
+    // screen has actually been left behind.
+    expect(screen.getByText('Game history')).toBeInTheDocument();
+    expect(screen.queryByText('Final report')).toBeNull();
+    expect(screen.queryByText('Final score')).toBeNull();
+    expect(screen.getByText('New game')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText(/Back to the game/));
+    // The clock was stopped on the way out, so the dashboard is waiting on the
+    // same button any other pause leaves it on.
+    expect(screen.getByText('Resume game')).toBeInTheDocument();
+  });
+
+  it('leaves a finished game on "Open report", the way it found it', () => {
+    mountApp(liveGame({ status: 'finished' }));
+    fireEvent.click(screen.getByLabelText('Menu'));
+    // Scoped: the action row behind the menu carries its own "Open report" button.
+    const menu = screen.getByRole('heading', { name: 'Menu' }).parentElement!
+      .parentElement as HTMLElement;
+    fireEvent.click(within(menu).getByText('Open report'));
+    expect(screen.getByText('Game history')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText(/Back to the game/));
+    expect(screen.getByText('Open report')).toBeInTheDocument();
+    expect(screen.queryByText('Resume game')).toBeNull();
   });
 });

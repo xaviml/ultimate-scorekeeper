@@ -20,6 +20,14 @@ import { useCallback, useEffect, useRef } from 'react';
  *   can also be closed by an in-app button (not the gesture), call `resolve()`
  *   there to drop the still-pending entry — it is a no-op when nothing is armed.
  *
+ * A third case sits between the two: **hand over** (the game and the report,
+ * which swap places and each guard the other's way back). The departing screen
+ * calls `handOverBackGuard()` rather than `resolve()`, leaving its entry on the
+ * stack for the arriving screen to adopt. Resolving there instead would race:
+ * `resolve()`'s `history.back()` is a queued traversal, so it lands *after* the
+ * arriving screen's synchronous `pushState` and eats the new entry rather than
+ * the old one, leaving a guard that believes it owns something it does not.
+ *
  * StrictMode-safety: the armed/suppress bookkeeping lives in a ref (survives the
  * dev-only mount→cleanup→mount replay), and this hook NEVER calls `history.back()`
  * from an effect or its cleanup — only `resolve()` does, and only ever from a
@@ -28,6 +36,19 @@ import { useCallback, useEffect, useRef } from 'react';
  * attached, which the listener would misread as a real back-press and fire
  * `onBack` on mount. Keeping every `back()` out of the effect removes that race.
  */
+/**
+ * One screen leaving its pushed entry on the stack for the next screen to own —
+ * see the hand-over case above. Module-level because that is exactly what the two
+ * sides cannot share any other way: the one setting it is unmounting, the one
+ * reading it has not mounted yet. It is a one-shot, consumed by the next
+ * activation, and it is honest whoever picks it up: the entry really is there.
+ */
+let handedOver = false;
+
+export function handOverBackGuard(): void {
+  handedOver = true;
+}
+
 export function useBackGuard(
   active: boolean,
   onBack: (api: { stay: () => void }) => void,
@@ -41,6 +62,12 @@ export function useBackGuard(
   const arm = useCallback(() => {
     if (st.current.armed) return;
     st.current.armed = true;
+    // Adopting the entry a departing screen left behind rather than stacking a
+    // second one on top of it (which the first would then be stranded under).
+    if (handedOver) {
+      handedOver = false;
+      return;
+    }
     history.pushState({ backGuard: true }, '');
   }, []);
 

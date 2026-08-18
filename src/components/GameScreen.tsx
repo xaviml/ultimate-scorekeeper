@@ -26,7 +26,7 @@ import {
 } from '../state/gameReducer';
 import { lineTeam, lineTrackingEnabled } from '../state/lines';
 import { formatClock } from '../state/stats';
-import { useBackGuard } from '../hooks/useBackGuard';
+import { handOverBackGuard, useBackGuard } from '../hooks/useBackGuard';
 import { useLongPress } from '../hooks/useLongPress';
 import type { CallKind, CallResolution, GameState, TeamId } from '../state/types';
 import { AssistanceBar } from './AssistanceBar';
@@ -720,11 +720,15 @@ export default function GameScreen() {
     stay();
     setShowLeaveConfirm(true);
   });
-  // Every path that unmounts the game screen to another screen consumes the
-  // trapped history entry first, so nothing dead is left on the stack for the
-  // destination's own back button to swallow.
+  // Every path that unmounts the game screen to another screen settles the trapped
+  // history entry first, so nothing dead is left on the stack for the destination's
+  // own back button to swallow. Which way it settles depends on where it lands: the
+  // report guards its own way back here, so it takes the entry over (resolving and
+  // letting it re-push would race — see handOverBackGuard); setup guards nothing,
+  // so that entry has to be spent.
   const leaveGameTo = (action: Parameters<typeof dispatch>[0]) => {
-    resolveBack();
+    if (action.type === 'OPEN_REPORT' || action.type === 'END_GAME') handOverBackGuard();
+    else resolveBack();
     dispatch(action);
   };
 

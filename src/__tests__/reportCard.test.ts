@@ -99,10 +99,12 @@ describe('reportCardModel', () => {
     expect(model.statHeader).toEqual(['Foxes', 'Wolves']);
   });
 
-  it('has no "Final report" heading — the screen needs one to say where you are, an image does not', () => {
+  it('has no heading over the meta line — the score speaks for itself in a chat', () => {
     const state = baseState();
     state.config.fieldNumber = '3';
-    expect(JSON.stringify(reportCardModel(state, t, 'en'))).not.toContain('Final report');
+    // "Final score" is still a string in the dictionary (the copied text uses it);
+    // it is the picture that labels nothing, the meta line being the whole header.
+    expect(JSON.stringify(reportCardModel(state, t, 'en'))).not.toContain('Final score');
   });
 
   it('puts the field, date and the clock times of the game in the meta line', () => {

@@ -67,9 +67,10 @@ export interface CardLedgerModel {
 export interface ReportCardModel {
   /**
    * Field, date and clock times as separate segments; the drawer packs them onto
-   * as many lines as fit. There is deliberately no "Final report" heading above
-   * them — the screen needs one to say where you are, an image landing in a chat
-   * does not, and the score speaks for itself.
+   * as many lines as fit. There is deliberately no heading of any kind above them
+   * — an image landing in a chat needs no label saying where you are, and the
+   * score speaks for itself. (The screen has none either any more: it is a layer
+   * over a game that may still be resumed, so nothing on it calls the score final.)
    */
   meta: string[];
   teams: { name: string; color: string; score: string }[];

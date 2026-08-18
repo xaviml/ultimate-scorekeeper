@@ -695,9 +695,16 @@ export type Action =
    */
   | { type: 'SET_CAP_TARGET'; which: 'game' | 'half'; target: number }
   | { type: 'TICK' } // 1 s of real time while clocks run
+  /**
+   * Leaving a game in progress for the report, from the header menu. It stops the
+   * clock rather than finishing the game — the report can come back (BACK_TO_GAME)
+   * and play can resume from where it was.
+   */
   | { type: 'END_GAME' }
   /** "Open report" tap once the game has finished: the only way from 'finished' to phase 'report'. */
   | { type: 'OPEN_REPORT' }
+  /** Back out of the report onto the game it was opened on, however it got there. */
+  | { type: 'BACK_TO_GAME' }
   | { type: 'BACK_TO_CONFIG' }
   | { type: 'ADD_PLAYER'; team: TeamId; number: string; name: string }
   | { type: 'REMOVE_PLAYER'; team: TeamId; id: string }

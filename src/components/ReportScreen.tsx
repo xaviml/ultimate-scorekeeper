@@ -1,4 +1,5 @@
 import { Fragment, useMemo, useState } from 'react';
+import { handOverBackGuard, useBackGuard } from '../hooks/useBackGuard';
 import { useReportImage } from '../hooks/useReportImage';
 import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
@@ -44,12 +45,16 @@ function slug(name: string): string {
 }
 
 /**
- * The finished-game report, and — with `live` — the same view opened from the
- * game menu mid-game, so a captain can lean over the stats at half-time. Live
- * mode drops only the finished-game furniture: the "Final report" heading (a
- * back-to-the-game button takes its place), the "Final score" label over the
- * score boxes, and the "New game" button. Everything else, sharing and copying
- * included, works on the game as it stands.
+ * The report on a game: reached from the game screen once the scoreline finished
+ * it, from the header menu on the way out of one still in progress, and — with
+ * `live` — read over the top of the dashboard mid-game, so a captain can lean
+ * over the stats at half-time. All three are the same screen with a way back,
+ * which is why there is no "Final report" heading and no "Final score" label over
+ * the score boxes: nothing here claims the game is over, because coming back and
+ * playing on is a door in every one of them. The one difference `live` makes is
+ * the way back itself (a caller's callback rather than BACK_TO_GAME, since the
+ * dashboard is still mounted underneath) and the "New game" button, which belongs
+ * to the two that left the game screen behind.
  */
 export default function ReportScreen({
   live = false,
@@ -65,6 +70,20 @@ export default function ReportScreen({
   const [teamFilter, setTeamFilter] = useState<TeamId | 'all'>('all');
   const [view, setView] = useState<PlayerStatView>('scoring');
   const [showFullLog, setShowFullLog] = useState(false);
+
+  // The phone back gesture reads as "back to the game", the same as the button —
+  // this screen is a layer over one, not the end of the app. It is the "complete
+  // and land" shape: the press has already spent the entry, so nothing re-arms it
+  // and the dashboard pushes its own on the way in. Live mode takes no guard at
+  // all: GameScreen is still mounted underneath and peels this layer off with its
+  // own (two hooks would each answer the other's press).
+  const resolveBack = useBackGuard(!live, () => dispatch({ type: 'BACK_TO_GAME' }));
+  const backToGame = () => {
+    // Handed over rather than resolved, for the same reason the dashboard hands it
+    // here: the game screen guards from where this one leaves off.
+    handOverBackGuard();
+    dispatch({ type: 'BACK_TO_GAME' });
+  };
 
   const A = teamStats(state, 'A');
   const B = teamStats(state, 'B');
@@ -187,20 +206,18 @@ export default function ReportScreen({
 
   return (
     <div className="min-h-dvh bg-pitch text-chalk p-4 pb-10 max-w-2xl mx-auto space-y-4">
-      {live ? (
-        <button
-          type="button"
-          className="rounded-lg bg-panel border border-line px-3 py-1 text-sm text-chalk/70 whitespace-nowrap mt-2"
-          onClick={onBack}
-        >
-          ← {t('btnBackToGame')}
-        </button>
-      ) : (
-        <h1 className="font-board text-2xl font-bold pt-2">{t('reportTitle')}</h1>
-      )}
+      {/* The way back, in every mode. Live mode hands its own callback in because
+          the dashboard is still mounted behind it; the report phase leaves the game
+          exactly as it found it, so BACK_TO_GAME is the whole of returning. */}
+      <button
+        type="button"
+        className="rounded-lg bg-panel border border-line px-3 py-1 text-sm text-chalk/70 whitespace-nowrap mt-2"
+        onClick={live ? onBack : backToGame}
+      >
+        ← {t('btnBackToGame')}
+      </button>
 
       <section className="rounded-xl bg-panel border border-line p-4">
-        {!live && <h2 className={`${sectionTitle} mb-3`}>{t('finalScore')}</h2>}
         {/* Two rows, not one: a name that wraps to a second line must never nudge its
             own score box out of alignment with the other team's. The name row mirrors
             the dash with an invisible twin so both name columns still land under their
@@ -351,10 +368,16 @@ export default function ReportScreen({
         </button>
       </div>
 
+      {/* Starting a new game is what actually discards this one, the game screen
+          having been left behind — so it is offered here and not in live mode.
+          Setup guards nothing, so the trapped entry is spent rather than passed on. */}
       {!live && (
         <button
           className={`${secondaryButtonOnPitch} w-full`}
-          onClick={() => dispatch({ type: 'BACK_TO_CONFIG' })}
+          onClick={() => {
+            resolveBack();
+            dispatch({ type: 'BACK_TO_CONFIG' });
+          }}
         >
           {t('newGame')}
         </button>

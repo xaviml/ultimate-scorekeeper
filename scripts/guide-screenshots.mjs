@@ -208,10 +208,13 @@ async function main() {
   await page.getByRole('button', { name: 'Menu' }).click();
   await page.getByRole('button', { name: 'End game' }).click();
   await page.getByRole('button', { name: 'End game' }).click();
-  await page.waitForSelector('text=Final report');
+  await page.waitForSelector('text=Game history');
   await sleep(300);
 
-  const report = page.locator('h1');
+  // The report's top element is the back-to-the-game button rather than a heading:
+  // it is a layer over the game now, not the end of the line, so nothing up there
+  // says "Final report" any more.
+  const report = page.getByRole('button', { name: /Back to the game/ });
   const history = page.locator('section').nth(2);
   const reportClip = await span(page, report, history);
   await shot('report.png', {

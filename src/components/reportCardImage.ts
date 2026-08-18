@@ -244,7 +244,7 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
   let y = PAD;
 
   // Header — the meta line only. See ReportCardModel.meta for why there is no
-  // "Final report" heading on the image.
+  // heading over it.
   ctx.textAlign = 'left';
   ctx.font = board(14, 500);
   ctx.fillStyle = C.chalkDim;

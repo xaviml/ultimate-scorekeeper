@@ -538,7 +538,6 @@ export const es: typeof en = {
   assist_blocked_lineNextNotNow:
     'La línea siguiente solo se puede registrar mientras se juega un punto.',
 
-  reportTitle: 'Informe final',
   reportStarted: 'Inicio: {time}',
   reportFinished: 'Fin: {time}',
   reportDuration: 'Duración: {duration}',

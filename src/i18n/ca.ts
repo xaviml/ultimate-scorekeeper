@@ -534,7 +534,6 @@ export const ca: typeof en = {
   assist_blocked_lineNotTracked: 'El seguiment de línies està desactivat en aquest partit.',
   assist_blocked_lineNextNotNow: 'La línia següent només es pot registrar mentre es juga un punt.',
 
-  reportTitle: 'Informe final',
   reportStarted: 'Inici: {time}',
   reportFinished: 'Fi: {time}',
   reportDuration: 'Durada: {duration}',

@@ -1,5 +1,5 @@
 import { StrictMode } from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '../i18n';
 import { GameProvider } from '../state/GameContext';
@@ -179,6 +179,88 @@ describe('phone back button on the how-it-works guide', () => {
     expect(screen.getByText('Game setup')).toBeInTheDocument();
     expect(backSpy).toHaveBeenCalledTimes(1);
 
+    backSpy.mockRestore();
+  });
+});
+
+describe('phone back button on the report', () => {
+  /** A game whose scoreline finished it, sitting on the dashboard's "Open report". */
+  function seedFinishedGame() {
+    const state = createInitialState();
+    state.phase = 'game';
+    state.status = 'finished';
+    state.config.teams.A.name = 'Foxes';
+    sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
+  }
+
+  it('goes back to the game rather than out of the app', () => {
+    seedFinishedGame();
+    renderApp();
+    fireEvent.click(screen.getByLabelText('Menu'));
+    const menu = screen.getByRole('heading', { name: 'Menu' }).parentElement!
+      .parentElement as HTMLElement;
+    fireEvent.click(within(menu).getByText('Open report'));
+    expect(screen.getByText('Game history')).toBeInTheDocument();
+
+    pressPhoneBack();
+
+    expect(screen.getByLabelText('Menu')).toBeInTheDocument();
+    expect(screen.queryByText('Game history')).toBeNull();
+  });
+
+  // The two screens swap places, so the entry is passed between them rather than
+  // spent and re-pushed: resolve()'s history.back() is a queued traversal and
+  // would land after the arriving screen's pushState, eating the wrong entry.
+  it('passes the one trapped entry between the game and the report, both ways', () => {
+    seedFinishedGame();
+    renderApp();
+    const pushSpy = vi.spyOn(history, 'pushState');
+    const backSpy = vi.spyOn(history, 'back');
+
+    fireEvent.click(screen.getByLabelText('Menu'));
+    const menu = screen.getByRole('heading', { name: 'Menu' }).parentElement!
+      .parentElement as HTMLElement;
+    fireEvent.click(within(menu).getByText('Open report'));
+    fireEvent.click(screen.getByText(/Back to the game/));
+    expect(screen.getByLabelText('Menu')).toBeInTheDocument();
+
+    // Neither leg pushed a second entry, and neither spent the one already there.
+    expect(pushSpy).not.toHaveBeenCalled();
+    expect(backSpy).not.toHaveBeenCalled();
+
+    pushSpy.mockRestore();
+    backSpy.mockRestore();
+  });
+
+  it('guards the report the same way after a reload lands straight on it', () => {
+    // Nothing handed anything over here — the app started on the report — so the
+    // screen arms an entry of its own.
+    const state = createInitialState();
+    state.phase = 'report';
+    state.status = 'finished';
+    sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
+    const pushSpy = vi.spyOn(history, 'pushState');
+    renderApp();
+    expect(pushSpy).toHaveBeenCalledTimes(1);
+
+    pressPhoneBack();
+    expect(screen.getByLabelText('Menu')).toBeInTheDocument();
+
+    pushSpy.mockRestore();
+  });
+
+  it('spends the entry on "New game", which lands on setup with nothing to guard', () => {
+    const state = createInitialState();
+    state.phase = 'report';
+    state.status = 'finished';
+    sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
+    renderApp();
+    const backSpy = vi.spyOn(history, 'back');
+
+    fireEvent.click(screen.getByText('New game'));
+
+    expect(screen.getByText('Game setup')).toBeInTheDocument();
+    expect(backSpy).toHaveBeenCalledTimes(1);
     backSpy.mockRestore();
   });
 });

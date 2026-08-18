@@ -573,7 +573,6 @@ export const en = {
     'The next line can only be registered while a point is being played.',
 
   // Report
-  reportTitle: 'Final report',
   reportStarted: 'Started: {time}',
   reportFinished: 'Finished: {time}',
   reportDuration: 'Duration: {duration}',

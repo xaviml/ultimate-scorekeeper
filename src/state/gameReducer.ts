@@ -856,8 +856,10 @@ function applyHalfCap(state: GameState): GameState {
  * and pause are all blocked from here (see the various can* guards), but the game
  * screen stays mounted with everything blocked so the goal that finished it can still
  * be undone (see canUndo) before the volunteer taps "Open report" (OPEN_REPORT), the
- * only way from here into phase 'report'. END_GAME (manually ending the game) is the
- * one caller that immediately overrides phase to 'report' anyway — see its case below.
+ * only way from here into phase 'report' — a door the report can now come back
+ * through (BACK_TO_GAME), which lands right here again. END_GAME does not call
+ * this at all any more: leaving a game in progress stops the clock rather than
+ * finishing the game — see its case below.
  */
 function finishGame(state: GameState): GameState {
   const s = log(state, 'gameEnd');
@@ -872,6 +874,39 @@ function startingTimeMs(config: GameConfig): number | null {
   const d = new Date();
   d.setHours(Number(match[1]), Number(match[2]), 0, 0);
   return d.getTime();
+}
+
+/**
+ * Stops the clock, the one thing every pause has in common: an SOTG stoppage, the
+ * manual pause button, or leaving the game for the report (END_GAME). The caller
+ * owns the guard — `canStoppage` for the two that a volunteer taps directly.
+ */
+function pauseGame(state: GameState, opts: { silent?: boolean; team?: TeamId } = {}): GameState {
+  const s = log(state, opts.silent ? 'pauseStart' : 'sotgStart', opts.team);
+  return {
+    ...s,
+    status: 'paused',
+    statusBeforePause: state.status,
+    pauseSilent: !!opts.silent,
+    pauseTeam: opts.team ?? null,
+    pauseElapsedSeconds: 0,
+    assist: opts.silent ? 'pauseStart' : 'sotg',
+  };
+}
+
+/**
+ * Leaving the game for the report writes a 'gameEnd' (see END_GAME), which is what
+ * gives the report its finish time and its duration. Coming back and resuming says
+ * the game did not end there, so the entry goes with the pause it belonged to —
+ * provided it is still the last thing logged, exactly the clean-removal rule
+ * UNDO_GOAL follows. Once something else has been recorded since (a note taken back
+ * on the dashboard, which a pause does not block), it stays: the log then reads as
+ * what actually happened rather than being rewritten underneath the entry after it.
+ */
+function dropLeaveEntry(state: GameState): GameState {
+  return state.log[state.log.length - 1]?.type === 'gameEnd'
+    ? { ...state, log: state.log.slice(0, -1) }
+    : state;
 }
 
 /**
@@ -1349,7 +1384,9 @@ export function gameReducer(state: GameState, action: Action): GameState {
       // elapsedSeconds is ticked forward every TICK regardless of whether the game
       // clock itself is running (see TICK), so this is accurate whether or not the
       // stoppage ran long enough to auto-stop the clock below.
-      const s = log(state, 'stoppageResolved', pending.team, undefined, {
+      // dropLeaveEntry for the same reason SOTG_TOGGLE has it: a game left for the
+      // report while a stoppage had already stopped the clock is resumed from here.
+      const s = log(dropLeaveEntry(state), 'stoppageResolved', pending.team, undefined, {
         stoppageKind: pending.kind,
         resolutionSeconds: pending.elapsedSeconds,
       });
@@ -1505,7 +1542,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         // stoppage records: counted by TICK rather than measured off the wall
         // clock, so it is unaffected by the app being reloaded mid-pause.
         const s = log(
-          state,
+          dropLeaveEntry(state),
           state.pauseSilent ? 'pauseEnd' : 'sotgEnd',
           state.pauseTeam ?? undefined,
           undefined,
@@ -1526,16 +1563,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
       // is what carries the way back, kept apart from statusBeforeTimeout precisely
       // so a pause taken during a timeout doesn't overwrite the timeout's own.
       if (!canStoppage(state).ok) return state;
-      const s = log(state, action.silent ? 'pauseStart' : 'sotgStart', action.team);
-      return {
-        ...s,
-        status: 'paused',
-        statusBeforePause: state.status,
-        pauseSilent: !!action.silent,
-        pauseTeam: action.team ?? null,
-        pauseElapsedSeconds: 0,
-        assist: action.silent ? 'pauseStart' : 'sotg',
-      };
+      return pauseGame(state, { silent: action.silent, team: action.team });
     }
 
     case 'HALFTIME_END': {
@@ -1779,17 +1807,42 @@ export function gameReducer(state: GameState, action: Action): GameState {
       return s;
     }
 
-    case 'END_GAME':
-      // Manually ending the game (as opposed to reaching it via a goal) is a
-      // deliberate, confirmed choice to stop right now — there is no "goal that
-      // just did this" for the volunteer to reconsider, so it skips the blocked
-      // review screen finishGame otherwise leaves the game on and goes straight
-      // to the report, same as it always has.
-      return { ...finishGame(state), phase: 'report' };
+    case 'END_GAME': {
+      // Leaving the game for the report is no longer the end of it: the report
+      // comes back (BACK_TO_GAME), so this stops the clock the way the pause
+      // button does rather than calling finishGame — a game interrupted at
+      // half-time and picked up again is a real afternoon, and 'finished' is what
+      // the scoreline itself decides. The 'gameEnd' entry is still written, since
+      // it is what gives the report its finish time and duration, and is dropped
+      // again if play resumes (see dropLeaveEntry). It still announces the game
+      // over: the volunteer confirmed this as the end, and nothing about resuming
+      // later is worth withholding the horn now.
+      if (state.phase !== 'game') return state;
+      // A game the scoreline already finished has no clock left to stop, and
+      // logging a second 'gameEnd' over its own would be claiming it ended twice.
+      if (state.status === 'finished') return { ...state, phase: 'report' };
+      // canStoppage refuses while one is already open — including the pause a
+      // prolonged stoppage brought on, which has stopped the clock already.
+      const s = canStoppage(state).ok ? pauseGame(state, { silent: true }) : state;
+      // Leaving a game that was already left — back to the dashboard for a look and
+      // straight out again, the clock still stopped from the first time — is one
+      // departure, and dropLeaveEntry only ever takes the last entry back.
+      const left = s.log[s.log.length - 1]?.type === 'gameEnd' ? s : log(s, 'gameEnd');
+      return { ...left, phase: 'report', assist: 'gameOver' };
+    }
 
     case 'OPEN_REPORT':
       if (state.status !== 'finished') return state;
       return { ...state, phase: 'report' };
+
+    case 'BACK_TO_GAME':
+      // The report is a layer over the game rather than the end of the line: the
+      // state it was opened on is untouched, so this is the whole of coming back.
+      // What the dashboard offers there is whatever its status already says —
+      // "Open report" for a game the scoreline finished, "Resume game" for one
+      // END_GAME paused on the way out.
+      if (state.phase !== 'report') return state;
+      return { ...state, phase: 'game' };
 
     case 'BACK_TO_CONFIG':
       return createInitialState(state.config);

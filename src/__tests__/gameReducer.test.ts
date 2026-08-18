@@ -790,11 +790,65 @@ describe('game finish', () => {
     expect(s.phase).toBe('report');
   });
 
-  it('END_GAME (manually ending it) skips the blocked review screen and opens the report right away', () => {
-    // Unlike a goal finishing the game, there is no "goal that just did this" for the
-    // volunteer to reconsider, so a manual end goes straight to the report.
-    const s = gameReducer(live(), { type: 'END_GAME' });
+  it('BACK_TO_GAME returns to the dashboard a finished game left exactly as it was', () => {
+    let s = run(
+      live(cfg({ targetScore: 1 })),
+      { type: 'GOAL', team: 'A' },
+      { type: 'OPEN_REPORT' },
+    );
+    expect(s.phase).toBe('report');
+    s = gameReducer(s, { type: 'BACK_TO_GAME' });
+    // Still finished, which is what puts "Open report" back on the action row.
+    expect(s.phase).toBe('game');
     expect(s.status).toBe('finished');
+  });
+
+  it('END_GAME stops the clock and opens the report, without finishing the game', () => {
+    // Leaving a game in progress is an interruption, not a result: the report is a
+    // layer over it, so the clock stops the way the pause button stops it and the
+    // dashboard is waiting on "Resume game" if the volunteer comes back.
+    const s = gameReducer(live(), { type: 'END_GAME' });
+    expect(s.phase).toBe('report');
+    expect(s.status).toBe('paused');
+    expect(s.statusBeforePause).toBe('live');
+    // The 'gameEnd' entry is still written — it is what gives the report a finish
+    // time and a duration.
+    expect(s.log[s.log.length - 1].type).toBe('gameEnd');
+    expect(gameReducer(s, { type: 'BACK_TO_GAME' })).toMatchObject({
+      phase: 'game',
+      status: 'paused',
+    });
+  });
+
+  it('drops the leave entry once play resumes, and the game clock picks up where it stopped', () => {
+    let s = ticks(live(), 5);
+    s = run(s, { type: 'END_GAME' }, { type: 'BACK_TO_GAME' });
+    const stoppedAt = s.gameSeconds;
+    s = gameReducer(s, { type: 'SOTG_TOGGLE' });
+    expect(s.status).toBe('live');
+    expect(s.log.some((e) => e.type === 'gameEnd')).toBe(false);
+    // The pause it opened is closed like any other: 'pauseStart' then 'pauseEnd'.
+    expect(s.log.slice(-2).map((e) => e.type)).toEqual(['pauseStart', 'pauseEnd']);
+    expect(ticks(s, 3).gameSeconds).toBe(stoppedAt + 3);
+  });
+
+  it('keeps the leave entry once something else has been recorded over it', () => {
+    // Same fallback UNDO_GOAL takes: a note written back on the dashboard, which a
+    // pause does not block, is after the entry and rewriting the log under it would
+    // be claiming an order that never happened.
+    let s = run(
+      live(),
+      { type: 'END_GAME' },
+      { type: 'BACK_TO_GAME' },
+      { type: 'NOTE', text: 'x' },
+    );
+    s = gameReducer(s, { type: 'SOTG_TOGGLE' });
+    expect(s.log.filter((e) => e.type === 'gameEnd').length).toBe(1);
+  });
+
+  it('records no second end when a game already left is left again', () => {
+    const s = run(live(), { type: 'END_GAME' }, { type: 'BACK_TO_GAME' }, { type: 'END_GAME' });
+    expect(s.log.filter((e) => e.type === 'gameEnd').length).toBe(1);
     expect(s.phase).toBe('report');
   });
 });
@@ -1446,7 +1500,9 @@ describe('recorded events (travel, calls, notes)', () => {
   });
 
   it('records nothing before the game starts or after it ends', () => {
-    for (const s of [createInitialState(cfg()), gameReducer(live(), { type: 'END_GAME' })]) {
+    const finished = run(live(cfg({ targetScore: 1 })), { type: 'GOAL', team: 'A' });
+    expect(finished.status).toBe('finished');
+    for (const s of [createInitialState(cfg()), finished]) {
       expect(canRecordEvent(s).ok).toBe(false);
       const after = run(
         s,
