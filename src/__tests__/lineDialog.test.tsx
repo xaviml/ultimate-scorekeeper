@@ -239,6 +239,60 @@ describe('an off-spec line', () => {
   });
 });
 
+/**
+ * A line is picked against a split, so the roster is laid out by marking rather than
+ * as one interleaved row the volunteer has to read twice.
+ */
+describe('the roster is grouped by marking', () => {
+  /** The chips of the open dialog, in the order they are rendered. */
+  const chips = () =>
+    [...(document.querySelector('div.fixed') as HTMLElement).querySelectorAll('button')]
+      .map((b) => b.textContent ?? '')
+      .filter((txt) => /^#\d/.test(txt));
+
+  it('lists FMP, then MMP, then the unmarked, each under its own label', () => {
+    openViaPrompt(lineGame());
+    const dialog = document.querySelector('div.fixed') as HTMLElement;
+    const labels = [...dialog.querySelectorAll('p')]
+      .map((el) => el.textContent ?? '')
+      .filter((txt) => ['FMP', 'MMP', 'No marking'].includes(txt));
+    expect(labels).toEqual(['FMP', 'MMP', 'No marking']);
+    expect(chips()).toEqual(['#1 One', '#2 Two', '#3 Three', '#4 Four', '#5 Five']);
+  });
+
+  // Shirt numbers, not text: 7 comes before 12.
+  it('sorts each group by shirt number', () => {
+    const state = lineGame();
+    state.config = {
+      ...state.config,
+      players: {
+        A: [
+          { id: 'p1', number: '12', name: 'Twelve', gender: 'female' },
+          { id: 'p2', number: '7', name: 'Seven', gender: 'female' },
+          { id: 'p3', number: '9', name: 'Nine', gender: 'male' },
+        ],
+        B: [],
+      },
+    };
+    openViaPrompt(state);
+    expect(chips()).toEqual(['#7 Seven', '#12 Twelve', '#9 Nine']);
+  });
+
+  // With nothing to group by the dialog has to look exactly as it did — and the
+  // chips keep carrying their own marking, since no label is there to say it.
+  it('stays one plain row when nobody is marked', () => {
+    const state = lineGame();
+    state.config = {
+      ...state.config,
+      players: { A: roster.map((p) => ({ ...p, gender: undefined })), B: [] },
+    };
+    openViaPrompt(state);
+    const dialog = document.querySelector('div.fixed') as HTMLElement;
+    expect([...dialog.querySelectorAll('p')].some((el) => el.textContent === 'FMP')).toBe(false);
+    expect(chips()).toHaveLength(5);
+  });
+});
+
 describe('predefined lines', () => {
   const saved: SavedLine = { id: 'l1', name: 'O1', playerKeys: ['1|one', '3|three'] };
 

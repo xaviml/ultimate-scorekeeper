@@ -12,6 +12,7 @@ import {
   playersOnField,
   replacementsFor,
   resolveSavedLine,
+  genderGroups,
   savedLineFrom,
   subIssues,
 } from '../state/lines';
@@ -375,5 +376,57 @@ describe('subIssues', () => {
   it('checks no split at all outside mixed', () => {
     const open = cfg({}, { division: 'open' });
     expect(subIssues(open, roster, ['p5'], ['p1'], 1)).toEqual([]);
+  });
+});
+
+/**
+ * A line is picked against a split, so the two markings are what the volunteer is
+ * counting — one interleaved row makes them read every chip twice.
+ */
+describe('genderGroups', () => {
+  const p = (id: string, number: string, gender?: 'male' | 'female'): PlayerInfo => ({
+    id,
+    number,
+    name: `Player ${id}`,
+    ...(gender ? { gender } : {}),
+  });
+
+  it('splits into FMP, MMP and unmarked, in that order', () => {
+    const groups = genderGroups([p('a', '1', 'male'), p('b', '2'), p('c', '3', 'female')]);
+    expect(groups.map((g) => g.gender)).toEqual(['female', 'male', null]);
+    expect(groups.map((g) => g.players.map((x) => x.id))).toEqual([['c'], ['a'], ['b']]);
+  });
+
+  // 7 before 12 — the numbers are shirt numbers, not text.
+  it('sorts by shirt number numerically within a group', () => {
+    const groups = genderGroups([
+      p('a', '12', 'female'),
+      p('b', '7', 'female'),
+      p('c', '2', 'female'),
+    ]);
+    expect(groups[0].players.map((x) => x.number)).toEqual(['2', '7', '12']);
+  });
+
+  // Most of a sideline-typed roster has numbers; the handful without would otherwise
+  // sit at the top, where nobody is looking for them.
+  it('puts players with no number after the numbered ones, by name', () => {
+    const groups = genderGroups([
+      { id: 'a', number: '', name: 'Zoe', gender: 'male' },
+      { id: 'b', number: '', name: 'Ana', gender: 'male' },
+      p('c', '9', 'male'),
+    ]);
+    expect(groups[0].players.map((x) => x.name)).toEqual(['Player c', 'Ana', 'Zoe']);
+  });
+
+  // A roster nobody has marked has to look exactly as it did.
+  it('drops empty groups, so an unmarked roster is a single group', () => {
+    expect(genderGroups([p('a', '1'), p('b', '2')])).toHaveLength(1);
+    expect(genderGroups([])).toEqual([]);
+  });
+
+  it('does not mutate the roster it was given', () => {
+    const roster = [p('a', '9', 'female'), p('b', '1', 'female')];
+    genderGroups(roster);
+    expect(roster.map((x) => x.id)).toEqual(['a', 'b']);
   });
 });

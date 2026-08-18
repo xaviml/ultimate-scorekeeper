@@ -1,5 +1,6 @@
 import { useLongPress } from '../hooks/useLongPress';
 import { useT } from '../i18n/useT';
+import { genderGroups } from '../state/lines';
 import { playerLabel } from '../state/stats';
 import type { PlayerInfo } from '../state/types';
 import { pillClass } from './ui';
@@ -86,6 +87,7 @@ export function PlayerMultiPicker({
   players,
   selected,
   showGender,
+  groupByGender,
   onToggle,
   onRemove,
 }: {
@@ -93,21 +95,56 @@ export function PlayerMultiPicker({
   selected: string[];
   /** Shows each player's MMP/FMP marking on their chip — see `PlayerChip`. */
   showGender?: boolean;
+  /**
+   * Splits the chips into FMP / MMP / unmarked rows, each in shirt-number order.
+   *
+   * Opt-in, and only the two line dialogs ask for it: picking a line means picking
+   * against a split, so the markings are what is being counted. Everywhere else the
+   * question is "which player", and a grouped row would be sorting the roster by
+   * something the volunteer is not thinking about.
+   */
+  groupByGender?: boolean;
   onToggle: (id: string) => void;
   onRemove?: (id: string) => void;
 }) {
+  const { t } = useT();
   if (players.length === 0) return null;
+
+  const chip = (p: PlayerInfo, marking?: boolean) => (
+    <PlayerChip
+      key={p.id}
+      player={p}
+      active={selected.includes(p.id)}
+      showGender={marking}
+      onSelect={() => onToggle(p.id)}
+      onRemove={onRemove}
+    />
+  );
+
+  const groups = groupByGender ? genderGroups(players) : null;
+  // One group is no grouping at all — an unmarked roster, or a picker already narrowed
+  // to a single marking — so it renders as the plain row it always was (in number
+  // order still), and the chip keeps carrying the marking since no label is there to
+  // say it.
+  if (!groups || groups.length < 2) {
+    const row = groups?.[0].players ?? players;
+    return <div className="flex flex-wrap gap-2">{row.map((p) => chip(p, showGender))}</div>;
+  }
+
   return (
-    <div className="flex flex-wrap gap-2">
-      {players.map((p) => (
-        <PlayerChip
-          key={p.id}
-          player={p}
-          active={selected.includes(p.id)}
-          showGender={showGender}
-          onSelect={() => onToggle(p.id)}
-          onRemove={onRemove}
-        />
+    <div className="space-y-1.5">
+      {groups.map((group) => (
+        <div key={group.gender ?? 'none'} className="space-y-1">
+          {/* A hairline label rather than a gap: the sections have to read as separate
+              without pushing the roster off a phone screen. It also makes the chips'
+              own marking suffix redundant, so it is dropped inside a group. */}
+          <p className="text-[10px] uppercase tracking-wide text-chalk/40">
+            {group.gender === null
+              ? t('genderUnmarked')
+              : t(group.gender === 'male' ? 'genderMmp' : 'genderFmp')}
+          </p>
+          <div className="flex flex-wrap gap-2">{group.players.map((p) => chip(p))}</div>
+        </div>
       ))}
     </div>
   );

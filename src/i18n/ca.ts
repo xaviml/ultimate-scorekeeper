@@ -171,6 +171,7 @@ export const ca: typeof en = {
     'Cap encara. Posa nom a les línies que juga aquest equip i seran a un toc durant el partit, i aquí un altre cop la propera vegada.',
   lineSavedForTeam: 'Desades amb {team}',
   genderMmp: 'MMP',
+  genderUnmarked: 'Sense marca',
   genderFmp: 'FMP',
   genderUnset: 'Sense definir',
   genderToggle: '{name} — gènere: {value}',

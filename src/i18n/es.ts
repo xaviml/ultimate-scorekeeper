@@ -171,6 +171,7 @@ export const es: typeof en = {
     'Ninguna todavía. Da nombre a las líneas que juega este equipo y estarán a un toque durante el partido, y aquí otra vez la próxima vez.',
   lineSavedForTeam: 'Guardadas con {team}',
   genderMmp: 'MMP',
+  genderUnmarked: 'Sin marca',
   genderFmp: 'FMP',
   genderUnset: 'Sin definir',
   genderToggle: '{name} — género: {value}',

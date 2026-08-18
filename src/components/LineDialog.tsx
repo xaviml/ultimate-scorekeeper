@@ -225,6 +225,10 @@ export function LineDialog({ team, onClose }: { team: TeamId; onClose: () => voi
           players={roster}
           selected={selected}
           showGender={state.config.lines.genderCheck !== 'none'}
+          // Grouped whatever `genderCheck` says: the markings are a fact about the
+          // squad, and a volunteer picking a line reads them off the roster whether or
+          // not this game is checking the split.
+          groupByGender
           onToggle={toggle}
           onRemove={(id) => {
             // The reducer scrubs a removed player off the field itself, so both drafts

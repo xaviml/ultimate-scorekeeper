@@ -94,6 +94,7 @@ export function SavedLineDialog({
           players={players}
           selected={selected}
           showGender
+          groupByGender
           onToggle={(id) =>
             setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]))
           }

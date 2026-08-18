@@ -186,6 +186,46 @@ export function playersOnField(
   return narrowed.length > 0 ? narrowed : players;
 }
 
+/** One marking's worth of a roster, in shirt-number order. `gender` is null for the unmarked. */
+export interface GenderGroup {
+  gender: Gender | null;
+  players: PlayerInfo[];
+}
+
+/**
+ * The roster split by marking — FMP, then MMP, then whoever has none — with each
+ * group sorted by shirt number.
+ *
+ * A line is picked *against a split*, so the two markings are what the volunteer is
+ * counting; a single interleaved row makes them read the same chip twice, once to
+ * find the player and once to check the marking. Empty groups are dropped, so a
+ * roster nobody has marked comes back as one group and looks exactly as it did.
+ *
+ * Numbers sort numerically rather than as text (7 before 12), and a player with no
+ * number sorts after the numbered ones by name — most of a sideline-typed roster has
+ * numbers, and the handful without would otherwise sit at the top where nobody is
+ * looking for them.
+ */
+export function genderGroups(players: PlayerInfo[]): GenderGroup[] {
+  const order: (Gender | null)[] = ['female', 'male', null];
+  return order
+    .map((gender) => ({
+      gender,
+      players: players.filter((p) => (p.gender ?? null) === gender).sort(byNumber),
+    }))
+    .filter((group) => group.players.length > 0);
+}
+
+function byNumber(a: PlayerInfo, b: PlayerInfo): number {
+  const na = Number.parseInt(a.number, 10);
+  const nb = Number.parseInt(b.number, 10);
+  const aHas = Number.isFinite(na);
+  const bHas = Number.isFinite(nb);
+  if (aHas && bHas && na !== nb) return na - nb;
+  if (aHas !== bHas) return aHas ? -1 : 1;
+  return a.name.localeCompare(b.name);
+}
+
 /** The roster minus whoever is on the field — who a substitution can bring on. */
 export function benchPlayers(players: PlayerInfo[], onField: string[]): PlayerInfo[] {
   return players.filter((p) => !onField.includes(p.id));

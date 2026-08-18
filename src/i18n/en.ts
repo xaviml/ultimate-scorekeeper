@@ -172,6 +172,7 @@ export const en = {
     'None yet. Name the lines this team plays and they will be one tap away during the game, and here again next time.',
   lineSavedForTeam: 'Saved with {team}',
   genderMmp: 'MMP',
+  genderUnmarked: 'No marking',
   genderFmp: 'FMP',
   genderUnset: 'Not set',
   genderToggle: '{name} — gender: {value}',

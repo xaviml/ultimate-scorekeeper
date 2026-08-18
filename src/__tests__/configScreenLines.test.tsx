@@ -354,6 +354,23 @@ describe('predefined lines on the config screen', () => {
     ).toBe(false);
   });
 
+  // The predefined-line editor is the other place a line is built against a split,
+  // so it lays the roster out the same way.
+  it('groups the roster by marking in the predefined-line editor', () => {
+    saveTeamWithLine();
+    intoTeamMode();
+    enableLines();
+    loadRavens();
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add a line' }));
+
+    const labels = [...dialog().querySelectorAll('p')]
+      .map((el) => el.textContent ?? '')
+      .filter((txt) => ['FMP', 'MMP', 'No marking'].includes(txt));
+    // Alex is marked FMP by the fixture and Jo is not, so there is no MMP group.
+    expect(labels).toEqual(['FMP', 'No marking']);
+  });
+
   // What the counters do instead is count: the split of the pool is what a coach is
   // balancing while they build it, whatever `genderCheck` says.
   it('counts the MMP and FMP in the line as it is picked', () => {
