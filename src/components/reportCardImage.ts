@@ -46,6 +46,17 @@ const NUM_GUTTER = 15;
 const NAME_MIN = 150;
 const NAME_MAX = 280;
 
+// The game summary — the report's history panel, painted as three columns. It is
+// denser than the stat tables (a full game is thirty-odd rows) and, like them,
+// measured rather than evenly split: the clock and the event ask for what they
+// need, capped, and the detail takes whatever is left and ellipsises into it.
+const HISTORY_ROW_H = 23;
+const HISTORY_CLOCK_GUTTER = 12;
+const HISTORY_EVENT_GUTTER = 14;
+const HISTORY_EVENT_MAX = 220;
+/** What the detail column asks the card to widen *for*; past this it ellipsises instead. */
+const HISTORY_DETAIL_MAX = 330;
+
 // The possession ledger strip: column and gap match the on-screen chart, the
 // score bands sit clear of the bars, and the whole card grows *wider* rather
 // than dropping columns — a shared image is seen full or not at all.
@@ -202,7 +213,33 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
   );
   const nameW = Math.min(NAME_MAX, Math.max(NAME_MIN, Math.ceil(nameNeed) + 8));
   const playersNeedW = hasPlayers ? nameW + numericSpan + (PAD + PANEL_PAD) * 2 : 0;
-  const width = Math.max(WIDTH, ledgerNeedW, playersNeedW);
+
+  // The summary's three columns. The clock is uniform, the event is bounded by
+  // the longest event name a language has, and the detail is what would otherwise
+  // run away — so only the first two are allowed to widen the card without limit.
+  const history = model.history;
+  const measureMax = (values: string[]) =>
+    values.reduce((w, v) => Math.max(w, measuring.measureText(v).width), 0);
+  let historyClockW = 0;
+  let historyEventW = 0;
+  let historyNeedW = 0;
+  if (history) {
+    measuring.font = clock(14, 600);
+    historyClockW = Math.ceil(measureMax(history.rows.map((r) => r.clock))) + HISTORY_CLOCK_GUTTER;
+    measuring.font = board(14, 500);
+    historyEventW = Math.min(
+      HISTORY_EVENT_MAX,
+      Math.ceil(measureMax(history.rows.map((r) => r.event))) + HISTORY_EVENT_GUTTER,
+    );
+    measuring.font = board(13, 500);
+    const detailW = Math.min(
+      HISTORY_DETAIL_MAX,
+      Math.ceil(measureMax(history.rows.map((r) => r.detail))),
+    );
+    historyNeedW = historyClockW + historyEventW + detailW + (PAD + PANEL_PAD) * 2;
+  }
+
+  const width = Math.max(WIDTH, ledgerNeedW, playersNeedW, historyNeedW);
 
   const contentWidth = width - PAD * 2;
   const panelWidth = contentWidth;
@@ -220,6 +257,10 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
     ? PANEL_PAD * 2 + SECTION_TITLE_H + 10 + groupH + TABLE_HEAD_H + model.playerRows.length * ROW_H
     : 0;
 
+  const historyH = history
+    ? PANEL_PAD * 2 + SECTION_TITLE_H + 10 + history.rows.length * HISTORY_ROW_H
+    : 0;
+
   const height =
     PAD +
     headerH +
@@ -229,6 +270,7 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
     statsH +
     (model.ledger ? GAP + ledgerH : 0) +
     (hasPlayers ? GAP + playersH : 0) +
+    (history ? GAP + historyH : 0) +
     PAD;
 
   canvas.width = width * SCALE;
@@ -491,6 +533,46 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
       });
       pY += ROW_H;
     }
+    y += playersH + GAP;
+  }
+
+  // The game summary. No column headings: the on-screen table needs them because
+  // it is one panel among many on a scrolling page, whereas here a clock, an event
+  // and its detail read as a story the moment the eye lands on them — and the card
+  // has thirty rows to spend its height on already.
+  if (history) {
+    panelBox(ctx, PAD, y, panelWidth, historyH);
+    let hY = y + PANEL_PAD;
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = C.signal;
+    ctx.font = board(13, 700);
+    withTracking(ctx, '1.5px');
+    ctx.fillText(history.title.toUpperCase(), left, hY + SECTION_TITLE_H / 2);
+    withTracking(ctx, '0px');
+    hY += SECTION_TITLE_H + 10;
+
+    const eventX = left + historyClockW;
+    const detailX = eventX + historyEventW;
+    history.rows.forEach((row, i) => {
+      // No rule above the first row: with no heading over it there is nothing to
+      // separate it from, and a line straight under the title reads as a box.
+      if (i > 0) separator(ctx, left, right, hY);
+      const midY = hY + HISTORY_ROW_H / 2;
+      ctx.textAlign = 'left';
+      ctx.font = clock(14, 600);
+      ctx.fillStyle = C.chalkMid;
+      ctx.fillText(row.clock, left, midY);
+      ctx.font = board(14, 500);
+      ctx.fillStyle = C.chalk;
+      ctx.fillText(fitText(ctx, row.event, historyEventW - 6), eventX, midY);
+      if (row.detail) {
+        ctx.font = board(13, 500);
+        ctx.fillStyle = C.chalkDim;
+        ctx.fillText(fitText(ctx, row.detail, right - detailX), detailX, midY);
+      }
+      hY += HISTORY_ROW_H;
+    });
   }
 
   return canvas;

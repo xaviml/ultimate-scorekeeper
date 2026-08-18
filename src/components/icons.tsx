@@ -226,3 +226,21 @@ export function ReportIcon({ size }: { size?: string }) {
     </Glyph>
   );
 }
+
+/** Match history: a clock wound backwards, the archive of games already played. */
+export function HistoryIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <path d="M12 7.5V12l2.625 1.5M3.75 8.25V4.5m0 3.75h3.75M4.02 8.25A8.25 8.25 0 1 1 3.75 12" />
+    </Glyph>
+  );
+}
+
+/** About the app — the same ⓘ the config header used to carry on its own. */
+export function InfoIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <path d="M11.25 11.25h.75v4.5h.75M12 8.25h.008v.008H12V8.25zM21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+    </Glyph>
+  );
+}

@@ -2,16 +2,7 @@ import { useState } from 'react';
 import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import { canDeleteLogEntry, logEditKind } from '../state/gameReducer';
-import {
-  callDetail,
-  formatClock,
-  goalPlayersDetail,
-  latePullDetail,
-  pauseDetail,
-  pointDurationDetail,
-  stoppageDetail,
-  turnoverPlayersDetail,
-} from '../state/stats';
+import { logRow } from '../state/stats';
 import type { LogEntry } from '../state/types';
 import { BinIcon, PencilIcon } from './icons';
 import { LogEditDialog } from './LogEditDialog';
@@ -69,48 +60,36 @@ export function GameLogTable({
           </tr>
         </thead>
         <tbody>
-          {entries.map((e) => (
-            <tr key={e.id} className="border-t border-line/50">
-              <td className="py-1 pr-2 font-clock whitespace-nowrap">
-                {formatClock(e.gameSeconds)}
-              </td>
-              <td className="py-1 pr-2">
-                {t(`event_${e.type}` as never)}
-                {e.team ? ` — ${state.config.teams[e.team].name}` : ''}
-              </td>
-              <td className="py-1 text-chalk/60">
-                {/* stoppageDetail renders e.detail itself (the injured player, if any),
-                  so it's left out here to avoid printing it twice. */}
-                {e.stoppageKind ? '' : (e.detail ?? '')}
-                {goalPlayersDetail(state, e, t)}
-                {pointDurationDetail(e, t)}
-                {turnoverPlayersDetail(state, e, t)}
-                {callDetail(e, t)}
-                {stoppageDetail(e, t)}
-                {pauseDetail(e, t)}
-                {latePullDetail(e, t)}
-              </td>
-              {editable && (
-                <td className="py-1 pl-1">
-                  <div className="flex items-center justify-end gap-0.5">
-                    {logEditKind(state, e) !== null && (
-                      <RowButton label={t('btnEditEntry')} onClick={() => setEditing(e.id)}>
-                        <PencilIcon size="w-4 h-4" />
-                      </RowButton>
-                    )}
-                    {canDeleteLogEntry(state, e) && (
-                      <RowButton
-                        label={t('btnDeleteEntry')}
-                        onClick={() => dispatch({ type: 'DELETE_LOG_ENTRY', id: e.id })}
-                      >
-                        <BinIcon size="w-4 h-4" />
-                      </RowButton>
-                    )}
-                  </div>
-                </td>
-              )}
-            </tr>
-          ))}
+          {entries.map((e) => {
+            // The same three columns the shared image paints — see `logRow`.
+            const row = logRow(state, e, t);
+            return (
+              <tr key={e.id} className="border-t border-line/50">
+                <td className="py-1 pr-2 font-clock whitespace-nowrap">{row.clock}</td>
+                <td className="py-1 pr-2">{row.event}</td>
+                <td className="py-1 text-chalk/60">{row.detail}</td>
+                {editable && (
+                  <td className="py-1 pl-1">
+                    <div className="flex items-center justify-end gap-0.5">
+                      {logEditKind(state, e) !== null && (
+                        <RowButton label={t('btnEditEntry')} onClick={() => setEditing(e.id)}>
+                          <PencilIcon size="w-4 h-4" />
+                        </RowButton>
+                      )}
+                      {canDeleteLogEntry(state, e) && (
+                        <RowButton
+                          label={t('btnDeleteEntry')}
+                          onClick={() => dispatch({ type: 'DELETE_LOG_ENTRY', id: e.id })}
+                        >
+                          <BinIcon size="w-4 h-4" />
+                        </RowButton>
+                      )}
+                    </div>
+                  </td>
+                )}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
 

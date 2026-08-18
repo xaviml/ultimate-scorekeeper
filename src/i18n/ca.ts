@@ -79,6 +79,14 @@ export const ca: typeof en = {
   duplicateTeamNames: 'Els noms dels equips han de ser diferents',
   halfScoreInvalid: 'El marcador de descans ha de ser menor que el marcador objectiu',
   language: 'Idioma',
+  pastGamesTitle: 'Historial de partits',
+  pastGamesEmpty:
+    "Encara no hi ha partits desats. Un partit es desa aquí automàticament quan s'anota el seu últim punt.",
+  deleteGameAria: 'Eliminar {match} dels partits anteriors',
+  confirmDeleteGameTitle: 'Eliminar aquest partit?',
+  confirmDeleteGame: 'Eliminar "{match}" d\'aquest dispositiu? Aquesta acció no es pot desfer.',
+  btnDeleteGame: 'Eliminar partit',
+  btnBack: 'Tornar',
   aboutBtn: "Sobre l'app",
   aboutTitle: "Sobre l'app",
   aboutStoryBold: 'Ultimate Scorekeeper',
@@ -582,7 +590,7 @@ export const ca: typeof en = {
   colDefensesFull:
     "Pèrdues forçades per aquest jugador: blocatges i marcatges que han esgotat l'stall",
   reportFooterCredit: 'Aquest partit es va registrar amb:',
-  historyTitle: 'Historial del partit',
+  historyTitle: 'Resum del partit',
   btnFullLog: 'Registre complet',
   fullLogTitle: 'Registre complet del partit',
   copyLog: 'Copiar registre',
@@ -841,7 +849,7 @@ export const ca: typeof en = {
   guideStep10Body:
     "L'aplicació acaba el partit sola quan un equip arriba a l'objectiu. Si l'has d'aturar abans, prem la ✕ del cantó superior esquerre, al costat del número de camp, i confirma.",
   guideStep10Report:
-    'Llavors apareix l\'informe: el marcador final, unes quantes estadístiques de cada equip i l\'historial complet del partit. "Compartir" envia una foto del marcador i les estadístiques directament a un xat; l\'historial es queda fora perquè es pugui llegir. "Copiar al porta-retalls" ho converteix tot, historial inclòs, en text pla que pots enganxar en un missatge o en un full de càlcul; fes-ho abans de sortir de la pantalla. "Nou partit" et torna a la configuració per al següent.',
+    'Llavors apareix l\'informe: el marcador final, unes quantes estadístiques de cada equip i l\'historial complet del partit. "Compartir" envia una foto del marcador, les estadístiques i el resum del partit directament a un xat. "Copiar al porta-retalls" ho converteix tot, historial inclòs, en text pla que pots enganxar en un missatge o en un full de càlcul; fes-ho abans de sortir de la pantalla. "Nou partit" et torna a la configuració per al següent.',
 
   guideCheatTitle: 'Resum ràpid',
   guideCheatTap: "Tocar el panell d'un equip",

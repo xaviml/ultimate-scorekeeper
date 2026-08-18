@@ -65,7 +65,7 @@ function fullLog(): LogEntry[] {
 }
 
 function historySection(): HTMLElement {
-  return screen.getByText('Game history').closest('section') as HTMLElement;
+  return screen.getByText('Game summary').closest('section') as HTMLElement;
 }
 
 beforeEach(() => {
@@ -117,7 +117,7 @@ describe('report screen — game history', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Copy to clipboard' }));
     await screen.findByText('Copied!');
     const report = writeText.mock.calls[0][0] as string;
-    expect(report).toContain('Game history');
+    expect(report).toContain('Game summary');
     expect(report).toContain('] Goal — Team A');
     expect(report).not.toContain('] Turnover');
     expect(report).not.toContain('] Call made');

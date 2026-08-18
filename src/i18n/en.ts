@@ -78,6 +78,17 @@ export const en = {
   duplicateTeamNames: 'Team names must be different',
   halfScoreInvalid: 'Half-time score must be lower than the target score',
   language: 'Language',
+  // The archive of finished games, reached from the setup screen's menu. It is
+  // "Match History" because `historyTitle` is already the report's panel of what
+  // happened *inside* one game — this one lists the matches themselves.
+  pastGamesTitle: 'Match History',
+  pastGamesEmpty:
+    'No games saved yet. A game is saved here automatically as soon as its final point is scored.',
+  deleteGameAria: 'Delete {match} from past games',
+  confirmDeleteGameTitle: 'Delete this game?',
+  confirmDeleteGame: 'Delete "{match}" from this device? This cannot be undone.',
+  btnDeleteGame: 'Delete game',
+  btnBack: 'Back',
   aboutBtn: 'About the app',
   aboutTitle: 'About',
   aboutStoryBold: 'Ultimate Scorekeeper',
@@ -620,7 +631,12 @@ export const en = {
   colDefenses: 'D',
   colDefensesFull: 'Turnovers this player forced — blocks, and marks that ran the stall out',
   reportFooterCredit: 'This game was tracked with:',
-  historyTitle: 'Game history',
+  // The panel of what happened inside one game — the goals, the caps, the
+  // stoppages. "Summary" rather than "history" because the report's copy of it
+  // leaves the turnovers and the calls out (see reportLogEntries), and because it
+  // now rides the shared image, where it is read as the story of the game rather
+  // than as a log. The full thing is `fullLogTitle`, one tap away.
+  historyTitle: 'Game summary',
   // The report's history leaves out the turnovers and the calls; this opens the
   // rest of it, with its own copy button (see FullLogDialog).
   btnFullLog: 'Full log',
@@ -888,7 +904,7 @@ export const en = {
   guideStep10Body:
     'The app ends the game on its own when a team reaches the target. If you have to stop earlier, press the ✕ in the top-left corner, next to the field number, and confirm.',
   guideStep10Report:
-    'You then get the report: the final score, a few statistics for each team and the full history of the game. "Share" sends a picture of the score and the stats straight to a chat — the log is left out, so it stays readable. "Copy to clipboard" turns everything, log included, into plain text you can paste into a message or a spreadsheet — do that before you leave the screen. "New game" takes you back to setup for the next match.',
+    'You then get the report: the final score, a few statistics for each team and the full history of the game. "Share" sends a picture of the score, the statistics and the summary of the game straight to a chat. "Copy to clipboard" turns everything, log included, into plain text you can paste into a message or a spreadsheet — do that before you leave the screen. "New game" takes you back to setup for the next match.',
 
   guideCheatTitle: 'Quick reference',
   guideCheatTap: 'Tap a team panel',

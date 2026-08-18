@@ -200,12 +200,12 @@ describe('phone back button on the report', () => {
     const menu = screen.getByRole('heading', { name: 'Menu' }).parentElement!
       .parentElement as HTMLElement;
     fireEvent.click(within(menu).getByText('Open report'));
-    expect(screen.getByText('Game history')).toBeInTheDocument();
+    expect(screen.getByText('Game summary')).toBeInTheDocument();
 
     pressPhoneBack();
 
     expect(screen.getByLabelText('Menu')).toBeInTheDocument();
-    expect(screen.queryByText('Game history')).toBeNull();
+    expect(screen.queryByText('Game summary')).toBeNull();
   });
 
   // The two screens swap places, so the entry is passed between them rather than

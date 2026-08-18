@@ -45,22 +45,31 @@ function slug(name: string): string {
 }
 
 /**
- * The report on a game: reached from the game screen once the scoreline finished
- * it, from the header menu on the way out of one still in progress, and — with
- * `live` — read over the top of the dashboard mid-game, so a captain can lean
- * over the stats at half-time. All three are the same screen with a way back,
- * which is why there is no "Final report" heading and no "Final score" label over
- * the score boxes: nothing here claims the game is over, because coming back and
- * playing on is a door in every one of them. The one difference `live` makes is
- * the way back itself (a caller's callback rather than BACK_TO_GAME, since the
- * dashboard is still mounted underneath) and the "New game" button, which belongs
- * to the two that left the game screen behind.
+ * The report on a game, in three modes.
+ *
+ * - `phase` (the default): the report the reducer switched to — reached from the
+ *   game screen once the scoreline finished it, or from the header menu on the way
+ *   out of one still in progress. It guards the back gesture itself and offers
+ *   "New game", the one tap that actually discards the game.
+ * - `live`: read over the top of the dashboard mid-game, so a captain can lean over
+ *   the stats at half-time. The way back is the caller's callback (GameScreen is
+ *   still mounted underneath, and peels this layer off with the guard it already
+ *   has), and there is no "New game" — this game has not been left.
+ * - `archived`: a finished game opened out of the past-games list. Behaves exactly
+ *   like `live` — a layer over a screen that owns the back guard, with a callback
+ *   out and nothing that discards anything — because it is read-only in a stronger
+ *   sense still: the state it draws comes from storage through a context whose
+ *   dispatch does nothing (see PastGamesScreen).
+ *
+ * All three are the same screen with a way back, which is why there is no "Final
+ * report" heading and no "Final score" label over the score boxes: nothing here
+ * claims the game is over, because coming back is a door in every one of them.
  */
 export default function ReportScreen({
-  live = false,
+  mode = 'phase',
   onBack,
 }: {
-  live?: boolean;
+  mode?: 'phase' | 'live' | 'archived';
   onBack?: () => void;
 } = {}) {
   const state = useGame();
@@ -77,7 +86,11 @@ export default function ReportScreen({
   // and the dashboard pushes its own on the way in. Live mode takes no guard at
   // all: GameScreen is still mounted underneath and peels this layer off with its
   // own (two hooks would each answer the other's press).
-  const resolveBack = useBackGuard(!live, () => dispatch({ type: 'BACK_TO_GAME' }));
+  // A layer over a screen that guards for it (the dashboard in `live`, the
+  // past-games list in `archived`) takes no guard of its own: two hooks would each
+  // attach a window listener and answer the other's press.
+  const layered = mode !== 'phase';
+  const resolveBack = useBackGuard(!layered, () => dispatch({ type: 'BACK_TO_GAME' }));
   const backToGame = () => {
     // Handed over rather than resolved, for the same reason the dashboard hands it
     // here: the game screen guards from where this one leaves off.
@@ -212,9 +225,12 @@ export default function ReportScreen({
       <button
         type="button"
         className="rounded-lg bg-panel border border-line px-3 py-1 text-sm text-chalk/70 whitespace-nowrap mt-2"
-        onClick={live ? onBack : backToGame}
+        onClick={layered ? onBack : backToGame}
       >
-        ← {t('btnBackToGame')}
+        {/* Worded per mode for the same reason the guide's is worded neutrally:
+            "Back to the game" is a lie from the archive, where there is no game to
+            go back to — the way out is the list this one was opened from. */}
+        ← {mode === 'archived' ? t('btnBack') : t('btnBackToGame')}
       </button>
 
       <section className="rounded-xl bg-panel border border-line p-4">
@@ -371,7 +387,7 @@ export default function ReportScreen({
       {/* Starting a new game is what actually discards this one, the game screen
           having been left behind — so it is offered here and not in live mode.
           Setup guards nothing, so the trapped entry is spent rather than passed on. */}
-      {!live && (
+      {!layered && (
         <button
           className={`${secondaryButtonOnPitch} w-full`}
           onClick={() => {

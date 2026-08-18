@@ -8,9 +8,11 @@
  * the layout testable without a canvas: this file is pure and covered by unit
  * tests, the canvas file is mechanical.
  *
- * The card is deliberately *not* the whole report — it leaves out the game log,
- * which is what makes it shareable at all (a full log is pages long and unreadable
- * as an image). The log stays in the copied plain text.
+ * The card carries the game summary — the report's own filtered history, goals
+ * and caps and stoppages, minus the turnovers and the calls (see
+ * `reportLogEntries`). What it still leaves out is the *full* log: that arrives by
+ * the dozen in a tracked game and is pages long as a picture, and it stays where
+ * it always was, in the copied plain text and the full-log dialog.
  */
 import type { Lang, TFunc } from '../i18n/useT';
 import { statsTrackingEnabled, turnoverPlayersTracked } from './gameReducer';
@@ -18,8 +20,10 @@ import { playerStatColumns, statCellText } from '../components/playerStatColumns
 import { lineTrackingEnabled } from './lines';
 import {
   formatClock,
+  logRow,
   playerStatLines,
   possessionTopShare,
+  reportLogEntries,
   sortPlayerStatLines,
   teamStats,
 } from './stats';
@@ -64,6 +68,18 @@ export interface CardLedgerModel {
   columns: CardLedgerColumn[];
 }
 
+/** One row of the game summary, in the three columns the on-screen table uses. */
+export interface CardHistoryRow {
+  clock: string;
+  event: string;
+  detail: string;
+}
+
+export interface CardHistoryModel {
+  title: string;
+  rows: CardHistoryRow[];
+}
+
 export interface ReportCardModel {
   /**
    * Field, date and clock times as separate segments; the drawer packs them onto
@@ -106,6 +122,15 @@ export interface ReportCardModel {
    */
   playerAccent: number | null;
   playerRows: CardPlayerRow[];
+  /**
+   * The game summary — the report's history panel, entry for entry, or null when
+   * nothing survived the filter (a game with no goals recorded at all). It is the
+   * report's own `reportLogEntries`, not the whole log, so what the picture says
+   * happened is exactly what the screen said happened; the drawer paints every
+   * row rather than truncating, and the card simply grows taller, the same
+   * bargain the ledger strikes with width.
+   */
+  history: CardHistoryModel | null;
 }
 
 /** Dates are the one thing on the card that isn't a dictionary string, so the language has to be resolved to a locale. */
@@ -178,6 +203,17 @@ function ledgerModel(state: GameState, t: TFunc): CardLedgerModel | null {
       };
     }),
   };
+}
+
+/**
+ * The report's history as card rows. Built through `logRow`, the same splitter the
+ * on-screen table renders, so a row cannot read one way in the panel and another
+ * in the picture.
+ */
+function historyModel(state: GameState, t: TFunc): CardHistoryModel | null {
+  const entries = reportLogEntries(state.log);
+  if (entries.length === 0) return null;
+  return { title: t('historyTitle'), rows: entries.map((e) => logRow(state, e, t)) };
 }
 
 function formatDate(atMs: number, lang: Lang): string {
@@ -288,5 +324,6 @@ export function reportCardModel(state: GameState, t: TFunc, lang: Lang): ReportC
       unassigned: p.unassigned === true,
       values: columns.map((c) => statCellText(c, p)),
     })),
+    history: historyModel(state, t),
   };
 }

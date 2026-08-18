@@ -208,7 +208,7 @@ async function main() {
   await page.getByRole('button', { name: 'Menu' }).click();
   await page.getByRole('button', { name: 'End game' }).click();
   await page.getByRole('button', { name: 'End game' }).click();
-  await page.waitForSelector('text=Game history');
+  await page.waitForSelector('text=Game summary');
   await sleep(300);
 
   // The report's top element is the back-to-the-game button rather than a heading:

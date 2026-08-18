@@ -485,6 +485,15 @@ export interface GoalSnapshot {
 }
 
 export interface GameState {
+  /**
+   * Identity of this game, minted once by `createInitialState` and carried for the
+   * whole of it (an undo, a reload, a trip through the report all keep it). It is
+   * what lets the archive of past games recognise the game it already stored and
+   * overwrite that record rather than filing a second copy of the same afternoon —
+   * see `state/gameHistory.ts`. BACK_TO_CONFIG builds a fresh state, so the next
+   * game is a different game by construction.
+   */
+  id: string;
   phase: 'config' | 'game' | 'report';
   config: GameConfig;
   status: GameStatus;

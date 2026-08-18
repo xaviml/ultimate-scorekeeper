@@ -79,6 +79,14 @@ export const es: typeof en = {
   duplicateTeamNames: 'Los nombres de los equipos deben ser diferentes',
   halfScoreInvalid: 'El marcador de descanso debe ser menor que el marcador objetivo',
   language: 'Idioma',
+  pastGamesTitle: 'Historial de partidos',
+  pastGamesEmpty:
+    'Todavía no hay partidos guardados. Un partido se guarda aquí automáticamente en cuanto se anota su último punto.',
+  deleteGameAria: 'Eliminar {match} de los partidos anteriores',
+  confirmDeleteGameTitle: '¿Eliminar este partido?',
+  confirmDeleteGame: '¿Eliminar "{match}" de este dispositivo? Esta acción no se puede deshacer.',
+  btnDeleteGame: 'Eliminar partido',
+  btnBack: 'Volver',
   aboutBtn: 'Acerca de la app',
   aboutTitle: 'Acerca de',
   aboutStoryBold: 'Ultimate Scorekeeper',
@@ -585,7 +593,7 @@ export const es: typeof en = {
   colDefenses: 'D',
   colDefensesFull: 'Pérdidas forzadas por este jugador: bloqueos y marcas que agotaron el stall',
   reportFooterCredit: 'Este partido se registró con:',
-  historyTitle: 'Historial del partido',
+  historyTitle: 'Resumen del partido',
   btnFullLog: 'Registro completo',
   fullLogTitle: 'Registro completo del partido',
   copyLog: 'Copiar registro',
@@ -843,7 +851,7 @@ export const es: typeof en = {
   guideStep10Body:
     'La aplicación termina el partido sola cuando un equipo llega al objetivo. Si tienes que pararlo antes, pulsa la ✕ de la esquina superior izquierda, al lado del número de campo, y confirma.',
   guideStep10Report:
-    'Entonces aparece el informe: el marcador final, unas cuantas estadísticas de cada equipo y el historial completo del partido. "Compartir" manda una foto del marcador y las estadísticas directamente a un chat; el historial se queda fuera para que se pueda leer. "Copiar al portapapeles" lo convierte todo, historial incluido, en texto plano que puedes pegar en un mensaje o en una hoja de cálculo; hazlo antes de salir de la pantalla. "Nuevo partido" te devuelve a la configuración para el siguiente.',
+    'Entonces aparece el informe: el marcador final, unas cuantas estadísticas de cada equipo y el historial completo del partido. "Compartir" manda una foto del marcador, las estadísticas y el resumen del partido directamente a un chat. "Copiar al portapapeles" lo convierte todo, historial incluido, en texto plano que puedes pegar en un mensaje o en una hoja de cálculo; hazlo antes de salir de la pantalla. "Nuevo partido" te devuelve a la configuración para el siguiente.',
 
   guideCheatTitle: 'Resumen rápido',
   guideCheatTap: 'Tocar el panel de un equipo',

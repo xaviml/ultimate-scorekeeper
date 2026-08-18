@@ -30,8 +30,11 @@ import {
   saveWaterBreakSectionCollapsed,
 } from '../state/uiPreferences';
 import { AboutDialog } from './AboutDialog';
+import { ConfigMenuDialog } from './ConfigMenuDialog';
 import { ConfirmDeleteTemplateDialog } from './ConfirmDeleteTemplateDialog';
 import GuideScreen from './GuideScreen';
+import { MenuIcon } from './icons';
+import PastGamesScreen from './PastGamesScreen';
 import { PlayerRosterEditor } from './PlayerRosterEditor';
 import { SavedLinesEditor } from './SavedLinesEditor';
 import { RosterImportDialog } from './RosterImportDialog';
@@ -142,10 +145,13 @@ export default function ConfigScreen() {
   );
   const [savedTeams, setSavedTeams] = useState<SavedTeam[]>(() => loadSavedTeams());
   const [showAbout, setShowAbout] = useState(false);
-  // The guide is a page, not a dialog, and it is rendered from here rather than
-  // from App so this screen stays mounted underneath it — everything already
-  // typed into the form is still there when the volunteer comes back.
+  // The header menu, and the two full screens behind it. Both are rendered from
+  // here rather than from App so this screen stays mounted underneath them —
+  // everything already typed into the form is still there when the volunteer
+  // comes back — which is also why neither is a phase in the reducer.
+  const [showMenu, setShowMenu] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [showPastGames, setShowPastGames] = useState(false);
   // Collapsed by default; a fresh load/reload always starts collapsed regardless of what
   // was saved, since that saved value only means something relative to a just-finished
   // game. Coming back from BACK_TO_CONFIG (see startingFresh above) is the one case where
@@ -399,6 +405,11 @@ export default function ConfigScreen() {
       />
     );
 
+  // The archive of finished games. Unlike the guide it brings its own back guard
+  // (it has a report layer of its own to peel off first), so this screen's guard
+  // above is inactive the whole time it is up — the two are never open at once.
+  if (showPastGames) return <PastGamesScreen onClose={() => setShowPastGames(false)} />;
+
   const teamsReady = cfg.teams.A.name.trim() !== '' && cfg.teams.B.name.trim() !== '';
   const duplicateTeamNames =
     teamsReady && normalizeTeamName(cfg.teams.A.name) === normalizeTeamName(cfg.teams.B.name);
@@ -443,13 +454,19 @@ export default function ConfigScreen() {
     <div className="min-h-dvh bg-pitch text-chalk p-4 pb-10 max-w-2xl mx-auto space-y-4">
       <header className="flex items-start justify-between pt-2">
         <h1 className="font-board text-2xl font-bold">{t('appTitle')}</h1>
+        {/* The ⓘ that used to sit here opened one dialog and said so; the menu it
+            became holds that dialog plus the two things the setup screen had no
+            door to — the archive of past games, and the walkthrough (which also
+            keeps its link under the tagline, where a first-time volunteer finds
+            it without opening anything). Same control, same corner, as the game
+            screen's menu. */}
         <button
           type="button"
-          className="rounded-lg bg-panel border border-line w-8 h-8 text-chalk/70 flex-shrink-0"
-          aria-label={t('aboutBtn')}
-          onClick={() => setShowAbout(true)}
+          className="rounded-lg bg-panel border border-line w-8 h-8 text-chalk/70 flex-shrink-0 flex items-center justify-center"
+          aria-label={t('menuTitle')}
+          onClick={() => setShowMenu(true)}
         >
-          ⓘ
+          <MenuIcon size="w-5 h-5" />
         </button>
       </header>
 
@@ -477,6 +494,23 @@ export default function ConfigScreen() {
         </select>
       </div>
 
+      {showMenu && (
+        <ConfigMenuDialog
+          onClose={() => setShowMenu(false)}
+          onPastGames={() => {
+            setShowMenu(false);
+            setShowPastGames(true);
+          }}
+          onGuide={() => {
+            setShowMenu(false);
+            setShowGuide(true);
+          }}
+          onAbout={() => {
+            setShowMenu(false);
+            setShowAbout(true);
+          }}
+        />
+      )}
       {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
 
       <Section title={t('setupTitle')}>

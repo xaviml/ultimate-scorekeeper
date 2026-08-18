@@ -608,7 +608,7 @@ describe('the header menu', () => {
     expect(screen.queryByText('New game')).toBeNull();
     // The working parts are all there.
     expect(screen.getByText('Copy to clipboard')).toBeInTheDocument();
-    expect(screen.getByText('Game history')).toBeInTheDocument();
+    expect(screen.getByText('Game summary')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText(/Back to the game/));
     expect(screen.getByLabelText('Menu')).toBeInTheDocument();
@@ -660,7 +660,7 @@ describe('leaving for the report, and coming back', () => {
     // The report, with the same furniture the mid-game one has: a way back, and
     // nothing headed "Final". Starting a new game is offered here, where the game
     // screen has actually been left behind.
-    expect(screen.getByText('Game history')).toBeInTheDocument();
+    expect(screen.getByText('Game summary')).toBeInTheDocument();
     expect(screen.queryByText('Final report')).toBeNull();
     expect(screen.queryByText('Final score')).toBeNull();
     expect(screen.getByText('New game')).toBeInTheDocument();
@@ -678,7 +678,7 @@ describe('leaving for the report, and coming back', () => {
     const menu = screen.getByRole('heading', { name: 'Menu' }).parentElement!
       .parentElement as HTMLElement;
     fireEvent.click(within(menu).getByText('Open report'));
-    expect(screen.getByText('Game history')).toBeInTheDocument();
+    expect(screen.getByText('Game summary')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText(/Back to the game/));
     expect(screen.getByText('Open report')).toBeInTheDocument();

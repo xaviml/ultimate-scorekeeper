@@ -242,20 +242,35 @@ describe('reportCardModel', () => {
     expect(reportCardModel(untracked, t, 'en').ledger).toBeNull();
   });
 
-  it('never carries the game log — leaving it out is the whole point of the image', () => {
-    const bare = baseState();
-    bare.log = [entry({ type: 'gameStart' })];
-
-    const chatty = baseState();
-    chatty.log = [
+  it("carries the game summary — the report's history, not the whole log", () => {
+    const state = baseState();
+    state.config.teams = {
+      A: { name: 'Foxes', color: '#ff0000' },
+      B: { name: 'Wolves', color: '#0000ff' },
+    };
+    state.log = [
       entry({ type: 'gameStart' }),
+      entry({ type: 'goal', team: 'A', gameSeconds: 65 }),
+      // Filtered out on the card exactly as on the screen: a tracked game records
+      // these by the dozen and they bury the shape of the game.
+      entry({ type: 'turnover', team: 'B' }),
+      entry({ type: 'call', team: 'B', callKind: 'foul' }),
       entry({ type: 'note', detail: 'wind picked up' }),
-      entry({ type: 'note', detail: 'sideline warned' }),
     ];
 
-    const model = reportCardModel(chatty, t, 'en');
-    expect(model).toEqual(reportCardModel(bare, t, 'en'));
-    expect(JSON.stringify(model)).not.toContain('wind picked up');
+    const history = reportCardModel(state, t, 'en').history;
+    expect(history?.title).toBe('Game summary');
+    expect(history?.rows).toEqual([
+      { clock: '00:00', event: 'Game start', detail: '' },
+      { clock: '01:05', event: 'Goal — Foxes', detail: '' },
+      { clock: '00:00', event: 'Event', detail: 'wind picked up' },
+    ]);
+  });
+
+  it('has no summary at all when nothing survived the filter', () => {
+    const state = baseState();
+    state.log = [entry({ type: 'turnover', team: 'A' })];
+    expect(reportCardModel(state, t, 'en').history).toBeNull();
   });
 });
 

@@ -526,6 +526,42 @@ export function reportLogEntries(log: LogEntry[]): LogEntry[] {
   return log.filter((e) => !REPORT_HIDDEN_LOG_TYPES.includes(e.type));
 }
 
+/** One log entry split into the three columns every surface renders it in. */
+export interface LogRow {
+  /** The game clock, `mm:ss`. */
+  clock: string;
+  /** The event, with its team appended where it has one. */
+  event: string;
+  /** Everything else the entry carries, already concatenated in render order. */
+  detail: string;
+}
+
+/**
+ * A log entry as the three columns of a row. Shared by the table (GameLogTable),
+ * which renders the pieces as siblings, and by the shared image's game summary,
+ * which paints them into measured columns — so an entry can never say one thing
+ * on screen and another in the picture. The plain-text archive builds its own
+ * single line out of the same helpers (`logTextLines` below), the difference
+ * being punctuation rather than content.
+ */
+export function logRow(state: GameState, e: LogEntry, t: TFunc): LogRow {
+  return {
+    clock: formatClock(e.gameSeconds),
+    event: `${t(`event_${e.type}` as never)}${e.team ? ` — ${state.config.teams[e.team].name}` : ''}`,
+    // stoppageDetail renders e.detail itself (the injured player, if any), so
+    // it's left out here to avoid printing it twice.
+    detail:
+      (e.stoppageKind ? '' : (e.detail ?? '')) +
+      goalPlayersDetail(state, e, t) +
+      pointDurationDetail(e, t) +
+      turnoverPlayersDetail(state, e, t) +
+      callDetail(e, t) +
+      stoppageDetail(e, t) +
+      pauseDetail(e, t) +
+      latePullDetail(e, t),
+  };
+}
+
 /**
  * The log as plain text, one indented `[mm:ss] Event — Team (detail)` line per
  * entry. Shared by the report's copy button (which passes the filtered entries)

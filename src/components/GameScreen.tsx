@@ -650,7 +650,7 @@ export default function GameScreen() {
   const [showSetup, setShowSetup] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   // The report on the game so far — the same screen the finished game opens,
-  // minus its finished-game furniture (see ReportScreen's `live`), with a way
+  // minus its finished-game furniture (see ReportScreen's `live` mode), with a way
   // back. A screen like the guide, and for the same reason: the dashboard stays
   // mounted underneath and nothing about the game pauses for it.
   const [showReport, setShowReport] = useState(false);
@@ -1006,7 +1006,7 @@ export default function GameScreen() {
   // whistles and the assistance queue all live in GameContext, which is above this
   // component and never unmounts.
   if (showGuide) return <GuideScreen onBack={() => setShowGuide(false)} />;
-  if (showReport) return <ReportScreen live onBack={() => setShowReport(false)} />;
+  if (showReport) return <ReportScreen mode="live" onBack={() => setShowReport(false)} />;
 
   return (
     <div className="h-dvh flex flex-col bg-pitch text-chalk overflow-y-auto">

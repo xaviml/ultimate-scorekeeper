@@ -293,6 +293,79 @@ describe('the roster is grouped by marking', () => {
   });
 });
 
+/**
+ * A point starts the moment the goal before it is recorded — **before the pull is
+ * thrown** — but `state.ratio` only advances at PULL_THROWN. So between points the
+ * ratio field still holds the finished point's, and a line registered there used to
+ * be checked against the split of the point that had just ended.
+ */
+describe('the split it checks against is the point being lined up', () => {
+  const issues = () =>
+    (document.querySelector('[data-line-issues]') as HTMLElement).getAttribute('data-line-issues');
+  /** Scoped to the dialog: with a point played, the log behind it names players too. */
+  const pick = (name: RegExp) => {
+    const sheet = document.querySelector('div.fixed') as HTMLElement;
+    tap([...sheet.querySelectorAll('button')].find((b) => name.test(b.textContent ?? ''))!);
+  };
+
+  /** A finished point, so the upcoming one is index 1 — where Rule A flips. */
+  const played = () => ({
+    scoredBy: 'A' as const,
+    offense: 'A' as const,
+    isBreak: false,
+    durationSeconds: 30,
+    half: 1 as const,
+    turnovers: 0,
+  });
+
+  it('uses the new point’s ratio between points, not the one just finished', () => {
+    const state = lineGame({ points: [played()] });
+    // Rule A from a female start: point 0 is FMP-majority, point 1 flips to MMP.
+    // The stale fields are set the way the reducer leaves them after a goal.
+    state.ratio = 'female';
+    state.nextRatio = 'male';
+    openViaPrompt(state);
+
+    // At three, a male-majority point wants 2 MMP and 1 FMP.
+    pick(/Three/);
+    pick(/Four/);
+    pick(/One/);
+    expect(issues()).toBe('');
+  });
+
+  it('faults the line that matched the finished point instead', () => {
+    const state = lineGame({ points: [played()] });
+    state.ratio = 'female';
+    state.nextRatio = 'male';
+    openViaPrompt(state);
+
+    // 2 FMP / 1 MMP was right for the point that just ended, and is wrong for this one.
+    pick(/One/);
+    pick(/Two/);
+    pick(/Three/);
+    expect(issues()).toBe('ratio');
+  });
+
+  // "Next point" is the one after the live one, whose ratio is in no field at all.
+  it('uses the following point’s ratio on the Next tab', () => {
+    // Two points played, so the live one is index 2 (male) and the next is 3 (female).
+    const state = lineGame({
+      status: 'live',
+      points: [played(), played()],
+      ratio: 'male',
+      nextRatio: null,
+    });
+    // Live, so the between-points prompt is not there — the Roster button is the door.
+    mount(state);
+    openLineFromRoster();
+    tap(screen.getByRole('button', { name: /next point/i }));
+    pick(/One/);
+    pick(/Two/);
+    pick(/Three/);
+    expect(issues()).toBe('');
+  });
+});
+
 describe('predefined lines', () => {
   const saved: SavedLine = { id: 'l1', name: 'O1', playerKeys: ['1|one', '3|three'] };
 

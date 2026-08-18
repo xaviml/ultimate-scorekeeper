@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
-import { canSetLine } from '../state/gameReducer';
+import { canSetLine, ratioForPoint } from '../state/gameReducer';
 import {
   expectedSplit,
   lineComposition,
@@ -82,11 +82,18 @@ export function LineDialog({ team, onClose }: { team: TeamId; onClose: () => voi
   const [savedAs, setSavedAs] = useState<string | null>(null);
 
   const size = state.config.lineSize;
-  // The ratio a mode's line is being picked for. Between points the next point's ratio
-  // has already been computed and is the one that governs, so it wins over the point
-  // just finished; mid-point the current one is all there is.
+  /**
+   * The ratio the line being picked will be played to, derived from the point's index
+   * rather than read off `state.ratio`.
+   *
+   * **A point starts when the goal before it is recorded, not when the pull is
+   * thrown**, so between points `state.ratio` is still the finished point's — reading
+   * it here checked the new line against the old point's split. `ratioForPoint` asks
+   * the rule directly: "This point" is `points.length` (a point is appended when it
+   * ends), and "Next point" is the one after, whose ratio is in no field at all.
+   */
   const ratioFor = (which: 'current' | 'next') =>
-    which === 'next' ? (state.nextRatio ?? state.ratio) : (state.ratio ?? state.nextRatio);
+    ratioForPoint(state.config, state.points.length + (which === 'next' ? 1 : 0));
   const issuesFor = (which: 'current' | 'next') =>
     lineIssues(state.config, ratioFor(which), roster, drafts[which].selected);
   const composition = lineComposition(roster, selected);

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type { TFunc } from '../i18n/useT';
 import { useT } from '../i18n/useT';
 import { useGame } from '../state/gameHooks';
-import { timeoutsConfigured } from '../state/gameReducer';
+import { ratioForPoint, timeoutsConfigured } from '../state/gameReducer';
 import { expectedSplit, lineTrackingEnabled } from '../state/lines';
 import type { Division, EndCapRule, GameConfig, Gender, LogEntry, TeamId } from '../state/types';
 import { Modal } from './Modal';
@@ -138,7 +138,12 @@ export function GameSetupDialog({ onClose }: { onClose: () => void }) {
             note={t('lineSavedForTeam', { team: teamName(cfg.trackedTeam!) })}
           >
             <Row label={t('lineSizeLabel')} value={cfg.lineSize} />
-            <Row label={t('lineGenderCheckLabel')} value={genderCheckText(cfg, state.ratio, t)} />
+            {/* The split of the point being played or lined up — not `state.ratio`,
+                which is still the finished point's until the pull is thrown. */}
+            <Row
+              label={t('lineGenderCheckLabel')}
+              value={genderCheckText(cfg, ratioForPoint(cfg, state.points.length), t)}
+            />
           </Group>
         )}
 

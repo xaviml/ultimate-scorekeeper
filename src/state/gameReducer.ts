@@ -181,8 +181,28 @@ export function ruleARatio(start: Gender, pointIndex: number): Gender {
   return block % 2 === 0 ? start : flip;
 }
 
+/**
+ * The ratio the point at `pointIndex` (0-based) is played to, or null where the game
+ * has none — Rule B leaves it to the end zone, and the open and women's divisions
+ * never compute one.
+ *
+ * **Read this rather than `state.ratio` when the question is about a point that has
+ * not started yet.** A point begins the moment the goal before it is recorded, but
+ * `ratio` only advances at `PULL_THROWN` — so between points `state.ratio` is still
+ * the finished point's and `state.nextRatio` is the one about to be played. Deriving
+ * from the index sidesteps that window entirely: the live point is
+ * `state.points.length` (a point is appended when it ends), and the one after it is
+ * `state.points.length + 1`, which is not in state at all.
+ */
+export function ratioForPoint(config: GameConfig, pointIndex: number): Gender | null {
+  return config.division === 'mixed' && config.mixedRule === 'A'
+    ? ruleARatio(config.startingRatio, pointIndex)
+    : null;
+}
+
 export function createInitialState(config: GameConfig = defaultConfig): GameState {
   return {
+    id: uid(),
     phase: 'config',
     config,
     status: 'notStarted',

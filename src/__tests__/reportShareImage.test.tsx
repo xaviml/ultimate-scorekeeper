@@ -178,6 +178,6 @@ describe('report screen — share as image', () => {
     await clickButton('Copy to clipboard');
     await screen.findByText('Copied!');
 
-    expect(writeText.mock.calls[0][0]).toContain('Game history');
+    expect(writeText.mock.calls[0][0]).toContain('Game summary');
   });
 });

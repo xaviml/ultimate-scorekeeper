@@ -1,41 +1,16 @@
-import type { ReactNode } from 'react';
 import { useT } from '../i18n/useT';
 import { ArrowBackIcon, CrossIcon, GuideIcon, ReportIcon, SetupIcon } from './icons';
+import { MENU_ICON, MenuRow } from './MenuRow';
 import { Modal } from './Modal';
 
 /** Which door off the game screen this game's status offers — see GameScreen's header. */
 export type LeaveKind = 'backToSetup' | 'endGame' | 'openReport';
-
-// Menu rows are a comfortable dialog control, not a dashboard glyph, so they skip
-// the action row's `lscape:` shrink.
-const ICON = 'w-5 h-5';
 
 const LEAVE = {
   backToSetup: { Icon: ArrowBackIcon, labelKey: 'btnBackToSetup' },
   endGame: { Icon: CrossIcon, labelKey: 'btnEndGame' },
   openReport: { Icon: ReportIcon, labelKey: 'openReport' },
 } as const;
-
-function MenuRow({
-  icon,
-  label,
-  onClick,
-}: {
-  icon: ReactNode;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className="w-full flex items-center gap-3 rounded-xl border border-line bg-pitch px-4 py-3 text-left font-board active:scale-[0.99]"
-      onClick={onClick}
-    >
-      <span className="shrink-0 text-chalk/70">{icon}</span>
-      <span className="min-w-0">{label}</span>
-    </button>
-  );
-}
 
 /**
  * The header menu, and the only way off the game screen.
@@ -74,12 +49,20 @@ export function GameMenuDialog({
   return (
     <Modal title={t('menuTitle')} onClose={onClose} size="sm" showClose>
       <div className="flex flex-col gap-2">
-        <MenuRow icon={<SetupIcon size={ICON} />} label={t('menuGameSetup')} onClick={onSetup} />
+        <MenuRow
+          icon={<SetupIcon size={MENU_ICON} />}
+          label={t('menuGameSetup')}
+          onClick={onSetup}
+        />
         {onReport && (
-          <MenuRow icon={<ReportIcon size={ICON} />} label={t('menuReport')} onClick={onReport} />
+          <MenuRow
+            icon={<ReportIcon size={MENU_ICON} />}
+            label={t('menuReport')}
+            onClick={onReport}
+          />
         )}
-        <MenuRow icon={<GuideIcon size={ICON} />} label={t('menuGuide')} onClick={onGuide} />
-        <MenuRow icon={<Icon size={ICON} />} label={t(labelKey)} onClick={onLeave} />
+        <MenuRow icon={<GuideIcon size={MENU_ICON} />} label={t('menuGuide')} onClick={onGuide} />
+        <MenuRow icon={<Icon size={MENU_ICON} />} label={t(labelKey)} onClick={onLeave} />
       </div>
     </Modal>
   );
