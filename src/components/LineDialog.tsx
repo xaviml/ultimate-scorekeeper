@@ -53,12 +53,16 @@ export function LineDialog({ team, onClose }: { team: TeamId; onClose: () => voi
    * re-register the current one.
    */
   const [drafts, setDrafts] = useState<
-    Record<'current' | 'next', { selected: string[]; lineName: string | null; dirty: boolean }>
+    Record<
+      'current' | 'next',
+      { selected: string[]; lineName: string | null; from: string[] | null; dirty: boolean }
+    >
   >(() => ({
-    current: { selected: state.line, lineName: state.lineName, dirty: false },
+    current: { selected: state.line, lineName: state.lineName, from: null, dirty: false },
     next: {
       selected: state.nextLine?.playerIds ?? [],
       lineName: state.nextLine?.name ?? null,
+      from: null,
       dirty: false,
     },
   }));
@@ -94,19 +98,31 @@ export function LineDialog({ team, onClose }: { team: TeamId; onClose: () => voi
     setArmed(false);
   };
 
+  /**
+   * Adding or dropping one player.
+   *
+   * A predefined line is a **template** — a pool with no size or split of its own —
+   * so trimming one down to the seven who actually took the field is the ordinary way
+   * to use it, and it stays that line's point. What does end the claim is bringing in
+   * somebody the template never held: the seven on the field were then not drawn from
+   * it, and crediting the point to it would be a lie the report repeats all game.
+   * `from` is the loaded template's members, and null means nothing was loaded this
+   * visit — so any addition is an edit and the name goes, as it always did.
+   */
   const toggle = (id: string) => {
     setArmed(false);
+    const removing = selected.includes(id);
+    const outside = !removing && !draft.from?.includes(id);
     patchDraft({
-      // A hand-edited line is no longer the predefined one it was loaded from, so the
-      // name goes — otherwise the report would credit points to a line that never played.
-      lineName: null,
-      selected: selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id],
+      ...(outside ? { lineName: null, from: null } : {}),
+      selected: removing ? selected.filter((x) => x !== id) : [...selected, id],
     });
   };
 
   const loadSaved = (saved: SavedLine) => {
     setArmed(false);
-    patchDraft({ selected: resolveSavedLine(saved, roster), lineName: saved.name });
+    const members = resolveSavedLine(saved, roster);
+    patchDraft({ selected: members, lineName: saved.name, from: members });
   };
 
   /** Every mode the volunteer actually touched — so one visit can answer both. */
@@ -143,7 +159,8 @@ export function LineDialog({ team, onClose }: { team: TeamId; onClose: () => voi
     const lines = [...state.config.lines.saved.filter((l) => l.name !== name), line];
     dispatch({ type: 'SET_SAVED_LINES', lines });
     saveTeamLines(state.config.teams[team].name, lines);
-    patchDraft({ lineName: name });
+    // The selection *is* the template now, so trimming it further keeps the name.
+    patchDraft({ lineName: name, from: selected });
     setNaming(false);
     setDraftName('');
     setSavedAs(name);

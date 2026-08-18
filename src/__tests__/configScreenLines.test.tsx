@@ -219,7 +219,9 @@ describe('predefined lines on the config screen', () => {
           name: 'Ravens',
           color: '#111111',
           players: [
-            { id: 'p1', number: '7', name: 'Alex' },
+            // Alex is marked and Jo is not, so the counters have both a marking to
+            // count and an unmarked player to report.
+            { id: 'p1', number: '7', name: 'Alex', gender: 'female' },
             { id: 'p2', number: '9', name: 'Jo' },
           ],
           lines: [{ id: 'l1', name: 'O1', playerKeys: ['7|alex'] }],
@@ -332,19 +334,49 @@ describe('predefined lines on the config screen', () => {
     expect(stored[0].players).toHaveLength(2);
   });
 
-  // A predefined line is not tied to a point, so there is no ratio it must match —
-  // only the size, and a fixed split, are point-independent enough to check.
-  it('checks the size but not the game ratio', () => {
+  // A predefined line is a template — a pool a point's line is drawn out of during
+  // the game — so it is measured against nothing at all, size included. A one-player
+  // line under a fixed 4/3 split would fail every check there is.
+  it('checks nothing at all, whatever the game asks of a line', () => {
     saveTeamWithLine();
     intoTeamMode();
     enableLines();
-    fireEvent.change(fieldSelect('Check the gender split'), { target: { value: 'gameRatio' } });
+    fireEvent.change(fieldSelect('Check the gender split'), { target: { value: 'fixed' } });
     loadRavens();
     fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
     fireEvent.click(screen.getByRole('button', { name: 'Edit O1' }));
 
-    expect(document.querySelector('[data-line-issues~="size"]')).toBeTruthy();
+    expect(document.querySelector('[data-line-issues~="size"]')).toBeNull();
     expect(document.querySelector('[data-line-issues~="ratio"]')).toBeNull();
+    // And Save is live off the name alone — nothing arms a confirmation here.
+    expect(
+      (within(dialog()).getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+  });
+
+  // What the counters do instead is count: the split of the pool is what a coach is
+  // balancing while they build it, whatever `genderCheck` says.
+  it('counts the MMP and FMP in the line as it is picked', () => {
+    saveTeamWithLine();
+    intoTeamMode();
+    enableLines();
+    // Deliberately the setting that switches every check off — the counter is
+    // arithmetic about the roster, not a rule about the line.
+    fireEvent.change(fieldSelect('Check the gender split'), { target: { value: 'none' } });
+    loadRavens();
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit O1' }));
+
+    const counters = () =>
+      (document.querySelector('[data-line-issues]') as HTMLElement).textContent ?? '';
+    // Alex is on the line and marked FMP by the fixture; Jo is unmarked.
+    expect(counters()).toContain('1 in the line');
+    expect(counters()).toMatch(/FMP\s*1/);
+    expect(counters()).toMatch(/MMP\s*0/);
+
+    fireEvent.click(within(dialog()).getByRole('button', { name: /#9 Jo/ }));
+    expect(counters()).toContain('2 in the line');
+    expect(counters()).toContain('1 unmarked');
   });
 
   it('says what lines are for when there are none', () => {

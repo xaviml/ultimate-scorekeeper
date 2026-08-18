@@ -278,9 +278,26 @@ describe('predefined lines', () => {
     ]);
   });
 
-  // A hand-edited line is no longer the one it was loaded from; crediting its points
-  // to that name would report a line that never played.
-  it('drops the name once the selection is edited', () => {
+  // A predefined line is a template, so trimming it down to whoever actually took the
+  // field is the ordinary way to use one — the point is still that line's.
+  it('keeps the name when a player is dropped from the loaded line', () => {
+    const state = lineGame();
+    state.config = { ...state.config, lines: { ...state.config.lines, saved: [saved] } };
+    openViaPrompt(state);
+    tap(screen.getByRole('button', { name: /load o1/i }));
+    tap(chip(/Three/)); // one of O1's own, taken back off
+    commit();
+
+    const stored = JSON.parse(
+      sessionStorage.getItem('ultimate-scorekeeper:game-state')!,
+    ) as GameState;
+    expect(stored.line).toEqual(['p1']);
+    expect(stored.lineName).toBe('O1');
+  });
+
+  // Bringing in somebody the template never held is the edit that ends its claim:
+  // those seven were not drawn from it, and the report would repeat the lie all game.
+  it('drops the name once a player from outside it is added', () => {
     const state = lineGame();
     state.config = { ...state.config, lines: { ...state.config.lines, saved: [saved] } };
     openViaPrompt(state);
@@ -292,6 +309,23 @@ describe('predefined lines', () => {
       sessionStorage.getItem('ultimate-scorekeeper:game-state')!,
     ) as GameState;
     expect(stored.lineName).toBeNull();
+  });
+
+  // Dropping and re-adding one of the template's own is still the template.
+  it('keeps the name when one of its own goes back on', () => {
+    const state = lineGame();
+    state.config = { ...state.config, lines: { ...state.config.lines, saved: [saved] } };
+    openViaPrompt(state);
+    tap(screen.getByRole('button', { name: /load o1/i }));
+    tap(chip(/Three/));
+    tap(chip(/Three/));
+    commit();
+
+    const stored = JSON.parse(
+      sessionStorage.getItem('ultimate-scorekeeper:game-state')!,
+    ) as GameState;
+    expect(stored.line).toEqual(['p1', 'p3']);
+    expect(stored.lineName).toBe('O1');
   });
 });
 

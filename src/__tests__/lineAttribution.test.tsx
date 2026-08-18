@@ -331,4 +331,129 @@ describe('an injury', () => {
     expect(screen.queryByText(/who is coming on/i)).toBeNull();
     expect(stored().log.some((e) => e.type === 'stoppage')).toBe(true);
   });
+
+  /**
+   * An opponent going down buys us a change too, so the step opens for their injury
+   * as well — and with nobody of ours hurt, who goes off is the volunteer's pick.
+   */
+  describe('an injury on the other team', () => {
+    /** Ticks the "also mark the other team as injured" box and saves. */
+    function injureOther(state: GameState) {
+      openInjury(state);
+      tap(screen.getByRole('checkbox'));
+      tap(screen.getByRole('button', { name: /^save$/i }));
+    }
+
+    it('still asks who we are changing', () => {
+      injureOther(lineGame());
+      // Both halves are the question, so the heading asks both — "who is coming on"
+      // would be hiding the fact that somebody has to go off for them.
+      expect(screen.getByText(/who is changing/i)).toBeTruthy();
+      expect(screen.getByText(/you may change 1 player/i)).toBeTruthy();
+      // Both halves are asked: nobody of ours was named, so who goes off is a choice.
+      expect(screen.getByText('Coming off')).toBeTruthy();
+      expect(screen.getByText('Coming on')).toBeTruthy();
+    });
+
+    it('swaps the player we picked off for the one we picked on', () => {
+      injureOther(lineGame());
+      tap(screen.getByRole('button', { name: /#2 On2/ })); // off — MMP
+      tap(screen.getByRole('button', { name: /#4 Bench4/ })); // on — MMP
+      tap(screen.getByRole('button', { name: /^save$/i }));
+
+      const st = stored();
+      expect(st.line).toEqual(['p1', 'p4']);
+      // The player who came off still played part of the point.
+      expect(st.pointLine).toEqual([
+        { playerId: 'p1' },
+        { playerId: 'p2', off: true },
+        { playerId: 'p4', sub: true },
+      ]);
+    });
+
+    // The injury is what matters; the change is optional and skipping is a real answer.
+    it('leaves the line alone when it is skipped', () => {
+      injureOther(lineGame());
+      tap(screen.getByRole('button', { name: /no substitution/i }));
+      expect(stored().line).toEqual(['p1', 'p2']);
+      expect(stored().log.some((e) => e.type === 'stoppage')).toBe(true);
+    });
+
+    // Line tracking is the whole reason this question exists.
+    it('is not asked when line tracking is off', () => {
+      const state = lineGame();
+      state.config = { ...state.config, lines: { ...state.config.lines, enabled: false } };
+      injureOther(state);
+      expect(screen.queryByText(/who is changing/i)).toBeNull();
+    });
+  });
+
+  /**
+   * The swap warns, and never refuses — the same bargain the line dialog strikes.
+   * What `replacementsFor` narrows away it cannot catch: a mixed set going off admits
+   * both markings, and an unmarked player is always offered.
+   */
+  describe('the swap is checked', () => {
+    const issues = () =>
+      (document.querySelector('[data-sub-issues]') as HTMLElement).getAttribute('data-sub-issues');
+    const saveState = () =>
+      (document.querySelector('[data-sub-save]') as HTMLElement).getAttribute('data-sub-save');
+
+    it('warns when the numbers do not match, and takes a second tap', () => {
+      const state = lineGame();
+      // Both bench players unmarked, so two can come on for one without a split issue.
+      state.config = {
+        ...state.config,
+        players: {
+          A: roster.map((p) => (p.id === 'p3' || p.id === 'p4' ? { ...p, gender: undefined } : p)),
+          B: [],
+        },
+      };
+      injure(state, /#1 On1/);
+      tap(screen.getByRole('button', { name: /#3 Bench3/ }));
+      expect(issues()).toBe('');
+      tap(screen.getByRole('button', { name: /#4 Bench4/ }));
+      expect(issues()).toBe('count');
+
+      // Warned, then armed — and nothing is committed until the confirming tap.
+      expect(saveState()).toBe('warned');
+      tap(screen.getByRole('button', { name: /save anyway/i }));
+      expect(saveState()).toBe('armed');
+      expect(stored().line).toEqual(['p1', 'p2']);
+      tap(screen.getByRole('button', { name: /tap again to save/i }));
+      // One off, two on — the line is a player bigger, which is what it warned about.
+      expect(stored().line).toEqual(['p2', 'p3', 'p4']);
+    });
+
+    it('warns when the markings coming on cannot account for the ones going off', () => {
+      const state = lineGame();
+      // Two hurt, one of each marking — so the bench is unnarrowed and both FMP and
+      // MMP are offered. Two FMP coming on is a swap that could not have happened.
+      state.config = {
+        ...state.config,
+        players: {
+          A: roster.map((p) => (p.id === 'p4' ? { ...p, gender: 'female' as const } : p)),
+          B: [],
+        },
+      };
+      openInjury(state);
+      tap(screen.getByRole('button', { name: /#1 On1/ }));
+      tap(screen.getByRole('button', { name: /#2 On2/ }));
+      tap(screen.getByRole('button', { name: /^save$/i }));
+
+      tap(screen.getByRole('button', { name: /#3 Bench3/ }));
+      tap(screen.getByRole('button', { name: /#4 Bench4/ }));
+      expect(issues()).toBe('ratio');
+    });
+
+    // The other team's injury buys exactly one change, and the checkbox has no count.
+    it('warns when more of ours are changed than the injury allows', () => {
+      openInjury(lineGame());
+      tap(screen.getByRole('checkbox'));
+      tap(screen.getByRole('button', { name: /^save$/i }));
+      tap(screen.getByRole('button', { name: /#1 On1/ })); // off
+      tap(screen.getByRole('button', { name: /#2 On2/ })); // off as well — one too many
+      expect(issues()).toContain('allowance');
+    });
+  });
 });

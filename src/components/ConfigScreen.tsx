@@ -759,7 +759,6 @@ export default function ConfigScreen() {
               is the door for the ones already known. */}
           {showLines && cfg.lines.enabled && (
             <SavedLinesEditor
-              config={cfg}
               players={cfg.players[cfg.trackedTeam!]}
               lines={cfg.lines.saved}
               onChange={setSavedLines}

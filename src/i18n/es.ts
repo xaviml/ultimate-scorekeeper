@@ -126,8 +126,8 @@ export const es: typeof en = {
   linesTitle: 'Líneas',
   linesEnabledLabel: 'Registrar quién juega cada punto',
   linesEnabledHint:
-    'Registra la línea que salta a pista en cada punto, para que el informe pueda decir quién ha jugado más y cómo han ido sus puntos. Desactivado, nada cambia.',
-  lineSizeLabel: 'Jugadores en pista',
+    'Registra la línea que salta al campo en cada punto, para que el informe pueda decir quién ha jugado más y cómo han ido sus puntos. Desactivado, nada cambia.',
+  lineSizeLabel: 'Jugadores en campo',
   lineGenderCheckLabel: 'Comprobar la proporción de género',
   lineGenderCheckNone: 'No comprobar',
   lineGenderCheckNoneHint:
@@ -137,18 +137,29 @@ export const es: typeof en = {
     'La proporción esperada de cada línea sigue la del partido — {female} FMP y {male} MMP con {size}, alternando con la proporción.',
   lineGenderCheckFixed: 'Proporción fija',
   lineGenderCheckFixedHint: 'La misma proporción cada punto, diga lo que diga la del partido.',
-  lineFixedFemaleLabel: 'FMP en pista',
+  lineFixedFemaleLabel: 'FMP en campo',
   lineFixedSplit: '{female} FMP / {male} MMP',
   lineSavedTitle: 'Líneas predefinidas',
   lineOnlyOnField: 'Solo se listan los jugadores registrados en este punto.',
   lineOnlyOnFieldGoal: 'Solo se listan los jugadores registrados en ese punto.',
   injurySubTitle: '¿Quién entra?',
+  injurySubChangeTitle: '¿Quién cambia?',
   injurySubHint: 'Sale {players}. Elige quién le sustituye, o sáltalo si no entra nadie.',
-  injurySubNoBench: 'Todo el roster está ya en pista.',
+  injurySubNoBench: 'Todo el roster está ya en campo.',
   injurySubNoMatch:
-    'No hay nadie fuera de pista con la misma marca MMP/FMP, y un cambio tiene que mantener la proporción de la línea.',
+    'No hay nadie fuera de campo con la misma marca MMP/FMP, y un cambio tiene que mantener la proporción de la línea.',
   injurySubStaysOn: 'No hay a quién meter por {players}, así que sigue jugando.',
   btnOk: 'De acuerdo',
+  injurySubOtherHint:
+    'El otro equipo tiene una lesión, así que puedes cambiar a {count} jugador. Elige quién sale y quién entra, u omite.',
+  injurySubNoChange: 'Ahora mismo no se puede hacer ningún cambio.',
+  injurySubOffLabel: 'Salen',
+  injurySubOnLabel: 'Entran',
+  injurySubCount: '{off} salen · {on} entran',
+  injurySubSplit: '(salen {offFmp} FMP / {offMmp} MMP · entran {onFmp} FMP / {onMmp} MMP)',
+  injurySubIssueCount: 'Un cambio es uno por uno: así la línea queda con otro número.',
+  injurySubIssueAllowance: 'Esta lesión permite {count} cambio.',
+  injurySubIssueRatio: 'Las marcas que entran no coinciden con las que salen.',
   injurySubSkip: 'Sin cambio',
   lineAddTitle: 'Nueva línea',
   lineEditTitle: 'Editar línea',
@@ -168,8 +179,9 @@ export const es: typeof en = {
   lineModeCurrent: 'Este punto',
   lineModeNext: 'Punto siguiente',
   lineCountOf: '{count} de {size}',
+  lineCountPlain: '{count} en la línea',
   lineUnmarked: '{count} sin definir',
-  lineIssueSize: 'Son {count} en pista, no {size}.',
+  lineIssueSize: 'Son {count} en campo, no {size}.',
   lineIssueRatio: 'Eso rompe la proporción que pide este punto ({female} FMP / {male} MMP).',
   lineNoRoster: 'Añade jugadores al roster primero — la línea se elige de ahí.',
   linePromptTitle: '¿Quién juega este punto?',
@@ -279,7 +291,7 @@ export const es: typeof en = {
   btnLog: 'Registro',
 
   // Micro-etiquetas de la fila de acciones: en inglés en todos los idiomas a
-  // propósito — el vocabulario de Ultimate ya es inglés en las pistas españolas y
+  // propósito — el vocabulario de Ultimate ya es inglés en los campos españoles y
   // catalanas, y así el ancho de los botones es idéntico en los tres.
   lblTurn: 'Turn',
   lblCall: 'Call',
@@ -288,7 +300,7 @@ export const es: typeof en = {
 
   // El paginador de estadísticas en directo del hueco reservado (StatsSlot).
   // Etiquetas de 9px: mejor acortar el término que dejar que se parta — los
-  // términos hold/break/turn son los que se usan en las pistas españolas.
+  // términos hold/break/turn son los que se usan en los campos españoles.
   slotStatsLabel: 'Estadísticas en directo',
   slotHolds: 'Holds',
   slotBreaks: 'Breaks',
@@ -563,9 +575,9 @@ export const es: typeof en = {
   colDPoints: 'D',
   colDPointsFull: 'Puntos en defensa',
   colWon: 'Ganados',
-  colWonFull: 'Puntos ganados estando en pista',
+  colWonFull: 'Puntos ganados estando en campo',
   colLost: 'Perdidos',
-  colLostFull: 'Puntos perdidos estando en pista',
+  colLostFull: 'Puntos perdidos estando en campo',
   colHolds: 'Holds',
   colBreaks: 'Breaks',
   colTurns: 'Turns',

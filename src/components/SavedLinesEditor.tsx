@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useT } from '../i18n/useT';
 import { resolveSavedLine } from '../state/lines';
 import { playerLabel } from '../state/stats';
-import type { GameConfig, PlayerInfo, SavedLine } from '../state/types';
+import type { PlayerInfo, SavedLine } from '../state/types';
 import { SavedLineDialog } from './SavedLineDialog';
 import { fieldLabel, secondaryButton } from './ui';
 
@@ -19,12 +19,10 @@ import { fieldLabel, secondaryButton } from './ui';
  * game), so this never has to know which of those it is serving.
  */
 export function SavedLinesEditor({
-  config,
   players,
   lines,
   onChange,
 }: {
-  config: GameConfig;
   players: PlayerInfo[];
   lines: SavedLine[];
   onChange: (lines: SavedLine[]) => void;
@@ -100,7 +98,6 @@ export function SavedLinesEditor({
 
       {editing !== undefined && (
         <SavedLineDialog
-          config={config}
           players={players}
           line={editing}
           existing={lines}

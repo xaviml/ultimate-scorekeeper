@@ -1,14 +1,8 @@
 import { useState } from 'react';
 import { useT } from '../i18n/useT';
-import {
-  expectedSplit,
-  lineComposition,
-  lineIssues,
-  resolveSavedLine,
-  savedLineFrom,
-} from '../state/lines';
+import { lineComposition, resolveSavedLine, savedLineFrom } from '../state/lines';
 import { uid } from '../state/uid';
-import type { GameConfig, PlayerInfo, SavedLine } from '../state/types';
+import type { PlayerInfo, SavedLine } from '../state/types';
 import { LineComposition } from './LineComposition';
 import { Modal } from './Modal';
 import { PlayerMultiPicker } from './PlayerPicker';
@@ -22,20 +16,25 @@ import { inputClass, fieldLabel, primaryButton, secondaryButton } from './ui';
  * editor over a `SavedLine` and a roster, with no game to speak of, which is why it
  * takes everything as props and reaches for no context.
  *
- * The composition is checked against **no ratio**, on purpose. A predefined line is
- * not tied to a point, so there is no ratio it must match — `expectedSplit` yields
- * nothing for `gameRatio` with a null ratio, and the counters fall back to the size.
- * A *fixed* split is point-independent, so that one is still checked and warned about.
+ * **A predefined line is a template, and templates are checked against nothing.** Not
+ * the size, not the split — it is a pool the volunteer draws a point's line out of
+ * during the game (`LineDialog` loads it and then adds or drops players), so a squad
+ * of ten is as valid an answer here as a seven. Checking it would be measuring a
+ * thing against a shape it was never meant to hold, and the point it is finally used
+ * for is where the real check belongs.
+ *
+ * What the counters still do is **count**: how many are in, and how the MMP/FMP split
+ * of the pool sits — which is what a coach is balancing while they build it. Shown
+ * whatever `genderCheck` says, since a marking is a fact about the player and the
+ * counter is arithmetic, not a rule.
  */
 export function SavedLineDialog({
-  config,
   players,
   line,
   existing,
   onSave,
   onCancel,
 }: {
-  config: GameConfig;
   players: PlayerInfo[];
   /** The line being edited, or null to create one. */
   line: SavedLine | null;
@@ -55,8 +54,6 @@ export function SavedLineDialog({
     (l) => l.id !== line?.id && l.name.trim().toLowerCase() === trimmed.toLowerCase(),
   );
   const composition = lineComposition(players, selected);
-  const expected = expectedSplit(config, null);
-  const issues = lineIssues(config, null, players, selected);
 
   const save = () => {
     if (!trimmed || duplicate) return;
@@ -83,10 +80,11 @@ export function SavedLineDialog({
       </div>
 
       <LineComposition
-        size={config.lineSize}
+        size={null}
         composition={composition}
-        expected={expected}
-        issues={issues}
+        expected={null}
+        showGender
+        issues={[]}
       />
 
       {players.length === 0 ? (
@@ -95,7 +93,7 @@ export function SavedLineDialog({
         <PlayerMultiPicker
           players={players}
           selected={selected}
-          showGender={config.lines.genderCheck !== 'none'}
+          showGender
           onToggle={(id) =>
             setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]))
           }
@@ -106,8 +104,8 @@ export function SavedLineDialog({
         <button className={secondaryButton} onClick={onCancel}>
           {t('btnCancel')}
         </button>
-        {/* A line with no name could never be picked again, so that one is a real
-            block — unlike the composition, which only ever warns. */}
+        {/* A line with no name could never be picked again, so that one is the only
+            real block here — the composition is not checked at all. */}
         <button className={primaryButton} disabled={!trimmed || duplicate} onClick={save}>
           {t('btnSave')}
         </button>

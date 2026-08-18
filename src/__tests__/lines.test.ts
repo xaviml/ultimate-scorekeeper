@@ -13,6 +13,7 @@ import {
   replacementsFor,
   resolveSavedLine,
   savedLineFrom,
+  subIssues,
 } from '../state/lines';
 import type { GameConfig, LineConfig, PlayerInfo } from '../state/types';
 
@@ -327,5 +328,52 @@ describe('replacementsFor', () => {
         [fmp],
       ),
     ).toEqual([]);
+  });
+});
+
+/**
+ * The swap an injury forces, checked the way a line is: it warns, it never refuses,
+ * and a missing marking is unknown rather than wrong.
+ */
+describe('subIssues', () => {
+  const mixed = cfg();
+  // One FMP off, one FMP on, and the injury allows one change.
+  const clean = () => subIssues(mixed, roster, ['p1'], ['p2'], 1);
+
+  it('is empty for a one-for-one swap of the same marking', () => {
+    expect(clean()).toEqual([]);
+  });
+
+  // p9 is the unmarked one, which is what keeps these cases to a count problem
+  // alone — an unequal swap of known markings is a split problem as well.
+  it('faults an unequal swap, which leaves the line a different size', () => {
+    expect(subIssues(mixed, roster, ['p1'], ['p2', 'p9'], 2)).toEqual(['count']);
+    expect(subIssues(mixed, roster, ['p1', 'p9'], ['p2'], 2)).toEqual(['count']);
+  });
+
+  // The other team's injury buys exactly one change, and our own injured are the
+  // rest of the budget.
+  it('faults changing more players than the injury allows', () => {
+    expect(subIssues(mixed, roster, ['p1', 'p2'], ['p3', 'p4'], 1)).toEqual(['allowance']);
+    expect(subIssues(mixed, roster, ['p1', 'p2'], ['p3', 'p4'], 2)).toEqual([]);
+  });
+
+  it('faults markings coming on that cannot account for the ones going off', () => {
+    // An MMP off and an FMP on could not have happened.
+    expect(subIssues(mixed, roster, ['p5'], ['p1'], 1)).toEqual(['ratio']);
+    // Two off, one of each — two FMP on is still wrong even though the count matches.
+    expect(subIssues(mixed, roster, ['p1', 'p5'], ['p2', 'p3'], 2)).toEqual(['ratio']);
+  });
+
+  // The same rule `lineIssues` and `replacementsFor` follow: an unmarked player on
+  // either side of the swap could have been either marking.
+  it('never faults the split over an unmarked player', () => {
+    expect(subIssues(mixed, roster, ['p9'], ['p1'], 1)).toEqual([]);
+    expect(subIssues(mixed, roster, ['p1'], ['p9'], 1)).toEqual([]);
+  });
+
+  it('checks no split at all outside mixed', () => {
+    const open = cfg({}, { division: 'open' });
+    expect(subIssues(open, roster, ['p5'], ['p1'], 1)).toEqual([]);
   });
 });

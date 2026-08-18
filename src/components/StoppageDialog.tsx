@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import { canWaterBreak, statsTrackingEnabled } from '../state/gameReducer';
-import { benchPlayers, lineTeam, replacementsFor } from '../state/lines';
+import { lineTeam } from '../state/lines';
 import type { PlayerInfo, StoppageKind, TeamId } from '../state/types';
 import { InjuryAttributionDialog } from './InjuryAttributionDialog';
 import { InjurySubDialog } from './InjurySubDialog';
@@ -49,6 +49,12 @@ export function StoppageDialog({ onClose }: { onClose: () => void }) {
   const [step, setStep] = useState<Step>('kind');
   /** The injured players who were on the field, carried from the injury step into the sub step. */
   const [comingOff, setComingOff] = useState<PlayerInfo[]>([]);
+  /**
+   * Free changes the injury buys us beyond the injured themselves — one when the
+   * *other* team was hurt, since WFDF lets their opponents change a player too. The
+   * checkbox that records it carries no count, so it is read as exactly one.
+   */
+  const [allowance, setAllowance] = useState(0);
 
   const chooseKind = (kind: StoppageKind) => {
     // Technical is gated the same way regardless of statsMode: only asked while
@@ -132,8 +138,14 @@ export function StoppageDialog({ onClose }: { onClose: () => void }) {
             .filter((p) => p.team === tracked && state.line.includes(p.playerId))
             .map((p) => state.config.players[p.team].find((x) => x.id === p.playerId))
             .filter((p): p is PlayerInfo => p !== undefined);
-          if (off.length > 0) {
+          // An opponent going down is a line change for us as well, so the step opens
+          // for their injury too — with nobody of ours coming off, the whole question
+          // is which of our seven we change. Line tracking only exists in team stats
+          // mode, so the other side is never named by a player, only by `team`.
+          const free = tracked !== null && team !== undefined && team !== tracked ? 1 : 0;
+          if (tracked !== null && (off.length > 0 || free > 0)) {
             setComingOff(off);
+            setAllowance(free);
             setStep('injurySub');
             return;
           }
@@ -144,26 +156,18 @@ export function StoppageDialog({ onClose }: { onClose: () => void }) {
   }
 
   if (step === 'injurySub') {
-    const offIds = comingOff.map((p) => p.id);
     return (
       <InjurySubDialog
+        config={state.config}
+        players={state.config.players[lineTeam(state.config)!]}
+        onField={state.line}
         going={comingOff}
-        bench={replacementsFor(
-          state.config,
-          state.config.players[lineTeam(state.config)!],
-          state.line,
-          comingOff,
-        )}
-        // Distinguishes "the whole roster is already on" from "nobody with a matching
-        // marking is left", which are different things to tell the volunteer.
-        benchEmpty={
-          benchPlayers(state.config.players[lineTeam(state.config)!], state.line).length === 0
-        }
+        allowance={allowance}
         onSkip={onClose}
-        onConfirm={(ids) => {
+        onConfirm={(off, on) => {
           dispatch({
             type: 'SET_LINE',
-            playerIds: [...state.line.filter((id) => !offIds.includes(id)), ...ids],
+            playerIds: [...state.line.filter((id) => !off.includes(id)), ...on],
             // The name survives a forced substitution: D1 still played this point,
             // one injury notwithstanding. That is the opposite of LineDialog, where a
             // hand-edited selection is a deliberately different line.

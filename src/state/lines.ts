@@ -203,6 +203,51 @@ export function onFieldIds(line: LinePlayer[] | undefined): string[] {
   return (line ?? []).filter((p) => !p.off).map((p) => p.playerId);
 }
 
+export type SubIssue = 'count' | 'allowance' | 'ratio';
+
+/**
+ * What is off about a substitution, for the warning `InjurySubDialog` shows. Empty
+ * means it balances. Like `lineIssues` it never refuses — a volunteer has to be able
+ * to record the swap that actually happened, and an app that insisted would simply be
+ * holding data it doesn't have.
+ *
+ * - `count` — a substitution is one for one, so an unequal swap changes the size of a
+ *   line nobody said had changed.
+ * - `allowance` — more players are being changed than the injury permits. `allowed`
+ *   is the injured on our own line, plus one when the other team was hurt: WFDF lets
+ *   the opponents of an injured player change one of their own, and the checkbox that
+ *   records "the other team was injured too" carries no count, so it is read as one.
+ * - `ratio` — the markings coming on cannot account for the ones going off. Only in
+ *   mixed, and only when the *known* markings already conflict: an unmarked player on
+ *   either side of the swap is unknown, not wrong (the same rule `lineIssues` and
+ *   `replacementsFor` follow), so a partly-marked roster is never faulted for what it
+ *   has not been told.
+ */
+export function subIssues(
+  config: GameConfig,
+  players: PlayerInfo[],
+  off: string[],
+  on: string[],
+  allowed: number,
+): SubIssue[] {
+  const issues: SubIssue[] = [];
+  if (off.length !== on.length) issues.push('count');
+  if (off.length > allowed) issues.push('allowance');
+  if (config.division === 'mixed') {
+    const a = lineComposition(players, off);
+    const b = lineComposition(players, on);
+    // Each side's unmarked players could have been either marking, so they are what
+    // makes an apparent mismatch merely unknown.
+    const conflict =
+      b.female > a.female + a.unknown ||
+      b.male > a.male + a.unknown ||
+      a.female > b.female + b.unknown ||
+      a.male > b.male + b.unknown;
+    if (conflict) issues.push('ratio');
+  }
+  return issues;
+}
+
 /**
  * The bench narrowed to who may legally replace the injured players.
  *
@@ -227,6 +272,10 @@ export function replacementsFor(
 ): PlayerInfo[] {
   const bench = benchPlayers(players, onField);
   if (config.division !== 'mixed') return bench;
+  // Nobody going off yet — the change an opponent's injury buys us, before the
+  // volunteer has said who we are taking off. There is no marking to match, so
+  // narrowing here would offer nobody at all rather than everybody.
+  if (going.length === 0) return bench;
   const wanted = new Set(going.map((p) => p.gender));
   if (wanted.has(undefined)) return bench;
   return bench.filter((p) => p.gender === undefined || wanted.has(p.gender));
