@@ -398,14 +398,12 @@ describe('per-player line stats', () => {
     );
     const byId = new Map(playerStatLines(s, ['A'], t).map((l) => [l.playerId, l]));
     expect(byId.get('p1')?.turns).toBe(1);
-    // One turnover was attributed, so the column means what it says for everybody.
-    expect(playerStatLines(s, ['A'], t).every((l) => l.turnsRecorded)).toBe(true);
   });
 
-  // With "Ask who turned it over" off, every turnover is logged with no player. A
-  // column of zeroes would then read as a roster that never lost the disc, which is
-  // the opposite of what happened.
-  it('reports turns as unrecorded when turnovers were logged but never attributed', () => {
+  // With "Ask who turned it over" off, every turnover is logged with no player. It
+  // belongs to nobody on either roster — the disc changing hands says nothing about
+  // who lost it, and nothing about anyone winning it — so no row claims it.
+  it('credits an unattributed turnover to nobody, the aggregate included', () => {
     let s = gameReducer(createInitialState(lineCfg), { type: 'START_GAME', config: lineCfg });
     s = gameReducer(s, { type: 'BEGIN_PLAY' });
     s = run(
@@ -418,19 +416,24 @@ describe('per-player line stats', () => {
     const lines = playerStatLines(s, ['A'], t);
     const players = lines.filter((l) => !l.unassigned);
     expect(players.length).toBeGreaterThan(0);
-    expect(players.every((l) => l.turnsRecorded === false)).toBe(true);
-    // The turnover itself is not lost: it goes to the aggregate, the one row whose
-    // figure is meaningful, exactly as an unattributed goal does.
-    expect(lines.find((l) => l.unassigned)).toMatchObject({ turns: 1, turnsRecorded: true });
+    expect(players.every((l) => l.turns === 0)).toBe(true);
+    // And it does not resurface on the aggregate either: with nothing else
+    // unattributed there is no aggregate row for it to hide on at all.
+    expect(lines.find((l) => l.unassigned)).toBeUndefined();
   });
 
-  // A team that never turned it over is recorded, not unknown: zero is the answer.
-  it('counts turns as recorded when the team lost the disc no times at all', () => {
+  // The turnovers are the only thing the aggregate counted that has gone: a goal
+  // with no scorer still has to be there, or the columns stop adding up.
+  it('keeps the aggregate for unattributed goals', () => {
     let s = gameReducer(createInitialState(lineCfg), { type: 'START_GAME', config: lineCfg });
     s = gameReducer(s, { type: 'BEGIN_PLAY' });
+    s = run(s, { type: 'PULL_THROWN' }, { type: 'TURNOVER' }, { type: 'GOAL', team: 'B' });
     s = run(s, { type: 'PULL_THROWN' }, { type: 'GOAL', team: 'A' });
     s = gameReducer(s, { type: 'SET_GOAL_PLAYERS', team: 'A', scorerId: 'p1', assistId: null });
-    expect(playerStatLines(s, ['A'], t).every((l) => l.turnsRecorded)).toBe(true);
+    expect(playerStatLines(s, ['A'], t).find((l) => l.unassigned)).toMatchObject({
+      assists: 1,
+      turns: 0,
+    });
   });
 
   // `off` is about when, not whether: a player replaced mid-point still played it, so
@@ -507,9 +510,7 @@ describe('sortPlayerStatLines', () => {
     breaks: 0,
     plusMinus: 0,
     turns: 0,
-    turnsRecorded: true,
     defenses: 0,
-    defensesRecorded: true,
     breakChances: 0,
     lines: [],
     ...patch,

@@ -107,28 +107,18 @@ export interface PlayerStatLine {
   breaks: number;
   /** Points played won minus points played lost. */
   plusMinus: number;
-  /** Turnovers attributed to this player, from the log's `turnoverId`. */
-  turns: number;
   /**
-   * Whether `turns` means anything for this row's team. False when the team turned
-   * the disc over but no turnover was ever attributed to a player — `trackTurnoverPlayers`
-   * off, most often — where a column of zeroes would read as a roster that never lost
-   * the disc rather than as an unasked question. A team with no turnovers at all is
-   * recorded, not unknown: nobody turned it over, and zero is the answer.
-   *
-   * True on the aggregate line whatever the team: its `turns` is the count of
-   * turnovers nobody was named on, which is exactly the figure that is missing from
-   * the players above.
+   * Turnovers attributed to this player, from the log's `turnoverId`. Zero means
+   * zero, whether or not anybody was ever named: an unattributed turnover is not
+   * this player's, so the honest figure for them is none.
    */
-  turnsRecorded: boolean;
+  turns: number;
   /**
    * Turnovers this player forced, from the log's `defenseId` — the blocks and the
    * marks that ran the stall out. The entry belongs to the team that *lost* the
    * disc, so a defence is counted against the other roster (see `turnoverPlayersDetail`).
    */
   defenses: number;
-  /** As `turnsRecorded`, for the defence half of the same question. */
-  defensesRecorded: boolean;
   /** Break chances while on the field — the same ceil(turnovers / 2) as `teamStats`. */
   breakChances: number;
   /** Predefined lines this player appeared in, by name, with how many points each. */
@@ -150,9 +140,12 @@ export type PlayerStatView = 'scoring' | 'playing' | 'possession';
  *
  * Naming a player is always optional, so the columns would otherwise quietly
  * fail to add up to the score. Each team therefore gets one **aggregate line**
- * pinned below the named players, counting the goals with no scorer, the goals
- * with no assist and the turnovers with no thrower — the report says how much went
- * unrecorded rather than dropping it. Three things about it are deliberate:
+ * pinned below the named players, counting the goals with no scorer and the goals
+ * with no assist — the report says how much went unrecorded rather than dropping it.
+ * It stops there: an unattributed *turnover* is nobody's, since the disc going back
+ * the other way says nothing about who lost it or whether anyone won it, so the
+ * possession columns carry no aggregate figure at all. Three things about it are
+ * deliberate:
  *
  * - **A Callahan is not unrecorded.** `callahan` on the entry is an answer to
  *   "who assisted?" — nobody, by the rules — so it is skipped rather than
@@ -192,13 +185,7 @@ export function playerStatLines(state: GameState, teams: TeamId[], t: TFunc): Pl
     lines: Map<string, number>;
   };
   const counts = new Map<string, Acc>();
-  const unnamed = new Map<
-    TeamId,
-    { goals: number; assists: number; pointsPlayed: number; turns: number; defenses: number }
-  >();
-  /** Turnovers that did name a player, per team — see `PlayerStatLine.turnsRecorded`. */
-  const namedTurns = new Map<TeamId, number>();
-  const namedDefenses = new Map<TeamId, number>();
+  const unnamed = new Map<TeamId, { goals: number; assists: number; pointsPlayed: number }>();
   const acc = (team: TeamId, playerId: string): Acc => {
     const key = `${team}:${playerId}`;
     const cur: Acc = counts.get(key) ?? {
@@ -220,24 +207,11 @@ export function playerStatLines(state: GameState, teams: TeamId[], t: TFunc): Pl
     counts.set(key, cur);
     return cur;
   };
-  const bumpUnnamed = (
-    team: TeamId,
-    field: 'goals' | 'assists' | 'pointsPlayed' | 'turns' | 'defenses',
-  ) => {
-    const cur = unnamed.get(team) ?? {
-      goals: 0,
-      assists: 0,
-      pointsPlayed: 0,
-      turns: 0,
-      defenses: 0,
-    };
+  const bumpUnnamed = (team: TeamId, field: 'goals' | 'assists' | 'pointsPlayed') => {
+    const cur = unnamed.get(team) ?? { goals: 0, assists: 0, pointsPlayed: 0 };
     cur[field] += 1;
     unnamed.set(team, cur);
   };
-  const turnsRecordedFor = (team: TeamId) =>
-    (namedTurns.get(team) ?? 0) > 0 || (unnamed.get(team)?.turns ?? 0) === 0;
-  const defensesRecordedFor = (team: TeamId) =>
-    (namedDefenses.get(team) ?? 0) > 0 || (unnamed.get(team)?.defenses ?? 0) === 0;
   for (const e of state.log) {
     if (e.type === 'goal' && e.team && teams.includes(e.team)) {
       if (e.scorerId) acc(e.team, e.scorerId).goals += 1;
@@ -248,26 +222,13 @@ export function playerStatLines(state: GameState, teams: TeamId[], t: TFunc): Pl
     // A turnover's team is the side that lost the disc, which is who `turnoverId`
     // belongs to; `defenseId` is the player who forced it and therefore belongs to
     // the *other* roster — one entry feeds a turn on one side and a D on the other.
-    // An unattributed half goes to the aggregate, same as an unattributed goal, and a
-    // team with none attributed at all is what `turnsRecorded`/`defensesRecorded` report.
+    // An unattributed half is counted for nobody, unlike an unattributed goal: a
+    // turnover the other team gave away is not a D for anyone here (their throw may
+    // simply have missed), so there is no figure the aggregate could honestly claim.
     if (e.type === 'turnover' && e.team) {
       const defending: TeamId = e.team === 'A' ? 'B' : 'A';
-      if (teams.includes(e.team)) {
-        if (e.turnoverId) {
-          acc(e.team, e.turnoverId).turns += 1;
-          namedTurns.set(e.team, (namedTurns.get(e.team) ?? 0) + 1);
-        } else {
-          bumpUnnamed(e.team, 'turns');
-        }
-      }
-      if (teams.includes(defending)) {
-        if (e.defenseId) {
-          acc(defending, e.defenseId).defenses += 1;
-          namedDefenses.set(defending, (namedDefenses.get(defending) ?? 0) + 1);
-        } else {
-          bumpUnnamed(defending, 'defenses');
-        }
-      }
+      if (e.turnoverId && teams.includes(e.team)) acc(e.team, e.turnoverId).turns += 1;
+      if (e.defenseId && teams.includes(defending)) acc(defending, e.defenseId).defenses += 1;
     }
   }
 
@@ -304,8 +265,6 @@ export function playerStatLines(state: GameState, teams: TeamId[], t: TFunc): Pl
     ...rest,
     label: playerLabel(findPlayer(state.config.players[rest.team], rest.playerId)),
     total: rest.goals + rest.assists,
-    turnsRecorded: turnsRecordedFor(rest.team),
-    defensesRecorded: defensesRecordedFor(rest.team),
     lines: [...named.entries()]
       .map(([name, points]) => ({ name, points }))
       .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name)),
@@ -315,7 +274,7 @@ export function playerStatLines(state: GameState, teams: TeamId[], t: TFunc): Pl
 
   const aggregates: PlayerStatLine[] = teams.flatMap((team) => {
     const u = unnamed.get(team);
-    if (!u || u.goals + u.assists + u.pointsPlayed + u.turns + u.defenses === 0) return [];
+    if (!u || u.goals + u.assists + u.pointsPlayed === 0) return [];
     return [
       {
         team,
@@ -330,10 +289,8 @@ export function playerStatLines(state: GameState, teams: TeamId[], t: TFunc): Pl
         holds: 0,
         breaks: 0,
         plusMinus: 0,
-        turns: u.turns,
-        turnsRecorded: true,
-        defenses: u.defenses,
-        defensesRecorded: true,
+        turns: 0,
+        defenses: 0,
         breakChances: 0,
         lines: [],
         unassigned: true,

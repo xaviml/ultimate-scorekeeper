@@ -267,8 +267,8 @@ export function reportCardModel(state: GameState, t: TFunc, lang: Lang): ReportC
   // no group row to explain.
   //
   // The columns are the screen's own, and the cells go through its `statCellText`, so
-  // the card cannot disagree with the table about what a figure is — including which
-  // ones are dashes because nobody was ever named.
+  // the card cannot disagree with the table about what a figure is — the aggregate
+  // row's dashes included.
   const playerLines = playerStatLines(state, playerStatsTeams(state.config), t);
   const showPlaying = lineTrackingEnabled(state.config);
   // The config flag is the normal reason Possession has anything to show, but
@@ -276,8 +276,7 @@ export function reportCardModel(state: GameState, t: TFunc, lang: Lang): ReportC
   // says (see CLAUDE.md) — so a game that turned it on only after the fact, or
   // never at all, still gets the view the moment a turn or a D is actually named.
   const showPossession =
-    turnoverPlayersTracked(state.config) ||
-    playerLines.some((p) => !p.unassigned && (p.turns > 0 || p.defenses > 0));
+    turnoverPlayersTracked(state.config) || playerLines.some((p) => p.turns > 0 || p.defenses > 0);
   const groups =
     showPlaying || showPossession
       ? [

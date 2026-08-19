@@ -99,11 +99,11 @@ describe('phone back button in a game', () => {
   it('returns from the guide to the game, not out of it', () => {
     mountGame();
     fireEvent.click(screen.getByLabelText('Menu'));
-    fireEvent.click(screen.getByText('How to use this app'));
-    expect(screen.getByText('How this app works')).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Beginner's guide"));
+    expect(screen.getByRole('heading', { name: "Beginner's guide" })).toBeInTheDocument();
 
     pressPhoneBack();
-    expect(screen.queryByText('How this app works')).toBeNull();
+    expect(screen.queryByRole('heading', { name: "Beginner's guide" })).toBeNull();
     expect(screen.queryByText('Leave the game?')).toBeNull();
     expect(screen.getByLabelText('Menu')).toBeInTheDocument();
   });
@@ -150,19 +150,29 @@ describe('phone back button on the how-it-works guide', () => {
     );
   }
 
+  /**
+   * The menu is the guide's only door now. It pushes nothing itself — it is a plain
+   * dialog with no back guard of its own — so the pushState counts below still
+   * measure the guide alone.
+   */
+  const openGuide = () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    fireEvent.click(screen.getByRole('button', { name: "Beginner's guide" }));
+  };
+
   it('the back gesture lands straight on setup without re-pushing a dead entry', () => {
     mountConfig();
     const pushSpy = vi.spyOn(history, 'pushState');
 
-    fireEvent.click(screen.getByText('How does this app work?'));
-    expect(screen.getByText('How this app works')).toBeInTheDocument();
+    openGuide();
+    expect(screen.getByRole('heading', { name: "Beginner's guide" })).toBeInTheDocument();
     // Opening the guide pushes exactly one entry.
     expect(pushSpy).toHaveBeenCalledTimes(1);
 
     pressPhoneBack();
 
     expect(screen.getByText('Game setup')).toBeInTheDocument();
-    expect(screen.queryByText('How this app works')).toBeNull();
+    expect(screen.queryByRole('heading', { name: "Beginner's guide" })).toBeNull();
     // The gesture "lands" — it must NOT re-push, or the next back would be a dead press.
     expect(pushSpy).toHaveBeenCalledTimes(1);
 
@@ -171,7 +181,7 @@ describe('phone back button on the how-it-works guide', () => {
 
   it('closing via the guide header button consumes the pending entry too', () => {
     mountConfig();
-    fireEvent.click(screen.getByText('How does this app work?'));
+    openGuide();
     const backSpy = vi.spyOn(history, 'back');
 
     fireEvent.click(screen.getByRole('button', { name: '← Back' }));

@@ -220,7 +220,7 @@ export const ca: typeof en = {
   playerName: 'Nom',
   addPlayer: 'Afegir',
   removePlayer: 'Treure',
-  duplicatePlayer: 'Aquest jugador ja és a la plantilla',
+  duplicatePlayer: 'Aquest jugador ja és al roster',
   close: 'Tancar',
   noPlayersYet: "Encara no s'han afegit jugadors.",
   rosterImportBtn: 'Enganxar / importar',
@@ -333,9 +333,10 @@ export const ca: typeof en = {
 
   menuTitle: 'Menú',
   menuGameSetup: 'Configuració del partit',
-  menuGuide: "Com fer servir l'aplicació",
+  menuGuide: 'Guia per a principiants',
   menuReport: 'Informe fins ara',
   btnBackToGame: 'Tornar al partit',
+  btnExitReport: "Sortir de l'informe",
 
   setupScheduled: 'Previst',
   setupStarted: 'Començat',
@@ -651,8 +652,7 @@ export const ca: typeof en = {
   event_gameEnd: 'Fi del partit',
 
   // Guia
-  guideLink: 'Com funciona aquesta aplicació?',
-  guideTitle: "Com funciona l'aplicació",
+  guideTitle: 'Guia per a principiants',
   guideSubtitle: 'Una guia per a qui anota per primer cop',
   guideBackShort: 'Enrere',
   guideIntro:
@@ -871,6 +871,223 @@ export const ca: typeof en = {
   guideCheatChipDo: 'Tornar a mostrar el seu senyal de mans',
   guideCheatLocked: 'El marcador no puja',
   guideCheatLockedDo: "No s'ha llançat el pull, o el joc està aturat",
+
+  // Guia d'estadístiques — la segona pàgina, des del menú de la pantalla inicial.
+  menuStatsGuide: 'Guia avançada',
+  statsGuideTitle: 'Guia avançada',
+  statsGuideSubtitle: 'Què registrar, com registrar-ho i què en surt al final',
+  statsGuideIntro:
+    "Aquesta pàgina dóna el joc per sabut. La guia per a principiants explica com portar el marcador i els rellotges; aquesta explica tot el que hi va a sobre: què pot registrar l'aplicació, què costa cada opció durant un punt i com llegir els números del final.",
+  statsGuideNothingOn:
+    "Tot és opcional i gairebé tot ve desactivat. L'aplicació porta un marcador perfectament vàlid amb tots els interruptors de sota apagats. El que activis decideix quins botons apareixen a la pantalla de joc i quines columnes existeixen a l'informe — res més canvia.",
+
+  statsGuideModelTitle: 'Dues preguntes, no una',
+  statsGuideModelBody:
+    'La pantalla de configuració pregunta primer amb quant detall atribuir les coses i, per separat, quines coses registrar. Que siguin dues preguntes és el que et permet anotar gols i assistències de tot un torneig sense posar mai el botó de pèrdua a la pantalla, o seguir les línies d\u2019un equip sense que et pregunti qui ha marcat.',
+  statsGuideModelDetail: 'Detall — a qui s\u2019anomena',
+  statsGuideModelDetailBody:
+    "«Només marcador» no anomena ningú: una decisió o una aturada es registren sense dir de qui eren. «Per equip» afegeix la pregunta «quin equip?» a cada decisió, passes i aturada — sense necessitat de roster. «Per jugador» afegeix el roster, així que gols, assistències, pèrdues i lesions poden anomenar una persona, d'un equip o dels dos.",
+  statsGuideModelFeatures: 'Funcions — què es registra',
+  statsGuideModelFeaturesBody:
+    "Pèrdues, qui va marcar, qui va perdre el disc i qui juga cada punt són quatre interruptors independents, oferts només allà on el detall de dalt els pot respondre. Apaga'n un i desapareix tot el que se'n deriva, també a l'informe, que mai no mostra una columna de la qual no té dades.",
+  statsGuideModelCost: 'Tria segons el que puguis seguir',
+  statsGuideModelCostBody:
+    'Cada interruptor costa tocs amb el disc en joc. Pèrdues és un toc per pèrdua. «Preguntar qui ha perdut el disc» afegeix un diàleg a cadascuna, que és molt en un punt ràpid. «Preguntar qui ha marcat» és un diàleg per gol, al buit on de totes maneres tens temps. Les línies són un registre per punt, entre punts. El que et saltis sobre la marxa sempre es pot completar després des del registre.',
+
+  statsGuideStep1Title: 'Tria què registra aquest partit',
+  statsGuideStep1Body:
+    'Tot és a la secció Estadístiques de la pantalla de configuració. Abaixar el detall retira el que ja no pot respondre i ho torna si el tornes a pujar, així que no es perd res per provar-ho.',
+  statsGuideStep1Detail: 'Registrar',
+  statsGuideStep1DetailBody:
+    'Només marcador, Per equip o Per jugador — el detall de dalt. Tota la resta de la llista en depèn.',
+  statsGuideStep1Team: 'Jugadors de',
+  statsGuideStep1TeamBody:
+    'Quin roster s\u2019anomena: un equip o tots dos. Seguir un sol equip és el que fa gairebé tothom en un torneig, i és l\u2019únic ajust que permet seguir les línies — dues línies per punt és més del que ningú segueix des de la banda.',
+  statsGuideStep1Turnovers: 'Pèrdues',
+  statsGuideStep1TurnoversBody:
+    "Posa el botó Turn a la pantalla de joc. Amb ell arriben la barra de possessió sota el marcador, les estadístiques en directe entre els rellotges i els botons, i totes les xifres de l'informe derivades de les pèrdues: holds nets, oportunitats de break, breaks nets i el gràfic de possessió.",
+  statsGuideStep1TurnPlayers: 'Preguntar qui ha perdut el disc',
+  statsGuideStep1TurnPlayersBody:
+    'Imbricat sota Pèrdues, i desactivat per defecte. Activat, cada toc a Turn obre un diàleg que pregunta qui ha perdut el disc i qui l\u2019ha forçat. Desactivat, el toc registra la pèrdua i et torna la pantalla — el comptador, la barra de possessió i totes les xifres d\u2019equip continuen funcionant igual.',
+  statsGuideStep1Goals: 'Preguntar qui ha marcat',
+  statsGuideStep1GoalsBody:
+    'Activat, cada gol obre un selector per a l\u2019anotador i l\u2019assistència. El senyal de gol es reté fins que acabes, així que el diàleg mai no tapa justament allò que has d\u2019anunciar.',
+  statsGuideStep1Lines: 'Registrar qui juga cada punt',
+  statsGuideStep1LinesBody:
+    'Registra la línia que salta al camp a cada punt. També pregunta de quants jugadors és una línia — això ho marca el format, set a herba i cinc a platja — i si cal comprovar el repartiment de gènere: contra el ràtio del partit, contra un repartiment fix, o no comprovar-lo.',
+
+  statsGuideStep2Title: 'Escriu el roster una vegada',
+  statsGuideStep2Body:
+    'Anomenar jugadors necessita un roster, i val la pena escriure’l una vegada per torneig: es desa amb l\u2019equip, així que el partit següent comença amb ella posada. També pots afegir jugadors amb el partit en marxa — un dorsal desconegut mai no és un carreró sense sortida.',
+  statsGuideStep2Add: 'Dorsal i nom',
+  statsGuideStep2AddBody:
+    'Qualsevol dels dos per separat és una entrada vàlida, que és el que cal quan des de la banda només veus un dorsal.',
+  statsGuideStep2Mark: 'MMP / FMP',
+  statsGuideStep2MarkBody:
+    "El botó petit de cada fila alterna sense marcar → MMP → FMP. La marca és una dada del jugador, així que es desa la llegeixi o no aquest partit, i viatja amb l'equip desat al següent. Els diàlegs de línia agrupen el roster per ella, i la comprovació del repartiment la compta.",
+  statsGuideStep2Import: 'Importar',
+  statsGuideStep2ImportBody:
+    "Enganxa la llista que ja va enviar l'organització, o tria un fitxer de text pla. Un jugador per línia, en qualsevol forma en què ho escrigui una persona — «12 John Doe», «John Doe #12», només el nom o només el dorsal — amb MMP o FMP al final per marcar-lo. Les línies que no entén les compta i les omet en comptes de rebutjar l'enganxada, i no s'aplica res fins que has llegit la vista prèvia.",
+  statsGuideStep2Lines: 'Línies predefinides',
+  statsGuideStep2LinesBody:
+    'Posa nom a les línies que juga aquest equip — O1, D1, Zona — i seran a un toc durant el partit, i aquí de nou la propera vegada. Una línia predefinida és un grup, no un set, així que no es comprova contra res: deu jugadors és una resposta perfectament vàlida. La comprovació és cosa de la línia que de debò salta al camp.',
+
+  statsGuideStep3Title: 'Registrar amb el disc en joc',
+  statsGuideStep3Body:
+    "El que has activat decideix què hi ha en aquesta pantalla. Res d'això toca el marcador, el rellotge ni l'objectiu: escriu al registre i, des d'allà, a l'informe.",
+  statsGuideTour1:
+    'La barra de possessió: una franja fina entre els panells i els botons, plena del costat de qui té el disc. Només es dibuixa si es registren pèrdues, i només s\u2019encén amb el disc en joc.',
+  statsGuideTour2:
+    'Les estadístiques en directe, al buit que fa servir el botó ambre quan n\u2019hi ha. Tres pàgines, que es passen amb les fletxes dels costats — vegeu més avall.',
+  statsGuideTour3:
+    'Roster. Amb el seguiment de línies activat, primer pregunta si vols la línia o el roster mateix.',
+  statsGuideTour4:
+    'Decisió. Des de «Per equip» endavant, cada decisió, passes i aturada tècnica pregunta de quin equip era; una lesió pregunta qui s\u2019ha fet mal.',
+  statsGuideTour5:
+    'Turn: un toc per pèrdua, amb la insígnia comptant-les dins del punt. Mantén premut per desfer l\u2019última. Fixa\u2019t en la insígnia per saber que el toc ha entrat: quan el disc torna a un equip que ja l\u2019ha tingut en aquest punt, la barra de possessió torna a un costat on ja ha estat i res més no es mou a la pantalla.',
+
+  statsGuideGoalTitle: 'Qui ha marcat',
+  statsGuideGoalBody:
+    'Toca el panell com sempre i el selector s\u2019obre just després, amb només els jugadors registrats al punt que acaba de terminar — qui va sortir per un canvi queda fora, perquè no el podia marcar. Desa sense triar ningú i el gol compta igualment; simplement queda sense atribuir.',
+  statsGuideGoalCallahan:
+    "L'interruptor de Callahan substitueix el selector d'assistència en comptes de desactivar-lo: la pregunta ja està resposta, i per reglament la resposta és «ningú». És també com l'informe distingeix «ningú no la va llançar» de «ningú no ho va apuntar».",
+
+  statsGuideTurnTitle: 'Qui ha perdut el disc',
+  statsGuideTurnBody:
+    'Amb «Preguntar qui ha perdut el disc» activat, cada toc a Turn fa dues preguntes independents: qui ha perdut el disc — caiguda, mala passada, stall — i qui l\u2019ha forçat, amb un bloqueig o una marca que ha exhaurit el compte. Qualsevol pot quedar en blanc; una D neta i una caiguda sense pressió són respostes d\u2019un sol costat. Desar sense triar ningú registra la pèrdua igualment.',
+  statsGuideTurnWho:
+    "La defensa es compta a l'altre roster, i per això una sola entrada de pèrdua alimenta les dues meitats de la vista Possessió de l'informe.",
+
+  statsGuideLineTitle: 'Qui és al camp',
+  statsGuideLineBody:
+    'Entre punts apareix un avís sobre els rellotges, i el mateix diàleg és darrere del botó Roster. Tria la línia, o carrega\u2019n una de predefinida, i desa. Res no s\u2019arrossega d\u2019un gol al següent: la línia canvia gairebé cada punt, així que deixar l\u2019anterior en vigor acabaria atribuint el punt al set equivocat.',
+  statsGuideLineCheck:
+    "La mida i el repartiment es comproven, i la comprovació mai no rebutja: una línia fora de norma avisa en ambre i es desa al segon toc. Fora del joc professional un equip no sempre pot treure el ràtio, així que l'avís és una nota, no un veto. Els jugadors sense marca es compten però mai no són un error: tres sense marcar de set fan el repartiment desconegut, no incorrecte.",
+  statsGuideLineModes:
+    'El diàleg guarda dos esborranys alhora, aquest punt i el següent, i aplica el que hagis tocat. Registrar la línia següent mentre el punt en curs encara és viu és la manera de no quedar-te enrere quan els punts s\u2019allarguen.',
+  statsGuideLineSub:
+    'Una lesió pregunta qui canvia, perquè és l\u2019única aturada que canvia una línia a mitja jugada de manera habitual — també per a l\u2019altre equip, a qui WFDF concedeix un canvi propi. Les dues meitats d\u2019un canvi es queden al punt: qui va ser substituït va jugar aquell punt i continua comptant a totes les xifres.',
+  statsGuideLineName:
+    'Desa una selecció amb un nom i es converteix en línia predefinida. Retallar una línia carregada manté el seu nom; ficar-hi algú que mai no hi va ser el treu, perquè aquell set no va sortir d\u2019aquella línia.',
+  statsGuideLineNarrow:
+    'Una línia registrada és a més el que ofereixen els selectors: anotador, assistència, pèrdua i lesió es limiten a qui era al camp. Sense línia registrada tornen al roster sencer, així que saltar-se una línia mai no et deixa sense poder atribuir res.',
+
+  statsGuideFixTitle: 'Res no ha de sortir bé a la primera',
+  statsGuideFixBody:
+    "El registre llista totes les entrades en ordre, i el llapis d'una fila reobre la seva atribució: qui ha marcat, qui ha assistit, qui ha perdut el disc, quin equip ha demanat la decisió. Les correccions no depenen del que el partit es va configurar per preguntar: atribueix una pèrdua en un partit que mai no ho va preguntar i l'informe se n'adona i hi afegeix la columna. Només corregeix el registre: el marcador, el rellotge i la possessió es queden exactament com són.",
+
+  statsGuideStep4Title: 'Les estadístiques durant el partit',
+  statsGuideStep4Body:
+    'Són entre els rellotges i els botons mentre el disc és en joc, i cedeixen el buit tan bon punt alguna cosa més urgent el necessita — el botó ambre d\u2019avanç, o una decisió pendent de resoldre — així que mai no poden moure els panells del marcador. Només en vertical: en horitzontal no hi ha altura per gastar. Sense pèrdues hi ha una sola pàgina de holds i breaks; amb elles, tres.',
+  statsGuidePage1: 'Xifres d\u2019equip',
+  statsGuidePage1Body:
+    "Una fila per equip, en el seu color, en el mateix ordre que els panells. Holds, Breaks, Oportunitats de break i Pèrdues — les mateixes quatre amb què obre l'informe, definides més avall.",
+  statsGuidePage2: 'Possessió per punt',
+  statsGuidePage2Body:
+    "Una columna per punt, amb la part de possessió de l'equip de dalt per sobre de la línia i la de l'altre per sota. Es desplaça, i és el mateix gràfic que dibuixa l'informe.",
+  statsGuidePage3: 'Ritme d\u2019aquest punt',
+  statsGuidePage3Body:
+    'Quant fa que dura el punt actual, comparat amb la mitjana dels ja jugats. La barra s\u2019omple del color de qui té el disc, la marca és aquesta mitjana, i apareix una osca per cada pèrdua al moment del punt en què va passar.',
+
+  statsGuideStep5Title: 'L\u2019informe — xifres d\u2019equip',
+  statsGuideStep5Body:
+    'La taula sota el marcador final: una fila per xifra, una columna per equip. Gairebé totes les files necessiten que s\u2019hagin registrat pèrdues; sense elles la taula es queda en holds, breaks, les dues mitjanes i els temps morts.',
+  statsGuideStatHold: 'Holds de línia O',
+  statsGuideStatHoldBody:
+    'Punts guanyats rebent el servei — els punts que s\u2019espera que un equip guanyi.',
+  statsGuideStatCleanHold: 'Holds nets',
+  statsGuideStatCleanHoldBody:
+    'D\u2019aquests, aquells en què el disc no va canviar de mans ni una vegada: cap pèrdua de ningú, del servei a la zona de gol.',
+  statsGuideStatBreakCh: 'Oportunitats de break',
+  statsGuideStatBreakChBody:
+    'Quantes vegades aquest equip va recuperar el disc en defensa — cada pèrdua senar d\u2019un punt en què servia, ja que un punt comença en mans de l\u2019atac i cada pèrdua posterior alterna. Llegeix-ho al costat dels Breaks per treure el percentatge de conversió.',
+  statsGuideStatTurnovers: 'Pèrdues',
+  statsGuideStatTurnoversBody:
+    'Les pròpies d\u2019aquest equip, en tot el partit, descomptant el que s\u2019hagi desfet.',
+  statsGuideStatBreaks: 'Punts de break',
+  statsGuideStatBreaksBody: 'Punts guanyats servint.',
+  statsGuideStatCleanBreaks: 'Breaks nets',
+  statsGuideStatCleanBreaksBody:
+    'D\u2019aquests, els convertits a la primera pèrdua i sense tornar-ne cap — exactament una pèrdua en tot el punt.',
+  statsGuideStatAvg: 'Temps mitjà de hold / break',
+  statsGuideStatAvgBody:
+    'Quant van durar els punts que va guanyar aquest equip, separant els que rebia dels que servia.',
+  statsGuideStatTimeouts: 'Temps morts fets servir',
+  statsGuideStatTimeoutsBody:
+    'Les dues parts sumades. Una pausa d\u2019hidratació no en costa cap, així que mai no apareix aquí.',
+
+  statsGuideLedgerTitle: 'Possessió per punt',
+  statsGuideLedgerBody:
+    'Tot el partit en una franja: una columna per punt, l\u2019alçada de la barra és la part de possessió de cada equip, el costat ple és qui va anotar, i el punt ambre qui va començar atacant. Punt i ple en costats oposats és un break.',
+
+  statsGuideStep6Title: 'L\u2019informe — estadístiques de jugador',
+  statsGuideStep6Body:
+    'Una fila per jugador que hagi fet alguna cosa: marcar, assistir, saltar al camp o perdre el disc. Les columnes són tres vistes darrere de pastilles en comptes d\u2019una taula massa ampla per a un mòbil, i una vista només s\u2019ofereix quan aquest partit en té dades — si només hi ha Anotació, les pastilles ni apareixen.',
+  statsGuideViewScoring: 'Anotació',
+  statsGuideViewScoringBody:
+    'Assistències, Gols, Total. Disponible en qualsevol partit amb roster, estigui la resta activada o no.',
+  statsGuideViewPlaying: 'Joc — necessita seguiment de línies',
+  statsGuideViewPlayingBody:
+    'Punts jugats, quants en atac (O) i en defensa (D), i quants d\u2019aquests punts va guanyar i perdre el seu equip. Aquesta és la taula de «qui era als punts bons», i per a què serveix el seguiment de línies.',
+  statsGuideViewPossession: 'Possessió — necessita atribuir pèrdues',
+  statsGuideViewPossessionBody:
+    'Turns — pèrdues en què aquest jugador va perdre el disc — i D, les pèrdues que va forçar. No pregunta res sobre línies, així que un partit que no les va seguir mai té igualment aquesta vista; i com que una mateixa entrada compta un turn en un roster i una D a l\u2019altre, les dues columnes són els mateixos successos llegits en direccions oposades.',
+  statsGuideUnassigned: '«Sense registrar»',
+  statsGuideUnassignedBody:
+    'La fila atenuada sota cada equip: els gols sense anotador, els gols sense assistència i els punts sense línia registrada. Anomenar jugadors sempre és opcional, així que sense aquesta fila les columnes deixarien de sumar el marcador sense dir-ho. Les seves cel\u00b7les són guionets allà on la xifra seria d\u2019un jugador, perquè la fila no representa ningú en concret, i no apareix a la vista Possessió: una pèrdua sense ningú atribuït no és el turn de ningú ni la D de ningú.',
+  statsGuideFilter: 'El filtre d\u2019equip',
+  statsGuideFilterBody:
+    'Apareix només quan se segueixen els dos rosters. Com que el seguiment de línies segueix un sol equip, la vista Joc i el filtre mai no coincideixen a la pantalla.',
+
+  statsGuideStep7Title: 'Endur-te els números',
+  statsGuideShare: 'Compartir',
+  statsGuideShareBody:
+    "El marcador, les xifres d'equip, la taula de jugadors i el resum del partit, dibuixats com a imatge per a un xat d'equip. La imatge porta les columnes de totes les vistes alhora, agrupades sota Joc, Anotació i Possessió — una imatge no es pot tocar per canviar de vista, que és el motiu que la pantalla les separi en vistes.",
+  statsGuideCopy: 'Copiar al porta-retalls',
+  statsGuideCopyBody:
+    "L'arxiu: tot en text pla per a un full de càlcul o un correu, amb les columnes de totes les vistes disponibles en una línia per jugador i les línies predefinides en què va aparèixer cadascú. Fes-ho abans de sortir de la pantalla.",
+  statsGuideFullLog: 'Registre complet',
+  statsGuideFullLogBody:
+    'El resum del partit deixa fora les pèrdues i les decisions — en un partit amb seguiment arriben per dotzenes i enterren la forma del partit. Tot és a un toc darrere de «Registre complet», amb el seu propi botó de copiar.',
+  statsGuideHistory: 'Historial de partits',
+  statsGuideHistoryBody:
+    "Un partit que va acabar per marcador s'arxiva sol, i obrir-lo des de l'Historial et dóna aquest mateix informe, exactament com era aquell dia — es desa el partit sencer, no un resum. Se'n conserven els últims 50, en aquest dispositiu.",
+
+  statsGuideCheatTitle: 'Què compta cada xifra',
+  statsGuideDefHold: 'Hold',
+  statsGuideDefHoldDo: 'Punt guanyat per l\u2019equip que rebia el servei',
+  statsGuideDefBreak: 'Break',
+  statsGuideDefBreakDo: 'Punt guanyat per l\u2019equip que servia',
+  statsGuideDefCleanHold: 'Hold net',
+  statsGuideDefCleanHoldDo: 'Hold sense cap pèrdua de ningú',
+  statsGuideDefCleanBreak: 'Break net',
+  statsGuideDefCleanBreakDo: 'Break convertit a la primera pèrdua, sense tornar-la',
+  statsGuideDefBreakCh: 'Oportunitat de break',
+  statsGuideDefBreakChDo: 'Cada pèrdua senar d\u2019un punt en què aquest equip servia',
+  statsGuideDefTurn: 'Turns',
+  statsGuideDefTurnDo: 'Pèrdues atribuïdes al jugador que va perdre el disc',
+  statsGuideDefD: 'D (Possessió)',
+  statsGuideDefDDo:
+    'Pèrdues que va forçar aquest jugador — blocatges, i marques que van exhaurir el compte',
+  statsGuideDefOD: 'O / D (Joc)',
+  statsGuideDefODDo: 'Punts jugats rebent el servei / servint',
+
+  statsGuideFigSetupAlt: 'La secció Estadístiques de la pantalla de configuració, amb tot activat',
+  statsGuideFigRosterAlt:
+    'La secció Roster de la pantalla de configuració, amb jugadors i línies predefinides',
+  statsGuideFigDashboardAlt:
+    'La pantalla de joc a mitja jugada, amb la barra de possessió i les estadístiques en directe',
+  statsGuideFigGoalAlt: 'El diàleg que pregunta qui ha marcat i qui ha assistit',
+  statsGuideFigTurnoverAlt:
+    'El diàleg que pregunta qui ha perdut el disc i qui ha forçat la pèrdua',
+  statsGuideFigLineAlt: 'El diàleg de línia, amb el roster agrupat per marca',
+  statsGuideFigLiveTeamAlt: 'Les estadístiques en directe mostrant les xifres d\u2019equip',
+  statsGuideFigLivePossessionAlt: 'Les estadístiques en directe mostrant la possessió per punt',
+  statsGuideFigLivePaceAlt: 'Les estadístiques en directe mostrant el ritme del punt actual',
+  statsGuideFigReportTeamAlt: 'La taula de xifres d\u2019equip de l\u2019informe',
+  statsGuideFigReportLedgerAlt: 'El gràfic de possessió per punt de l\u2019informe',
+  statsGuideFigReportPlayersAlt:
+    'La taula d\u2019estadístiques de jugador de l\u2019informe, en la vista Joc',
 
   guideFigSetupAlt:
     'La part de dalt de la pantalla de configuració: plantilla, divisió i noms dels equips',

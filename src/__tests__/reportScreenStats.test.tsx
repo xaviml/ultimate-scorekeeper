@@ -400,9 +400,10 @@ describe('the player-stat views', () => {
   });
 
   // A game played with "Ask who turned it over" off has turnovers in the log and
-  // nobody named on any of them. Zeroes down the column would read as a roster that
-  // never lost the disc.
-  it('dashes the Turns column when no turnover named a player', () => {
+  // nobody named on any of them. Nobody's figure changes: a turnover with no player
+  // on it is not this player's, and it is not the aggregate's either — the row is
+  // dropped from this view rather than claiming a total nobody can be held to.
+  it('leaves the columns at zero and drops the aggregate when no turnover named a player', () => {
     const state = lineTrackedState();
     state.points[1] = { ...state.points[1], turnovers: 2 };
     state.log = [
@@ -412,10 +413,9 @@ describe('the player-stat views', () => {
     ];
     renderReport(state);
     fireEvent.click(viewPill(/^possession$/i));
-    expect(playerRow('Alex')[0]).toBe('—');
-    expect(playerRow('Sam')[0]).toBe('—');
-    // The two turnovers are still on the card, on the row that can own them.
-    expect(playerRow('Not recorded')[0]).toBe('2');
+    expect(playerRow('Alex')).toEqual(['0', '0']);
+    expect(playerRow('Sam')).toEqual(['0', '0']);
+    expect(screen.queryByText('Not recorded')).toBeNull();
   });
 
   // Each view ranks by the column it is about, so the top row answers the question
@@ -448,5 +448,8 @@ describe('the player-stat views', () => {
     // One point played by nobody the volunteer registered; the O/D/Won/Lost
     // columns are dashes, because the row stands for nobody.
     expect(playerRow('Not recorded')).toEqual(['1', '—', '—', '—', '—']);
+    // Possession is the one view it is dropped from — there, it has nothing to say.
+    fireEvent.click(viewPill(/^possession$/i));
+    expect(screen.queryByText('Not recorded')).toBeNull();
   });
 });

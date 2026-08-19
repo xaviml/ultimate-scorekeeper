@@ -23,12 +23,6 @@ export interface PlayerStatColumn {
   signed?: boolean;
   /** True for the columns the aggregate row can legitimately carry — see `statCellText`. */
   aggregate?: boolean;
-  /**
-   * Whether this row's figure is unknown rather than zero, for a column whose data
-   * the game may simply never have been asked for. A dash says "not recorded"; a
-   * zero says "it did not happen", and only one of those is true.
-   */
-  unknown?: (line: PlayerStatLine) => boolean;
 }
 
 const COLUMNS: Record<PlayerStatView, PlayerStatColumn[]> = {
@@ -64,24 +58,13 @@ const COLUMNS: Record<PlayerStatView, PlayerStatColumn[]> = {
   // What the log attributes to this player individually, regardless of any line —
   // a turnover names a thrower and, on the other roster, a defender. Unlike Playing
   // this needs no line tracking, only "Ask who turned it over".
+  // Neither column carries an aggregate figure: a turnover nobody was named on is
+  // nobody's turn and nobody's D — the other team may simply have thrown it away —
+  // so the report drops the "not recorded" row from this view entirely rather than
+  // claiming an unattributed total for it (see `playerStatLines`).
   possession: [
-    {
-      key: 'colTurns',
-      full: 'colTurnsFull',
-      value: (l) => l.turns,
-      // The turnovers nobody was named on, which is what keeps the column adding up
-      // to the team's total — and, when that is all of them, the only honest figure
-      // in it (the players above go to dashes, see `turnsRecorded`).
-      aggregate: true,
-      unknown: (l) => !l.turnsRecorded,
-    },
-    {
-      key: 'colDefenses',
-      full: 'colDefensesFull',
-      value: (l) => l.defenses,
-      aggregate: true,
-      unknown: (l) => !l.defensesRecorded,
-    },
+    { key: 'colTurns', full: 'colTurnsFull', value: (l) => l.turns },
+    { key: 'colDefenses', full: 'colDefensesFull', value: (l) => l.defenses },
   ],
 };
 
@@ -97,13 +80,12 @@ export function formatSigned(n: number): string {
 /**
  * A cell's text. The aggregate stands for nobody, so a per-player figure it cannot
  * have is a dash rather than a zero — a zero there would read as a fact about
- * someone, and the row is precisely the one that knows nothing about anyone. The
- * same dash covers a figure the game was never asked for (`unknown`), which is the
- * other way a zero would claim something nobody recorded.
+ * someone, and the row is precisely the one that knows nothing about anyone. Every
+ * other row states a number, zero included: a player with nothing recorded in a
+ * column did none of it.
  */
 export function statCellText(column: PlayerStatColumn, line: PlayerStatLine): string {
   if (line.unassigned && !column.aggregate) return '—';
-  if (column.unknown?.(line)) return '—';
   const value = column.value(line);
   return column.signed ? formatSigned(value) : String(value);
 }

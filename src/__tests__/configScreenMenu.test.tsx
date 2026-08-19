@@ -22,12 +22,13 @@ beforeEach(() => {
 });
 
 describe('the setup screen header menu', () => {
-  it('replaces the old ⓘ with the three doors the setup screen has', () => {
+  it('replaces the old ⓘ with the four doors the setup screen has', () => {
     renderConfigScreen();
     openMenu();
 
     expect(screen.getByRole('button', { name: /Match History/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /How to use this app/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Beginner's guide/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Advanced guide/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /About/ })).toBeInTheDocument();
   });
 
@@ -52,8 +53,14 @@ describe('the setup screen header menu', () => {
     expect(screen.getByLabelText('Team 1')).toHaveValue('Ravens');
   });
 
-  it('keeps the walkthrough link under the tagline, where a first-timer finds it', () => {
+  it('is the only door to either guide — the chip under the title is gone', () => {
     renderConfigScreen();
-    expect(screen.getByRole('button', { name: 'How does this app work?' })).toBeInTheDocument();
+    // Both guides are named for their reader and live together in the menu, so a
+    // second entrance to one of them would be the odd one out rather than a
+    // shortcut. Nothing outside the menu opens either.
+    expect(screen.queryByRole('button', { name: /guide/i })).toBeNull();
+
+    openMenu();
+    expect(screen.getByRole('button', { name: /Beginner's guide/ })).toBeInTheDocument();
   });
 });

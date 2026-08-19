@@ -14,7 +14,11 @@ function renderConfigScreen() {
   );
 }
 
-const OPEN_GUIDE = 'How does this app work?';
+/** The guide has one door now that the chip under the title is gone: the menu. */
+const openGuide = () => {
+  fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+  fireEvent.click(screen.getByRole('button', { name: "Beginner's guide" }));
+};
 
 beforeEach(() => {
   sessionStorage.clear();
@@ -25,9 +29,9 @@ describe('guide', () => {
   it('replaces the config screen instead of opening over it', () => {
     renderConfigScreen();
 
-    fireEvent.click(screen.getByText(OPEN_GUIDE));
+    openGuide();
 
-    expect(screen.getByText('How this app works')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: "Beginner's guide" })).toBeInTheDocument();
     // A page, not a dialog: the form underneath is gone, not merely covered.
     expect(screen.queryByText('Game setup')).toBeNull();
   });
@@ -36,7 +40,7 @@ describe('guide', () => {
     renderConfigScreen();
     fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'Foxes' } });
 
-    fireEvent.click(screen.getByText(OPEN_GUIDE));
+    openGuide();
     // The header's back button is the only way out — worded neutrally, since the
     // guide is now reached from the game screen too.
     fireEvent.click(screen.getByRole('button', { name: '← Back' }));
@@ -47,11 +51,11 @@ describe('guide', () => {
 
   it('translates on the fly from its own language picker', () => {
     renderConfigScreen();
-    fireEvent.click(screen.getByText(OPEN_GUIDE));
+    openGuide();
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'ca' } });
 
-    expect(screen.getByText("Com funciona l'aplicació")).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Guia per a principiants' })).toBeInTheDocument();
     // And the choice sticks once the volunteer is back on the setup screen.
     fireEvent.click(screen.getByRole('button', { name: '← Enrere' }));
     expect(screen.getByText('Configuració del partit')).toBeInTheDocument();

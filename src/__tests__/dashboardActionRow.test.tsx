@@ -649,8 +649,8 @@ describe('the header menu', () => {
   it('reaches the guide, which is a screen rather than a dialog', () => {
     mount(liveGame());
     openMenu();
-    fireEvent.click(screen.getByText('How to use this app'));
-    expect(screen.getByText('How this app works')).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Beginner's guide"));
+    expect(screen.getByRole('heading', { name: "Beginner's guide" })).toBeInTheDocument();
     // The dashboard is gone while it is up — it is an early return, not an overlay.
     expect(screen.queryByLabelText('Menu')).toBeNull();
   });

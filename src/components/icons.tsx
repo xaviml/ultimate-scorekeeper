@@ -218,6 +218,19 @@ export function GuideIcon({ size }: { size?: string }) {
   );
 }
 
+/**
+ * The statistics walkthrough. A trend line over an axis rather than bars, because
+ * ReportIcon (three bars) sits two rows away in the same menu and the two have to
+ * be told apart at 20px.
+ */
+export function StatsIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <path d="M3.75 3.75v15a1.5 1.5 0 0 0 1.5 1.5h15M7.5 15.75l3.75-4.5 3 3 5.25-6.75" />
+    </Glyph>
+  );
+}
+
 /** The finished game's report. */
 export function ReportIcon({ size }: { size?: string }) {
   return (

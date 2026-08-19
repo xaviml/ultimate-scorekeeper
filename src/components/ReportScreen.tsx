@@ -120,16 +120,20 @@ export default function ReportScreen({
   // flag on late — or never — still gets the view once a turn or a D is named.
   const showPlayingView = lineTrackingEnabled(state.config);
   const showPossessionView =
-    turnoverPlayersTracked(state.config) ||
-    playerLines.some((p) => !p.unassigned && (p.turns > 0 || p.defenses > 0));
+    turnoverPlayersTracked(state.config) || playerLines.some((p) => p.turns > 0 || p.defenses > 0);
   const availableViews = (['scoring', 'playing', 'possession'] as const).filter((v) =>
     v === 'playing' ? showPlayingView : v === 'possession' ? showPossessionView : true,
   );
   // What the history panel lists and what the copy button writes are the same
   // entries on purpose: what you read is what you take away.
   const visibleLog = reportLogEntries(state.log);
+  // Possession drops the aggregate row: it has no figure to state there (see
+  // `playerStatLines`), and a "not recorded" line of zeroes would read as a claim.
   const visiblePlayerLines = sortPlayerStatLines(
-    teamFilter === 'all' ? playerLines : playerLines.filter((p) => p.team === teamFilter),
+    playerLines.filter(
+      (p) =>
+        (teamFilter === 'all' || p.team === teamFilter) && !(view === 'possession' && p.unassigned),
+    ),
     view,
   );
 
@@ -222,19 +226,37 @@ export default function ReportScreen({
 
   return (
     <div className="min-h-dvh bg-pitch text-chalk p-4 pb-10 max-w-2xl mx-auto space-y-4">
-      {/* The way back, in every mode. Live mode hands its own callback in because
-          the dashboard is still mounted behind it; the report phase leaves the game
-          exactly as it found it, so BACK_TO_GAME is the whole of returning. */}
-      <button
-        type="button"
-        className="rounded-lg bg-panel border border-line px-3 py-1 text-sm text-chalk/70 whitespace-nowrap mt-2"
-        onClick={layered ? onBack : backToGame}
-      >
-        {/* Worded per mode for the same reason the guide's is worded neutrally:
-            "Back to the game" is a lie from the archive, where there is no game to
-            go back to — the way out is the list this one was opened from. */}
-        ← {mode === 'archived' ? t('btnBack') : t('btnBackToGame')}
-      </button>
+      <div className="flex items-center justify-between gap-2 mt-2">
+        {/* The way back, in every mode. Live mode hands its own callback in because
+            the dashboard is still mounted behind it; the report phase leaves the game
+            exactly as it found it, so BACK_TO_GAME is the whole of returning. */}
+        <button
+          type="button"
+          className="rounded-lg bg-panel border border-line px-3 py-1 text-sm text-chalk/70 whitespace-nowrap"
+          onClick={layered ? onBack : backToGame}
+        >
+          {/* Worded per mode for the same reason the guide's is worded neutrally:
+              "Back to the game" is a lie from the archive, where there is no game to
+              go back to — the way out is the list this one was opened from. */}
+          ← {mode === 'archived' ? t('btnBack') : t('btnBackToGame')}
+        </button>
+        {/* A second way out: closing the report straight to setup, without first
+            stepping back through the dashboard. Offered in exactly the cases
+            "New game" at the bottom already is (see below) — this is the same
+            action, reachable without scrolling. */}
+        {!layered && (
+          <button
+            type="button"
+            className="rounded-lg bg-panel border border-line px-3 py-1 text-sm text-chalk/70 whitespace-nowrap"
+            onClick={() => {
+              resolveBack();
+              dispatch({ type: 'BACK_TO_CONFIG' });
+            }}
+          >
+            {t('btnExitReport')} →
+          </button>
+        )}
+      </div>
 
       <section className="rounded-xl bg-panel border border-line p-4">
         {/* Two rows, not one: a name that wraps to a second line must never nudge its

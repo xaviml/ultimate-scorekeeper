@@ -352,10 +352,11 @@ export const en = {
   // which until now was reachable only before kickoff.
   menuTitle: 'Menu',
   menuGameSetup: 'Game setup',
-  menuGuide: 'How to use this app',
+  menuGuide: "Beginner's guide",
   // The report on the game so far, readable mid-game — see ReportScreen's `live`.
   menuReport: 'Report so far',
   btnBackToGame: 'Back to the game',
+  btnExitReport: 'Exit report',
 
   // Read-only view of state.config. Most labels are shared with the setup form —
   // only the values it has to write out as sentences live here.
@@ -703,11 +704,14 @@ export const en = {
   event_capTargetSet: 'Target set by hand',
   event_gameEnd: 'Game end',
 
-  // Guide — a full page (not a dialog), reached from the config screen. Written
-  // for a volunteer who has never seen an Ultimate game, in the order they will
+  // Guide — a full page (not a dialog), reached from the header menu. Written for
+  // a volunteer who has never seen an Ultimate game, in the order they will
   // actually use the app.
-  guideLink: 'How does this app work?',
-  guideTitle: 'How this app works',
+  //
+  // Named for its reader rather than its contents ("Beginner's guide", against the
+  // "Advanced guide" below): the two sit next to each other in one menu, and which
+  // one you want is a fact about you, not about which of them describes the app.
+  guideTitle: "Beginner's guide",
   guideSubtitle: 'A walkthrough for first-time scorekeepers',
   guideBackShort: 'Back',
   guideIntro:
@@ -926,6 +930,224 @@ export const en = {
   guideCheatChipDo: 'Show its hand signal again',
   guideCheatLocked: 'Score will not go up',
   guideCheatLockedDo: 'The pull has not been thrown, or play is stopped',
+
+  // The advanced guide — the second walkthrough, reached from the setup screen's
+  // menu. Where the beginner's one is written for someone who has never seen
+  // Ultimate, this one assumes the game and explains the layer on top of it: what
+  // the app can be asked to record, what recording it costs during a point, and
+  // what every figure in the report actually counts. Its subtitle carries the
+  // detail its name no longer does.
+  menuStatsGuide: 'Advanced guide',
+  statsGuideTitle: 'Advanced guide',
+  statsGuideSubtitle: 'What to record, how to record it, and what comes out',
+  statsGuideIntro:
+    "This page assumes you know the game. The beginner's guide covers keeping the score and the clocks; this one covers everything on top of that — what the app can record, what each choice costs you during a point, and how to read the numbers at the end.",
+  statsGuideNothingOn:
+    'All of it is optional and most of it is off by default. The app keeps a perfectly good scoreline with every switch below turned off. What you turn on decides which buttons appear on the game screen and which columns exist in the report — nothing else changes.',
+
+  statsGuideModelTitle: 'Two questions, not one',
+  statsGuideModelBody:
+    'The setup screen asks how much detail to attribute things to, and then, separately, which things to record. Keeping the two apart is what lets you take goals and assists for a whole tournament without ever putting the turnover button on the screen, or follow one team\u2019s lines without being asked who scored.',
+  statsGuideModelDetail: 'Detail — who gets named',
+  statsGuideModelDetailBody:
+    '"Score only" names nobody: a call or a stoppage is logged without saying whose it was. "By team" adds the question "which team?" to every call, travel and stoppage — no roster needed. "By player" adds a roster, so goals, assists, turnovers and injuries can name a person, for one team or for both.',
+  statsGuideModelFeatures: 'Features — what gets recorded',
+  statsGuideModelFeaturesBody:
+    'Turnovers, who scored, who turned it over and who played each point are four independent switches, each offered only where the detail above can answer it. Turn one off and everything derived from it disappears — including from the report, which never shows a column it has no data for.',
+  statsGuideModelCost: 'Choose by what you can keep up with',
+  statsGuideModelCostBody:
+    'Every switch costs taps while the disc is live. Turnovers is one tap each. "Ask who turned it over" adds a dialog to every one of them, which is a lot in a fast point. "Ask who scored" is one dialog per goal, in the gap where you have time anyway. Lines is one registration per point, between points. Whatever you skip in the moment can still be filled in afterwards from the log.',
+
+  statsGuideStep1Title: 'Choose what this game records',
+  statsGuideStep1Body:
+    'All of it lives in the Statistics section of the setup screen. Moving the detail retires anything it can no longer answer and restores it if you move it back, so nothing is lost by trying a setting out.',
+  statsGuideStep1Detail: 'Track',
+  statsGuideStep1DetailBody:
+    'Score only, By team or By player — the detail above. Everything else on this list hangs off it.',
+  statsGuideStep1Team: 'Players of',
+  statsGuideStep1TeamBody:
+    'Which roster gets named: one team, or both. Following a single team is what most scorekeepers do at a tournament, and it is the only setting that allows line tracking — two lines a point is more than anyone follows from a sideline.',
+  statsGuideStep1Turnovers: 'Turnovers',
+  statsGuideStep1TurnoversBody:
+    'Puts the Turn button on the game screen. With it come the possession bar under the score, the live statistics between the clocks and the buttons, and every turnover-derived figure in the report: clean holds, break chances, clean breaks and the possession ledger.',
+  statsGuideStep1TurnPlayers: 'Ask who turned it over',
+  statsGuideStep1TurnPlayersBody:
+    'Nested under Turnovers, and off by default. On, every Turn tap opens a dialog asking who lost the disc and who forced it. Off, the tap registers the turnover and gives the screen straight back — the count, the possession bar and every team figure still work exactly the same.',
+  statsGuideStep1Goals: 'Ask who scored',
+  statsGuideStep1GoalsBody:
+    'On, each goal opens a picker for the scorer and the assist. The goal signal is held back until you are done, so the dialog never covers the thing you are meant to be announcing.',
+  statsGuideStep1Lines: 'Track who plays each point',
+  statsGuideStep1LinesBody:
+    'Records the line that takes the field for each point. It also asks how many players a line is — that follows the format, sevens on grass and fives on beach — and whether to check the gender split: against the ratio the game is played to, against a fixed split, or not at all.',
+
+  statsGuideStep2Title: 'Type the roster once',
+  statsGuideStep2Body:
+    'Naming players needs a roster, and a roster is worth typing once per tournament: it is saved with the team, so the next game starts with it already filled in. You can also add players mid-game — an unfamiliar number on the field is never a dead end.',
+  statsGuideStep2Add: 'Number and name',
+  statsGuideStep2AddBody:
+    'Either half alone is a valid entry, which matters when all you can see from the sideline is a shirt number.',
+  statsGuideStep2Mark: 'MMP / FMP',
+  statsGuideStep2MarkBody:
+    'The small button on each row cycles unmarked → MMP → FMP. A marking is a fact about the player, so it is stored whether or not this game reads it and it rides the saved team into the next one. The line dialogs group the roster by it, and the split check counts it.',
+  statsGuideStep2Import: 'Import',
+  statsGuideStep2ImportBody:
+    'Paste the list the organiser already sent, or pick a plain text file. One player per line, in any shape a human writes — "12 John Doe", "John Doe #12", a bare name or a bare number — with a trailing MMP or FMP to mark them. Lines it cannot read are counted and skipped rather than refused, and nothing is applied until you have read the preview.',
+  statsGuideStep2Lines: 'Predefined lines',
+  statsGuideStep2LinesBody:
+    'Name the lines this team plays — O1, D1, Zone — and they are one tap away during the game, and here again next time. A predefined line is a pool rather than a seven, so it is checked against nothing: a squad of ten is a perfectly good answer. The check belongs to the line that actually takes the field.',
+
+  statsGuideStep3Title: 'Recording while the disc is live',
+  statsGuideStep3Body:
+    'What you switched on decides what is on this screen. None of it touches the score, the clock or the target — it writes to the log, and from there to the report.',
+  statsGuideTour1:
+    'The possession bar: a thin track between the panels and the buttons, filled on the side of whoever has the disc. Drawn only when turnovers are being recorded, and lit only while the disc is live.',
+  statsGuideTour2:
+    'The live statistics, in the slot the amber button uses when there is one. Three pages, cycled with the chevrons either side — see below.',
+  statsGuideTour3:
+    'Roster. With line tracking on it asks first whether you want the line or the roster itself.',
+  statsGuideTour4:
+    'Call. From By team upwards, every call, travel and technical stoppage asks which team it was for; an injury asks who was hurt.',
+  statsGuideTour5:
+    'Turn: one tap per turnover, with the badge counting them within the point. Press and hold to take the last one back. Watch the badge to know a tap landed: when the disc goes back to a team that has already had it this point, the possession bar returns to a side it has been on before and nothing else on screen moves.',
+
+  statsGuideGoalTitle: 'Who scored',
+  statsGuideGoalBody:
+    'Tap the panel as usual and the picker opens straight after, listing only the players registered on the point that has just finished — anyone a substitution took off is left out, since they cannot have gone on to score it. Save with nobody picked and the goal still counts; it just goes down unattributed.',
+  statsGuideGoalCallahan:
+    'The Callahan toggle replaces the assist picker rather than disabling it: the question has been answered, and by the rules the answer is "nobody". That is also how the report tells "nobody threw it" apart from "nobody typed it".',
+
+  statsGuideTurnTitle: 'Who turned it over',
+  statsGuideTurnBody:
+    'With "Ask who turned it over" on, each Turn tap asks two independent questions: who lost the disc — drop, bad pass, stall — and who forced it, with a block or a mark that ran the stall out. Either can be left blank; a clean D and an unforced drop are one-sided answers. Saving with nobody picked still records the turnover.',
+  statsGuideTurnWho:
+    'The defence is counted against the other roster, which is why a single turnover entry feeds both halves of the report\u2019s Possession view.',
+
+  statsGuideLineTitle: 'Who is on the field',
+  statsGuideLineBody:
+    'Between points a prompt appears above the clocks, and the same dialog sits behind the Roster button. Pick the line, or load a predefined one, and save. Nothing carries over a goal: the line changes nearly every point, so leaving the last one in force would quietly credit the wrong seven.',
+  statsGuideLineCheck:
+    'The size and the split are checked, and the check never refuses — an off-spec line warns in amber and saves on a second tap. Outside professional play a team cannot always field the ratio, so the warning is a note rather than a veto. Unmarked players are counted but never faulted: three unmarked of seven makes the split unknown, not wrong.',
+  statsGuideLineModes:
+    'The dialog holds two drafts at once, this point and the next, and saves whichever you touched. Registering the next line while the current point is still running is how you keep up when points run long.',
+  statsGuideLineSub:
+    'An injury asks who is changing, because it is the one stoppage that routinely changes a line mid-point — including for the other team, which WFDF gives a substitution of its own. Both halves of a swap stay on the point: a player who was replaced still played it, and still counts in every figure.',
+  statsGuideLineName:
+    'Save a selection under a name and it becomes a predefined line. Trimming a loaded line keeps its name; bringing in somebody it never held drops it, because those seven were not drawn from that line.',
+  statsGuideLineNarrow:
+    'A registered line is also what the pickers offer: scorer, assist, turnover and injury narrow to whoever was on. With no line registered they fall back to the whole roster, so skipping a line never leaves you unable to attribute anything.',
+
+  statsGuideFixTitle: 'Nothing has to be right the first time',
+  statsGuideFixBody:
+    'The log lists every entry in order, and the pencil on a row reopens its attribution: who scored, who assisted, who turned it over, which team called it. Corrections are not gated by what the game was set up to ask — attribute a turnover in a game that never asked and the report notices and grows the column. It corrects the log only: the score, the clock and possession stay exactly as they are.',
+
+  statsGuideStep4Title: 'The statistics during the game',
+  statsGuideStep4Body:
+    'They sit between the clocks and the action buttons while the disc is live, and give the slot up the moment something more urgent needs it — the amber advance button, or a call waiting to be resolved — so they can never push the score panels around. Portrait only: landscape has no height to spare. Without turnovers there is a single page of holds and breaks; with them, three.',
+  statsGuidePage1: 'Team figures',
+  statsGuidePage1Body:
+    'One row per team, in team colour, in the order the panels are laid out. Holds, Breaks, Break chances and Turnovers — the same four the report opens with, defined below.',
+  statsGuidePage2: 'Possession by point',
+  statsGuidePage2Body:
+    'One column per point, with the top team\u2019s share of the tracked possession time above the line and the other team\u2019s below. It scrolls, and it is the same chart the report draws.',
+  statsGuidePage3: 'Pace of this point',
+  statsGuidePage3Body:
+    'How long the current point has run, against the average of the points already played. The bar fills in the colour of whoever has the disc, the marker is that average, and a tick appears for each turnover at the moment in the point it happened.',
+
+  statsGuideStep5Title: 'The report — team figures',
+  statsGuideStep5Body:
+    'The table under the final score: one row per figure, one column per team. Most of the rows need turnovers to have been recorded; without them the table falls back to holds, breaks, the two averages and timeouts.',
+  statsGuideStatHold: 'O-line holds',
+  statsGuideStatHoldBody:
+    'Points won while receiving the pull — the points a team is expected to win.',
+  statsGuideStatCleanHold: 'Clean holds',
+  statsGuideStatCleanHoldBody:
+    'Of those, the ones where the disc never changed hands at all: zero turnovers by anybody, from the pull to the end zone.',
+  statsGuideStatBreakCh: 'Break chances',
+  statsGuideStatBreakChBody:
+    'How often this team won the disc while on defence — every odd-numbered turnover of a point they pulled, since a point starts in the offence\u2019s hands and every turnover after that alternates. Read it against Break points to get the conversion rate.',
+  statsGuideStatTurnovers: 'Turnovers',
+  statsGuideStatTurnoversBody: 'This team\u2019s own, all game, net of anything undone.',
+  statsGuideStatBreaks: 'Break points',
+  statsGuideStatBreaksBody: 'Points won while pulling.',
+  statsGuideStatCleanBreaks: 'Clean breaks',
+  statsGuideStatCleanBreaksBody:
+    'Of those, the ones converted on the first turnover with nothing given back — exactly one turnover in the whole point.',
+  statsGuideStatAvg: 'Avg. hold / break time',
+  statsGuideStatAvgBody:
+    'How long the points this team won took, split by whether they were receiving or pulling.',
+  statsGuideStatTimeouts: 'Timeouts used',
+  statsGuideStatTimeoutsBody:
+    'Both halves added together. A water break costs neither team one, so it never appears here.',
+
+  statsGuideLedgerTitle: 'Possession by point',
+  statsGuideLedgerBody:
+    'The whole run of the game in one strip: a column per point, the bar height each team\u2019s share of the possession time, the filled side whoever scored it, and the small amber dot whoever started it on offence. Dot and fill on opposite sides is a break.',
+
+  statsGuideStep6Title: 'The report — player stats',
+  statsGuideStep6Body:
+    'One row per player who did anything at all: scored, assisted, took the field, or lost the disc. The columns are three views behind pills rather than one table too wide for a phone, and a view is offered only where this game actually has the data for it — with only Scoring available the pills stay hidden.',
+  statsGuideViewScoring: 'Scoring',
+  statsGuideViewScoringBody:
+    'Assists, Goals, Total. Available in any game with a roster, whatever else is switched on.',
+  statsGuideViewPlaying: 'Playing — needs line tracking',
+  statsGuideViewPlayingBody:
+    'Points played, how many of them on offence (O) and on defence (D), and how many of those points their team won and lost. This is the "who was on for the good points" table, and what line tracking is for.',
+  statsGuideViewPossession: 'Possession — needs turnover attribution',
+  statsGuideViewPossessionBody:
+    'Turns — turnovers this player lost the disc on — and D, the turnovers they forced. It asks nothing about a line, so a game that never tracked one still gets this view; and because one entry counts a turn on one roster and a D on the other, the two columns are the same events read in opposite directions.',
+  statsGuideUnassigned: '"Not recorded"',
+  statsGuideUnassignedBody:
+    'The dimmed row under each team: the goals with no scorer, the goals with no assist and the points with no line registered. Naming a player is always optional, so without this row the columns would quietly fail to add up to the score. Its cells are dashes wherever the figure would be a player\u2019s, since the row stands for nobody in particular, and it is left out of the Possession view altogether \u2014 a turnover nobody was named on is nobody\u2019s turn and nobody\u2019s D.',
+  statsGuideFilter: 'The team filter',
+  statsGuideFilterBody:
+    'Appears only when both rosters are followed. Since line tracking follows a single team, the Playing view and the filter never share a screen.',
+
+  statsGuideStep7Title: 'Taking the numbers away',
+  statsGuideShare: 'Share',
+  statsGuideShareBody:
+    'The score, the team figures, the player table and the game summary, drawn as a picture for a team chat. The image carries every view\u2019s columns at once, grouped under Playing, Scoring and Possession headings — a picture cannot be tapped through, which is why the screen splits them into views at all.',
+  statsGuideCopy: 'Copy to clipboard',
+  statsGuideCopyBody:
+    'The archive: everything as plain text for a spreadsheet or an email, with every available view\u2019s columns on one line per player and the predefined lines each of them appeared in. Do it before you leave the screen.',
+  statsGuideFullLog: 'Full log',
+  statsGuideFullLogBody:
+    'The game summary leaves the turnovers and the calls out — in a tracked game they arrive by the dozen and bury the shape of the game. All of it is one tap away behind "Full log", with a copy button of its own.',
+  statsGuideHistory: 'Match History',
+  statsGuideHistoryBody:
+    'A game the scoreline finished is filed automatically, and opening it from Match History gives you this same report, exactly as it was on the day — the whole game is stored, not a summary of it. The last 50 are kept, on this device.',
+
+  statsGuideCheatTitle: 'What each figure counts',
+  statsGuideDefHold: 'Hold',
+  statsGuideDefHoldDo: 'Point won by the team that received the pull',
+  statsGuideDefBreak: 'Break',
+  statsGuideDefBreakDo: 'Point won by the team that pulled',
+  statsGuideDefCleanHold: 'Clean hold',
+  statsGuideDefCleanHoldDo: 'Hold with no turnover by anybody',
+  statsGuideDefCleanBreak: 'Clean break',
+  statsGuideDefCleanBreakDo: 'Break taken on the first turnover, with no reply',
+  statsGuideDefBreakCh: 'Break chance',
+  statsGuideDefBreakChDo: 'Every odd-numbered turnover of a point this team pulled',
+  statsGuideDefTurn: 'Turns',
+  statsGuideDefTurnDo: 'Turnovers charged to the player who lost the disc',
+  statsGuideDefD: 'D (Possession)',
+  statsGuideDefDDo: 'Turnovers this player forced — blocks, and marks that ran the stall out',
+  statsGuideDefOD: 'O / D (Playing)',
+  statsGuideDefODDo: 'Points played receiving the pull / pulling',
+
+  statsGuideFigSetupAlt: 'The Statistics section of the setup screen, with every switch on',
+  statsGuideFigRosterAlt:
+    'The Roster section of the setup screen, with players and predefined lines',
+  statsGuideFigDashboardAlt:
+    'The dashboard mid-point, with the possession bar and the live statistics',
+  statsGuideFigGoalAlt: 'The dialog asking who scored and who assisted',
+  statsGuideFigTurnoverAlt: 'The dialog asking who lost the disc and who forced the turnover',
+  statsGuideFigLineAlt: 'The line dialog, with the roster grouped by marking',
+  statsGuideFigLiveTeamAlt: 'The live statistics showing the team figures',
+  statsGuideFigLivePossessionAlt: 'The live statistics showing possession by point',
+  statsGuideFigLivePaceAlt: 'The live statistics showing the pace of the current point',
+  statsGuideFigReportTeamAlt: 'The report\u2019s team figures table',
+  statsGuideFigReportLedgerAlt: 'The report\u2019s possession-by-point chart',
+  statsGuideFigReportPlayersAlt: 'The report\u2019s player stats table, on the Playing view',
 
   guideFigSetupAlt: 'The top of the setup screen: template, division and team names',
   guideFigTossAlt: 'The coin toss and win conditions sections of the setup screen',

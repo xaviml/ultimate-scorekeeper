@@ -1,5 +1,5 @@
 import { useT } from '../i18n/useT';
-import { GuideIcon, HistoryIcon, InfoIcon } from './icons';
+import { GuideIcon, HistoryIcon, InfoIcon, StatsIcon } from './icons';
 import { MENU_ICON, MenuRow } from './MenuRow';
 import { Modal } from './Modal';
 
@@ -15,11 +15,18 @@ export function ConfigMenuDialog({
   onClose,
   onPastGames,
   onGuide,
+  onStatsGuide,
   onAbout,
 }: {
   onClose: () => void;
   onPastGames: () => void;
   onGuide: () => void;
+  /**
+   * The statistics walkthrough. Only here and not in the game's menu: it is read
+   * while deciding what to switch on and while reading the report afterwards, and
+   * the game menu's own guide row already answers the mid-game question.
+   */
+  onStatsGuide: () => void;
   onAbout: () => void;
 }) {
   const { t } = useT();
@@ -33,6 +40,12 @@ export function ConfigMenuDialog({
           onClick={onPastGames}
         />
         <MenuRow icon={<GuideIcon size={MENU_ICON} />} label={t('menuGuide')} onClick={onGuide} />
+        {/* Under the walkthrough, because it picks up where that one stops. */}
+        <MenuRow
+          icon={<StatsIcon size={MENU_ICON} />}
+          label={t('menuStatsGuide')}
+          onClick={onStatsGuide}
+        />
         <MenuRow icon={<InfoIcon size={MENU_ICON} />} label={t('aboutTitle')} onClick={onAbout} />
       </div>
     </Modal>

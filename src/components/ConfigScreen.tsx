@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useT, type Lang } from '../i18n/useT';
 import { defaultConfig, rosterTeams, statsTrackingEnabled } from '../state/gameReducer';
 import { useGame, useGameDispatch } from '../state/gameHooks';
@@ -36,6 +36,7 @@ import { ConfirmDeleteTemplateDialog } from './ConfirmDeleteTemplateDialog';
 import GuideScreen from './GuideScreen';
 import { MenuIcon } from './icons';
 import PastGamesScreen from './PastGamesScreen';
+import StatsGuideScreen from './StatsGuideScreen';
 import { PlayerRosterEditor } from './PlayerRosterEditor';
 import { SavedLinesEditor } from './SavedLinesEditor';
 import { RosterImportDialog } from './RosterImportDialog';
@@ -144,6 +145,14 @@ export default function ConfigScreen() {
           }
         : state.config,
   );
+  // This screen mounts fresh every time the phase becomes 'config' — from the
+  // report's top or bottom "New game" buttons, or from the dashboard's own
+  // "back to setup" before a game starts — and the page may still be scrolled
+  // from whichever screen led here. Landing anywhere but the top reads as a
+  // half-loaded form.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   const [savedTeams, setSavedTeams] = useState<SavedTeam[]>(() => loadSavedTeams());
   const [showAbout, setShowAbout] = useState(false);
   // The header menu, and the two full screens behind it. Both are rendered from
@@ -152,6 +161,7 @@ export default function ConfigScreen() {
   // comes back — which is also why neither is a phase in the reducer.
   const [showMenu, setShowMenu] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [showStatsGuide, setShowStatsGuide] = useState(false);
   const [showPastGames, setShowPastGames] = useState(false);
   // Collapsed by default; a fresh load/reload always starts collapsed regardless of what
   // was saved, since that saved value only means something relative to a just-finished
@@ -397,7 +407,13 @@ export default function ConfigScreen() {
   // should return here rather than exit the app. This "lands" (no stay()), so a
   // single press drops us straight back onto the setup form, leaving nothing on
   // the history stack behind it.
-  const resolveGuide = useBackGuard(showGuide, () => setShowGuide(false));
+  // One guard for both guides: they are opened from the same menu and only ever
+  // one at a time, so a second hook would just be a second window listener
+  // answering the first one's press.
+  const resolveGuide = useBackGuard(showGuide || showStatsGuide, () => {
+    setShowGuide(false);
+    setShowStatsGuide(false);
+  });
 
   // Closing via the guide's own button (not the gesture) has to drop the still-
   // pending history entry too, so the next back press doesn't hit a dead one.
@@ -406,6 +422,16 @@ export default function ConfigScreen() {
       <GuideScreen
         onBack={() => {
           setShowGuide(false);
+          resolveGuide();
+        }}
+      />
+    );
+
+  if (showStatsGuide)
+    return (
+      <StatsGuideScreen
+        onBack={() => {
+          setShowStatsGuide(false);
           resolveGuide();
         }}
       />
@@ -457,47 +483,37 @@ export default function ConfigScreen() {
 
   return (
     <div className="min-h-dvh bg-pitch text-chalk p-4 pb-10 max-w-2xl mx-auto space-y-4">
-      <header className="flex items-start justify-between pt-2">
+      {/* The language picker sits back beside the menu button now that the guide
+          chip is gone. It had been moved to a full-width row of its own precisely
+          because that chip needed the room — with one control left there is no row
+          to justify, and an all-but-empty one under the title read as a gap. */}
+      <header className="flex items-start justify-between gap-2 pt-2">
         <h1 className="font-board text-2xl font-bold">{t('appTitle')}</h1>
-        {/* The ⓘ that used to sit here opened one dialog and said so; the menu it
-            became holds that dialog plus the two things the setup screen had no
-            door to — the archive of past games, and the walkthrough (which also
-            keeps its link under the tagline, where a first-time volunteer finds
-            it without opening anything). Same control, same corner, as the game
-            screen's menu. */}
-        <button
-          type="button"
-          className="rounded-lg bg-panel border border-line w-8 h-8 text-chalk/70 flex-shrink-0 flex items-center justify-center"
-          aria-label={t('menuTitle')}
-          onClick={() => setShowMenu(true)}
-        >
-          <MenuIcon size="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <select
+            aria-label={t('language')}
+            className="rounded-lg bg-panel border border-line px-2 py-1"
+            value={lang}
+            onChange={(e) => setLang(e.target.value as Lang)}
+          >
+            <option value="en">EN</option>
+            <option value="es">ES</option>
+            <option value="ca">CA</option>
+          </select>
+          {/* The ⓘ that used to sit here opened one dialog and said so; the menu it
+              became holds that dialog plus the things the setup screen had no door
+              to — the archive of past games, and both guides. Same control, same
+              corner, as the game screen's menu. */}
+          <button
+            type="button"
+            className="rounded-lg bg-panel border border-line w-8 h-8 text-chalk/70 flex items-center justify-center"
+            aria-label={t('menuTitle')}
+            onClick={() => setShowMenu(true)}
+          >
+            <MenuIcon size="w-5 h-5" />
+          </button>
+        </div>
       </header>
-
-      {/* Full width of the page, not just the title's column — sharing a row with
-          the language select left too little room for the longer Spanish/Catalan
-          chip text and forced them onto separate lines even when the screen had
-          space for both. */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <button
-          type="button"
-          className="rounded-full border border-signal/40 text-signal text-xs px-3 py-1 whitespace-nowrap"
-          onClick={() => setShowGuide(true)}
-        >
-          {t('guideLink')}
-        </button>
-        <select
-          aria-label={t('language')}
-          className="rounded-lg bg-panel border border-line px-2 py-1 flex-shrink-0"
-          value={lang}
-          onChange={(e) => setLang(e.target.value as Lang)}
-        >
-          <option value="en">EN</option>
-          <option value="es">ES</option>
-          <option value="ca">CA</option>
-        </select>
-      </div>
 
       {showMenu && (
         <ConfigMenuDialog
@@ -509,6 +525,10 @@ export default function ConfigScreen() {
           onGuide={() => {
             setShowMenu(false);
             setShowGuide(true);
+          }}
+          onStatsGuide={() => {
+            setShowMenu(false);
+            setShowStatsGuide(true);
           }}
           onAbout={() => {
             setShowMenu(false);
