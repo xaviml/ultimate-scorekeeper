@@ -7,6 +7,7 @@ import {
   playerStatLines,
   pointDurationDetail,
   possessionTopShare,
+  possessionTotalSeconds,
   sortPlayerStatLines,
   stoppageDetail,
   teamStats,
@@ -311,6 +312,30 @@ describe('possessionTopShare', () => {
 
   it('stays null for a point that never tracked possession at all', () => {
     expect(possessionTopShare(point(), 'A')).toBeNull();
+  });
+});
+
+describe('possessionTotalSeconds', () => {
+  const point = (patch: Partial<PointRecord> = {}): PointRecord => ({
+    scoredBy: 'A',
+    offense: 'A',
+    isBreak: false,
+    durationSeconds: 30,
+    half: 1,
+    turnovers: 0,
+    ...patch,
+  });
+
+  it('adds the two teams’ tracked seconds', () => {
+    expect(possessionTotalSeconds(point({ possessionSeconds: { A: 30, B: 10 } }))).toBe(40);
+  });
+
+  it('is 0 for a point tracked but timed at nothing', () => {
+    expect(possessionTotalSeconds(point({ possessionSeconds: { A: 0, B: 0 } }))).toBe(0);
+  });
+
+  it('is null for a point that never tracked possession', () => {
+    expect(possessionTotalSeconds(point())).toBeNull();
   });
 });
 

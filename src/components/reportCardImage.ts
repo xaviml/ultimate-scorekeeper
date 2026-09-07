@@ -361,9 +361,9 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
   }
   y += statsH + GAP;
 
-  // Possession ledger — the same chart the dashboard and the report screen
-  // draw, in full: every column, the scorer's running score in the aligned
-  // bands above and below the bars, all in one neutral ink.
+  // Possession ledger — the report screen's chart, in full: every column, each
+  // heighted by the point's possession time (heightFrac), the scorer's running
+  // score in the aligned bands above and below the bars, all in one neutral ink.
   if (model.ledger) {
     panelBox(ctx, PAD, y, panelWidth, ledgerH);
     let lY = y + PANEL_PAD;
@@ -390,8 +390,10 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
       const x = left + i * (LEDGER_COL_W + LEDGER_GAP);
       const { topColor, bottomColor } = model.ledger as NonNullable<typeof model.ledger>;
       if (column.topShare !== null) {
-        const topH = heightFor(column.topShare);
-        const bottomH = heightFor(1 - column.topShare);
+        // Height by the point's possession time (heightFrac), split by share —
+        // the report's absolute sizing, not the dashboard's fill-the-column one.
+        const topH = heightFor(column.topShare * column.heightFrac);
+        const bottomH = heightFor((1 - column.topShare) * column.heightFrac);
         const bar = (h: number, color: string, filled: boolean, top: boolean) => {
           if (h <= 0) return;
           const barY = top ? lineY - h : lineY + 1;

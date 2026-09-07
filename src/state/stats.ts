@@ -93,6 +93,21 @@ export function possessionTopShare(point: PointRecord, topTeam: TeamId): number 
   return point.offense === topTeam ? offenseShare : 1 - offenseShare;
 }
 
+/**
+ * The two teams' tracked possession seconds for a point, added — the real time
+ * the point took as far as the possession clock saw it (halted play is credited
+ * to neither team, so this can trail `durationSeconds`). Drives the *report's*
+ * ledger, where a column's height is that duration so points compare by length,
+ * rather than the live slot's fixed-height ratio bar. Null on a legacy point
+ * that tracked nothing, matching `possessionTopShare`; 0 for a goal tapped in
+ * before a second accrued.
+ */
+export function possessionTotalSeconds(point: PointRecord): number | null {
+  const seconds = point.possessionSeconds;
+  if (!seconds) return null;
+  return seconds.A + seconds.B;
+}
+
 export interface PlayerStatLine {
   team: TeamId;
   /** Empty on the aggregate line, which stands for no one in particular. */

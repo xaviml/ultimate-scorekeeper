@@ -606,7 +606,7 @@ export const en = {
   // The possession ledger, reused from the live-stats slot (see PossessionLedger).
   possessionTitle: 'Possession by point',
   possessionLegend:
-    "{top} above the line, {bottom} below. Bar height is each team's share of possession; the filled side scored the point, and the small amber dot marks who started it on offence — dot and score on opposite sides is a break.",
+    "{top} above the line, {bottom} below. A column's height is how long the point took to play — the tallest is the longest point of the game — split between the teams by their share of possession; the filled side scored the point, and the small amber dot marks who started it on offence, so dot and score on opposite sides is a break.",
   playerStatsTitle: 'Player stats',
   filterAllTeams: 'All',
   colPlayer: 'Player',
@@ -1048,7 +1048,7 @@ export const en = {
     'One row per team, in team colour, in the order the panels are laid out. Holds, Breaks, Break chances and Turnovers — the same four the report opens with, defined below.',
   statsGuidePage2: 'Possession by point',
   statsGuidePage2Body:
-    'One column per point, with the top team\u2019s share of the tracked possession time above the line and the other team\u2019s below. It scrolls, and it is the same chart the report draws.',
+    'One column per point, with the top team\u2019s share of the tracked possession time above the line and the other team\u2019s below. Every column is the same height here, so it reads as a pure split; the report draws the same chart but heights each column by how long the point took. It scrolls.',
   statsGuidePage3: 'Pace of this point',
   statsGuidePage3Body:
     'How long the current point has run, against the average of the points already played. The bar fills in the colour of whoever has the disc, the marker is that average, and a tick appears for each turnover at the moment in the point it happened.',
@@ -1081,7 +1081,7 @@ export const en = {
 
   statsGuideLedgerTitle: 'Possession by point',
   statsGuideLedgerBody:
-    'The whole run of the game in one strip: a column per point, the bar height each team\u2019s share of the possession time, the filled side whoever scored it, and the small amber dot whoever started it on offence. Dot and fill on opposite sides is a break.',
+    'The whole run of the game in one strip: a column per point, its height how long the point took (the tallest is the longest point) split between the teams by their share of the possession time, the filled side whoever scored it, and the small amber dot whoever started it on offence. Dot and fill on opposite sides is a break.',
 
   statsGuideStep6Title: 'The report — player stats',
   statsGuideStep6Body:

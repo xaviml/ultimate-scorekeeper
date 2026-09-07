@@ -568,7 +568,7 @@ export const es: typeof en = {
   // El gráfico de posesión, reutilizado del hueco de estadísticas en directo.
   possessionTitle: 'Posesión por punto',
   possessionLegend:
-    '{top} sobre la línea, {bottom} debajo. La altura de la barra es la parte de posesión de cada equipo; el lado relleno marcó el punto, y el puntito ámbar señala quién lo empezó en ataque — punto y marcador en lados opuestos es un break.',
+    '{top} sobre la línea, {bottom} debajo. La altura de la columna es lo que duró el punto —la más alta es el punto más largo del partido— repartida entre los equipos según su parte de posesión; el lado relleno marcó el punto, y el puntito ámbar señala quién lo empezó en ataque, así que punto y marcador en lados opuestos es un break.',
   playerStatsTitle: 'Estadísticas de jugadores',
   filterAllTeams: 'Todos',
   colPlayer: 'Jugador',
@@ -986,7 +986,7 @@ export const es: typeof en = {
     'Una fila por equipo, en su color, en el mismo orden que los paneles. Holds, Breaks, Oportunidades de break y Pérdidas — las mismas cuatro con las que abre el informe, definidas más abajo.',
   statsGuidePage2: 'Posesión por punto',
   statsGuidePage2Body:
-    'Una columna por punto, con la parte de posesión del equipo de arriba por encima de la línea y la del otro por debajo. Se desplaza, y es el mismo gráfico que dibuja el informe.',
+    'Una columna por punto, con la parte de posesión del equipo de arriba por encima de la línea y la del otro por debajo. Aquí todas las columnas tienen la misma altura, así que se lee como un reparto puro; el informe dibuja el mismo gráfico pero da a cada columna una altura según lo que duró el punto. Se desplaza.',
   statsGuidePage3: 'Ritmo de este punto',
   statsGuidePage3Body:
     'Cuánto lleva el punto actual, comparado con la media de los ya jugados. La barra se rellena del color de quien tiene el disco, la marca es esa media, y aparece una muesca por cada pérdida en el momento del punto en que ocurrió.',
@@ -1020,7 +1020,7 @@ export const es: typeof en = {
 
   statsGuideLedgerTitle: 'Posesión por punto',
   statsGuideLedgerBody:
-    'Todo el partido en una franja: una columna por punto, la altura de la barra es la parte de posesión de cada equipo, el lado relleno es quien anotó, y el punto ámbar quien empezó atacando. Punto y relleno en lados opuestos es un break.',
+    'Todo el partido en una franja: una columna por punto, su altura es lo que duró el punto (la más alta es el punto más largo) repartida entre los equipos según su parte del tiempo de posesión, el lado relleno es quien anotó, y el punto ámbar quien empezó atacando. Punto y relleno en lados opuestos es un break.',
 
   statsGuideStep6Title: 'El informe — estadísticas de jugador',
   statsGuideStep6Body:

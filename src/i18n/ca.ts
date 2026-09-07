@@ -564,7 +564,7 @@ export const ca: typeof en = {
   // El gràfic de possessió, reutilitzat del buit d'estadístiques en directe.
   possessionTitle: 'Possessió per punt',
   possessionLegend:
-    "{top} sobre la línia, {bottom} a sota. L'alçada de la barra és la part de possessió de cada equip; el costat ple va marcar el punt, i el puntet ambre assenyala qui el va començar en atac — puntet i marcador en costats oposats és un break.",
+    "{top} sobre la línia, {bottom} a sota. L'alçada de la columna és el que va durar el punt —la més alta és el punt més llarg del partit— repartida entre els equips segons la seva part de possessió; el costat ple va marcar el punt, i el puntet ambre assenyala qui el va començar en atac, així que puntet i marcador en costats oposats és un break.",
   playerStatsTitle: 'Estadístiques de jugadors',
   filterAllTeams: 'Tots',
   colPlayer: 'Jugador',
@@ -984,7 +984,7 @@ export const ca: typeof en = {
     "Una fila per equip, en el seu color, en el mateix ordre que els panells. Holds, Breaks, Oportunitats de break i Pèrdues — les mateixes quatre amb què obre l'informe, definides més avall.",
   statsGuidePage2: 'Possessió per punt',
   statsGuidePage2Body:
-    "Una columna per punt, amb la part de possessió de l'equip de dalt per sobre de la línia i la de l'altre per sota. Es desplaça, i és el mateix gràfic que dibuixa l'informe.",
+    "Una columna per punt, amb la part de possessió de l'equip de dalt per sobre de la línia i la de l'altre per sota. Aquí totes les columnes tenen la mateixa alçada, així que es llegeix com un repartiment pur; l'informe dibuixa el mateix gràfic però dona a cada columna una alçada segons el que va durar el punt. Es desplaça.",
   statsGuidePage3: 'Ritme d\u2019aquest punt',
   statsGuidePage3Body:
     'Quant fa que dura el punt actual, comparat amb la mitjana dels ja jugats. La barra s\u2019omple del color de qui té el disc, la marca és aquesta mitjana, i apareix una osca per cada pèrdua al moment del punt en què va passar.',
@@ -1018,7 +1018,7 @@ export const ca: typeof en = {
 
   statsGuideLedgerTitle: 'Possessió per punt',
   statsGuideLedgerBody:
-    'Tot el partit en una franja: una columna per punt, l\u2019alçada de la barra és la part de possessió de cada equip, el costat ple és qui va anotar, i el punt ambre qui va començar atacant. Punt i ple en costats oposats és un break.',
+    'Tot el partit en una franja: una columna per punt, la seva alçada és el que va durar el punt (la més alta és el punt més llarg) repartida entre els equips segons la seva part del temps de possessió, el costat ple és qui va anotar, i el punt ambre qui va començar atacant. Punt i ple en costats oposats és un break.',
 
   statsGuideStep6Title: 'L\u2019informe — estadístiques de jugador',
   statsGuideStep6Body:

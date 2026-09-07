@@ -318,7 +318,8 @@ export default function ReportScreen({
             points={state.points}
             topTeam={ledgerTop}
             colors={{ A: state.config.teams.A.color, B: state.config.teams.B.color }}
-            chartHeight={72}
+            chartHeight={100}
+            absolute
           />
           <p className="text-xs text-chalk/50 mt-2">
             {t('possessionLegend', { top: nameOf(ledgerTop), bottom: nameOf(ledgerBottom) })}

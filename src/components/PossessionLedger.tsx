@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { possessionTopShare } from '../state/stats';
+import { possessionTopShare, possessionTotalSeconds } from '../state/stats';
 import type { PointRecord, TeamId } from '../state/types';
 
 /** Column geometry — shared with the score-label maths below. */
@@ -16,9 +16,13 @@ const DOT_ZONE = 4;
 /**
  * The possession ledger: one column per point on a centre line, the top team's
  * share of tracked possession above it and the other team's below, the scorer
- * filled and the loser hollow. A full half means 100% of the point's possession,
- * so the two halves of a column always total the same height and a column reads
- * as a ratio, never a duration.
+ * filled and the loser hollow.
+ *
+ * Two sizings. By default (the live-stats slot) every column fills the same
+ * height, so a column reads as a pure ratio — the two halves always total the
+ * same. With `absolute` (the report) a column's height is instead the point's
+ * possession time as a fraction of the longest point's, so the strip compares
+ * points by how long they took; the halves still split that height by share.
  *
  * Each finished column carries the scoring team's running score, outside the
  * bars in a fixed band — along the top edge when the top team scored, along the
@@ -42,6 +46,7 @@ export function PossessionLedger({
   colors,
   chartHeight = 56,
   scrollToEnd = false,
+  absolute = false,
 }: {
   points: PointRecord[];
   /** Live counters of the point in progress (the dashed column), or null once the game is over. */
@@ -55,6 +60,8 @@ export function PossessionLedger({
   chartHeight?: number;
   /** Keep the newest column in view — the slot passes true, the report reads left to right. */
   scrollToEnd?: boolean;
+  /** Height a column by the point's possession time rather than filling it — the report only. */
+  absolute?: boolean;
 }) {
   const bottomTeam: TeamId = topTeam === 'A' ? 'B' : 'A';
   const lineY = Math.floor(chartHeight / 2);
@@ -70,6 +77,8 @@ export function PossessionLedger({
   const scores: Record<TeamId, number> = { A: 0, B: 0 };
   const columns: {
     topShare: number | null;
+    /** Tracked possession seconds this point (both teams), or null on a legacy point. */
+    totalSeconds: number | null;
     scoredBy?: TeamId;
     offense?: TeamId;
     score: string;
@@ -80,6 +89,7 @@ export function PossessionLedger({
       // accrued falls back to possession counting (see possessionTopShare),
       // so the column still gets its bar instead of reading as a bug.
       topShare: possessionTopShare(p, topTeam),
+      totalSeconds: possessionTotalSeconds(p),
       scoredBy: p.scoredBy,
       offense: p.offense,
       score: String(scores[p.scoredBy]),
@@ -89,10 +99,15 @@ export function PossessionLedger({
     const total = current.A + current.B;
     columns.push({
       topShare: total > 0 ? current[topTeam] / total : null,
+      totalSeconds: total,
       offense: currentOffense ?? undefined,
       score: '',
     });
   }
+
+  // Absolute mode scales every column against the longest point; relative mode
+  // (the default) leaves each column filling its full height.
+  const maxTotalSeconds = absolute ? Math.max(1, ...columns.map((c) => c.totalSeconds ?? 0)) : 1;
 
   return (
     <div
@@ -115,10 +130,17 @@ export function PossessionLedger({
           const stub = inProgress && c.topShare === null;
           const topShare = stub ? 0.35 : (c.topShare ?? 0);
           const bottomShare = stub ? 0.35 : c.topShare !== null ? 1 - c.topShare : 0;
+          // In absolute mode the point's possession time scales the whole
+          // column down from full; a tracked point with no seconds keeps a
+          // sliver (1e-3) so it still shows rather than vanishing.
+          const durScale =
+            absolute && !stub && c.totalSeconds !== null
+              ? Math.max(c.totalSeconds / maxTotalSeconds, 1e-3)
+              : 1;
           const heightFor = (share: number) =>
             share <= 0 ? 0 : Math.max(4, Math.round(share * half)); // nothing, not a 1px sliver
-          const topH = flat ? 0 : heightFor(topShare);
-          const bottomH = flat ? 0 : heightFor(bottomShare);
+          const topH = flat ? 0 : heightFor(topShare * durScale);
+          const bottomH = flat ? 0 : heightFor(bottomShare * durScale);
           const barStyle = (team: TeamId, h: number, top: boolean): React.CSSProperties => {
             const style: React.CSSProperties = { height: h };
             if (top) style.bottom = chartHeight - lineY;

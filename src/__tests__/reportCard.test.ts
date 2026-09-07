@@ -236,10 +236,12 @@ describe('reportCardModel', () => {
     // All three points opened with A on offence (the point() factory default),
     // so the amber offence dot sits top on every column — making the second
     // one, scored by B, read as the break it was.
+    // Point one (40 tracked seconds) is the longest, so its column fills the
+    // strip; point two (20s) is half as tall; the legacy point draws flat.
     expect(ledger?.columns).toEqual([
-      { topShare: 0.75, topScored: true, topOffense: true, score: '1' },
-      { topShare: 0.25, topScored: false, topOffense: true, score: '1' },
-      { topShare: null, topScored: true, topOffense: true, score: '2' },
+      { topShare: 0.75, heightFrac: 1, topScored: true, topOffense: true, score: '1' },
+      { topShare: 0.25, heightFrac: 0.5, topScored: false, topOffense: true, score: '1' },
+      { topShare: null, heightFrac: 1, topScored: true, topOffense: true, score: '2' },
     ]);
 
     // statsMode 'none' never tracked possession, so there is no strip to draw.

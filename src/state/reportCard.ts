@@ -23,6 +23,7 @@ import {
   logRow,
   playerStatLines,
   possessionTopShare,
+  possessionTotalSeconds,
   reportLogEntries,
   sortPlayerStatLines,
   teamStats,
@@ -53,6 +54,12 @@ export interface CardPlayerRow {
 export interface CardLedgerColumn {
   /** Top team's share of the point's tracked possession, or null when none was recorded (drawn flat). */
   topShare: number | null;
+  /**
+   * The point's possession time as a fraction of the longest point's, so the
+   * report's strip compares points by length. 1 for the longest, a sliver
+   * (1e-3) for a tracked point that timed none, unused for a flat column.
+   */
+  heightFrac: number;
   /** Whether the top team scored the point — the filled side of the column. */
   topScored: boolean;
   /** Whether the top team started the point on offence — the side the amber dot sits on. */
@@ -174,10 +181,11 @@ export function teamStatRows(state: GameState, t: TFunc): StatRow[] {
 }
 
 /**
- * The card's possession ledger, mirroring the on-screen PossessionLedger: the
- * board's fixed left team (startingSide) on top, one column per point, the
- * scorer's running score as its label. Null when no point tracked possession —
- * a strip of flat columns says nothing the score boxes don't.
+ * The card's possession ledger, mirroring the on-screen report PossessionLedger:
+ * the board's fixed left team (startingSide) on top, one column per point, its
+ * height the point's possession time against the longest point's, the scorer's
+ * running score as its label. Null when no point tracked possession — a strip of
+ * flat columns says nothing the score boxes don't.
  */
 function ledgerModel(state: GameState, t: TFunc): CardLedgerModel | null {
   if (!turnoversTracked(state.config)) return null;
@@ -187,14 +195,17 @@ function ledgerModel(state: GameState, t: TFunc): CardLedgerModel | null {
   const top: TeamId = state.config.startingSide;
   const bottom: TeamId = top === 'A' ? 'B' : 'A';
   const scores: Record<TeamId, number> = { A: 0, B: 0 };
+  const maxTotal = Math.max(1, ...state.points.map((p) => possessionTotalSeconds(p) ?? 0));
   return {
     title: t('possessionTitle'),
     topColor: state.config.teams[top].color,
     bottomColor: state.config.teams[bottom].color,
     columns: state.points.map((p) => {
       scores[p.scoredBy] += 1;
+      const total = possessionTotalSeconds(p);
       return {
         topShare: possessionTopShare(p, top),
+        heightFrac: total === null ? 1 : Math.max(total / maxTotal, 1e-3),
         topScored: p.scoredBy === top,
         topOffense: p.offense === top,
         score: String(scores[p.scoredBy]),
