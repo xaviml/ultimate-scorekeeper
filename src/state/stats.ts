@@ -55,14 +55,22 @@ export function teamStats(state: GameState, team: TeamId): TeamStats {
  * Includes the point still in progress (via `pointTurnovers`/`pullingTeam`)
  * so a break chance earned right before a mid-point END_GAME isn't lost —
  * `pointTurnovers` is 0 whenever there's no such point (e.g. right after a
- * goal, or once the game has finished cleanly), so the term is a no-op then.
+ * goal), so the term is a no-op then. The one exception is the goal that
+ * *wins* the game: `finishGame` returns before that reset runs, so
+ * `pointTurnovers`/`pullingTeam` are left holding the just-finished point's
+ * values — which `fromFinishedPoints` has already counted via `state.points`.
+ * Adding the current-point term on top of that would double it, so it is
+ * skipped once the game is `finished`.
  */
 function breakChances(state: GameState, team: TeamId): number {
   const other: TeamId = team === 'A' ? 'B' : 'A';
   const fromFinishedPoints = state.points
     .filter((p) => p.offense === other) // team was pulling (defense) that point
     .reduce((sum, p) => sum + Math.ceil(p.turnovers / 2), 0);
-  const fromCurrentPoint = state.pullingTeam === team ? Math.ceil(state.pointTurnovers / 2) : 0;
+  const fromCurrentPoint =
+    state.status !== 'finished' && state.pullingTeam === team
+      ? Math.ceil(state.pointTurnovers / 2)
+      : 0;
   return fromFinishedPoints + fromCurrentPoint;
 }
 

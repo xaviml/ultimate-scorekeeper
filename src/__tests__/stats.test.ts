@@ -136,6 +136,23 @@ describe('teamStats', () => {
       timeoutsUsed: 0,
     });
   });
+
+  // Regression: the game-winning goal returns via finishGame() before
+  // pointTurnovers/pullingTeam are reset for a next point that will never be
+  // played, so they were left holding the just-finished point's values. Since
+  // that point is already counted through state.points, breakChances used to
+  // double-count its break chance whenever the winning point had a turnover.
+  it('does not double-count the break chance on the game-winning point', () => {
+    let s = liveGame(cfg({ targetScore: 1 })); // A offense, B pulling
+    s = run(
+      s,
+      { type: 'TURNOVER' }, // A loses it: one break chance for B
+      { type: 'GOAL', team: 'B' }, // B converts, wins the game
+    );
+    expect(s.status).toBe('finished');
+    expect(teamStats(s, 'B').breakChances).toBe(1);
+    expect(teamStats(s, 'A').breakChances).toBe(0);
+  });
 });
 
 describe('playerStatLines', () => {
