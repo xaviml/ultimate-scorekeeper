@@ -52,6 +52,7 @@ export const defaultConfig: GameConfig = {
   trackTurnovers: false,
   trackGoalPlayers: true,
   trackTurnoverPlayers: false,
+  trackPasses: false,
   // Tracking itself is off by default, so a game set up the way it always has been
   // is untouched. The gender check, once turned on, defaults to following the ratio
   // this default config is already set to play (mixed, Rule A — see
@@ -120,6 +121,20 @@ export function turnoverPlayersTracked(config: GameConfig): boolean {
     config.trackTurnoverPlayers &&
     (playerTrackingFor(config, 'A') || playerTrackingFor(config, 'B'))
   );
+}
+
+/**
+ * Whether this game counts completed passes — the Pass button, its badge, the
+ * Passes column in the live stats grid and the Passes row in the report.
+ *
+ * Nested under turnovers rather than sitting beside them, and not for tidiness: a
+ * pass is credited to whoever is holding the disc, and `possessionTeam` only
+ * changes hands when the Turn button exists. Without turnovers every pass in a
+ * point would be credited to the team that received the pull, which for a followed
+ * team would mean recording their O-points and silently dropping their D-points.
+ */
+export function passesTracked(config: GameConfig): boolean {
+  return turnoversTracked(config) && config.trackPasses;
 }
 
 const other = (t: TeamId): TeamId => (t === 'A' ? 'B' : 'A');
@@ -253,8 +268,10 @@ export function createInitialState(config: GameConfig = defaultConfig): GameStat
     offenseTeam: config.startingOffense,
     possessionTeam: null,
     pointTurnovers: 0,
+    pointPasses: { A: 0, B: 0 },
     possessionSeconds: { A: 0, B: 0 },
     turnoversCommitted: { A: 0, B: 0 },
+    passesCompleted: { A: 0, B: 0 },
     gameSeconds: 0,
     startingAtMs: null,
     pointStartSeconds: null,
@@ -334,6 +351,82 @@ export function canUndoTurnover(state: GameState): { ok: boolean; reason?: strin
   const base = canTurnover(state);
   if (!base.ok) return base;
   if (state.pointTurnovers === 0) return { ok: false, reason: 'noTurnoverToUndo' };
+  return { ok: true };
+}
+
+/**
+ * Which team a pass tapped right now would be credited to, or null if none would.
+ *
+ * It is simply whoever holds the disc — with one narrowing: a game following a
+ * single team (`trackedTeam`) counts only that team's passes, so the button is
+ * dead while the other side has it. That is what lets the report show the followed
+ * team a real number and the other one a dash, rather than a total that is honest
+ * for one team and a silent undercount for the other. With no team followed
+ * (`teams` mode, or `players` mode watching both) either side counts.
+ */
+export function passTeam(state: GameState): TeamId | null {
+  if (!passesTracked(state.config)) return null;
+  const holder = state.possessionTeam;
+  if (holder === null) return null;
+  const followed = state.config.trackedTeam;
+  if (followed !== null && followed !== holder) return null;
+  return holder;
+}
+
+/**
+ * This team's lifetime pass count, or null when this game counts no passes for
+ * them — either passes are off entirely, or a single team is followed and it is
+ * not this one. Null and 0 say opposite things and both consumers need the
+ * distinction: 0 is "we were counting and they completed none", null is "nobody
+ * was counting this side", which renders as "—".
+ *
+ * It lives here rather than in `teamStats` so the live stats grid and the report's
+ * Passes row read one rule and cannot drift — the same reason `teamStatRows` is
+ * shared with the on-screen table. (`stats.ts` cannot own it: `gameReducer` already
+ * imports from `stats`, and reaching back the other way for the gate would make the
+ * first import cycle in `src/state`.)
+ *
+ * Unlike `breakChances` this is the plain lifetime counter rather than something
+ * re-derived from `points`, so the point in progress is already in it and there is
+ * no finished-game double count to sidestep.
+ */
+export function passesFor(state: GameState, team: TeamId): number | null {
+  if (!passesTracked(state.config)) return null;
+  const followed = state.config.trackedTeam;
+  if (followed !== null && followed !== team) return null;
+  return state.passesCompleted[team];
+}
+
+/**
+ * May a pass be recorded right now? The disc has to be genuinely in play, which is
+ * exactly the window a turnover needs, plus a team to credit it to (see `passTeam`).
+ */
+export function canPass(state: GameState): { ok: boolean; reason?: string } {
+  const base = canTurnover(state);
+  if (!base.ok) return base;
+  if (!passesTracked(state.config)) return { ok: false, reason: 'passesNotTracked' };
+  if (passTeam(state) === null) return { ok: false, reason: 'passesOtherTeam' };
+  return { ok: true };
+}
+
+/**
+ * May the last pass be taken back (long-press on Pass)? Same window as recording
+ * one, plus something to take back — and specifically something belonging to the
+ * team holding the disc now.
+ *
+ * A pass never changes possession, so the last pass of a point is the current
+ * holder's, right up until a turnover: after one, the preceding pass belongs to the
+ * team that just gave the disc away. This deliberately refuses there rather than
+ * reaching back across the turnover. A mis-tap is corrected on the spot, before
+ * anything else happens; guessing once the disc has changed hands would mean
+ * silently taking a pass off a team that really threw it, which is worse than
+ * saying no — the same argument as canUndoTurnover refusing on a point with none.
+ */
+export function canUndoPass(state: GameState): { ok: boolean; reason?: string } {
+  const base = canPass(state);
+  if (!base.ok) return base;
+  const team = passTeam(state);
+  if (team === null || state.pointPasses[team] === 0) return { ok: false, reason: 'noPassToUndo' };
   return { ok: true };
 }
 
@@ -756,6 +849,7 @@ function snapshot(state: GameState): GoalSnapshot {
     offenseTeam: state.offenseTeam,
     possessionTeam: state.possessionTeam,
     pointTurnovers: state.pointTurnovers,
+    pointPasses: { ...state.pointPasses },
     possessionSeconds: { ...state.possessionSeconds },
     status: state.status,
     half: state.half,
@@ -1037,6 +1131,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         // The receiving team catches the pull, so the point opens with them on offense.
         possessionTeam: s.offenseTeam,
         pointTurnovers: 0,
+        pointPasses: { A: 0, B: 0 },
         possessionSeconds: { A: 0, B: 0 },
         secondary: null,
         ratio: s.nextRatio ?? s.ratio,
@@ -1069,6 +1164,10 @@ export function gameReducer(state: GameState, action: Action): GameState {
             durationSeconds: duration,
             half: s.half,
             turnovers: s.pointTurnovers,
+            // Absent unless this game counts passes, for the same reason
+            // possessionSeconds below is: a zeroed pair on a point that never
+            // counted them reads as a point in which nobody threw one.
+            ...(passesTracked(s.config) ? { passes: { ...s.pointPasses } } : {}),
             // The same gate TICK credits these seconds under: without turnovers the
             // disc never changes hands, so the pair is left absent rather than
             // recorded as a zeroed pair that the report would have to second-guess.
@@ -1220,6 +1319,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         offenseTeam: other(team),
         possessionTeam: null, // disc is dead until the next pull is caught
         pointTurnovers: 0,
+        pointPasses: { A: 0, B: 0 },
         possessionSeconds: { A: 0, B: 0 },
         pointStartSeconds: null,
         nextRatio,
@@ -1312,6 +1412,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         offenseTeam: prev.offenseTeam,
         possessionTeam: prev.possessionTeam,
         pointTurnovers: prev.pointTurnovers,
+        pointPasses: { ...prev.pointPasses },
         possessionSeconds: { ...prev.possessionSeconds },
         half: prev.half,
         // A goal appends exactly one point, so dropping the last entry rewinds it.
@@ -1509,6 +1610,33 @@ export function gameReducer(state: GameState, action: Action): GameState {
         pointTurnovers: s.pointTurnovers - 1,
         turnoversCommitted: { ...s.turnoversCommitted, [back]: s.turnoversCommitted[back] - 1 },
         assist: 'turnoverUndone',
+      };
+    }
+
+    case 'PASS': {
+      // The quietest action in the reducer: two counters and nothing else. No log
+      // entry (passes arrive by the dozen and would bury the log), no call-out and
+      // no signal — so `assist` is deliberately left alone rather than set to a
+      // key absent from SAY the way 'turnover' is. Possession does not move: the
+      // pass completed, which is precisely why it is not a turnover.
+      const team = passTeam(state);
+      if (!canPass(state).ok || team === null) return state;
+      return {
+        ...state,
+        pointPasses: { ...state.pointPasses, [team]: state.pointPasses[team] + 1 },
+        passesCompleted: { ...state.passesCompleted, [team]: state.passesCompleted[team] + 1 },
+      };
+    }
+
+    case 'UNDO_PASS': {
+      // Symmetric with PASS and, unlike UNDO_TURNOVER, with no log entry to either
+      // withdraw or correct — there was never one to begin with.
+      const team = passTeam(state);
+      if (!canUndoPass(state).ok || team === null) return state;
+      return {
+        ...state,
+        pointPasses: { ...state.pointPasses, [team]: state.pointPasses[team] - 1 },
+        passesCompleted: { ...state.passesCompleted, [team]: state.passesCompleted[team] - 1 },
       };
     }
 

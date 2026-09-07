@@ -15,7 +15,13 @@
  * it always was, in the copied plain text and the full-log dialog.
  */
 import type { Lang, TFunc } from '../i18n/useT';
-import { rosterTeams, turnoverPlayersTracked, turnoversTracked } from './gameReducer';
+import {
+  passesFor,
+  passesTracked,
+  rosterTeams,
+  turnoverPlayersTracked,
+  turnoversTracked,
+} from './gameReducer';
 import { playerStatColumns, statCellText } from '../components/playerStatColumns';
 import { lineTrackingEnabled } from './lines';
 import {
@@ -156,12 +162,18 @@ export function playerStatsTeams(config: GameConfig): TeamId[] {
  * The paired team-stat rows, in report order. The extended rows are all derived
  * from turnovers, so they only exist once turnovers are recorded — without them
  * "clean" holds and breaks would be indistinguishable from plain ones.
+ *
+ * Passes sit directly after Turnovers, the figure they are the counterpart of, and
+ * are the one row that can be a real number on one side and a dash on the other:
+ * a game following a single team counts only that team's (see `passesFor`).
  */
 export function teamStatRows(state: GameState, t: TFunc): StatRow[] {
   const A = teamStats(state, 'A');
   const B = teamStats(state, 'B');
   const tracking = turnoversTracked(state.config);
+  const passing = passesTracked(state.config);
   const clock = (s: number | null) => (s === null ? '—' : formatClock(s));
+  const count = (n: number | null) => (n === null ? '—' : n);
   const row = (label: string, a: string | number, b: string | number): StatRow => ({
     label,
     a: String(a),
@@ -172,6 +184,9 @@ export function teamStatRows(state: GameState, t: TFunc): StatRow[] {
     ...(tracking ? [row(t('statCleanHold'), A.cleanHolds, B.cleanHolds)] : []),
     ...(tracking ? [row(t('statBreakChances'), A.breakChances, B.breakChances)] : []),
     ...(tracking ? [row(t('statTurnovers'), A.turnovers, B.turnovers)] : []),
+    ...(passing
+      ? [row(t('statPasses'), count(passesFor(state, 'A')), count(passesFor(state, 'B')))]
+      : []),
     row(t('statBreaks'), A.breaks, B.breaks),
     ...(tracking ? [row(t('statCleanBreaks'), A.cleanBreaks, B.cleanBreaks)] : []),
     row(t('statAvgHold'), clock(A.avgHoldSeconds), clock(B.avgHoldSeconds)),

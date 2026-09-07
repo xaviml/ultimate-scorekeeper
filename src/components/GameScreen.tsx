@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import {
+  canPass,
   canRecordEvent,
   canScore,
   canStoppage,
   canTurnover,
   canUndo,
+  canUndoPass,
   canUndoTurnover,
   capChipVisible,
   capTargetOptions,
@@ -14,6 +16,7 @@ import {
   effectiveTarget,
   goalPlayersTracked,
   isUniversePoint,
+  passesTracked,
   playHalted,
   possessionTracked,
   pullFromSide,
@@ -43,7 +46,7 @@ import { GameLog } from './GameLog';
 import { GameMenuDialog, type LeaveKind } from './GameMenuDialog';
 import { GameSetupDialog } from './GameSetupDialog';
 import GuideScreen from './GuideScreen';
-import { CallIcon, LogIcon, MenuIcon, PlayersIcon, StoppageIcon, TurnIcon } from './icons';
+import { CallIcon, LogIcon, MenuIcon, PassIcon, StoppageIcon, TurnIcon } from './icons';
 import { NoteDialog } from './NoteDialog';
 import { LineDialog } from './LineDialog';
 import { PlayersDialog } from './PlayersDialog';
@@ -185,12 +188,18 @@ function ActionButton({
   /** Accessible name — the full wording, which the micro-label abbreviates. */
   name: string;
   /**
-   * A count in the button's top-right corner, hidden below 1 and shown as `9+`
-   * past nine so the disc keeps one size. It sits *inside* the border rather
-   * than straddling it the way a notification badge usually does: these buttons
-   * are ~60 px wide with a couple of pixels between them, so anything hanging
-   * outside eats that gap and rides the press-scale. Left inside `disabled`'s
-   * fade on purpose — a count that is still true but not actionable.
+   * A count in the button's top-right corner, hidden below 1 and shown as `99+`
+   * past ninety-nine so the disc keeps one size. Two digits rather than one
+   * because passes run an order of magnitude ahead of turnovers — a point with
+   * thirty of them is ordinary, and a badge reading `9+` for the whole point
+   * would be telling the volunteer nothing they could act on. Turn shares the
+   * cap and simply never reaches it.
+   *
+   * It sits *inside* the border rather than straddling it the way a notification
+   * badge usually does: these buttons are ~60 px wide with a couple of pixels
+   * between them, so anything hanging outside eats that gap and rides the
+   * press-scale. Left inside `disabled`'s fade on purpose — a count that is
+   * still true but not actionable.
    */
   badge?: number;
   onClick: () => void;
@@ -217,7 +226,7 @@ function ActionButton({
           aria-hidden="true"
           className="absolute top-0.5 right-0.5 lscape:top-px lscape:right-px flex items-center justify-center min-w-[14px] h-[14px] lscape:min-w-[11px] lscape:h-[11px] px-[3px] rounded-full bg-signal text-pitch font-board font-bold text-[9px] lscape:text-[7px] leading-none tabular-nums"
         >
-          {badge > 9 ? '9+' : badge}
+          {badge > 99 ? '99+' : badge}
         </span>
       )}
     </button>
@@ -927,6 +936,33 @@ export default function GameScreen() {
     dispatch({ type: 'UNDO_TURNOVER' });
   };
 
+  // Pass never asks anything: one dispatch, and the badge going up is the whole of
+  // the feedback (nothing is logged and possession does not move, so without it a
+  // tap would look like nothing happened). The long-press takes the last one back.
+  //
+  // Both explain themselves exactly as Turn does, because they share every refusal
+  // Turn has — the game not started, the pull not thrown, a call pending. The one
+  // reason that greys the button out instead is `passesOtherTeam` (see passDead
+  // below); it never reaches here, so every reason that does has an
+  // `assist_blocked_*` string already written for Turn.
+  const tryPass = () => {
+    const check = canPass(state);
+    if (!check.ok) {
+      flashHint(t(`assist_blocked_${check.reason}` as never));
+      return;
+    }
+    dispatch({ type: 'PASS' });
+  };
+
+  const tryUndoPass = () => {
+    const check = canUndoPass(state);
+    if (!check.ok) {
+      flashHint(t(`assist_blocked_${check.reason}` as never));
+      return;
+    }
+    dispatch({ type: 'UNDO_PASS' });
+  };
+
   // The Call menu closes on every choice. Both a call and a travel then ask "who
   // called it?" — but only when the game is tracking activity; otherwise they log
   // straight away with no team, same as StoppageDialog does for a technical stoppage.
@@ -976,28 +1012,45 @@ export default function GameScreen() {
     dialogBusy;
 
   // The raised hand is deliberately NOT part of recordBusy: a stoppage interrupts
-  // whatever is running, an open call included, so the only thing that greys it out
-  // is another dialog already being up. Every other refusal is left to tryStoppage,
-  // which explains itself instead.
-  const stoppageBusy = dialogBusy;
+  // whatever is running, an open call included, so mid-game the only thing that
+  // greys it out is another dialog already being up, and every other refusal is
+  // left to tryStoppage to explain. A finished game is the one exception — there
+  // is no play left to interrupt, so it goes dead like every other button on the
+  // row bar Log rather than flashing a hint nobody can act on.
+  const stoppageBusy = dialogBusy || state.status === 'finished';
 
   // Nothing that advances play may run past an open stoppage: the pull, timeout and
   // half-time clocks are frozen under one (see playHalted), and the reducer refuses
   // all three, so the buttons say so rather than doing nothing.
   const stoppageBlocksPlay = state.pendingStoppage !== null;
 
-  // Roster only has something to show once a roster exists to view. Turn appears
-  // for any game recording a turnover at all — team-level detail included, even
-  // though that game's turnover carries no player.
-  const showRosterBtn = rosterTeams(state.config).length > 0;
+  // Turn appears for any game recording a turnover at all — team-level detail
+  // included, even though that game's turnover carries no player. Pass sits
+  // immediately right of it and needs turnovers too (see passesTracked), so the
+  // row grows rightward one button at a time as a game records more.
+  //
+  // Roster is no longer here: it moved into the header menu when Pass arrived,
+  // because the row is capped at five for a 360px phone and Roster was the one
+  // button on it that only reads. Its two doors (the roster editor and the line
+  // dialog) became two menu rows — see GameMenuDialog.
   const showTurnBtn = turnoversTracked(state.config);
+  const showPassBtn = passesTracked(state.config);
+  // The one refusal Pass greys out for instead of explaining: in a game following a
+  // single team, the other side is holding the disc. It is not a mistake the
+  // volunteer made and it is true for half of every game, so a hint would fire
+  // dozens of times a point saying something the possession rule above the row is
+  // already showing. Every *other* refusal — the game not started, the pull not
+  // thrown, a call pending — is one Turn explains on tap, and Pass now explains it
+  // the same way: two buttons side by side, one dead and one not, for reasons the
+  // volunteer cannot tell apart, is worse than either rule on its own.
+  const passDead = canPass(state).reason === 'passesOtherTeam';
   // The team whose lines are recorded, or null when line tracking is off — which is
   // also what decides whether the Roster button opens a chooser or the editor.
   const lineTracked = lineTeam(state.config);
   // The possession rule under the score panels, and the border it carries for the
   // action row below it — both stand or fall together.
   const possessionRule = possessionTracked(state);
-  const actionRowCols = 3 + (showRosterBtn ? 1 : 0) + (showTurnBtn ? 1 : 0);
+  const actionRowCols = 3 + (showTurnBtn ? 1 : 0) + (showPassBtn ? 1 : 0);
   const actionRowColsClass =
     actionRowCols === 5 ? 'grid-cols-5' : actionRowCols === 4 ? 'grid-cols-4' : 'grid-cols-3';
 
@@ -1301,21 +1354,13 @@ export default function GameScreen() {
             </div>
           </div>
 
-          {/* Roster / Log / Stoppage / Call / Turn, ordered from the surfaces that only
+          {/* Log / Stoppage / Call / Turn / Pass, ordered from the surfaces that only
             read (left) to the ones that record something (right), so the thumb's
             reach matches how consequential the button is. Timeouts left this row
-            for the score panels; Roster and Turn each hide on their own depending
-            on what this game records (see showRosterBtn/showTurnBtn), leaving
-            three to five. */}
+            for the score panels and Roster left it for the header menu; Turn and
+            Pass each appear on their own depending on what this game records (see
+            showTurnBtn/showPassBtn), leaving three to five. */}
           <div className={`grid ${actionRowColsClass} gap-2 lscape:gap-1 lscape:flex-1`}>
-            {showRosterBtn && (
-              <ActionButton
-                icon={<PlayersIcon />}
-                label={t('lblRoster')}
-                name={t('btnPlayers')}
-                onClick={() => setShowPlayers(true)}
-              />
-            )}
             <ActionButton
               icon={<LogIcon />}
               label={t('lblLog')}
@@ -1353,6 +1398,23 @@ export default function GameScreen() {
                 disabled={recordBusy}
               />
             )}
+            {showPassBtn && (
+              <ActionButton
+                icon={<PassIcon />}
+                label={t('lblPass')}
+                name={t('btnPass')}
+                // Passes in the point being played, both teams added — the same
+                // per-point counter Turn badges, resetting on PULL_THROWN/GOAL and
+                // coming back down on this button's own long-press. It matters more
+                // here than it does on Turn: a pass writes no log entry, moves no
+                // possession rule and changes nothing else on screen, so the badge
+                // is the only thing that confirms the tap landed.
+                badge={state.pointPasses.A + state.pointPasses.B}
+                onClick={tryPass}
+                onHold={tryUndoPass}
+                disabled={recordBusy || passDead}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -1368,19 +1430,7 @@ export default function GameScreen() {
           }}
         />
       )}
-      {showPlayers && (
-        <PlayersDialog
-          onClose={() => setShowPlayers(false)}
-          onOpenLine={
-            lineTracked
-              ? () => {
-                  setShowPlayers(false);
-                  setShowLine(true);
-                }
-              : undefined
-          }
-        />
-      )}
+      {showPlayers && <PlayersDialog onClose={() => setShowPlayers(false)} />}
       {showLine && lineTracked && (
         <LineDialog team={lineTracked} onClose={() => setShowLine(false)} />
       )}
@@ -1398,6 +1448,26 @@ export default function GameScreen() {
             setShowMenu(false);
             setShowGuide(true);
           }}
+          // The two doors the Roster action button used to hold behind a chooser,
+          // now one row each — the menu has the height the action row did not.
+          // Roster needs a roster to show; Line additionally needs tracking on, so
+          // it never appears without Roster above it.
+          onRoster={
+            rosterTeams(state.config).length > 0
+              ? () => {
+                  setShowMenu(false);
+                  setShowPlayers(true);
+                }
+              : undefined
+          }
+          onLine={
+            lineTracked
+              ? () => {
+                  setShowMenu(false);
+                  setShowLine(true);
+                }
+              : undefined
+          }
           // Hidden once the game is finished: the leave row below is already
           // "Open report", and this would be a second door to the same place.
           onReport={

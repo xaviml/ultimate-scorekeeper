@@ -118,6 +118,43 @@ describe('report screen — team stats table', () => {
     // point with a turnover in it, so B has none.
     expect(rowCells('Break chances')).toEqual(['1', '0']);
     expect(rowCells('Turnovers')).toEqual(['1', '2']);
+    // Passes are their own opt-in on top of turnovers.
+    expect(screen.queryByText('Completed passes')).toBeNull();
+  });
+
+  // Directly after Turnovers, the figure it is the counterpart of.
+  it('adds completed passes after turnovers once the game counts them', () => {
+    const state = baseState();
+    state.config.statsMode = 'teams';
+    state.config.trackTurnovers = true;
+    state.config.trackPasses = true;
+    state.points = [point()];
+    state.passesCompleted = { A: 42, B: 37 };
+    renderReport(state);
+
+    expect(rowCells('Completed passes')).toEqual(['42', '37']);
+
+    const labels = [...document.querySelectorAll('tbody tr')].map(
+      (r) => r.querySelector('th')?.textContent ?? r.textContent,
+    );
+    const order = labels.join('|');
+    expect(order.indexOf('Turnovers')).toBeLessThan(order.indexOf('Completed passes'));
+    expect(order.indexOf('Completed passes')).toBeLessThan(order.indexOf('Break points'));
+  });
+
+  // The one row that can be a real number on one side and a dash on the other: a
+  // dash is "nobody was counting this team", which 0 would misreport as a fact.
+  it('dashes the team the game does not follow', () => {
+    const state = baseState();
+    state.config.statsMode = 'players';
+    state.config.trackedTeam = 'A';
+    state.config.trackTurnovers = true;
+    state.config.trackPasses = true;
+    state.points = [point()];
+    state.passesCompleted = { A: 42, B: 0 };
+    renderReport(state);
+
+    expect(rowCells('Completed passes')).toEqual(['42', '—']);
   });
 });
 

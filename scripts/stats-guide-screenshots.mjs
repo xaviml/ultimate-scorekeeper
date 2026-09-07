@@ -166,6 +166,7 @@ async function main() {
   };
   await setSwitch('Turnovers');
   await setSwitch('Ask who turned it over');
+  await setSwitch('Passes');
   // "Ask who scored" is on by default; check() is a no-op if it already is.
   await setSwitch('Ask who scored');
   await setSwitch('Track who plays each point');
@@ -180,6 +181,7 @@ async function main() {
     await marker(page, statsSelect.nth(1), statsClip, -0.04),
     await marker(page, switchRow('Turnovers'), statsClip, 0.96),
     await marker(page, switchRow('Ask who turned it over'), statsClip, 0.96),
+    await marker(page, switchRow('Passes'), statsClip, 0.96),
     await marker(page, switchRow('Ask who scored'), statsClip, 0.96),
     await marker(page, switchRow('Track who plays each point'), statsClip, 0.96),
   ];
@@ -304,6 +306,22 @@ async function main() {
   };
 
   /**
+   * A few completed passes, when the followed team has the disc. Guarded on the
+   * button being enabled rather than on working out who is holding it: this game
+   * follows Ravens, so Pass goes dead for every possession that isn't theirs, and
+   * asking the button is the same question with none of the bookkeeping. Without
+   * this every passes figure in the guide would be photographed as a zero.
+   */
+  const passes = async (n) => {
+    const btn = page.getByRole('button', { name: 'Completed pass — hold to undo' });
+    if (!(await btn.count()) || (await btn.isDisabled())) return;
+    for (let i = 0; i < n; i++) {
+      await btn.click();
+      await sleep(60);
+    }
+  };
+
+  /**
    * One whole point: line, pull, a few turnovers, a goal. The waits are generous on
    * purpose — the report shows hold times, and a game where every point lasted a
    * second looks like a bug.
@@ -312,19 +330,24 @@ async function main() {
     await registerLine(line);
     if (await pullBtn.count()) await pullBtn.click();
     await sleep(Math.round((seconds * 1000) / (turns + 1)));
+    await passes(4);
     for (let i = 0; i < turns; i++) {
       await turnover();
       await sleep(Math.round((seconds * 1000) / (turns + 1)));
+      await passes(3);
     }
     await goal(panel, scorer, assist);
   };
 
   // Point 1: photographed step by step — the turnover dialog, then the goal dialog.
   await sleep(3000);
+  await passes(5);
   await turnover('stats-turnover.png');
   await sleep(4000);
+  await passes(3);
   await turnover();
   await sleep(3000);
+  await passes(4);
   await goal(panelA, '#7 Ada', '#3 Emma', 'stats-goal.png');
 
   // A handful of points with different shapes, so the ledger has holds, breaks and
@@ -363,6 +386,7 @@ async function main() {
   await registerLine(LINE_O);
   await pullBtn.click();
   await sleep(2500);
+  await passes(6);
   await turnBtn.click();
   await sleep(300);
   const chips = modal.locator('button').filter({ hasText: /^#\d/ });
@@ -384,12 +408,21 @@ async function main() {
     // fill stops, which is the one part of the strip worth seeing.
     await marker(page, page.locator('[data-possession]'), dash, 0.25, -3),
     await marker(page, page.getByRole('button', { name: 'Next statistic' }), dash, 0.5, 0.5),
-    // The action row is wall-to-wall 60px buttons, so these three sit in the gutters
+    // The roster and the line dialog live behind the header menu now — the action
+    // row is capped at five buttons and Pass took the slot Roster used to hold.
+    await marker(page, page.getByRole('button', { name: 'Menu' }), dash, 1.2, 0.5),
+    // The action row is wall-to-wall 60px buttons, so these sit in the gutters
     // between them, as the walkthrough's own dashboard figure does — a badge on a
     // button covers either its glyph or its micro-label, and both are the caption.
-    await marker(page, page.getByRole('button', { name: 'Roster', exact: true }), dash, 1.1, 0.5),
     await marker(page, page.getByRole('button', { name: 'What was called?' }), dash, -0.1, 0.5),
     await marker(page, turnBtn, dash, -0.1, 0.5),
+    await marker(
+      page,
+      page.getByRole('button', { name: 'Completed pass — hold to undo' }),
+      dash,
+      1.1,
+      0.5,
+    ),
   ];
 
   // The three pages of the live slot, cropped to the slot itself: at figure width a

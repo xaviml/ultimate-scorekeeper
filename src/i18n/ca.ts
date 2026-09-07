@@ -132,6 +132,9 @@ export const ca: typeof en = {
   trackTurnoverPlayersLabel: 'Preguntar qui ha perdut el disc',
   trackTurnoverPlayersHint:
     "Desactivat, Turn només registra la pèrdua. Activat, pregunta qui ha perdut el disc i qui l'ha forçat — més detall, però molts tocs en un punt ràpid.",
+  trackPassesLabel: 'Passades',
+  trackPassesHint:
+    "Afegeix un botó Pass al costat de Turn: un toc per passada completada, mantén premut per desfer l'última. Mai pregunta qui l'ha llançat. Si se segueix un sol equip, només compta les seves.",
 
   // Seguiment de línies. Només en mode Estadístiques d'equip, on se segueix un sol
   // roster (vegeu lineTrackingEnabled). MMP/FMP són els termes de la WFDF i es
@@ -201,7 +204,6 @@ export const ca: typeof en = {
   linePromptTitle: 'Qui juga aquest punt?',
   linePromptBtn: 'Registrar línia',
   lineNextPending: 'Punt següent: {count} registrats',
-  btnLine: 'Línia',
   btnLineSaveAnyway: 'Desar igualment',
   btnLineConfirmAnyway: 'Toca un altre cop per desar',
   btnSaveLine: 'Desar aquesta línia',
@@ -240,7 +242,6 @@ export const ca: typeof en = {
   rosterImportDuplicates: '{count} ja són al roster',
   rosterImportReplace: 'Substituir el roster actual ({count})',
   rosterImportApply: 'Importar {count}',
-  btnPlayers: 'Roster',
   assistDialogTitle: 'Qui ha anotat per {team}?',
   whoScored: 'Anotador',
   whoAssisted: 'Assistència',
@@ -293,6 +294,7 @@ export const ca: typeof en = {
   btnStoppage: 'Aturada',
   btnTurnover: 'Pèrdua',
   btnTurnoverHold: 'Pèrdua — mantén premut per desfer',
+  btnPass: 'Passada completada — mantén premut per desfer',
   btnStoppageSotg: 'Aturada o SOTG',
   btnSotg: 'SOTG',
   btnEndHalftime: 'Fi del descans',
@@ -307,9 +309,9 @@ export const ca: typeof en = {
   // el vocabulari d'Ultimate ja és anglès a les pistes catalanes i espanyoles, i
   // així l'amplada dels botons és idèntica en els tres.
   lblTurn: 'Turn',
+  lblPass: 'Pass',
   lblCall: 'Call',
   lblLog: 'Log',
-  lblRoster: 'Roster',
 
   // El paginador d'estadístiques en directe del buit reservat (StatsSlot).
   // Etiquetes de 9px: millor escurçar el terme que deixar que es parteixi — els
@@ -319,6 +321,7 @@ export const ca: typeof en = {
   slotBreaks: 'Breaks',
   slotBreakCh: 'Op. break',
   slotTurns: 'Pèrdues',
+  slotPasses: 'Passades',
   slotThisPoint: 'Aquest punt · {n} pèrdues',
   slotAvgHold: 'mitjana {time}',
   slotPagePossession: 'Possessió per punt',
@@ -335,6 +338,8 @@ export const ca: typeof en = {
   menuGameSetup: 'Configuració del partit',
   menuGuide: 'Guia per a principiants',
   menuReport: 'Informe fins ara',
+  menuRoster: 'Roster',
+  menuLine: 'Línia',
   btnBackToGame: 'Tornar al partit',
   btnExitReport: "Sortir de l'informe",
 
@@ -545,6 +550,7 @@ export const ca: typeof en = {
   assist_blocked_timeoutNoneLeft: 'Aquest equip no té temps morts restants.',
   assist_blocked_timeoutNotNow: 'Els temps morts només es poden demanar durant el joc.',
   assist_blocked_noTurnoverToUndo: 'No hi ha cap pèrdua per desfer en aquest punt.',
+  assist_blocked_noPassToUndo: 'No hi ha cap passada per desfer en aquest punt.',
   assist_blocked_lineNotTracked: 'El seguiment de línies està desactivat en aquest partit.',
   assist_blocked_lineNextNotNow: 'La línia següent només es pot registrar mentre es juga un punt.',
 
@@ -556,6 +562,7 @@ export const ca: typeof en = {
   statCleanHold: 'Holds nets',
   statBreakChances: 'Oportunitats de break',
   statTurnovers: 'Pèrdues',
+  statPasses: 'Passades completades',
   statBreaks: 'Breaks',
   statCleanBreaks: 'Breaks nets',
   statAvgHold: 'Durada mitjana de hold',
@@ -909,6 +916,9 @@ export const ca: typeof en = {
   statsGuideStep1TurnPlayers: 'Preguntar qui ha perdut el disc',
   statsGuideStep1TurnPlayersBody:
     'Imbricat sota Pèrdues, i desactivat per defecte. Activat, cada toc a Turn obre un diàleg que pregunta qui ha perdut el disc i qui l\u2019ha forçat. Desactivat, el toc registra la pèrdua i et torna la pantalla — el comptador, la barra de possessió i totes les xifres d\u2019equip continuen funcionant igual.',
+  statsGuideStep1Passes: 'Passades',
+  statsGuideStep1PassesBody:
+    "També imbricat sota Pèrdues, i desactivat per defecte. Afegeix un botó Pass al costat de Turn: un toc per passada completada. Mai pregunta qui l'ha llançada. Si se segueix un sol equip, només es compten les seves i el botó queda inactiu mentre el disc el té l'altre — per això l'informe els mostra una xifra i a l'altre equip un guionet.",
   statsGuideStep1Goals: 'Preguntar qui ha marcat',
   statsGuideStep1GoalsBody:
     'Activat, cada gol obre un selector per a l\u2019anotador i l\u2019assistència. El senyal de gol es reté fins que acabes, així que el diàleg mai no tapa justament allò que has d\u2019anunciar.',
@@ -940,11 +950,14 @@ export const ca: typeof en = {
   statsGuideTour2:
     'Les estadístiques en directe, al buit que fa servir el botó ambre quan n\u2019hi ha. Tres pàgines, que es passen amb les fletxes dels costats — vegeu més avall.',
   statsGuideTour3:
-    'Roster. Amb el seguiment de línies activat, primer pregunta si vols la línia o el roster mateix.',
+    'El roster i el diàleg de línia són al menú, a dalt a l\u2019esquerra, al costat de la configuració del partit i les guies.',
   statsGuideTour4:
     'Decisió. Des de «Per equip» endavant, cada decisió, passes i aturada tècnica pregunta de quin equip era; una lesió pregunta qui s\u2019ha fet mal.',
   statsGuideTour5:
     'Turn: un toc per pèrdua, amb la insígnia comptant-les dins del punt. Mantén premut per desfer l\u2019última. Fixa\u2019t en la insígnia per saber que el toc ha entrat: quan el disc torna a un equip que ja l\u2019ha tingut en aquest punt, la barra de possessió torna a un costat on ja ha estat i res més no es mou a la pantalla.',
+
+  statsGuideTour6:
+    "Pass: un toc per passada completada, amb la insígnia comptant-les dins del punt, igual que Turn. Mantén premut per desfer l'última. En tocar-lo no es mou res més a la pantalla — no es registra res a l'historial, i la barra de possessió es queda on era, perquè que una passada es completi és justament el que fa que no sigui una pèrdua — així que la insígnia és com saps que ha entrat.",
 
   statsGuideGoalTitle: 'Qui ha marcat',
   statsGuideGoalBody:
@@ -981,7 +994,7 @@ export const ca: typeof en = {
     'Són entre els rellotges i els botons mentre el disc és en joc, i cedeixen el buit tan bon punt alguna cosa més urgent el necessita — el botó ambre d\u2019avanç, o una decisió pendent de resoldre — així que mai no poden moure els panells del marcador. Només en vertical: en horitzontal no hi ha altura per gastar. Sense pèrdues hi ha una sola pàgina de holds i breaks; amb elles, tres.',
   statsGuidePage1: 'Xifres d\u2019equip',
   statsGuidePage1Body:
-    "Una fila per equip, en el seu color, en el mateix ordre que els panells. Holds, Breaks, Oportunitats de break i Pèrdues — les mateixes quatre amb què obre l'informe, definides més avall.",
+    "Una fila per equip, en el seu color, en el mateix ordre que els panells. Holds, Breaks, Oportunitats de break i Pèrdues — les mateixes quatre amb què obre l'informe, definides més avall. Amb les passades activades s'hi suma una cinquena columna, i un equip que el partit no segueix hi mostra un guionet en lloc d'un zero.",
   statsGuidePage2: 'Possessió per punt',
   statsGuidePage2Body:
     "Una columna per punt, amb la part de possessió de l'equip de dalt per sobre de la línia i la de l'altre per sota. Aquí totes les columnes tenen la mateixa alçada, així que es llegeix com un repartiment pur; l'informe dibuixa el mateix gràfic però dona a cada columna una alçada segons el que va durar el punt. Es desplaça.",
@@ -1004,6 +1017,9 @@ export const ca: typeof en = {
   statsGuideStatTurnovers: 'Pèrdues',
   statsGuideStatTurnoversBody:
     'Les pròpies d\u2019aquest equip, en tot el partit, descomptant el que s\u2019hagi desfet.',
+  statsGuideStatPasses: 'Passades completades',
+  statsGuideStatPassesBody:
+    "Totes les passades registrades, en tot el partit, descomptant el que s'hagi desfet. Si se segueix un sol equip, l'altre mostra un guionet — ningú comptava les seves passades, que no és el mateix que no haver-ne fet cap.",
   statsGuideStatBreaks: 'Punts de break',
   statsGuideStatBreaksBody: 'Punts guanyats servint.',
   statsGuideStatCleanBreaks: 'Breaks nets',
@@ -1066,6 +1082,8 @@ export const ca: typeof en = {
   statsGuideDefBreakChDo: 'Cada pèrdua senar d\u2019un punt en què aquest equip servia',
   statsGuideDefTurn: 'Turns',
   statsGuideDefTurnDo: 'Pèrdues atribuïdes al jugador que va perdre el disc',
+  statsGuideDefPasses: 'Passades completades',
+  statsGuideDefPassesDo: 'Passades registrades per a aquest equip, en tot el partit',
   statsGuideDefD: 'D (Possessió)',
   statsGuideDefDDo:
     'Pèrdues que va forçar aquest jugador — blocatges, i marques que van exhaurir el compte',

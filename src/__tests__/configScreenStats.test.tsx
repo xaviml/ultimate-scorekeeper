@@ -127,6 +127,29 @@ describe('config screen statistics section', () => {
     expect(askWho()).toBeNull();
   });
 
+  // Also nested under Turnovers, but for a different reason than its neighbour:
+  // not because there is nobody to ask — passes never ask — but because a pass is
+  // credited to whoever holds the disc, and possession only moves with the Turn
+  // button. So it needs no roster and appears from team detail up.
+  it('offers passes under turnovers, with no roster needed, off by default', () => {
+    renderConfigScreen();
+    const select = fieldSelect('Track');
+    const passes = () => screen.queryByLabelText('Passes');
+
+    fireEvent.change(select, { target: { value: 'teams' } });
+    expect(passes()).toBeNull(); // turnovers still off
+
+    fireEvent.click(screen.getByLabelText('Turnovers'));
+    expect(passes()).not.toBeChecked();
+
+    fireEvent.click(passes()!);
+    expect(passes()).toBeChecked();
+
+    // Turning turnovers back off takes it with them.
+    fireEvent.click(screen.getByLabelText('Turnovers'));
+    expect(passes()).toBeNull();
+  });
+
   // The reason to have typed a roster, so it is on wherever there is one.
   it('asks who scored wherever there is a roster, on by default', () => {
     renderConfigScreen();

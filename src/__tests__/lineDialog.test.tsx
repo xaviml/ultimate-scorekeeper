@@ -54,9 +54,13 @@ function openViaPrompt(state: GameState) {
   tap(screen.getByRole('button', { name: /register line/i }));
 }
 
-/** Opens it the other way, from the Roster button — the only door once play is live. */
-function openLineFromRoster() {
-  tap(screen.getByRole('button', { name: /roster/i }));
+/**
+ * Opens it the other way, from the header menu — the only door once play is live.
+ * Roster and Line used to share one action-row button behind a chooser; they are a
+ * row each here, since the Pass button took that slot on the row.
+ */
+function openLineFromMenu() {
+  tap(screen.getByLabelText('Menu'));
   tap(screen.getByRole('button', { name: /^line$/i }));
 }
 
@@ -363,7 +367,7 @@ describe('the split it checks against is the point being lined up', () => {
     });
     // Live, so the between-points prompt is not there — the Roster button is the door.
     mount(state);
-    openLineFromRoster();
+    openLineFromMenu();
     tap(screen.getByRole('button', { name: /next point/i }));
     pick(/One/);
     pick(/Two/);
@@ -476,7 +480,7 @@ describe('the next line', () => {
    */
   it("keeps each mode's picks when switching between them", () => {
     mount(lineGame({ status: 'live', pointLine: [{ playerId: 'p2' }], line: ['p2'] }));
-    openLineFromRoster();
+    openLineFromMenu();
 
     tap(chip(/Three/)); // add to this point's line
     tap(screen.getByRole('button', { name: /next point/i }));
@@ -498,7 +502,7 @@ describe('the next line', () => {
   // Opening the dialog to glance at the next line must not re-register the current one.
   it('does not dispatch for a mode that was never touched', () => {
     mount(lineGame({ status: 'live', pointLine: [{ playerId: 'p2' }], line: ['p2'] }));
-    openLineFromRoster();
+    openLineFromMenu();
     tap(screen.getByRole('button', { name: /next point/i }));
     tap(chip(/One/));
     commit();
@@ -514,7 +518,7 @@ describe('the next line', () => {
   it('is registered separately while the disc is live', () => {
     const state = lineGame({ status: 'live', pointLine: [{ playerId: 'p2' }] });
     mount(state);
-    openLineFromRoster();
+    openLineFromMenu();
     tap(screen.getByRole('button', { name: /next point/i }));
     tap(chip(/One/));
     commit();
@@ -528,11 +532,11 @@ describe('the next line', () => {
   });
 });
 
-describe('the Roster button', () => {
+describe('the header menu', () => {
   // The other door to the same thing, and it has to work in the same window.
   it('opens the line dialog before the game starts', () => {
     mount(lineGame({ status: 'notStarted' }));
-    openLineFromRoster();
+    openLineFromMenu();
     tap(chip(/One/));
     commit();
 
@@ -542,24 +546,28 @@ describe('the Roster button', () => {
     expect(stored.line).toEqual(['p1']);
   });
 
-  it('offers the line and the roster when lines are tracked', () => {
+  it('offers Line and Roster as separate rows when lines are tracked', () => {
     mount(lineGame());
-    tap(screen.getByRole('button', { name: /roster/i }));
+    tap(screen.getByLabelText('Menu'));
     expect(screen.getByRole('button', { name: /^line$/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^roster$/i })).toBeTruthy();
   });
 
-  it('opens the roster editor directly when they are not', () => {
+  // Line tracking is the only thing that row depends on; the roster outlives it.
+  it('drops the Line row but keeps Roster when lines are not tracked', () => {
     const state = lineGame();
     state.config = { ...state.config, lines: { ...state.config.lines, enabled: false } };
     mount(state);
-    tap(screen.getByRole('button', { name: /roster/i }));
+    tap(screen.getByLabelText('Menu'));
     expect(screen.queryByRole('button', { name: /^line$/i })).toBeNull();
+    tap(screen.getByRole('button', { name: /^roster$/i }));
     expect(screen.getByPlaceholderText('Name')).toBeTruthy();
   });
 
   it('marks a player MMP or FMP from the roster editor', () => {
     mount(lineGame());
-    tap(screen.getByRole('button', { name: /roster/i }));
+    tap(screen.getByLabelText('Menu'));
+    tap(screen.getByRole('button', { name: /^roster$/i }));
     // Five is unmarked, so the first tap on its toggle makes it MMP.
     tap(screen.getByRole('button', { name: /#5 Five — gender: Not set/i }));
 

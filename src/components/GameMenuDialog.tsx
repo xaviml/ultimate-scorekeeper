@@ -1,5 +1,13 @@
 import { useT } from '../i18n/useT';
-import { ArrowBackIcon, CrossIcon, GuideIcon, ReportIcon, SetupIcon } from './icons';
+import {
+  ArrowBackIcon,
+  CrossIcon,
+  GuideIcon,
+  LineIcon,
+  PlayersIcon,
+  ReportIcon,
+  SetupIcon,
+} from './icons';
 import { MENU_ICON, MenuRow } from './MenuRow';
 import { Modal } from './Modal';
 
@@ -28,6 +36,8 @@ export function GameMenuDialog({
   onSetup,
   onGuide,
   onReport,
+  onRoster,
+  onLine,
   onLeave,
 }: {
   leave: LeaveKind;
@@ -41,6 +51,20 @@ export function GameMenuDialog({
    * which one is different.
    */
   onReport?: () => void;
+  /**
+   * The roster editor, absent in a game that keeps no roster. It was the leftmost
+   * action-row button until the Pass button needed the space — the row is capped
+   * at five for a 360px phone, and Roster was the only one on it that just reads,
+   * which is exactly what this menu is for.
+   */
+  onRoster?: () => void;
+  /**
+   * The line dialog, absent unless line tracking is on. It used to be the second
+   * entry of a chooser the Roster button opened; here it is a row of its own,
+   * because the menu has height the action row did not and the chooser only
+   * existed to fit two doors through one button.
+   */
+  onLine?: () => void;
   onLeave: () => void;
 }) {
   const { t } = useT();
@@ -60,6 +84,19 @@ export function GameMenuDialog({
             label={t('menuReport')}
             onClick={onReport}
           />
+        )}
+        {/* Above the guide and below the report, with the rest of what only reads.
+          Line sits under Roster because it is drawn from it, and it can never
+          appear without it — line tracking needs a followed team's roster. */}
+        {onRoster && (
+          <MenuRow
+            icon={<PlayersIcon size={MENU_ICON} />}
+            label={t('menuRoster')}
+            onClick={onRoster}
+          />
+        )}
+        {onLine && (
+          <MenuRow icon={<LineIcon size={MENU_ICON} />} label={t('menuLine')} onClick={onLine} />
         )}
         <MenuRow icon={<GuideIcon size={MENU_ICON} />} label={t('menuGuide')} onClick={onGuide} />
         <MenuRow icon={<Icon size={MENU_ICON} />} label={t(labelKey)} onClick={onLeave} />

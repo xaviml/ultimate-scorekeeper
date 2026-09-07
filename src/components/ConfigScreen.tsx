@@ -718,6 +718,22 @@ export default function ConfigScreen() {
             />
           </div>
         )}
+        {/* Also nested under Turnovers, but for a different reason than the switch
+            above: not because there is nobody to ask — passes never ask — but
+            because a pass is credited to whoever holds the disc, and possession only
+            changes hands when the Turn button exists (see passesTracked). It needs
+            no roster, so it is offered from team detail up, unlike its neighbour. */}
+        {statsTrackingEnabled(cfg) && cfg.trackTurnovers && (
+          <div className="pl-6">
+            <CheckField
+              variant="switch"
+              label={t('trackPassesLabel')}
+              hint={t('trackPassesHint')}
+              checked={cfg.trackPasses}
+              onChange={(v) => set('trackPasses', v)}
+            />
+          </div>
+        )}
         {showRoster && (
           <CheckField
             variant="switch"

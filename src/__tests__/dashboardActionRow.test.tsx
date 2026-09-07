@@ -9,9 +9,10 @@ import type { GameState } from '../state/types';
 import { hold, tap } from './gestures';
 
 /**
- * The dashboard after Record event was broken up: the action row holds Roster,
- * Log, Stoppage, Call and Turn, the timeouts moved onto the score panels, and
- * leaving the game moved into the header.
+ * The dashboard after Record event was broken up: the action row holds Log,
+ * Stoppage, Call, Turn and Pass, the timeouts moved onto the score panels, and
+ * leaving the game — along with the roster and the line dialog — moved into the
+ * header menu.
  */
 function liveGame(overrides: Partial<GameState> = {}): GameState {
   const state = createInitialState();
@@ -47,50 +48,59 @@ function mount(state: GameState) {
 beforeEach(() => sessionStorage.clear());
 
 describe('the action row', () => {
-  it('is Roster, Log, Stoppage, Call, Turn in that order', () => {
-    mount(liveGame());
-    const row = screen.getByLabelText('Roster').parentElement as HTMLElement;
+  it('is Log, Stoppage, Call, Turn, Pass in that order', () => {
+    const state = liveGame();
+    state.config = { ...state.config, trackPasses: true };
+    mount(state);
+    const row = screen.getByLabelText('Log').parentElement as HTMLElement;
     const names = within(row)
       .getAllByRole('button')
       .map((b) => b.getAttribute('aria-label'));
     expect(names).toEqual([
-      'Roster',
       'Log',
       'Stoppage or SOTG',
       'What was called?',
       'Turnover — hold to undo',
+      'Completed pass — hold to undo',
     ]);
   });
 
-  it('drops Roster and Turn when the game does not track activity', () => {
+  // Roster was the leftmost button until Pass needed the space. The row is capped
+  // at five for a 360px phone, and Roster was the one button on it that only reads.
+  it('keeps the roster in the header menu rather than on the row', () => {
+    mount(liveGame());
+
+    expect(screen.queryByLabelText('Roster')).toBeNull();
+    fireEvent.click(screen.getByLabelText('Menu'));
+    expect(screen.getByText('Roster')).toBeInTheDocument();
+  });
+
+  it('drops Turn when the game does not track activity', () => {
     const state = liveGame();
     state.config.statsMode = 'none';
     mount(state);
 
-    expect(screen.queryByLabelText('Roster')).toBeNull();
     expect(screen.queryByLabelText('Turnover — hold to undo')).toBeNull();
     expect(screen.getByLabelText('What was called?')).toBeInTheDocument();
   });
 
   // The tournament scorekeeper's game: players are named on goals, but the most
   // frequent button on the row is not wanted at all.
-  it('drops Turn but keeps Roster when the game names players and skips turnovers', () => {
+  it('drops Turn when the game names players and skips turnovers', () => {
     const state = liveGame();
     state.config = { ...state.config, statsMode: 'players', trackTurnovers: false };
     mount(state);
 
-    expect(screen.getByLabelText('Roster')).toBeInTheDocument();
     expect(screen.queryByLabelText('Turnover — hold to undo')).toBeNull();
     // And nothing is left on the board claiming to follow the disc.
     expect(document.querySelector('[data-possession]')).toBeNull();
   });
 
-  it('keeps Turn but drops Roster with team-level detail, having no roster to view', () => {
+  it('keeps Turn with team-level detail', () => {
     const state = liveGame();
     state.config = { ...state.config, statsMode: 'teams', trackTurnovers: true };
     mount(state);
 
-    expect(screen.queryByLabelText('Roster')).toBeNull();
     expect(screen.getByLabelText('Turnover — hold to undo')).toBeInTheDocument();
   });
 
@@ -131,7 +141,7 @@ describe('the action row', () => {
     expect(stored.log.some((e: { type: string }) => e.type === 'turnover')).toBe(false);
   });
 
-  it('shows both Roster and Turn when a single team is followed', () => {
+  it('shows Turn when a single team is followed', () => {
     const state = liveGame();
     state.config = {
       ...state.config,
@@ -141,15 +151,16 @@ describe('the action row', () => {
     };
     mount(state);
 
-    expect(screen.getByLabelText('Roster')).toBeInTheDocument();
     expect(screen.getByLabelText('Turnover — hold to undo')).toBeInTheDocument();
   });
 
   it('labels every button but the stoppage one, which no short word covers', () => {
-    mount(liveGame());
+    const state = liveGame();
+    state.config = { ...state.config, trackPasses: true };
+    mount(state);
     expect(screen.getByLabelText('Turnover — hold to undo')).toHaveTextContent('Turn');
+    expect(screen.getByLabelText('Completed pass — hold to undo')).toHaveTextContent('Pass');
     expect(screen.getByLabelText('Log')).toHaveTextContent('Log');
-    expect(screen.getByLabelText('Roster')).toHaveTextContent('Roster');
     expect(screen.getByLabelText('What was called?')).toHaveTextContent('Call');
     expect(screen.getByLabelText('Stoppage or SOTG')).toHaveTextContent('');
   });
@@ -184,7 +195,15 @@ describe('the action row', () => {
     expect(screen.getByLabelText('Stoppage or SOTG')).not.toBeDisabled();
     // Reading what has happened so far is never blocked.
     expect(screen.getByLabelText('Log')).not.toBeDisabled();
-    expect(screen.getByLabelText('Roster')).not.toBeDisabled();
+  });
+
+  it('disables every button but Log once the game is finished', () => {
+    mount(liveGame({ status: 'finished' }));
+
+    expect(screen.getByLabelText('Stoppage or SOTG')).toBeDisabled();
+    expect(screen.getByLabelText('What was called?')).toBeDisabled();
+    expect(screen.getByLabelText('Turnover — hold to undo')).toBeDisabled();
+    expect(screen.getByLabelText('Log')).not.toBeDisabled();
   });
 
   it('explains rather than goes dead when a stoppage is already open', () => {
@@ -364,13 +383,16 @@ describe('the turn count badge', () => {
     expect(turnButton()).toHaveTextContent(/^Turn$/);
   });
 
-  it('caps at 9+ so the disc keeps one size', () => {
-    mount(liveGame({ pointTurnovers: 9 }));
-    expect(turnButton()).toHaveTextContent('9');
+  // Two digits, not one: the cap is shared with Pass, where a point of thirty is
+  // ordinary and "9+" for the whole point would say nothing. Turn simply never
+  // reaches it.
+  it('caps at 99+ so the disc keeps one size', () => {
+    mount(liveGame({ pointTurnovers: 99 }));
+    expect(turnButton()).toHaveTextContent('99');
     cleanup();
 
-    mount(liveGame({ pointTurnovers: 10 }));
-    expect(turnButton()).toHaveTextContent('9+');
+    mount(liveGame({ pointTurnovers: 100 }));
+    expect(turnButton()).toHaveTextContent('99+');
   });
 
   it('stays up through a timeout, where the point has not ended and the count still holds', () => {
@@ -387,6 +409,117 @@ describe('the turn count badge', () => {
     expect(turn).toBeDisabled();
     expect(turn).toHaveTextContent('2');
     expect(turn.className).toContain('disabled:opacity-40');
+  });
+});
+
+/**
+ * The Pass button: the badge is the whole of its feedback, since a tap writes no
+ * log entry and leaves the possession rule exactly where it was.
+ */
+describe('the pass button', () => {
+  const passing = (overrides: Partial<GameState> = {}) => {
+    const state = liveGame(overrides);
+    state.config = { ...state.config, trackPasses: true };
+    return state;
+  };
+  const passButton = () => screen.getByLabelText('Completed pass — hold to undo');
+
+  it('is absent unless the game counts passes', () => {
+    mount(liveGame());
+    expect(screen.queryByLabelText('Completed pass — hold to undo')).toBeNull();
+  });
+
+  it('counts a pass on a tap, with nothing written to the log', () => {
+    mount(passing());
+    tap(passButton());
+
+    const stored = JSON.parse(sessionStorage.getItem('ultimate-scorekeeper:game-state')!);
+    // liveGame gives B the disc.
+    expect(stored.pointPasses).toEqual({ A: 0, B: 1 });
+    expect(stored.log).toEqual([]);
+  });
+
+  it('takes the last one back on a long press', () => {
+    vi.useFakeTimers();
+    try {
+      mount(passing({ pointPasses: { A: 0, B: 2 } }));
+      hold(passButton());
+
+      const stored = JSON.parse(sessionStorage.getItem('ultimate-scorekeeper:game-state')!);
+      expect(stored.pointPasses).toEqual({ A: 0, B: 1 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('badges both teams’ passes for the point, and resets with it', () => {
+    mount(passing({ pointPasses: { A: 3, B: 4 } }));
+    expect(passButton()).toHaveTextContent('7');
+    cleanup();
+
+    // The lifetime count is not what the badge is about.
+    mount(passing({ pointPasses: { A: 0, B: 0 }, passesCompleted: { A: 40, B: 30 } }));
+    expect(passButton()).toHaveTextContent(/^Pass$/);
+  });
+
+  it('caps the badge at 99+, which is the reason the cap is two digits', () => {
+    mount(passing({ pointPasses: { A: 50, B: 50 } }));
+    expect(passButton()).toHaveTextContent('99+');
+  });
+
+  // Greys out rather than explaining itself: the refusal is "the other team has
+  // the disc", which is not a mistake and would flash dozens of times a point.
+  it('goes dead while the other team holds the disc, in a game following one', () => {
+    // liveGame gives B the disc. Following B, the button is live.
+    const followingB = passing();
+    followingB.config = { ...followingB.config, trackedTeam: 'B' };
+    mount(followingB);
+    expect(passButton()).not.toBeDisabled();
+    cleanup();
+
+    // Following A, with B holding it, there is nothing this tap could count.
+    const followingA = passing();
+    followingA.config = { ...followingA.config, trackedTeam: 'A' };
+    mount(followingA);
+    expect(passButton()).toBeDisabled();
+  });
+
+  it('stays live for either team when the game follows both', () => {
+    const state = passing();
+    state.config = { ...state.config, trackedTeam: null };
+    mount(state);
+    expect(passButton()).not.toBeDisabled();
+  });
+
+  // The refusals Pass shares with Turn are explained, not greyed out. Two buttons
+  // side by side, one dead and one not, for reasons the volunteer cannot tell
+  // apart, is worse than either rule on its own.
+  it.each([
+    ['before the game starts', { status: 'notStarted', possessionTeam: null } as const],
+    ['between points', { status: 'awaitingPull', possessionTeam: null } as const],
+  ])('stays tappable %s and explains itself, exactly as Turn does', (_name, overrides) => {
+    mount(passing(overrides));
+
+    const pass = passButton();
+    expect(pass).not.toBeDisabled();
+    expect(screen.getByLabelText('Turnover — hold to undo')).not.toBeDisabled();
+
+    fireEvent.click(pass);
+    expect(screen.getByRole('tooltip')).toBeInTheDocument();
+    // Nothing was counted on the way.
+    const stored = JSON.parse(sessionStorage.getItem('ultimate-scorekeeper:game-state')!);
+    expect(stored.pointPasses).toEqual({ A: 0, B: 0 });
+  });
+
+  it('explains a long press with nothing to take back', () => {
+    vi.useFakeTimers();
+    try {
+      mount(passing());
+      hold(passButton());
+      expect(screen.getByRole('tooltip')).toHaveTextContent(/no pass to undo/i);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

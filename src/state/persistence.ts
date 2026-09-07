@@ -30,6 +30,11 @@ export function persistState(state: GameState): void {
  *   come back on.
  * - `trackTurnoverPlayers`: before it existed a game with a roster always asked who
  *   turned it over.
+ *
+ * `trackPasses` deliberately has no branch of its own, and that is not an omission:
+ * no stored game ever counted passes, and the new default is already `false`, so
+ * the plain layering over `createInitialState`'s config below says the true thing.
+ * A branch is only needed where the old behaviour and the new default disagree.
  */
 /** A stored config's `statsMode` is whatever the build that wrote it used, so it is read as a plain string and narrowed here. */
 type StoredConfig = Omit<Partial<GameConfig>, 'statsMode'> & {

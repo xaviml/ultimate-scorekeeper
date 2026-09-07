@@ -3,9 +3,11 @@ import { Fragment } from 'react';
 /**
  * The compact team-figures grid the stats slot shows: a header row of 9px
  * uppercase labels, then one row per team led by a 6px colour swatch. The
- * column count follows `headers`, so the same component draws the four-column
- * tracked page and the two-column holds/breaks page of a game recording no
- * turnovers.
+ * column count follows `headers`, so the same component draws all three widths
+ * the slot asks for: two columns (holds/breaks, a game recording no turnovers),
+ * four (turnovers on) and five (passes on too). At five the 9px labels are at
+ * their limit on a 360px phone, which is why they truncate rather than wrap —
+ * a wrapped label would change the grid's height and move the score panels.
  *
  * Portrait-only by design — the stats slot hides itself entirely in landscape.
  *

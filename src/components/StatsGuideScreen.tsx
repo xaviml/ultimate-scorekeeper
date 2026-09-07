@@ -31,12 +31,13 @@ import {
  */
 
 const FIG_SETUP: readonly Marker[] = [
-  [5.1, 10.8],
-  [5.1, 24],
-  [88.2, 29.9],
-  [88.5, 40.9],
-  [88.2, 51.9],
-  [88.2, 62.9],
+  [5.1, 9.6],
+  [5.1, 21.2],
+  [88.2, 26.4],
+  [88.5, 36.2],
+  [88.5, 46],
+  [88.2, 57.4],
+  [88.2, 67.2],
 ];
 const FIG_ROSTER: readonly Marker[] = [
   [28.3, 65.9],
@@ -47,9 +48,10 @@ const FIG_ROSTER: readonly Marker[] = [
 const FIG_DASHBOARD: readonly Marker[] = [
   [25, 65.9],
   [94.4, 72.1],
-  [21.9, 89.5],
+  [11.7, 2.8],
+  [39.7, 89.5],
   [58.9, 89.5],
-  [78.1, 89.5],
+  [98.6, 89.5],
 ];
 
 export default function StatsGuideScreen({ onBack }: { onBack: () => void }) {
@@ -92,8 +94,13 @@ export default function StatsGuideScreen({ onBack }: { onBack: () => void }) {
             label={t('statsGuideStep1TurnPlayers')}
             body={t('statsGuideStep1TurnPlayersBody')}
           />
-          <Numbered n={5} label={t('statsGuideStep1Goals')} body={t('statsGuideStep1GoalsBody')} />
-          <Numbered n={6} label={t('statsGuideStep1Lines')} body={t('statsGuideStep1LinesBody')} />
+          <Numbered
+            n={5}
+            label={t('statsGuideStep1Passes')}
+            body={t('statsGuideStep1PassesBody')}
+          />
+          <Numbered n={6} label={t('statsGuideStep1Goals')} body={t('statsGuideStep1GoalsBody')} />
+          <Numbered n={7} label={t('statsGuideStep1Lines')} body={t('statsGuideStep1LinesBody')} />
         </ol>
       </Card>
 
@@ -125,6 +132,7 @@ export default function StatsGuideScreen({ onBack }: { onBack: () => void }) {
           <Numbered n={3} body={t('statsGuideTour3')} />
           <Numbered n={4} body={t('statsGuideTour4')} />
           <Numbered n={5} body={t('statsGuideTour5')} />
+          <Numbered n={6} body={t('statsGuideTour6')} />
         </ol>
       </Card>
 
@@ -187,6 +195,7 @@ export default function StatsGuideScreen({ onBack }: { onBack: () => void }) {
           <Bullet label={t('statsGuideStatCleanHold')} body={t('statsGuideStatCleanHoldBody')} />
           <Bullet label={t('statsGuideStatBreakCh')} body={t('statsGuideStatBreakChBody')} />
           <Bullet label={t('statsGuideStatTurnovers')} body={t('statsGuideStatTurnoversBody')} />
+          <Bullet label={t('statsGuideStatPasses')} body={t('statsGuideStatPassesBody')} />
           <Bullet label={t('statsGuideStatBreaks')} body={t('statsGuideStatBreaksBody')} />
           <Bullet
             label={t('statsGuideStatCleanBreaks')}
@@ -231,6 +240,7 @@ export default function StatsGuideScreen({ onBack }: { onBack: () => void }) {
             ['statsGuideDefCleanHold', 'statsGuideDefCleanHoldDo'],
             ['statsGuideDefCleanBreak', 'statsGuideDefCleanBreakDo'],
             ['statsGuideDefBreakCh', 'statsGuideDefBreakChDo'],
+            ['statsGuideDefPasses', 'statsGuideDefPassesDo'],
             ['statsGuideDefTurn', 'statsGuideDefTurnDo'],
             ['statsGuideDefD', 'statsGuideDefDDo'],
             ['statsGuideDefOD', 'statsGuideDefODDo'],

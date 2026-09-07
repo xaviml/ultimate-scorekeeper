@@ -132,6 +132,9 @@ export const es: typeof en = {
   trackTurnoverPlayersLabel: 'Preguntar quién perdió el disco',
   trackTurnoverPlayersHint:
     'Desactivado, Turn solo registra la pérdida. Activado, pregunta quién perdió el disco y quién lo forzó — más detalle, pero muchos toques en un punto rápido.',
+  trackPassesLabel: 'Pases',
+  trackPassesHint:
+    'Añade un botón Pass junto a Turn: un toque por pase completado, mantén pulsado para deshacer el último. Nunca pregunta quién lo lanzó. Si se sigue un solo equipo, solo cuenta los suyos.',
 
   // Seguimiento de líneas. Solo en modo Estadísticas de equipo, donde se sigue un
   // único roster (ver lineTrackingEnabled). MMP/FMP son los términos de la WFDF y
@@ -201,7 +204,6 @@ export const es: typeof en = {
   linePromptTitle: '¿Quién juega este punto?',
   linePromptBtn: 'Registrar línea',
   lineNextPending: 'Punto siguiente: {count} registrados',
-  btnLine: 'Línea',
   btnLineSaveAnyway: 'Guardar igualmente',
   btnLineConfirmAnyway: 'Toca otra vez para guardar',
   btnSaveLine: 'Guardar esta línea',
@@ -241,7 +243,6 @@ export const es: typeof en = {
   rosterImportDuplicates: '{count} ya están en el roster',
   rosterImportReplace: 'Sustituir el roster actual ({count})',
   rosterImportApply: 'Importar {count}',
-  btnPlayers: 'Roster',
   assistDialogTitle: '¿Quién anotó por {team}?',
   whoScored: 'Anotador',
   whoAssisted: 'Asistencia',
@@ -294,6 +295,7 @@ export const es: typeof en = {
   btnStoppage: 'Parada',
   btnTurnover: 'Pérdida',
   btnTurnoverHold: 'Pérdida — mantén pulsado para deshacer',
+  btnPass: 'Pase completado — mantén pulsado para deshacer',
   btnStoppageSotg: 'Parada o SOTG',
   btnSotg: 'SOTG',
   btnEndHalftime: 'Fin del descanso',
@@ -308,9 +310,9 @@ export const es: typeof en = {
   // propósito — el vocabulario de Ultimate ya es inglés en los campos españoles y
   // catalanas, y así el ancho de los botones es idéntico en los tres.
   lblTurn: 'Turn',
+  lblPass: 'Pass',
   lblCall: 'Call',
   lblLog: 'Log',
-  lblRoster: 'Roster',
 
   // El paginador de estadísticas en directo del hueco reservado (StatsSlot).
   // Etiquetas de 9px: mejor acortar el término que dejar que se parta — los
@@ -320,6 +322,7 @@ export const es: typeof en = {
   slotBreaks: 'Breaks',
   slotBreakCh: 'Op. break',
   slotTurns: 'Pérdidas',
+  slotPasses: 'Pases',
   slotThisPoint: 'Este punto · {n} pérdidas',
   slotAvgHold: 'media {time}',
   slotPagePossession: 'Posesión por punto',
@@ -336,6 +339,8 @@ export const es: typeof en = {
   menuGameSetup: 'Configuración del partido',
   menuGuide: 'Guía para principiantes',
   menuReport: 'Informe hasta ahora',
+  menuRoster: 'Roster',
+  menuLine: 'Línea',
   btnBackToGame: 'Volver al partido',
   btnExitReport: 'Salir del informe',
 
@@ -548,6 +553,7 @@ export const es: typeof en = {
   assist_blocked_timeoutNoneLeft: 'Este equipo no tiene tiempos muertos restantes.',
   assist_blocked_timeoutNotNow: 'Los tiempos muertos solo pueden pedirse durante el juego.',
   assist_blocked_noTurnoverToUndo: 'No hay ninguna pérdida que deshacer en este punto.',
+  assist_blocked_noPassToUndo: 'No hay ningún pase que deshacer en este punto.',
   assist_blocked_lineNotTracked: 'El seguimiento de líneas está desactivado en este partido.',
   assist_blocked_lineNextNotNow:
     'La línea siguiente solo se puede registrar mientras se juega un punto.',
@@ -560,6 +566,7 @@ export const es: typeof en = {
   statCleanHold: 'Holds limpios',
   statBreakChances: 'Oportunidades de break',
   statTurnovers: 'Pérdidas',
+  statPasses: 'Pases completados',
   statBreaks: 'Breaks',
   statCleanBreaks: 'Breaks limpios',
   statAvgHold: 'Duración media de hold',
@@ -911,6 +918,9 @@ export const es: typeof en = {
   statsGuideStep1TurnPlayers: 'Preguntar quién perdió el disco',
   statsGuideStep1TurnPlayersBody:
     'Anidado bajo Pérdidas, y desactivado por defecto. Activado, cada toque en Turn abre un diálogo que pregunta quién perdió el disco y quién lo forzó. Desactivado, el toque registra la pérdida y te devuelve la pantalla — el contador, la barra de posesión y todas las cifras de equipo siguen funcionando igual.',
+  statsGuideStep1Passes: 'Pases',
+  statsGuideStep1PassesBody:
+    'También anidado bajo Pérdidas, y desactivado por defecto. Añade un botón Pass junto a Turn: un toque por pase completado. Nunca pregunta quién lo lanzó. Si se sigue un solo equipo, solo se cuentan los suyos y el botón queda inactivo mientras el disco lo tiene el otro — por eso el informe les muestra una cifra y al otro equipo un guion.',
   statsGuideStep1Goals: 'Preguntar quién marcó',
   statsGuideStep1GoalsBody:
     'Activado, cada gol abre un selector para el anotador y la asistencia. La señal de gol se retiene hasta que terminas, así que el diálogo nunca tapa justo lo que tienes que anunciar.',
@@ -942,11 +952,14 @@ export const es: typeof en = {
   statsGuideTour2:
     'Las estadísticas en vivo, en el hueco que usa el botón ámbar cuando lo hay. Tres páginas, que se pasan con las flechas de los lados — ver más abajo.',
   statsGuideTour3:
-    'Roster. Con el seguimiento de líneas activado, primero pregunta si quieres la línea o el roster en sí.',
+    'El roster y el diálogo de línea están en el menú, arriba a la izquierda, junto a la configuración del partido y las guías.',
   statsGuideTour4:
     'Decisión. Desde «Por equipo» en adelante, cada decisión, pasos y parada técnica pregunta de qué equipo era; una lesión pregunta quién se ha hecho daño.',
   statsGuideTour5:
     'Turn: un toque por pérdida, con la insignia contándolas dentro del punto. Mantén pulsado para deshacer la última. Fíjate en la insignia para saber que el toque ha entrado: cuando el disco vuelve a un equipo que ya lo ha tenido en ese punto, la barra de posesión regresa a un lado en el que ya ha estado y nada más se mueve en pantalla.',
+
+  statsGuideTour6:
+    'Pass: un toque por pase completado, con la insignia contándolos dentro del punto, igual que Turn. Mantén pulsado para deshacer el último. Al tocarlo no se mueve nada más en pantalla — no se registra nada en el historial, y la barra de posesión se queda donde estaba, porque que un pase se complete es justo lo que hace que no sea una pérdida — así que la insignia es como sabes que ha entrado.',
 
   statsGuideGoalTitle: 'Quién marcó',
   statsGuideGoalBody:
@@ -983,7 +996,7 @@ export const es: typeof en = {
     'Están entre los relojes y los botones mientras el disco está en juego, y ceden el hueco en cuanto algo más urgente lo necesita — el botón ámbar de avance, o una decisión pendiente de resolver — así que nunca pueden mover los paneles del marcador. Solo en vertical: en horizontal no hay altura que gastar. Sin pérdidas hay una sola página de holds y breaks; con ellas, tres.',
   statsGuidePage1: 'Cifras de equipo',
   statsGuidePage1Body:
-    'Una fila por equipo, en su color, en el mismo orden que los paneles. Holds, Breaks, Oportunidades de break y Pérdidas — las mismas cuatro con las que abre el informe, definidas más abajo.',
+    'Una fila por equipo, en su color, en el mismo orden que los paneles. Holds, Breaks, Oportunidades de break y Pérdidas — las mismas cuatro con las que abre el informe, definidas más abajo. Con los pases activados se les suma una quinta columna, y un equipo al que el partido no sigue muestra ahí un guion en vez de un cero.',
   statsGuidePage2: 'Posesión por punto',
   statsGuidePage2Body:
     'Una columna por punto, con la parte de posesión del equipo de arriba por encima de la línea y la del otro por debajo. Aquí todas las columnas tienen la misma altura, así que se lee como un reparto puro; el informe dibuja el mismo gráfico pero da a cada columna una altura según lo que duró el punto. Se desplaza.',
@@ -1006,6 +1019,9 @@ export const es: typeof en = {
   statsGuideStatTurnovers: 'Pérdidas',
   statsGuideStatTurnoversBody:
     'Las propias de este equipo, en todo el partido, descontando lo deshecho.',
+  statsGuideStatPasses: 'Pases completados',
+  statsGuideStatPassesBody:
+    'Todos los pases registrados, en todo el partido, descontando lo deshecho. Si se sigue un solo equipo, el otro muestra un guion — nadie contaba sus pases, que no es lo mismo que no haber dado ninguno.',
   statsGuideStatBreaks: 'Puntos de break',
   statsGuideStatBreaksBody: 'Puntos ganados sacando.',
   statsGuideStatCleanBreaks: 'Breaks limpios',
@@ -1068,6 +1084,8 @@ export const es: typeof en = {
   statsGuideDefBreakChDo: 'Cada pérdida impar de un punto en el que este equipo sacaba',
   statsGuideDefTurn: 'Turns',
   statsGuideDefTurnDo: 'Pérdidas atribuidas al jugador que perdió el disco',
+  statsGuideDefPasses: 'Pases completados',
+  statsGuideDefPassesDo: 'Pases registrados para este equipo, en todo el partido',
   statsGuideDefD: 'D (Posesión)',
   statsGuideDefDDo: 'Pérdidas que forzó este jugador — bloqueos, y marcas que agotaron el conteo',
   statsGuideDefOD: 'O / D (Juego)',

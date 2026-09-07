@@ -83,6 +83,39 @@ describe('the stats slot', () => {
     expect(screen.getAllByText(/This point/).length).toBeGreaterThan(0); // and backwards past the start
   });
 
+  // Five columns is the widest page one gets; the 9px labels truncate rather than
+  // wrap, since a wrapped label would change the slot's height.
+  it('adds a passes column next to turns once the game counts them', () => {
+    const state = liveGame({ passesCompleted: { A: 42, B: 37 } });
+    state.config = { ...state.config, trackPasses: true };
+    mount(state);
+
+    const slot = pager() as HTMLElement;
+    expect(slot.textContent).toMatch(/Holds.*Breaks.*Break ch\..*Turns.*Pass/);
+    expect(slot.textContent).toContain('42');
+    expect(slot.textContent).toContain('37');
+  });
+
+  it('dashes the team the game does not follow, rather than showing it a zero', () => {
+    const state = liveGame({ passesCompleted: { A: 42, B: 0 } });
+    state.config = {
+      ...state.config,
+      statsMode: 'players',
+      trackedTeam: 'A',
+      trackPasses: true,
+    };
+    mount(state);
+
+    const slot = pager() as HTMLElement;
+    expect(slot.textContent).toContain('42');
+    expect(slot.textContent).toContain('—');
+  });
+
+  it('leaves page one at four columns when passes are off', () => {
+    mount(liveGame());
+    expect((pager() as HTMLElement).textContent).not.toContain('Pass');
+  });
+
   it('comes back on the page it was on after the slot changes hands', () => {
     // The same stored index StatsSlot writes when a chevron is tapped — the
     // pager unmounts whenever a button borrows the slot, and must not reset.

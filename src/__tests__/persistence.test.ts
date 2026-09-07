@@ -109,6 +109,26 @@ describe('restoring a game stored by an older build', () => {
 
     expect(loadPersistedState()!.config.trackTurnoverPlayers).toBe(false);
   });
+
+  // Unlike trackTurnoverPlayers above, this one needs no migration branch: no
+  // stored game ever counted passes and the new default is already off, so the
+  // plain layering over createInitialState's config says the true thing.
+  it('comes back counting no passes, which is what every stored game was doing', () => {
+    // Written the way a build before passes existed wrote it: the config flag is
+    // missing, and so are the two counters at the top level of the state.
+    const raw = JSON.parse(JSON.stringify(playerModeGame()));
+    delete raw.config.trackPasses;
+    delete raw.pointPasses;
+    delete raw.passesCompleted;
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(raw));
+
+    const state = loadPersistedState()!;
+    expect(state.config.trackPasses).toBe(false);
+    // The counters default through the same layering, so nothing downstream reads
+    // an undefined.
+    expect(state.pointPasses).toEqual({ A: 0, B: 0 });
+    expect(state.passesCompleted).toEqual({ A: 0, B: 0 });
+  });
 });
 
 describe('restoring a game stored before line tracking existed', () => {

@@ -136,6 +136,9 @@ export const en = {
   trackTurnoverPlayersLabel: 'Ask who turned it over',
   trackTurnoverPlayersHint:
     'Off, Turn just registers the turnover. On, it asks who lost the disc and who forced it — accurate, but a lot of taps in a fast point.',
+  trackPassesLabel: 'Passes',
+  trackPassesHint:
+    'Adds a Pass button next to Turn: one tap per completed pass, hold to take the last one back. It never asks who threw it. Following one team, it only counts theirs.',
 
   // Line tracking. Only offered where a single roster is followed —
   // see lineTrackingEnabled. MMP/FMP are the WFDF terms and stay English in every
@@ -206,7 +209,6 @@ export const en = {
   linePromptTitle: 'Who is on for this point?',
   linePromptBtn: 'Register line',
   lineNextPending: 'Next point: {count} registered',
-  btnLine: 'Line',
   btnLineSaveAnyway: 'Save anyway',
   btnLineConfirmAnyway: 'Tap again to save',
   btnSaveLine: 'Save this line',
@@ -246,7 +248,6 @@ export const en = {
   rosterImportDuplicates: '{count} already on the roster',
   rosterImportReplace: 'Replace the current roster ({count})',
   rosterImportApply: 'Import {count}',
-  btnPlayers: 'Roster',
   assistDialogTitle: 'Who scored for {team}?',
   whoScored: 'Scorer',
   whoAssisted: 'Assist',
@@ -303,6 +304,9 @@ export const en = {
   // record a turnover, hold to take the last one back — the same tap/hold pair the
   // score panels use.
   btnTurnoverHold: 'Turnover — hold to undo',
+  // Accessible name/tooltip for the Pass button, which mirrors Turn's tap/hold
+  // pair: tap to count a completed pass, hold to take the last one back.
+  btnPass: 'Completed pass — hold to undo',
   // Accessible name for the raised-hand button, which is the one action-row
   // control with no visible micro-label: "Stop" read as a command rather than a
   // question, and neither "Stoppage" nor "SOTG" covers what the other opens.
@@ -322,9 +326,9 @@ export const en = {
   // vocabulary is English on Spanish and Catalan fields too, and it keeps the
   // widths identical across languages.
   lblTurn: 'Turn',
+  lblPass: 'Pass',
   lblCall: 'Call',
   lblLog: 'Log',
-  lblRoster: 'Roster',
 
   // The live-stats pager in the reserved action-row slot (see StatsSlot). The
   // slot* labels render at 9px in a 366px row, so they have to stay terse in
@@ -334,6 +338,7 @@ export const en = {
   slotBreaks: 'Breaks',
   slotBreakCh: 'Break ch.',
   slotTurns: 'Turns',
+  slotPasses: 'Passes',
   slotThisPoint: 'This point · {n} turns',
   slotAvgHold: 'avg {time}',
   slotPagePossession: 'Possession by point',
@@ -355,6 +360,11 @@ export const en = {
   menuGuide: "Beginner's guide",
   // The report on the game so far, readable mid-game — see ReportScreen's `live`.
   menuReport: 'Report so far',
+  // The two rows the Roster action button used to hold behind a chooser, before
+  // the Pass button took its place on the row. Line only appears with line
+  // tracking on, and never without Roster above it.
+  menuRoster: 'Roster',
+  menuLine: 'Line',
   btnBackToGame: 'Back to the game',
   btnExitReport: 'Exit report',
 
@@ -585,6 +595,7 @@ export const en = {
   assist_blocked_timeoutNoneLeft: 'No timeouts left for this team.',
   assist_blocked_timeoutNotNow: 'Timeouts can only be called during play.',
   assist_blocked_noTurnoverToUndo: 'No turnover to undo in this point.',
+  assist_blocked_noPassToUndo: 'No pass to undo in this point.',
   assist_blocked_lineNotTracked: 'Line tracking is off for this game.',
   assist_blocked_lineNextNotNow:
     'The next line can only be registered while a point is being played.',
@@ -598,6 +609,10 @@ export const en = {
   statCleanHold: 'Clean holds',
   statBreakChances: 'Break chances',
   statTurnovers: 'Turnovers',
+  // Directly after Turnovers, the figure it is the counterpart of. It is the one
+  // row that can be a number on one side and "—" on the other: a game following
+  // a single team counts only that team's passes.
+  statPasses: 'Completed passes',
   statBreaks: 'Break points',
   statCleanBreaks: 'Clean breaks',
   statAvgHold: 'Avg. hold time',
@@ -973,6 +988,9 @@ export const en = {
   statsGuideStep1TurnPlayers: 'Ask who turned it over',
   statsGuideStep1TurnPlayersBody:
     'Nested under Turnovers, and off by default. On, every Turn tap opens a dialog asking who lost the disc and who forced it. Off, the tap registers the turnover and gives the screen straight back — the count, the possession bar and every team figure still work exactly the same.',
+  statsGuideStep1Passes: 'Passes',
+  statsGuideStep1PassesBody:
+    'Also nested under Turnovers, and off by default. It adds a Pass button beside Turn: one tap per completed pass. It never asks who threw it. Following a single team, only that team\u2019s passes are counted and the button is dead while the other side has the disc — which is why the report shows them a figure and the other team a dash.',
   statsGuideStep1Goals: 'Ask who scored',
   statsGuideStep1GoalsBody:
     'On, each goal opens a picker for the scorer and the assist. The goal signal is held back until you are done, so the dialog never covers the thing you are meant to be announcing.',
@@ -1004,11 +1022,14 @@ export const en = {
   statsGuideTour2:
     'The live statistics, in the slot the amber button uses when there is one. Three pages, cycled with the chevrons either side — see below.',
   statsGuideTour3:
-    'Roster. With line tracking on it asks first whether you want the line or the roster itself.',
+    'The roster and the line dialog both live in the menu, top left, alongside the game setup and the guides.',
   statsGuideTour4:
     'Call. From By team upwards, every call, travel and technical stoppage asks which team it was for; an injury asks who was hurt.',
   statsGuideTour5:
     'Turn: one tap per turnover, with the badge counting them within the point. Press and hold to take the last one back. Watch the badge to know a tap landed: when the disc goes back to a team that has already had it this point, the possession bar returns to a side it has been on before and nothing else on screen moves.',
+
+  statsGuideTour6:
+    'Pass: one tap per completed pass, with the badge counting them within the point, exactly as Turn does. Press and hold to take the last one back. Nothing else on screen moves when you tap it — no log entry, and the possession bar stays where it was, because a pass completing is what makes it not a turnover — so the badge is how you know it landed.',
 
   statsGuideGoalTitle: 'Who scored',
   statsGuideGoalBody:
@@ -1045,7 +1066,7 @@ export const en = {
     'They sit between the clocks and the action buttons while the disc is live, and give the slot up the moment something more urgent needs it — the amber advance button, or a call waiting to be resolved — so they can never push the score panels around. Portrait only: landscape has no height to spare. Without turnovers there is a single page of holds and breaks; with them, three.',
   statsGuidePage1: 'Team figures',
   statsGuidePage1Body:
-    'One row per team, in team colour, in the order the panels are laid out. Holds, Breaks, Break chances and Turnovers — the same four the report opens with, defined below.',
+    'One row per team, in team colour, in the order the panels are laid out. Holds, Breaks, Break chances and Turnovers — the same four the report opens with, defined below. With passes on, a fifth column joins them, and a team the game does not follow shows a dash there rather than a zero.',
   statsGuidePage2: 'Possession by point',
   statsGuidePage2Body:
     'One column per point, with the top team\u2019s share of the tracked possession time above the line and the other team\u2019s below. Every column is the same height here, so it reads as a pure split; the report draws the same chart but heights each column by how long the point took. It scrolls.',
@@ -1067,6 +1088,9 @@ export const en = {
     'How often this team won the disc while on defence — every odd-numbered turnover of a point they pulled, since a point starts in the offence\u2019s hands and every turnover after that alternates. Read it against Break points to get the conversion rate.',
   statsGuideStatTurnovers: 'Turnovers',
   statsGuideStatTurnoversBody: 'This team\u2019s own, all game, net of anything undone.',
+  statsGuideStatPasses: 'Completed passes',
+  statsGuideStatPassesBody:
+    'Every pass tapped in, all game, net of anything undone. Following a single team, the other team shows a dash — nobody was counting their passes, which is a different thing from their having thrown none.',
   statsGuideStatBreaks: 'Break points',
   statsGuideStatBreaksBody: 'Points won while pulling.',
   statsGuideStatCleanBreaks: 'Clean breaks',
@@ -1129,6 +1153,8 @@ export const en = {
   statsGuideDefBreakChDo: 'Every odd-numbered turnover of a point this team pulled',
   statsGuideDefTurn: 'Turns',
   statsGuideDefTurnDo: 'Turnovers charged to the player who lost the disc',
+  statsGuideDefPasses: 'Completed passes',
+  statsGuideDefPassesDo: 'Passes tapped in for this team, all game',
   statsGuideDefD: 'D (Possession)',
   statsGuideDefDDo: 'Turnovers this player forced — blocks, and marks that ran the stall out',
   statsGuideDefOD: 'O / D (Playing)',

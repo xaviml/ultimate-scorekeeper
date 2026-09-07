@@ -66,6 +66,42 @@ export function TurnIcon({ size }: { size?: string }) {
 }
 
 /**
+ * Line: the seven on the field, drawn as a row of figures rather than the roster's
+ * overlapping pair. It sits directly under Roster in the game menu, so the contrast
+ * is the whole point — a squad against the handful of them taking this point.
+ */
+export function LineIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <circle cx="6" cy="7.25" r="2" />
+      <circle cx="12" cy="7.25" r="2" />
+      <circle cx="18" cy="7.25" r="2" />
+      <path d="M3 17.5a3 3 0 0 1 6 0m0 0a3 3 0 0 1 6 0m0 0a3 3 0 0 1 6 0" />
+    </Glyph>
+  );
+}
+
+/**
+ * Pass: thrower and receiver as two small circles, joined by an arrow running from
+ * one to the other. It sits immediately right of Turn in the action row, so it is
+ * drawn to read against it rather than on its own — Turn's two arrows oppose each
+ * other because the disc came back, this one goes one way because it arrived.
+ *
+ * The two dots are doing a second job: naming who threw to whom is where this
+ * feature is heading, and a glyph that already shows two people will still be
+ * telling the truth when it asks.
+ */
+export function PassIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <circle cx="4.75" cy="12" r="2.25" />
+      <circle cx="19.25" cy="12" r="2.25" />
+      <path d="M8 12h8m0 0-2.75-2.75M16 12l-2.75 2.75" />
+    </Glyph>
+  );
+}
+
+/**
  * Call: a shout, with the same speech metaphor the assistance bar already uses
  * for the green `say_*` call-outs. Explicitly not a whistle — Ultimate is
  * self-refereed, nobody blows one to make a call, and in this app a whistle

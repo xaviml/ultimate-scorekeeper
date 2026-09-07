@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useT } from '../i18n/useT';
 import { useGame } from '../state/gameHooks';
-import { turnoversTracked } from '../state/gameReducer';
+import { passesFor, passesTracked, turnoversTracked } from '../state/gameReducer';
 import { formatClock, teamStats } from '../state/stats';
 import type { GameState, TeamId } from '../state/types';
 import { ChevronLeftIcon, ChevronRightIcon } from './icons';
@@ -130,7 +130,17 @@ export function StatsSlot() {
   const paceClock = formatClock(elapsed);
   const avgLabel = avg !== null ? t('slotAvgHold', { time: formatClock(avg) }) : null;
 
-  const figureHeaders = [t('slotHolds'), t('slotBreaks'), t('slotBreakCh'), t('slotTurns')];
+  // Passes join the row next to Turns when this game counts them, taking page one
+  // to five columns. A team the game does not follow shows "—" rather than a 0 it
+  // has not earned — see passesFor, the same rule the report's Passes row reads.
+  const passing = passesTracked(state.config);
+  const figureHeaders = [
+    t('slotHolds'),
+    t('slotBreaks'),
+    t('slotBreakCh'),
+    t('slotTurns'),
+    ...(passing ? [t('slotPasses')] : []),
+  ];
   const figureRows = ([top, bottom] as TeamId[]).map((id) => ({
     color: colors[id],
     values: [
@@ -138,6 +148,7 @@ export function StatsSlot() {
       statsFor[id].breaks,
       statsFor[id].breakChances,
       statsFor[id].turnovers,
+      ...(passing ? [passesFor(state, id) ?? '—'] : []),
     ],
   }));
 

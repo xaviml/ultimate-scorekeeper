@@ -200,6 +200,19 @@ export interface GameConfig {
    * against and turnovers being recorded at all (see `turnoverPlayersTracked`).
    */
   trackTurnoverPlayers: boolean;
+  /**
+   * Whether this game counts completed passes — the Pass button and the per-team
+   * Passes figure derived from it. Off by default, and nested under turnovers:
+   * a pass is credited to whoever is holding the disc, and `possessionTeam` only
+   * ever moves when turnovers are recorded, so without them every pass in a point
+   * would land on the receiving team. See `passesTracked`.
+   *
+   * Deliberately never a player question. A pass has two people in it and naming
+   * both at the rate passes actually happen is not something a volunteer can do
+   * at pace, so this stays a tap even in `players` mode — unlike
+   * `trackTurnoverPlayers`, which has a matching nested switch.
+   */
+  trackPasses: boolean;
   /** See `LineConfig`. Off by default: without it everything behaves as it always has. */
   lines: LineConfig;
   players: Record<TeamId, PlayerInfo[]>;
@@ -227,6 +240,7 @@ export type TemplateSettings = Omit<
   | 'trackTurnovers'
   | 'trackGoalPlayers'
   | 'trackTurnoverPlayers'
+  | 'trackPasses'
   | 'lines'
   | 'players'
   | 'startingTime'
@@ -464,6 +478,18 @@ export interface PointRecord {
   /** Turnovers by either team during this point — 0 makes a hold "clean", 1 makes a break "clean" (see teamStats in stats.ts). */
   turnovers: number;
   /**
+   * Completed passes by each team during this point, when `passesTracked`. Absent
+   * otherwise — a zeroed pair would be indistinguishable from a point in a game
+   * that counted them and saw none, which is the same reason `possessionSeconds`
+   * below is absent rather than zeroed.
+   *
+   * The lifetime figure the report shows comes from `GameState.passesCompleted`,
+   * not from adding these up; this is here so a per-point reading (passes per
+   * hold, passes before a turnover) stays derivable from a game recorded today.
+   * A team the game does not follow is 0 here, never counted — see `passTeam`.
+   */
+  passes?: Record<TeamId, number>;
+  /**
    * Seconds each team held the disc during this point. Sums to at most
    * `durationSeconds` — halted play (calls, timeouts, stoppages) is credited to
    * neither team, mirroring how the point clock behaves. Absent for points
@@ -498,6 +524,7 @@ export interface GoalSnapshot {
   offenseTeam: TeamId;
   possessionTeam: TeamId | null;
   pointTurnovers: number;
+  pointPasses: Record<TeamId, number>;
   possessionSeconds: Record<TeamId, number>;
   status: GameStatus;
   half: 1 | 2;
@@ -570,6 +597,28 @@ export interface GameState {
    * possession then would hand the disc away from the team that received the pull.
    */
   pointTurnovers: number;
+  /**
+   * Completed passes by each team in the point being played, reset by every pull
+   * and every goal exactly like `pointTurnovers`, and written into the PointRecord
+   * at GOAL. Their sum is what the Pass button's badge shows — the only feedback a
+   * tap gets, since a pass writes no log entry and moves nothing else on screen.
+   *
+   * Also what a long-press has to take back from: undoing decrements the *current
+   * possessor's* count, since a mis-tap is corrected before anything else happens
+   * and a pass never changes hands (see canUndoPass).
+   */
+  pointPasses: Record<TeamId, number>;
+  /**
+   * Completed passes by each team over the whole game, net of any undo — the
+   * lifetime figure the stats grid and the report's Passes row read. Never reset
+   * per point, and, like `turnoversCommitted`, deliberately absent from
+   * GoalSnapshot: UNDO_GOAL rewinds the goal, not the passes already thrown
+   * earlier in the point it puts you back into.
+   *
+   * A team this game does not follow is left at 0 and rendered as "—" rather than
+   * as a real zero — see `passTeam` and `teamStats`.
+   */
+  passesCompleted: Record<TeamId, number>;
   /**
    * Seconds each team has held the disc during the point in progress, accumulated
    * in TICK from `possessionTeam`. Reset to 0 at PULL_THROWN alongside
@@ -711,6 +760,15 @@ export type Action =
   | { type: 'TURNOVER'; turnoverId?: string; defenseId?: string }
   /** Long-press on Turn: hands the disc back to the team that lost it (see UNDO_TURNOVER). */
   | { type: 'UNDO_TURNOVER' }
+  /**
+   * One completed pass by whoever is holding the disc. Bookkeeping only in the
+   * strictest sense the app has: it writes no log entry, fires no call-out and no
+   * signal, and touches neither possession nor the clock — two counters and the
+   * badge, nothing else.
+   */
+  | { type: 'PASS' }
+  /** Long-press on Pass: takes the last one back (see UNDO_PASS). */
+  | { type: 'UNDO_PASS' }
   | { type: 'TRAVEL'; team?: TeamId }
   | { type: 'CALL_MADE'; kind: CallKind; team?: TeamId }
   | { type: 'CALL_RESOLVED'; resolution: CallResolution }

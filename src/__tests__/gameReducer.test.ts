@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  canPass,
   canRecordEvent,
   canScore,
   canStoppage,
   canTurnover,
   canUndo,
+  canUndoPass,
   canUndoTurnover,
   canSetLine,
   canWaterBreak,
@@ -15,6 +17,9 @@ import {
   halfTargetApplies,
   isUniversePoint,
   leftEndzoneTeam,
+  passTeam,
+  passesFor,
+  passesTracked,
   playerTrackingFor,
   possessionTracked,
   pullFromSide,
@@ -1415,6 +1420,151 @@ describe('undoing a turnover', () => {
     });
     expect(possessionTracked(s)).toBe(true);
     expect(possessionTracked(gameReducer(s, { type: 'UNDO_TURNOVER' }))).toBe(true);
+  });
+});
+
+/**
+ * Passes: the quietest thing the reducer records. Two counters, no log entry, no
+ * call-out, no signal, and possession deliberately untouched — a pass completing
+ * is exactly what makes it not a turnover.
+ */
+describe('passes', () => {
+  const bothTeams = cfg({ statsMode: 'teams', trackTurnovers: true, trackPasses: true });
+  /** A followed team: only their passes are counted (see passTeam). */
+  const followA = cfg({
+    statsMode: 'players',
+    trackTurnovers: true,
+    trackPasses: true,
+    trackedTeam: 'A',
+  });
+
+  it('needs turnovers, because possession only moves when the Turn button exists', () => {
+    expect(passesTracked(cfg({ statsMode: 'teams', trackPasses: true }))).toBe(false);
+    expect(passesTracked(bothTeams)).toBe(true);
+    // And nothing to attribute to means nothing to count, whatever the flag says.
+    expect(passesTracked(cfg({ statsMode: 'none', trackTurnovers: true, trackPasses: true }))).toBe(
+      false,
+    );
+  });
+
+  it('counts one for whoever holds the disc, and moves nothing else', () => {
+    const before = live(bothTeams); // A received the pull
+    const s = gameReducer(before, { type: 'PASS' });
+
+    expect(s.pointPasses).toEqual({ A: 1, B: 0 });
+    expect(s.passesCompleted).toEqual({ A: 1, B: 0 });
+    // The whole point of a completed pass: the disc stays where it was.
+    expect(s.possessionTeam).toBe('A');
+    expect(s.scores).toEqual(before.scores);
+    expect(s.gameSeconds).toBe(before.gameSeconds);
+    // No log entry, and no call-out or signal to fight for the bar.
+    expect(s.log).toEqual(before.log);
+    expect(s.assist).toBe(before.assist);
+  });
+
+  it('follows the disc across a turnover', () => {
+    let s = run(live(bothTeams), { type: 'PASS' }, { type: 'PASS' });
+    s = gameReducer(s, { type: 'TURNOVER' }); // A → B
+    s = gameReducer(s, { type: 'PASS' });
+
+    expect(s.pointPasses).toEqual({ A: 2, B: 1 });
+  });
+
+  it('is refused between points, where there is no disc to throw', () => {
+    const s = started(bothTeams);
+    expect(canPass(s).ok).toBe(false);
+    expect(gameReducer(s, { type: 'PASS' })).toBe(s);
+  });
+
+  it('counts only the followed team, and is refused while the other side has it', () => {
+    const s = live(followA); // A received the pull, and A is the followed team
+    expect(canPass(s).ok).toBe(true);
+    expect(passTeam(s)).toBe('A');
+
+    const afterTurn = gameReducer(gameReducer(s, { type: 'PASS' }), { type: 'TURNOVER' });
+    expect(passTeam(afterTurn)).toBeNull();
+    expect(canPass(afterTurn).reason).toBe('passesOtherTeam');
+    expect(gameReducer(afterTurn, { type: 'PASS' })).toBe(afterTurn);
+  });
+
+  it('reports the unfollowed team as null rather than zero', () => {
+    const s = gameReducer(live(followA), { type: 'PASS' });
+    expect(passesFor(s, 'A')).toBe(1);
+    // Not 0: nobody was counting B, which is a different claim from "B threw none".
+    expect(passesFor(s, 'B')).toBeNull();
+    // And with passes off entirely, neither team has a figure.
+    expect(passesFor(live(cfg({ statsMode: 'teams', trackTurnovers: true })), 'A')).toBeNull();
+  });
+
+  describe('undo', () => {
+    it('takes the last one back off both counters', () => {
+      let s = run(live(bothTeams), { type: 'PASS' }, { type: 'PASS' });
+      s = gameReducer(s, { type: 'UNDO_PASS' });
+
+      expect(s.pointPasses).toEqual({ A: 1, B: 0 });
+      expect(s.passesCompleted).toEqual({ A: 1, B: 0 });
+      expect(s.possessionTeam).toBe('A'); // still nothing to do with possession
+    });
+
+    it('refuses with nothing of the holder’s to take back', () => {
+      const s = live(bothTeams);
+      expect(canUndoPass(s).reason).toBe('noPassToUndo');
+      expect(gameReducer(s, { type: 'UNDO_PASS' })).toBe(s);
+    });
+
+    // A mis-tap is corrected on the spot. Once the disc has changed hands the
+    // preceding pass belongs to the team that gave it away, and silently taking one
+    // off them would be worse than refusing.
+    it('does not reach back across a turnover', () => {
+      let s = gameReducer(live(bothTeams), { type: 'PASS' }); // A: 1
+      s = gameReducer(s, { type: 'TURNOVER' }); // now B holds it, with none of their own
+      expect(canUndoPass(s).reason).toBe('noPassToUndo');
+      expect(gameReducer(s, { type: 'UNDO_PASS' })).toBe(s);
+      expect(s.pointPasses).toEqual({ A: 1, B: 0 });
+    });
+  });
+
+  describe('the point boundary', () => {
+    it('writes the point’s passes onto the record and starts the next at zero', () => {
+      let s = run(live(bothTeams), { type: 'PASS' }, { type: 'PASS' });
+      s = gameReducer(s, { type: 'TURNOVER' });
+      s = gameReducer(s, { type: 'PASS' });
+      s = gameReducer(s, { type: 'GOAL', team: 'B' });
+
+      expect(s.points[0].passes).toEqual({ A: 2, B: 1 });
+      expect(s.pointPasses).toEqual({ A: 0, B: 0 });
+      // The lifetime figure is not reset by the goal — it is what the report reads.
+      expect(s.passesCompleted).toEqual({ A: 2, B: 1 });
+    });
+
+    it('leaves the passes off a point in a game that does not count them', () => {
+      const s = gameReducer(live(cfg({ statsMode: 'teams', trackTurnovers: true })), {
+        type: 'GOAL',
+        team: 'A',
+      });
+      // Absent, not a zeroed pair: the two would otherwise be indistinguishable.
+      expect(s.points[0].passes).toBeUndefined();
+    });
+
+    it('resets on the pull, so a point starts clean', () => {
+      let s = run(live(bothTeams), { type: 'PASS' });
+      s = gameReducer(s, { type: 'GOAL', team: 'A' });
+      s = gameReducer(s, { type: 'PULL_THROWN' });
+      expect(s.pointPasses).toEqual({ A: 0, B: 0 });
+    });
+
+    // Same rule turnoversCommitted follows: undoing the goal puts you back inside
+    // the point, so the passes thrown in it are restored — but the lifetime count
+    // keeps them, because they really were thrown.
+    it('restores the point count on an undone goal, without rewinding the lifetime one', () => {
+      let s = run(live(bothTeams), { type: 'PASS' }, { type: 'PASS' });
+      s = gameReducer(s, { type: 'GOAL', team: 'A' });
+      s = gameReducer(s, { type: 'UNDO_GOAL', team: 'A' });
+
+      expect(s.pointPasses).toEqual({ A: 2, B: 0 });
+      expect(s.passesCompleted).toEqual({ A: 2, B: 0 });
+      expect(s.points).toEqual([]);
+    });
   });
 });
 
