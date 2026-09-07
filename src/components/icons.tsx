@@ -228,6 +228,19 @@ export function ChevronRightIcon({ size }: { size?: string }) {
   );
 }
 
+/**
+ * The two readings the secondary clock offers while the disc is live — the point's
+ * own time and the holder's possession time. Two arrows passing each other: the
+ * box is not advancing anything, it is showing the same window a second way.
+ */
+export function SwapIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <path d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+    </Glyph>
+  );
+}
+
 export function MenuIcon({ size }: { size?: string }) {
   return (
     <Glyph size={size}>

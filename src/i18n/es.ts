@@ -280,6 +280,8 @@ export const es: typeof en = {
   gameClock: 'Reloj de partido',
   timeBeforeGame: 'Tiempo hasta el inicio',
   pullTimer: 'Tiempo de pull',
+  pointClock: 'Reloj del punto',
+  btnClockView: 'Cambiar entre el reloj del punto y el tiempo de posesión',
   timeoutTimer: 'Tiempo muerto',
   halftimeTimer: 'Half',
   waterBreakTimer: 'Hidratación',
@@ -760,6 +762,9 @@ export const es: typeof en = {
   guideStep5Score: 'Toca un panel para anotar',
   guideStep5ScoreBody:
     'Cuando un equipo atrapa el disco en la zona que ataca, toca una vez el panel de ese equipo. El marcador sube uno y la barra de abajo te da las palabras que cantar.',
+  guideStep5Clock: 'El segundo reloj durante el punto',
+  guideStep5ClockBody:
+    'En cuanto pulsas «Pull lanzado», ese reloj deja de contar el pull y pasa a ser el reloj del punto: cuánto lleva jugándose este punto. Tras el gol vuelve a contar los segundos hasta el siguiente pull.',
   guideStep5Undo: 'Mantén pulsado un panel para quitar un gol',
   guideStep5UndoBody:
     '¿Has tocado el equipo equivocado, o el gol al final no valía? Mantén pulsado el panel de ese equipo aproximadamente un segundo y el gol desaparece. Un toque suma uno, una pulsación larga quita uno: así nada baja el marcador por accidente. Solo se puede deshacer el último gol, y la aplicación anuncia la corrección para que los dos equipos la oigan.',
@@ -1003,6 +1008,10 @@ export const es: typeof en = {
   statsGuidePage3: 'Ritmo de este punto',
   statsGuidePage3Body:
     'Cuánto lleva el punto actual, comparado con la media de los ya jugados. La barra se rellena del color de quien tiene el disco, la marca es esa media, y aparece una muesca por cada pérdida en el momento del punto en que ocurrió.',
+
+  statsGuidePossessionClock: 'El reloj junto al reloj de partido',
+  statsGuidePossessionClockBody:
+    'Mientras el disco está en juego muestra cuánto tiempo lleva con él el equipo que lo tiene en este punto, con el nombre de ese equipo. Una pérdida le pasa el reloj al otro equipo, que sigue desde el tiempo que ya llevaba acumulado, y se detiene cuando se detiene el juego. Toca la caja para ver el punto entero, y tócala otra vez para volver.',
 
   statsGuideStep5Title: 'El informe — cifras de equipo',
   statsGuideStep5Body:

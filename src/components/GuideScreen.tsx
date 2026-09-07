@@ -122,6 +122,9 @@ export default function GuideScreen({ onBack }: { onBack: () => void }) {
           <Numbered n={2} label={t('guideStep5Score')} body={t('guideStep5ScoreBody')} />
           <Numbered n={3} label={t('guideStep5Undo')} body={t('guideStep5UndoBody')} />
         </ol>
+        <ul className="space-y-1">
+          <Bullet label={t('guideStep5Clock')} body={t('guideStep5ClockBody')} />
+        </ul>
       </Card>
 
       <Card step={6} title={t('guideStep6Title')}>

@@ -46,7 +46,7 @@ import { GameLog } from './GameLog';
 import { GameMenuDialog, type LeaveKind } from './GameMenuDialog';
 import { GameSetupDialog } from './GameSetupDialog';
 import GuideScreen from './GuideScreen';
-import { CallIcon, LogIcon, MenuIcon, PassIcon, StoppageIcon, TurnIcon } from './icons';
+import { CallIcon, LogIcon, MenuIcon, PassIcon, StoppageIcon, SwapIcon, TurnIcon } from './icons';
 import { NoteDialog } from './NoteDialog';
 import { LineDialog } from './LineDialog';
 import { PlayersDialog } from './PlayersDialog';
@@ -646,6 +646,154 @@ function secondaryOverride(
   return null;
 }
 
+/**
+ * Which of the two live readings the secondary clock is showing. Remembered for
+ * this game only, in sessionStorage, the same way and for the same reason the
+ * stats slot remembers its page (see StatsSlot): a reload mid-game has to come
+ * back showing what it was showing, and a new game starts on the default.
+ */
+type ClockView = 'possession' | 'point';
+
+const CLOCK_VIEW_KEY = 'ultimate-scorekeeper:live-clock-view';
+
+function clockViewGameKey(state: GameState): number {
+  return state.log.find((e) => e.type === 'gameStart')?.atMs ?? 0;
+}
+
+function loadClockView(key: number): ClockView {
+  try {
+    const raw = sessionStorage.getItem(CLOCK_VIEW_KEY);
+    if (!raw) return 'possession';
+    const stored = JSON.parse(raw) as { game: number; view: ClockView };
+    return stored.game === key && stored.view === 'point' ? 'point' : 'possession';
+  } catch {
+    return 'possession';
+  }
+}
+
+function saveClockView(key: number, view: ClockView): void {
+  try {
+    sessionStorage.setItem(CLOCK_VIEW_KEY, JSON.stringify({ game: key, view }));
+  } catch {
+    /* storage unavailable — the choice just won't survive a reload */
+  }
+}
+
+/**
+ * What the secondary clock box shows once nothing else needs it: the disc is live,
+ * which is the one stretch of the game the box had nothing to say in and read
+ * '--:--' for the whole point. Everything else outranks it and is checked before
+ * this is called — the stoppage override, and any `secondary` timer, which covers
+ * the pull, a timeout, half-time and a water break.
+ *
+ * Two readings, and which of them exist is a fact about the game rather than a
+ * preference:
+ *
+ * - The point's own clock is `gameSeconds - pointStartSeconds`, exactly the number
+ *   GOAL writes as the point's duration (timeouts and stoppages included), so the
+ *   box can never disagree with the log, the report or the pace bar about how long
+ *   this point has taken.
+ * - With turnovers recorded there is a second one: the per-team seconds TICK is
+ *   already accumulating in `possessionSeconds`. That is what makes a turnover hand
+ *   the clock over rather than restart it — the team getting the disc back picks up
+ *   from where it left off, and a team that has not held it yet this point starts at
+ *   zero. It freezes exactly where those seconds freeze (a call, a stoppage, a
+ *   pause), so the two halves still sum to at most the point.
+ *
+ * Without turnovers the disc never changes hands (see `possessionSeconds`), so the
+ * possession reading does not exist and the point clock is the only one offered.
+ */
+function livePointClock(
+  state: GameState,
+  view: ClockView,
+): { team: TeamId | null; seconds: number } | null {
+  if (state.status !== 'live' || state.secondary !== null || state.pointStartSeconds === null) {
+    return null;
+  }
+  const holder = turnoversTracked(state.config) ? state.possessionTeam : null;
+  if (view === 'possession' && holder !== null) {
+    return { team: holder, seconds: state.possessionSeconds[holder] };
+  }
+  return { team: null, seconds: Math.max(0, state.gameSeconds - state.pointStartSeconds) };
+}
+
+/**
+ * The right-hand clock box: one number, one small word above it, and — while both
+ * live readings exist (see livePointClock) — a tap that swaps between them.
+ *
+ * The whole box is the button rather than a round control next to the number the
+ * way the game clock's pause is: this one only changes what is displayed, so there
+ * is nothing a stray tap can cost, and on a 360 px phone the box is a far better
+ * target than anything that would fit beside a 3xl clock. The swap glyph is the
+ * affordance; the sr-only line is what a screen reader gets in its place, since an
+ * aria-label here would replace the clock the button is wrapped around rather than
+ * describe it.
+ */
+function SecondaryClockBox({
+  label,
+  dotColor,
+  value,
+  amber,
+  reading,
+  onToggle,
+  toggleLabel,
+}: {
+  label: string;
+  /** The holder's colour when the box is counting their possession; null otherwise. */
+  dotColor: string | null;
+  value: string;
+  amber: boolean;
+  /**
+   * Which live reading is up, or null when one of the box's other tenants has it.
+   * Exposed as `data-live-clock` because the label is a team name the score panels
+   * are already showing in 52 px letters — there is nothing in the box's text that
+   * tells the two apart, so that is what the tests read.
+   */
+  reading: 'possession' | 'point' | null;
+  onToggle: (() => void) | null;
+  toggleLabel: string;
+}) {
+  const box = 'rounded-lg bg-pitch border border-line p-2 lscape:p-0.5';
+  const inner = (
+    <>
+      <div className="flex items-center gap-1 text-[10px] lscape:text-[8px] uppercase tracking-widest text-chalk/50">
+        {dotColor && (
+          <span
+            aria-hidden="true"
+            className="shrink-0 w-2 h-2 lscape:w-1.5 lscape:h-1.5 rounded-full"
+            style={{ backgroundColor: dotColor }}
+          />
+        )}
+        <span className="min-w-0 truncate">{label}</span>
+        {onToggle && <SwapIcon size="shrink-0 ml-auto w-3 h-3 lscape:w-2.5 lscape:h-2.5" />}
+      </div>
+      <div
+        className={`font-clock text-3xl lscape:text-base ${amber ? 'text-signal' : 'text-chalk'}`}
+      >
+        {value}
+      </div>
+    </>
+  );
+  if (!onToggle)
+    return (
+      <div className={box} data-live-clock={reading ?? undefined}>
+        {inner}
+      </div>
+    );
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      title={toggleLabel}
+      data-live-clock={reading ?? undefined}
+      className={`${box} text-left`}
+    >
+      {inner}
+      <span className="sr-only">{toggleLabel}</span>
+    </button>
+  );
+}
+
 export default function GameScreen() {
   const state = useGame();
   const dispatch = useGameDispatch();
@@ -672,6 +820,10 @@ export default function GameScreen() {
   const [showTravel, setShowTravel] = useState(false);
   /** Which cap chip was tapped, if any — see CapChip. */
   const [capTarget, setCapTarget] = useState<'game' | 'half' | null>(null);
+  /** Which reading the secondary clock is on while the disc is live — see livePointClock. */
+  const [clockView, setClockView] = useState<ClockView>(() =>
+    loadClockView(clockViewGameKey(state)),
+  );
   // The call kind chosen in the Call dialog, waiting on "who called it?".
   const [callKind, setCallKind] = useState<CallKind | null>(null);
   // Attacking team captured when the turnover dialog opens, since recording the
@@ -849,6 +1001,17 @@ export default function GameScreen() {
   // A call, a stoppage or an SOTG stoppage takes over the secondary clock box while
   // it's open — see secondaryOverride for why each is measured differently.
   const stoppage = secondaryOverride(state, now, t as never);
+  // ...and once nothing does, the box shows this point instead of '--:--'. Both
+  // readings only exist where the disc changes hands, so the toggle is offered only
+  // there — without turnovers there is one honest clock and nothing to switch to.
+  const liveClock = stoppage ? null : livePointClock(state, clockView);
+  const clockToggle =
+    liveClock !== null && turnoversTracked(state.config) && state.possessionTeam !== null;
+  const toggleClockView = () => {
+    const next: ClockView = clockView === 'possession' ? 'point' : 'possession';
+    setClockView(next);
+    saveClockView(clockViewGameKey(state), next);
+  };
 
   // Scheduled kickoff not yet reached: the game clock counts down to it instead of
   // up from it (see the header dot and the clock label below), and TICK in the
@@ -1321,9 +1484,15 @@ export default function GameScreen() {
               </div>
             </div>
 
-            <div className="rounded-lg bg-pitch border border-line p-2 lscape:p-0.5">
-              <div className="text-[10px] lscape:text-[8px] uppercase tracking-widest text-chalk/50">
-                {stoppage
+            <SecondaryClockBox
+              // The label the box carries, in the order the box gives itself up:
+              // whatever stopped play, then whichever break or pull clock is
+              // running, then the live point — named by the team holding the disc
+              // when that is what it is counting, since the score panels keep a
+              // fixed side all game and a name is the only thing that says whose
+              // seconds these are.
+              label={
+                stoppage
                   ? stoppage.label
                   : state.secondary?.kind === 'timeout'
                     ? t('timeoutTimer')
@@ -1331,27 +1500,40 @@ export default function GameScreen() {
                       ? t('halftimeTimer')
                       : state.secondary?.kind === 'waterBreak'
                         ? t('waterBreakTimer')
-                        : t('pullTimer')}
-              </div>
-              <div
-                className={`font-clock text-3xl lscape:text-base ${
-                  stoppage ||
-                  (state.secondary?.kind === 'pull' && state.secondary.seconds >= 45) ||
-                  // A water break counts up and never stops itself, so amber is what
-                  // says the configured duration is up and the teams are due back.
-                  (state.secondary?.kind === 'waterBreak' &&
-                    state.secondary.seconds >= (state.secondary.total ?? 0))
-                    ? 'text-signal'
-                    : 'text-chalk'
-                }`}
-              >
-                {stoppage
+                        : liveClock
+                          ? liveClock.team !== null
+                            ? state.config.teams[liveClock.team].name
+                            : t('pointClock')
+                          : t('pullTimer')
+              }
+              dotColor={
+                liveClock && liveClock.team !== null
+                  ? state.config.teams[liveClock.team].color
+                  : null
+              }
+              value={
+                stoppage
                   ? formatClock(stoppage.seconds)
                   : state.secondary
                     ? formatClock(state.secondary.seconds)
-                    : '--:--'}
-              </div>
-            </div>
+                    : liveClock
+                      ? formatClock(liveClock.seconds)
+                      : '--:--'
+              }
+              // The live point clock is never amber: nothing about a point running
+              // long is something the volunteer has to act on.
+              amber={
+                stoppage !== null ||
+                (state.secondary?.kind === 'pull' && state.secondary.seconds >= 45) ||
+                // A water break counts up and never stops itself, so amber is what
+                // says the configured duration is up and the teams are due back.
+                (state.secondary?.kind === 'waterBreak' &&
+                  state.secondary.seconds >= (state.secondary.total ?? 0))
+              }
+              reading={liveClock ? (liveClock.team !== null ? 'possession' : 'point') : null}
+              onToggle={clockToggle ? toggleClockView : null}
+              toggleLabel={t('btnClockView')}
+            />
           </div>
 
           {/* Log / Stoppage / Call / Turn / Pass, ordered from the surfaces that only

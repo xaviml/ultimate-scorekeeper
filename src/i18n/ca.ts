@@ -279,6 +279,8 @@ export const ca: typeof en = {
   gameClock: 'Rellotge del partit',
   timeBeforeGame: "Temps fins a l'inici",
   pullTimer: 'Temps de pull',
+  pointClock: 'Rellotge del punt',
+  btnClockView: 'Canviar entre el rellotge del punt i el temps de possessió',
   timeoutTimer: 'Temps mort',
   halftimeTimer: 'Half',
   waterBreakTimer: 'Hidratació',
@@ -758,6 +760,9 @@ export const ca: typeof en = {
   guideStep5Score: 'Toca un panell per anotar',
   guideStep5ScoreBody:
     "Quan un equip atrapa el disc a la zona que ataca, toca un cop el panell d'aquest equip. El marcador puja un i la barra de baix et dóna les paraules que has de cantar.",
+  guideStep5Clock: 'El segon rellotge durant el punt',
+  guideStep5ClockBody:
+    'Quan prems «Pull llançat», aquell rellotge deixa de comptar el pull i passa a ser el rellotge del punt: quant fa que es juga aquest punt. Després del gol torna a comptar els segons fins al pull següent.',
   guideStep5Undo: 'Mantén premut un panell per treure un gol',
   guideStep5UndoBody:
     "Has tocat l'equip equivocat, o el gol al final no valia? Mantén premut el panell d'aquest equip aproximadament un segon i el gol desapareix. Un toc suma un, una pulsació llarga en treu un: així res baixa el marcador per accident. Només es pot desfer l'últim gol, i l'aplicació anuncia la correcció perquè els dos equips la sentin.",
@@ -1001,6 +1006,10 @@ export const ca: typeof en = {
   statsGuidePage3: 'Ritme d\u2019aquest punt',
   statsGuidePage3Body:
     'Quant fa que dura el punt actual, comparat amb la mitjana dels ja jugats. La barra s\u2019omple del color de qui té el disc, la marca és aquesta mitjana, i apareix una osca per cada pèrdua al moment del punt en què va passar.',
+
+  statsGuidePossessionClock: 'El rellotge al costat del rellotge del partit',
+  statsGuidePossessionClockBody:
+    'Mentre el disc \u00e9s en joc mostra quant fa que el t\u00e9 l\u2019equip que el porta en aquest punt, amb el nom d\u2019aquell equip. Una p\u00e8rdua li passa el rellotge a l\u2019altre equip, que continua des del temps que ja portava acumulat, i s\u2019atura quan s\u2019atura el joc. Toca la caixa per llegir el punt sencer, i torna-la a tocar per tornar enrere.',
 
   statsGuideStep5Title: 'L\u2019informe — xifres d\u2019equip',
   statsGuideStep5Body:

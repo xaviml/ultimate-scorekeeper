@@ -184,6 +184,12 @@ export default function StatsGuideScreen({ onBack }: { onBack: () => void }) {
           <ul className="space-y-2">
             <Bullet label={t('statsGuidePage3')} body={t('statsGuidePage3Body')} />
           </ul>
+          <ul className="space-y-2">
+            <Bullet
+              label={t('statsGuidePossessionClock')}
+              body={t('statsGuidePossessionClockBody')}
+            />
+          </ul>
         </div>
       </Card>
 

@@ -286,6 +286,8 @@ export const en = {
   gameClock: 'Game clock',
   timeBeforeGame: 'Time before game',
   pullTimer: 'Pull timer',
+  pointClock: 'Point clock',
+  btnClockView: 'Switch between the point clock and possession time',
   timeoutTimer: 'Timeout',
   halftimeTimer: 'Half-time',
   waterBreakTimer: 'Water break',
@@ -825,6 +827,9 @@ export const en = {
   guideStep5Score: 'Tap a panel to score',
   guideStep5ScoreBody:
     "When a team catches the disc in the end zone it is attacking, tap that team's panel once. The score goes up by one and the bar at the bottom hands you the words to shout.",
+  guideStep5Clock: 'The second clock during the point',
+  guideStep5ClockBody:
+    'Once the pull is thrown that clock stops counting down the pull and becomes the point clock: how long this point has been running. After the goal it goes back to counting the seconds to the next pull.',
   guideStep5Undo: 'Long-press a panel to take a goal back',
   guideStep5UndoBody:
     "Tapped the wrong team, or the goal turned out not to count? Press and hold that team's panel for about a second and the goal is removed. A tap adds one, a long press removes one — nothing lowers a score by accident this way. Only the most recent goal can be undone, and the app announces the correction so both teams hear it.",
@@ -1073,6 +1078,10 @@ export const en = {
   statsGuidePage3: 'Pace of this point',
   statsGuidePage3Body:
     'How long the current point has run, against the average of the points already played. The bar fills in the colour of whoever has the disc, the marker is that average, and a tick appears for each turnover at the moment in the point it happened.',
+
+  statsGuidePossessionClock: 'The clock beside the game clock',
+  statsGuidePossessionClockBody:
+    'While the disc is live it shows how long the team holding it has had it this point, named after that team. A turnover hands the clock over: the other team carries on from the time it had already built up, and it stops while play does. Tap the box to read the whole point instead, and tap again to go back.',
 
   statsGuideStep5Title: 'The report — team figures',
   statsGuideStep5Body:
