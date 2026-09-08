@@ -1008,7 +1008,7 @@ export const es: typeof en = {
     'Una columna por punto, con la parte de posesión del equipo de arriba por encima de la línea y la del otro por debajo. Aquí todas las columnas tienen la misma altura, así que se lee como un reparto puro; el informe dibuja el mismo gráfico pero da a cada columna una altura según lo que duró el punto. Se desplaza.',
   statsGuidePage3: 'Ritmo de este punto',
   statsGuidePage3Body:
-    'Cuánto lleva el punto actual, comparado con la media de los ya jugados. La barra se rellena del color de quien tiene el disco, la marca es esa media, y aparece una muesca por cada pérdida en el momento del punto en que ocurrió.',
+    'Cuánto lleva el punto actual \u2014 el punto entero, con el juego parado incluido \u2014 comparado con la media de los ya jugados en esa misma lectura. La barra se rellena del color de quien tiene el disco, la marca es esa media, y aparece una muesca por cada pérdida en el momento del punto en que ocurrió.',
 
   statsGuidePossessionClock: 'El reloj junto al reloj de partido',
   statsGuidePossessionClockBody:
@@ -1042,7 +1042,7 @@ export const es: typeof en = {
     'De esos, los convertidos a la primera pérdida y sin devolver nada — exactamente una pérdida en todo el punto.',
   statsGuideStatAvg: 'Tiempo medio de hold / break',
   statsGuideStatAvgBody:
-    'Cuánto duraron los puntos que ganó este equipo, separando los que recibía de los que sacaba.',
+    'Cuánto duraron con el disco en juego los puntos que ganó este equipo, separando los que recibía de los que sacaba. El juego parado queda fuera \u2014 un tiempo muerto, una falta que se está hablando, una lesión \u2014, así que un punto detenido dos minutos cuenta lo que se jugó, no lo que corrió el reloj de partido.',
   statsGuideStatTimeouts: 'Tiempos muertos usados',
   statsGuideStatTimeoutsBody:
     'Las dos partes sumadas. Una pausa de hidratación no cuesta ninguno, así que nunca aparece aquí.',
@@ -1095,6 +1095,9 @@ export const es: typeof en = {
   statsGuideDefCleanBreakDo: 'Break convertido a la primera pérdida, sin devolverla',
   statsGuideDefBreakCh: 'Oportunidad de break',
   statsGuideDefBreakChDo: 'Cada pérdida impar de un punto en el que este equipo sacaba',
+  statsGuideDefAvgTimes: 'Tiempo medio de hold / break',
+  statsGuideDefAvgTimesDo:
+    'Media del tiempo con el disco en juego de los puntos que ganó ese equipo, sin el juego parado',
   statsGuideDefTurn: 'Turns',
   statsGuideDefTurnDo: 'Pérdidas atribuidas al jugador que perdió el disco',
   statsGuideDefPasses: 'Pases completados',

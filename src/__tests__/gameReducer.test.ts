@@ -3065,3 +3065,93 @@ describe('line tracking', () => {
     expect(s.config.players.A[0].gender).toBeUndefined();
   });
 });
+
+describe('PointRecord.aliveSeconds', () => {
+  // The stat this feeds (avg hold/break time) is shown in every game, so unlike
+  // possessionSeconds this is counted whatever the config tracks — a game with
+  // no stats at all still records it.
+  it('counts only the seconds the disc was live, where durationSeconds counts the clock', () => {
+    let s = live();
+    s = ticks(s, 10);
+    s = run(s, { type: 'TIMEOUT_START', team: 'A' });
+    s = ticks(s, 30);
+    s = run(s, { type: 'TIMEOUT_END' });
+    s = ticks(s, 5);
+    s = run(s, { type: 'GOAL', team: 'A' });
+
+    const p = s.points[0];
+    expect(p.durationSeconds).toBe(45);
+    expect(p.aliveSeconds).toBe(15);
+    // Nothing to attribute the seconds to in a game that records no turnovers.
+    expect(p.possessionSeconds).toBeUndefined();
+  });
+
+  it('stops while a call is being discussed', () => {
+    let s = live();
+    s = ticks(s, 10);
+    s = run(s, { type: 'CALL_MADE', kind: 'foul' });
+    s = ticks(s, 20);
+    s = run(s, { type: 'CALL_RESOLVED', resolution: 'accepted' });
+    s = ticks(s, 4);
+    s = run(s, { type: 'GOAL', team: 'A' });
+
+    expect(s.points[0].durationSeconds).toBe(34);
+    expect(s.points[0].aliveSeconds).toBe(14);
+  });
+
+  it('stops for a stoppage and for a pause', () => {
+    let s = live();
+    s = ticks(s, 10);
+    s = run(s, { type: 'STOPPAGE', kind: 'technical' });
+    s = ticks(s, 20);
+    s = run(s, { type: 'STOPPAGE_RESOLVED' });
+    s = run(s, { type: 'SOTG_TOGGLE' });
+    s = ticks(s, 15);
+    s = run(s, { type: 'SOTG_TOGGLE' });
+    s = ticks(s, 6);
+    s = run(s, { type: 'GOAL', team: 'A' });
+
+    // The game clock runs through the stoppage but not the pause, so the point's
+    // elapsed duration is 10 + 20 + 6.
+    expect(s.points[0].durationSeconds).toBe(36);
+    expect(s.points[0].aliveSeconds).toBe(16);
+  });
+
+  // The invariant that keeps the possession ledger and the average hold/break
+  // times from telling different stories about the same point: possessionTeam is
+  // never null while the status is 'live', so every live tick is credited to
+  // exactly one team and to this counter alike.
+  it('equals the two teams’ possession seconds added, where those are recorded', () => {
+    let s = live(cfg({ statsMode: 'teams', trackTurnovers: true }));
+    s = ticks(s, 12);
+    s = run(s, { type: 'TURNOVER' });
+    s = ticks(s, 8);
+    s = run(s, { type: 'TIMEOUT_START', team: 'B' });
+    s = ticks(s, 30);
+    s = run(s, { type: 'TIMEOUT_END' });
+    s = ticks(s, 5);
+    s = run(s, { type: 'GOAL', team: 'B' });
+
+    const p = s.points[0];
+    const possession = p.possessionSeconds!;
+    expect(possession.A + possession.B).toBe(p.aliveSeconds);
+    expect(p.aliveSeconds).toBe(25);
+    expect(p.durationSeconds).toBe(55);
+  });
+
+  it('restarts each point and comes back with an undone goal', () => {
+    let s = live();
+    s = ticks(s, 20);
+    s = run(s, { type: 'GOAL', team: 'A' }, { type: 'PULL_THROWN' });
+    s = ticks(s, 7);
+    expect(s.aliveSeconds).toBe(7);
+
+    s = run(s, { type: 'GOAL', team: 'B' });
+    expect(s.points[1].aliveSeconds).toBe(7);
+
+    // Undo puts you back inside the second point, at the seconds it had run.
+    s = run(s, { type: 'UNDO_GOAL', team: 'B' });
+    expect(s.aliveSeconds).toBe(7);
+    expect(s.points).toHaveLength(1);
+  });
+});

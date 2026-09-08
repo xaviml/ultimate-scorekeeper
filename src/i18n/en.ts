@@ -1082,7 +1082,7 @@ export const en = {
     'One column per point, with the top team\u2019s share of the tracked possession time above the line and the other team\u2019s below. Every column is the same height here, so it reads as a pure split; the report draws the same chart but heights each column by how long the point took. It scrolls.',
   statsGuidePage3: 'Pace of this point',
   statsGuidePage3Body:
-    'How long the current point has run, against the average of the points already played. The bar fills in the colour of whoever has the disc, the marker is that average, and a tick appears for each turnover at the moment in the point it happened.',
+    'How long the current point has run \u2014 the whole point, stopped play included \u2014 against the average of the points already played on the same reading. The bar fills in the colour of whoever has the disc, the marker is that average, and a tick appears for each turnover at the moment in the point it happened.',
 
   statsGuidePossessionClock: 'The clock beside the game clock',
   statsGuidePossessionClockBody:
@@ -1115,7 +1115,7 @@ export const en = {
     'Of those, the ones converted on the first turnover with nothing given back — exactly one turnover in the whole point.',
   statsGuideStatAvg: 'Avg. hold / break time',
   statsGuideStatAvgBody:
-    'How long the points this team won took, split by whether they were receiving or pulling.',
+    'How long the points this team won took with the disc live, split by whether they were receiving or pulling. Stopped play is left out \u2014 a timeout, a call being talked through, an injury \u2014 so a point held up for two minutes counts what was played, not what the game clock ran.',
   statsGuideStatTimeouts: 'Timeouts used',
   statsGuideStatTimeoutsBody:
     'Both halves added together. A water break costs neither team one, so it never appears here.',
@@ -1168,6 +1168,8 @@ export const en = {
   statsGuideDefCleanBreakDo: 'Break taken on the first turnover, with no reply',
   statsGuideDefBreakCh: 'Break chance',
   statsGuideDefBreakChDo: 'Every odd-numbered turnover of a point this team pulled',
+  statsGuideDefAvgTimes: 'Avg. hold / break time',
+  statsGuideDefAvgTimesDo: 'Mean live-disc time of the points that team won, stopped play left out',
   statsGuideDefTurn: 'Turns',
   statsGuideDefTurnDo: 'Turnovers charged to the player who lost the disc',
   statsGuideDefPasses: 'Completed passes',

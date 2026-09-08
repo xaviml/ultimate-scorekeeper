@@ -717,8 +717,12 @@ function saveClockView(key: number, view: ClockView): void {
  *
  * - The point's own clock is `gameSeconds - pointStartSeconds`, exactly the number
  *   GOAL writes as the point's duration (timeouts and stoppages included), so the
- *   box can never disagree with the log, the report or the pace bar about how long
- *   this point has taken.
+ *   box can never disagree with the log or the pace bar about how long this point
+ *   has taken. It deliberately does not match the report's average hold and break
+ *   times, which measure only the seconds the disc was live (see
+ *   `PointRecord.aliveSeconds`): this is "how long have we been standing here",
+ *   which is elapsed time, and that is "how long does this team need with the
+ *   disc".
  * - With turnovers recorded there is a second one: the per-team seconds TICK is
  *   already accumulating in `possessionSeconds`. That is what makes a turnover hand
  *   the clock over rather than restart it — the team getting the disc back picks up

@@ -10,6 +10,7 @@ export interface TeamStats {
   turnovers: number; // this team's own turnovers, lifetime, net of undo
   breaks: number; // points won while on defense
   cleanBreaks: number; // breaks forced and converted with no turnover of their own
+  /** Mean live-disc time of the points this team won on offence / on defence — see `pointPlaySeconds`. */
   avgHoldSeconds: number | null;
   avgBreakSeconds: number | null;
   timeoutsUsed: number;
@@ -18,6 +19,24 @@ export interface TeamStats {
 function avg(nums: number[]): number | null {
   if (nums.length === 0) return null;
   return Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
+}
+
+/**
+ * How long a point is worth in the average hold and break times: the seconds the
+ * disc was actually live, so a timeout, a call or a stoppage adds nothing to a
+ * team's average. Deliberately *not* what the point clock, the pace bar and the
+ * log's per-goal duration read — those answer "how long have we been standing
+ * here", which is elapsed time and includes every one of those; this answers "how
+ * long does this team need with the disc".
+ *
+ * TECH DEBT: the fallback to `durationSeconds` is for points recorded before
+ * `aliveSeconds` existed — every game already in the match-history archive. It
+ * keeps those reports showing the number they showed on the day, at the cost of
+ * the archive spanning two definitions. Safe to drop (leaving those games with a
+ * "—") once the archive has turned over.
+ */
+function pointPlaySeconds(point: PointRecord): number {
+  return point.aliveSeconds ?? point.durationSeconds;
 }
 
 /**
@@ -38,8 +57,8 @@ export function teamStats(state: GameState, team: TeamId): TeamStats {
     turnovers: state.turnoversCommitted[team],
     breaks: breaks.length,
     cleanBreaks: breaks.filter((p) => p.turnovers === 1).length,
-    avgHoldSeconds: avg(holds.map((p) => p.durationSeconds)),
-    avgBreakSeconds: avg(breaks.map((p) => p.durationSeconds)),
+    avgHoldSeconds: avg(holds.map(pointPlaySeconds)),
+    avgBreakSeconds: avg(breaks.map(pointPlaySeconds)),
     timeoutsUsed: t.half1 + t.half2,
   };
 }

@@ -1006,7 +1006,7 @@ export const ca: typeof en = {
     "Una columna per punt, amb la part de possessió de l'equip de dalt per sobre de la línia i la de l'altre per sota. Aquí totes les columnes tenen la mateixa alçada, així que es llegeix com un repartiment pur; l'informe dibuixa el mateix gràfic però dona a cada columna una alçada segons el que va durar el punt. Es desplaça.",
   statsGuidePage3: 'Ritme d\u2019aquest punt',
   statsGuidePage3Body:
-    'Quant fa que dura el punt actual, comparat amb la mitjana dels ja jugats. La barra s\u2019omple del color de qui té el disc, la marca és aquesta mitjana, i apareix una osca per cada pèrdua al moment del punt en què va passar.',
+    'Quant fa que dura el punt actual \u2014 el punt sencer, amb el joc aturat inclòs \u2014 comparat amb la mitjana dels ja jugats en aquesta mateixa lectura. La barra s\u2019omple del color de qui té el disc, la marca és aquesta mitjana, i apareix una osca per cada pèrdua al moment del punt en què va passar.',
 
   statsGuidePossessionClock: 'El rellotge al costat del rellotge del partit',
   statsGuidePossessionClockBody:
@@ -1040,7 +1040,7 @@ export const ca: typeof en = {
     'D\u2019aquests, els convertits a la primera pèrdua i sense tornar-ne cap — exactament una pèrdua en tot el punt.',
   statsGuideStatAvg: 'Temps mitjà de hold / break',
   statsGuideStatAvgBody:
-    'Quant van durar els punts que va guanyar aquest equip, separant els que rebia dels que servia.',
+    'Quant van durar amb el disc en joc els punts que va guanyar aquest equip, separant els que rebia dels que servia. El joc aturat queda fora \u2014 un temps mort, una falta que s\u2019està parlant, una lesió \u2014, així que un punt aturat dos minuts compta el que es va jugar, no el que va córrer el rellotge del partit.',
   statsGuideStatTimeouts: 'Temps morts fets servir',
   statsGuideStatTimeoutsBody:
     'Les dues parts sumades. Una pausa d\u2019hidratació no en costa cap, així que mai no apareix aquí.',
@@ -1093,6 +1093,9 @@ export const ca: typeof en = {
   statsGuideDefCleanBreakDo: 'Break convertit a la primera pèrdua, sense tornar-la',
   statsGuideDefBreakCh: 'Oportunitat de break',
   statsGuideDefBreakChDo: 'Cada pèrdua senar d\u2019un punt en què aquest equip servia',
+  statsGuideDefAvgTimes: 'Temps mitjà de hold / break',
+  statsGuideDefAvgTimesDo:
+    'Mitjana del temps amb el disc en joc dels punts que va guanyar aquell equip, sense el joc aturat',
   statsGuideDefTurn: 'Turns',
   statsGuideDefTurnDo: 'Pèrdues atribuïdes al jugador que va perdre el disc',
   statsGuideDefPasses: 'Passades completades',

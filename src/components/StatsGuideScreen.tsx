@@ -247,6 +247,7 @@ export default function StatsGuideScreen({ onBack }: { onBack: () => void }) {
             ['statsGuideDefCleanHold', 'statsGuideDefCleanHoldDo'],
             ['statsGuideDefCleanBreak', 'statsGuideDefCleanBreakDo'],
             ['statsGuideDefBreakCh', 'statsGuideDefBreakChDo'],
+            ['statsGuideDefAvgTimes', 'statsGuideDefAvgTimesDo'],
             ['statsGuideDefPasses', 'statsGuideDefPassesDo'],
             ['statsGuideDefPassesAvg', 'statsGuideDefPassesAvgDo'],
             ['statsGuideDefTurn', 'statsGuideDefTurnDo'],

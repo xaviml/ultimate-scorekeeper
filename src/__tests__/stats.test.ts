@@ -597,3 +597,48 @@ describe('sortPlayerStatLines', () => {
     expect(lines.map((l) => l.label)).toEqual(['a', 'b']);
   });
 });
+
+describe('average hold and break times', () => {
+  const point = (patch: Partial<PointRecord> = {}): PointRecord => ({
+    scoredBy: 'A',
+    offense: 'A',
+    isBreak: false,
+    durationSeconds: 120,
+    half: 1,
+    turnovers: 0,
+    ...patch,
+  });
+  const withPoints = (points: PointRecord[]): GameState => ({
+    ...createInitialState(defaultConfig),
+    points,
+  });
+
+  it('averages the live-disc time, not the elapsed time', () => {
+    const s = withPoints([
+      point({ scoredBy: 'A', isBreak: false, durationSeconds: 120, aliveSeconds: 60 }),
+      point({ scoredBy: 'A', isBreak: false, durationSeconds: 100, aliveSeconds: 80 }),
+      point({ scoredBy: 'A', offense: 'B', isBreak: true, durationSeconds: 200, aliveSeconds: 90 }),
+    ]);
+    expect(teamStats(s, 'A').avgHoldSeconds).toBe(70);
+    expect(teamStats(s, 'A').avgBreakSeconds).toBe(90);
+  });
+
+  it('is 0 for a point that was all stopped play, not the length of the stoppage', () => {
+    const s = withPoints([point({ durationSeconds: 180, aliveSeconds: 0 })]);
+    expect(teamStats(s, 'A').avgHoldSeconds).toBe(0);
+  });
+
+  // TECH DEBT (see pointPlaySeconds): games archived before aliveSeconds existed
+  // keep the figure they were reported with on the day. Drop this test with the
+  // fallback.
+  it('falls back to the elapsed duration for a point recorded before live time was tracked', () => {
+    const s = withPoints([point({ durationSeconds: 120 })]);
+    expect(teamStats(s, 'A').avgHoldSeconds).toBe(120);
+  });
+
+  it('stays null for a team that won nothing that way', () => {
+    const s = withPoints([point({ durationSeconds: 120, aliveSeconds: 60 })]);
+    expect(teamStats(s, 'A').avgBreakSeconds).toBeNull();
+    expect(teamStats(s, 'B').avgHoldSeconds).toBeNull();
+  });
+});

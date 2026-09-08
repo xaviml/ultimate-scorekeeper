@@ -516,6 +516,22 @@ export interface PointRecord {
    */
   possessionSeconds?: Record<TeamId, number>;
   /**
+   * Seconds the disc was actually live during this point — `durationSeconds` less
+   * every stretch in which play was stopped: a timeout, an open call, a stoppage,
+   * a pause. It is what the report's average hold and break times are computed
+   * over, so those figures describe playing time rather than elapsed time.
+   *
+   * Where `possessionSeconds` is also recorded the two agree by construction — the
+   * disc is live for exactly the ticks one team or the other is credited with, so
+   * this equals their sum — which is what keeps the possession ledger and the
+   * averages from telling different stories about the same point. Unlike that
+   * field it is recorded in every game: it needs no `possessionTeam` to attribute
+   * to, and the averages it feeds are shown whatever this game tracks.
+   *
+   * Absent for points recorded before it was tracked; see `pointPlaySeconds`.
+   */
+  aliveSeconds?: number;
+  /**
    * Everyone who took the field for the tracked team this point, subs flagged.
    * Absent — rather than empty — when nothing was registered, which is what lets
    * the report say how many points went unrecorded instead of claiming nobody
@@ -545,6 +561,7 @@ export interface GoalSnapshot {
   pointTurnovers: number;
   passRuns: PassRun[];
   possessionSeconds: Record<TeamId, number>;
+  aliveSeconds: number;
   status: GameStatus;
   half: 1 | 2;
   pointStartSeconds: number | null;
@@ -654,6 +671,14 @@ export interface GameState {
    * to the receiving team.
    */
   possessionSeconds: Record<TeamId, number>;
+  /**
+   * Seconds the disc has been live during the point in progress, accumulated in
+   * TICK. Reset at PULL_THROWN, written into the PointRecord at GOAL and restored
+   * by UNDO_GOAL from the GoalSnapshot, exactly like `possessionSeconds` — but
+   * counted in every game, not only where turnovers are tracked, since it
+   * attributes to nobody. See `PointRecord.aliveSeconds`.
+   */
+  aliveSeconds: number;
   /**
    * Turnovers committed by each team over the whole game, net of any undo — a
    * long-press on Turn decrements whichever team gets the disc back, exactly

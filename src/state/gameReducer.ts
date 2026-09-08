@@ -283,6 +283,7 @@ export function createInitialState(config: GameConfig = defaultConfig): GameStat
     pointTurnovers: 0,
     passRuns: [],
     possessionSeconds: { A: 0, B: 0 },
+    aliveSeconds: 0,
     turnoversCommitted: { A: 0, B: 0 },
     passesCompleted: { A: 0, B: 0 },
     gameSeconds: 0,
@@ -925,6 +926,7 @@ function snapshot(state: GameState): GoalSnapshot {
     pointTurnovers: state.pointTurnovers,
     passRuns: state.passRuns.map((r) => ({ ...r })),
     possessionSeconds: { ...state.possessionSeconds },
+    aliveSeconds: state.aliveSeconds,
     status: state.status,
     half: state.half,
     pointStartSeconds: state.pointStartSeconds,
@@ -1209,6 +1211,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         // point nobody turns over never leaves (see PassRun).
         passRuns: passesTracked(s.config) ? [{ team: s.offenseTeam, passes: 0 }] : [],
         possessionSeconds: { A: 0, B: 0 },
+        aliveSeconds: 0,
         secondary: null,
         ratio: s.nextRatio ?? s.ratio,
         nextRatio: null,
@@ -1238,6 +1241,10 @@ export function gameReducer(state: GameState, action: Action): GameState {
             offense: s.offenseTeam,
             isBreak,
             durationSeconds: duration,
+            // The same stretch measured with the stopped play taken out — see
+            // PointRecord.aliveSeconds. Recorded in every game, unlike the two
+            // fields below, because the averages it feeds are shown in every game.
+            aliveSeconds: s.aliveSeconds,
             half: s.half,
             turnovers: s.pointTurnovers,
             // Absent unless this game counts passes, for the same reason
@@ -1404,6 +1411,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         possessionTeam: null, // disc is dead until the next pull is caught
         pointTurnovers: 0,
         possessionSeconds: { A: 0, B: 0 },
+        aliveSeconds: 0,
         pointStartSeconds: null,
         nextRatio,
         // Nothing carries over. In Ultimate the line changes nearly every point, so
@@ -1497,6 +1505,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         pointTurnovers: prev.pointTurnovers,
         passRuns: prev.passRuns.map((r) => ({ ...r })),
         possessionSeconds: { ...prev.possessionSeconds },
+        aliveSeconds: prev.aliveSeconds,
         half: prev.half,
         // A goal appends exactly one point, so dropping the last entry rewinds it.
         points: state.points.slice(0, -1),
@@ -2034,6 +2043,21 @@ export function gameReducer(state: GameState, action: Action): GameState {
       // stoppage leaves the status alone, so both go through the one check and both
       // pick up from exactly where they were.
       const halted = playHalted(s);
+      // How long the disc has been live in the point in progress: the same stretch
+      // durationSeconds measures, less every stretch in which play was stopped — a
+      // timeout or half-time (neither is `live`), a stoppage or a pause (`halted`),
+      // an open call. It is what the report averages hold and break times over, so
+      // those describe playing time rather than elapsed time.
+      //
+      // Deliberately not gated on turnoversTracked the way the per-team split below
+      // is: this attributes to nobody, so it needs no possessionTeam, and the
+      // averages it feeds are shown whatever the game tracks. Where both are
+      // recorded they agree by construction — possessionTeam is never null while
+      // the status is 'live' — which is what keeps the ledger and the averages from
+      // disagreeing about the same point.
+      if (s.status === 'live' && !halted && s.pendingCall === null) {
+        s = { ...s, aliveSeconds: s.aliveSeconds + 1 };
+      }
       // Per-team possession time for the point in progress. Credited only while
       // the disc is genuinely live: same `halted` freeze as every other stretch
       // of play, plus an open call — the disc is dead mid-dispute, so those
