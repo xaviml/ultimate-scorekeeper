@@ -118,15 +118,16 @@ describe('restoring a game stored by an older build', () => {
     // missing, and so are the two counters at the top level of the state.
     const raw = JSON.parse(JSON.stringify(playerModeGame()));
     delete raw.config.trackPasses;
-    delete raw.pointPasses;
+    delete raw.passRuns;
     delete raw.passesCompleted;
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(raw));
 
     const state = loadPersistedState()!;
     expect(state.config.trackPasses).toBe(false);
-    // The counters default through the same layering, so nothing downstream reads
-    // an undefined.
-    expect(state.pointPasses).toEqual({ A: 0, B: 0 });
+    // These default through the same layering, so nothing downstream reads an
+    // undefined — an empty run list is a point with no possessions recorded, which
+    // is exactly what a game stored before they existed has.
+    expect(state.passRuns).toEqual([]);
     expect(state.passesCompleted).toEqual({ A: 0, B: 0 });
   });
 });

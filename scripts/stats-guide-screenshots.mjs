@@ -392,6 +392,18 @@ async function main() {
   const chips = modal.locator('button').filter({ hasText: /^#\d/ });
   if (await chips.count()) await chips.first().click();
   await modal.getByRole('button', { name: 'Save', exact: true }).click();
+  // The figure has to catch the Pass badge mid-possession — a coloured count is
+  // what its caption is about, and the turnover above has just emptied whichever
+  // possession was being built. That needs the *followed* team holding the disc,
+  // and which side received this point depends on who scored the last one, so hand
+  // it over until the button comes alive rather than assuming a direction.
+  const passBtn = page.getByRole('button', { name: 'Completed pass — hold to undo' });
+  for (let i = 0; i < 2 && (await passBtn.isDisabled()); i++) {
+    await sleep(1000);
+    await turnover();
+  }
+  await sleep(1000);
+  await passes(5);
   // The goal that ended the last point is still being announced — its words on the
   // bar, its sign over the panels — and this figure is about neither. Wait for the
   // queue to empty so the bar shows the standing amber line instead.

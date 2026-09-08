@@ -418,11 +418,13 @@ describe('the turn count badge', () => {
  */
 describe('the pass button', () => {
   const passing = (overrides: Partial<GameState> = {}) => {
-    const state = liveGame(overrides);
+    // liveGame gives B the disc, so the point's only possession so far is theirs.
+    const state = liveGame({ passRuns: [{ team: 'B', passes: 0 }], ...overrides });
     state.config = { ...state.config, trackPasses: true };
     return state;
   };
   const passButton = () => screen.getByLabelText('Completed pass — hold to undo');
+  const badge = () => passButton().querySelector('[data-badge]');
 
   it('is absent unless the game counts passes', () => {
     mount(liveGame());
@@ -434,37 +436,69 @@ describe('the pass button', () => {
     tap(passButton());
 
     const stored = JSON.parse(sessionStorage.getItem('ultimate-scorekeeper:game-state')!);
-    // liveGame gives B the disc.
-    expect(stored.pointPasses).toEqual({ A: 0, B: 1 });
+    expect(stored.passRuns).toEqual([{ team: 'B', passes: 1 }]);
     expect(stored.log).toEqual([]);
   });
 
   it('takes the last one back on a long press', () => {
     vi.useFakeTimers();
     try {
-      mount(passing({ pointPasses: { A: 0, B: 2 } }));
+      mount(passing({ passRuns: [{ team: 'B', passes: 2 }] }));
       hold(passButton());
 
       const stored = JSON.parse(sessionStorage.getItem('ultimate-scorekeeper:game-state')!);
-      expect(stored.pointPasses).toEqual({ A: 0, B: 1 });
+      expect(stored.passRuns).toEqual([{ team: 'B', passes: 1 }]);
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it('badges both teams’ passes for the point, and resets with it', () => {
-    mount(passing({ pointPasses: { A: 3, B: 4 } }));
-    expect(passButton()).toHaveTextContent('7');
+  // The badge is the possession in progress, not the point and not the game: it is
+  // the last run's count, so a turnover starts it again from nothing.
+  it('badges the possession in progress, starting again at every turnover', () => {
+    mount(
+      passing({
+        passRuns: [
+          { team: 'A', passes: 9 },
+          { team: 'B', passes: 4 },
+        ],
+        passesCompleted: { A: 40, B: 30 },
+      }),
+    );
+    // Not 13 (the point), not 30 (B's game), not 70 (both): 4, this possession.
+    expect(badge()).toHaveTextContent('4');
     cleanup();
 
-    // The lifetime count is not what the badge is about.
-    mount(passing({ pointPasses: { A: 0, B: 0 }, passesCompleted: { A: 40, B: 30 } }));
+    // The possession a turnover has just opened has nothing in it yet.
+    mount(
+      passing({
+        passRuns: [
+          { team: 'A', passes: 9 },
+          { team: 'B', passes: 0 },
+        ],
+      }),
+    );
+    expect(badge()).toBeNull();
     expect(passButton()).toHaveTextContent(/^Pass$/);
   });
 
+  // One team's count, so it is painted in that team's colour rather than the amber
+  // every other badge on the row uses.
+  it('carries the colour of the team whose possession it counts', () => {
+    const state = passing({ passRuns: [{ team: 'B', passes: 3 }] });
+    mount(state);
+    expect(badge()).toHaveAttribute('data-badge', state.config.teams.B.color);
+    cleanup();
+
+    // Turn's count is both teams', so it stays amber.
+    mount(passing({ pointTurnovers: 2 }));
+    const turn = screen.getByLabelText('Turnover — hold to undo').querySelector('[data-badge]');
+    expect(turn).toHaveAttribute('data-badge', 'signal');
+  });
+
   it('caps the badge at 99+, which is the reason the cap is two digits', () => {
-    mount(passing({ pointPasses: { A: 50, B: 50 } }));
-    expect(passButton()).toHaveTextContent('99+');
+    mount(passing({ passRuns: [{ team: 'B', passes: 100 }] }));
+    expect(badge()).toHaveTextContent('99+');
   });
 
   // Greys out rather than explaining itself: the refusal is "the other team has
@@ -482,6 +516,9 @@ describe('the pass button', () => {
     followingA.config = { ...followingA.config, trackedTeam: 'A' };
     mount(followingA);
     expect(passButton()).toBeDisabled();
+    // And the badge simply disappears — B's run is real, but its count is 0
+    // because nobody is counting them, which is what the greyed button says too.
+    expect(badge()).toBeNull();
   });
 
   it('stays live for either team when the game follows both', () => {
@@ -494,9 +531,10 @@ describe('the pass button', () => {
   // The refusals Pass shares with Turn are explained, not greyed out. Two buttons
   // side by side, one dead and one not, for reasons the volunteer cannot tell
   // apart, is worse than either rule on its own.
-  it.each([
-    ['before the game starts', { status: 'notStarted', possessionTeam: null } as const],
-    ['between points', { status: 'awaitingPull', possessionTeam: null } as const],
+  // No disc in play means no possession open: a run is what PULL_THROWN starts.
+  it.each<[string, Partial<GameState>]>([
+    ['before the game starts', { status: 'notStarted', possessionTeam: null, passRuns: [] }],
+    ['between points', { status: 'awaitingPull', possessionTeam: null, passRuns: [] }],
   ])('stays tappable %s and explains itself, exactly as Turn does', (_name, overrides) => {
     mount(passing(overrides));
 
@@ -508,7 +546,7 @@ describe('the pass button', () => {
     expect(screen.getByRole('tooltip')).toBeInTheDocument();
     // Nothing was counted on the way.
     const stored = JSON.parse(sessionStorage.getItem('ultimate-scorekeeper:game-state')!);
-    expect(stored.pointPasses).toEqual({ A: 0, B: 0 });
+    expect(stored.passRuns).toEqual([]);
   });
 
   it('explains a long press with nothing to take back', () => {

@@ -8,6 +8,7 @@ import type {
   LogEdit,
   LogEntry,
   LogType,
+  PassRun,
   StoppagePlayer,
   TeamId,
   TimeoutConfig,
@@ -229,6 +230,18 @@ export function ruleARatio(start: Gender, pointIndex: number): Gender {
 }
 
 /**
+ * Which of the two points a gender is played for `pointIndex` is — 1 or 2 — or
+ * null for point 1, which stands alone before the alternation begins and is never
+ * a pair's second half. Mirrors `ruleARatio`'s own pattern (0:start 1:flip 2:flip
+ * 3:start 4:start ...): index 0 is unpaired, and every pair after it is two
+ * consecutive indices sharing one gender.
+ */
+export function ratioBlockPosition(pointIndex: number): 1 | 2 | null {
+  if (pointIndex <= 0) return null;
+  return (((pointIndex - 1) % 2) + 1) as 1 | 2;
+}
+
+/**
  * The ratio the point at `pointIndex` (0-based) is played to, or null where the game
  * has none — Rule B leaves it to the end zone, and the open and women's divisions
  * never compute one.
@@ -268,7 +281,7 @@ export function createInitialState(config: GameConfig = defaultConfig): GameStat
     offenseTeam: config.startingOffense,
     possessionTeam: null,
     pointTurnovers: 0,
-    pointPasses: { A: 0, B: 0 },
+    passRuns: [],
     possessionSeconds: { A: 0, B: 0 },
     turnoversCommitted: { A: 0, B: 0 },
     passesCompleted: { A: 0, B: 0 },
@@ -398,6 +411,66 @@ export function passesFor(state: GameState, team: TeamId): number | null {
 }
 
 /**
+ * The possession in progress and the passes thrown in it, or null between points
+ * (and for the whole of a game that counts no passes). It is what the Pass badge
+ * shows, which is why the badge restarts at every turnover and carries exactly one
+ * team's colour — see `GameState.passRuns`.
+ */
+export function currentPassRun(state: GameState): PassRun | null {
+  return state.passRuns[state.passRuns.length - 1] ?? null;
+}
+
+/**
+ * Every possession this team has had, the point in progress included. `GOAL`
+ * consumes `state.passRuns` in the same update it appends the point to `points`,
+ * so the two sources are disjoint by construction — this needs none of the
+ * finished-game guard `breakChances` has to carry.
+ */
+function passRunsFor(state: GameState, team: TeamId): PassRun[] {
+  return [...state.points.flatMap((p) => p.passRuns ?? []), ...state.passRuns].filter(
+    (r) => r.team === team,
+  );
+}
+
+/**
+ * Passes per possession — this team's passes divided by the number of times they
+ * held the disc. A point nobody turned over is a single possession, so "the
+ * average over the whole point" is not a special case here, it is the same rule
+ * with a denominator of one.
+ *
+ * Null for a team the game does not count (see `passesFor`) and for one that has
+ * not held the disc yet. Also null for a game stored before runs were recorded:
+ * its points carry a per-team total but not the possessions to divide it by, so
+ * the total row still reads and this one honestly says nothing.
+ *
+ * The numerator is summed from the runs rather than taken from `passesCompleted`,
+ * which the total row uses. In every game that recorded runs the two are equal by
+ * construction; where they could differ — a game half-recorded by the older build
+ * — the runs are the half this average can actually speak for.
+ */
+export function passAverageFor(state: GameState, team: TeamId): number | null {
+  if (passesFor(state, team) === null) return null;
+  const runs = passRunsFor(state, team);
+  if (runs.length === 0) return null;
+  return runs.reduce((sum, r) => sum + r.passes, 0) / runs.length;
+}
+
+/**
+ * The pass counted onto the possession in progress.
+ *
+ * A run list that is empty, or standing on the team that does not have the disc,
+ * opens a fresh run rather than dropping the tap — the case is a game revived
+ * mid-point from a build that recorded no runs, where the honest thing is to start
+ * counting this possession from here rather than to refuse or to credit passes to
+ * a possession nobody recorded.
+ */
+function addPass(runs: PassRun[], team: TeamId, delta: 1 | -1): PassRun[] {
+  const last = runs[runs.length - 1];
+  if (!last || last.team !== team) return delta === 1 ? [...runs, { team, passes: 1 }] : runs;
+  return [...runs.slice(0, -1), { team, passes: last.passes + delta }];
+}
+
+/**
  * May a pass be recorded right now? The disc has to be genuinely in play, which is
  * exactly the window a turnover needs, plus a team to credit it to (see `passTeam`).
  */
@@ -425,8 +498,9 @@ export function canPass(state: GameState): { ok: boolean; reason?: string } {
 export function canUndoPass(state: GameState): { ok: boolean; reason?: string } {
   const base = canPass(state);
   if (!base.ok) return base;
-  const team = passTeam(state);
-  if (team === null || state.pointPasses[team] === 0) return { ok: false, reason: 'noPassToUndo' };
+  const run = currentPassRun(state);
+  if (run === null || run.team !== passTeam(state) || run.passes === 0)
+    return { ok: false, reason: 'noPassToUndo' };
   return { ok: true };
 }
 
@@ -849,7 +923,7 @@ function snapshot(state: GameState): GoalSnapshot {
     offenseTeam: state.offenseTeam,
     possessionTeam: state.possessionTeam,
     pointTurnovers: state.pointTurnovers,
-    pointPasses: { ...state.pointPasses },
+    passRuns: state.passRuns.map((r) => ({ ...r })),
     possessionSeconds: { ...state.possessionSeconds },
     status: state.status,
     half: state.half,
@@ -1131,7 +1205,9 @@ export function gameReducer(state: GameState, action: Action): GameState {
         // The receiving team catches the pull, so the point opens with them on offense.
         possessionTeam: s.offenseTeam,
         pointTurnovers: 0,
-        pointPasses: { A: 0, B: 0 },
+        // The point opens on the receiving team holding it: one possession, which a
+        // point nobody turns over never leaves (see PassRun).
+        passRuns: passesTracked(s.config) ? [{ team: s.offenseTeam, passes: 0 }] : [],
         possessionSeconds: { A: 0, B: 0 },
         secondary: null,
         ratio: s.nextRatio ?? s.ratio,
@@ -1165,9 +1241,9 @@ export function gameReducer(state: GameState, action: Action): GameState {
             half: s.half,
             turnovers: s.pointTurnovers,
             // Absent unless this game counts passes, for the same reason
-            // possessionSeconds below is: a zeroed pair on a point that never
-            // counted them reads as a point in which nobody threw one.
-            ...(passesTracked(s.config) ? { passes: { ...s.pointPasses } } : {}),
+            // possessionSeconds below is: an empty list on a point that never
+            // counted them reads as a point in which nobody held the disc.
+            ...(passesTracked(s.config) ? { passRuns: s.passRuns.map((r) => ({ ...r })) } : {}),
             // The same gate TICK credits these seconds under: without turnovers the
             // disc never changes hands, so the pair is left absent rather than
             // recorded as a zeroed pair that the report would have to second-guess.
@@ -1188,6 +1264,14 @@ export function gameReducer(state: GameState, action: Action): GameState {
               : {}),
           },
         ],
+        // Consumed here, where it is written, rather than in the "set up the next
+        // point" block far below: that block sits after every finishGame() return,
+        // so a game-winning goal would leave the finished point's runs standing in
+        // state as well as on the point, and passAverageFor — which reads both —
+        // would count that last possession twice. It is the same trap
+        // pointTurnovers falls into, which is why breakChances has to check for
+        // 'finished' by hand; this sidesteps it rather than guarding against it.
+        passRuns: [],
       };
       s = log(s, 'goal', team, `${s.scores.A}-${s.scores.B}${isBreak ? ' (break)' : ''}`, {
         pointSeconds,
@@ -1319,7 +1403,6 @@ export function gameReducer(state: GameState, action: Action): GameState {
         offenseTeam: other(team),
         possessionTeam: null, // disc is dead until the next pull is caught
         pointTurnovers: 0,
-        pointPasses: { A: 0, B: 0 },
         possessionSeconds: { A: 0, B: 0 },
         pointStartSeconds: null,
         nextRatio,
@@ -1412,7 +1495,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         offenseTeam: prev.offenseTeam,
         possessionTeam: prev.possessionTeam,
         pointTurnovers: prev.pointTurnovers,
-        pointPasses: { ...prev.pointPasses },
+        passRuns: prev.passRuns.map((r) => ({ ...r })),
         possessionSeconds: { ...prev.possessionSeconds },
         half: prev.half,
         // A goal appends exactly one point, so dropping the last entry rewinds it.
@@ -1583,6 +1666,11 @@ export function gameReducer(state: GameState, action: Action): GameState {
           ...s.turnoversCommitted,
           [attacking]: s.turnoversCommitted[attacking] + 1,
         },
+        // The disc changing hands opens a possession — which is what restarts the
+        // Pass badge and gives the per-possession average its denominator.
+        passRuns: passesTracked(s.config)
+          ? [...s.passRuns, { team: other(attacking), passes: 0 }]
+          : s.passRuns,
         assist: 'turnover',
       };
     }
@@ -1604,11 +1692,25 @@ export function gameReducer(state: GameState, action: Action): GameState {
         last !== undefined && last.type === 'turnover'
           ? { ...state, log: state.log.slice(0, -1) }
           : log(state, 'undoTurnover', back);
+      // The possession the turnover opened goes with it, and so does anything
+      // recorded into it: those passes were credited to a team that, it turns out,
+      // never had the disc. Almost always none — the undo is a mis-tap corrected on
+      // the spot — but taking them off `passesCompleted` as well is what keeps the
+      // lifetime total equal to the sum of the runs, which the average relies on.
+      const dropped = s.passRuns.length > 1 ? s.passRuns[s.passRuns.length - 1] : null;
       return {
         ...s,
         possessionTeam: back,
         pointTurnovers: s.pointTurnovers - 1,
         turnoversCommitted: { ...s.turnoversCommitted, [back]: s.turnoversCommitted[back] - 1 },
+        passRuns: dropped ? s.passRuns.slice(0, -1) : s.passRuns,
+        passesCompleted:
+          dropped && dropped.passes > 0
+            ? {
+                ...s.passesCompleted,
+                [dropped.team]: s.passesCompleted[dropped.team] - dropped.passes,
+              }
+            : s.passesCompleted,
         assist: 'turnoverUndone',
       };
     }
@@ -1623,7 +1725,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
       if (!canPass(state).ok || team === null) return state;
       return {
         ...state,
-        pointPasses: { ...state.pointPasses, [team]: state.pointPasses[team] + 1 },
+        passRuns: addPass(state.passRuns, team, 1),
         passesCompleted: { ...state.passesCompleted, [team]: state.passesCompleted[team] + 1 },
       };
     }
@@ -1635,7 +1737,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
       if (!canUndoPass(state).ok || team === null) return state;
       return {
         ...state,
-        pointPasses: { ...state.pointPasses, [team]: state.pointPasses[team] - 1 },
+        passRuns: addPass(state.passRuns, team, -1),
         passesCompleted: { ...state.passesCompleted, [team]: state.passesCompleted[team] - 1 },
       };
     }

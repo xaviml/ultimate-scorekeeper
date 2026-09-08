@@ -569,6 +569,7 @@ export const es: typeof en = {
   statBreakChances: 'Oportunidades de break',
   statTurnovers: 'Pérdidas',
   statPasses: 'Pases completados',
+  statPassesPerPossession: 'Pases por posesión',
   statBreaks: 'Breaks',
   statCleanBreaks: 'Breaks limpios',
   statAvgHold: 'Duración media de hold',
@@ -925,7 +926,7 @@ export const es: typeof en = {
     'Anidado bajo Pérdidas, y desactivado por defecto. Activado, cada toque en Turn abre un diálogo que pregunta quién perdió el disco y quién lo forzó. Desactivado, el toque registra la pérdida y te devuelve la pantalla — el contador, la barra de posesión y todas las cifras de equipo siguen funcionando igual.',
   statsGuideStep1Passes: 'Pases',
   statsGuideStep1PassesBody:
-    'También anidado bajo Pérdidas, y desactivado por defecto. Añade un botón Pass junto a Turn: un toque por pase completado. Nunca pregunta quién lo lanzó. Si se sigue un solo equipo, solo se cuentan los suyos y el botón queda inactivo mientras el disco lo tiene el otro — por eso el informe les muestra una cifra y al otro equipo un guion.',
+    'También anidado bajo Pérdidas, y desactivado por defecto. Añade un botón Pass junto a Turn: un toque por pase completado. Nunca pregunta quién lo lanzó. La insignia cuenta la posesión en curso, en el color de ese equipo, así que vuelve a empezar en cada pérdida. Si se sigue un solo equipo, solo se cuentan los suyos y el botón queda inactivo mientras el disco lo tiene el otro — por eso el informe les muestra una cifra y al otro equipo un guion.',
   statsGuideStep1Goals: 'Preguntar quién marcó',
   statsGuideStep1GoalsBody:
     'Activado, cada gol abre un selector para el anotador y la asistencia. La señal de gol se retiene hasta que terminas, así que el diálogo nunca tapa justo lo que tienes que anunciar.',
@@ -964,7 +965,7 @@ export const es: typeof en = {
     'Turn: un toque por pérdida, con la insignia contándolas dentro del punto. Mantén pulsado para deshacer la última. Fíjate en la insignia para saber que el toque ha entrado: cuando el disco vuelve a un equipo que ya lo ha tenido en ese punto, la barra de posesión regresa a un lado en el que ya ha estado y nada más se mueve en pantalla.',
 
   statsGuideTour6:
-    'Pass: un toque por pase completado, con la insignia contándolos dentro del punto, igual que Turn. Mantén pulsado para deshacer el último. Al tocarlo no se mueve nada más en pantalla — no se registra nada en el historial, y la barra de posesión se queda donde estaba, porque que un pase se complete es justo lo que hace que no sea una pérdida — así que la insignia es como sabes que ha entrado.',
+    'Pass: un toque por pase completado. Mantén pulsado para deshacer el último. La insignia cuenta la posesión que se está jugando, no el punto entero, en el color del equipo que tiene el disco, así que vuelve a empezar de cero en cada pérdida. Al tocarlo no se mueve nada más en pantalla — no se registra nada en el historial, y la barra de posesión se queda donde estaba, porque que un pase se complete es justo lo que hace que no sea una pérdida — así que la insignia es como sabes que ha entrado.',
 
   statsGuideGoalTitle: 'Quién marcó',
   statsGuideGoalBody:
@@ -1031,6 +1032,9 @@ export const es: typeof en = {
   statsGuideStatPasses: 'Pases completados',
   statsGuideStatPassesBody:
     'Todos los pases registrados, en todo el partido, descontando lo deshecho. Si se sigue un solo equipo, el otro muestra un guion — nadie contaba sus pases, que no es lo mismo que no haber dado ninguno.',
+  statsGuideStatPassesAvg: 'Pases por posesión',
+  statsGuideStatPassesAvgBody:
+    'Los pases de arriba divididos por las veces que ese equipo tuvo el disco. Un punto que nadie perdió es una sola posesión, así que un punto limpio promedia sobre el punto entero — es la misma cuenta, no otra regla. Con guion para un equipo cuyos pases nadie contaba.',
   statsGuideStatBreaks: 'Puntos de break',
   statsGuideStatBreaksBody: 'Puntos ganados sacando.',
   statsGuideStatCleanBreaks: 'Breaks limpios',
@@ -1095,6 +1099,9 @@ export const es: typeof en = {
   statsGuideDefTurnDo: 'Pérdidas atribuidas al jugador que perdió el disco',
   statsGuideDefPasses: 'Pases completados',
   statsGuideDefPassesDo: 'Pases registrados para este equipo, en todo el partido',
+  statsGuideDefPassesAvg: 'Pases por posesión',
+  statsGuideDefPassesAvgDo:
+    'Pases completados divididos por las veces que ese equipo tuvo el disco',
   statsGuideDefD: 'D (Posesión)',
   statsGuideDefDDo: 'Pérdidas que forzó este jugador — bloqueos, y marcas que agotaron el conteo',
   statsGuideDefOD: 'O / D (Juego)',

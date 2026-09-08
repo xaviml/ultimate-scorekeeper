@@ -187,8 +187,11 @@ export function AssistanceBar() {
   const say = Boolean(occurrence?.sayKey);
 
   const vars = source.vars;
-  const genderLabel =
-    vars.gender === 'male' ? t('ratioMale') : vars.gender === 'female' ? t('ratioFemale') : '';
+  const genderLabel = vars.gender
+    ? `${t(vars.gender === 'male' ? 'ratioMale' : 'ratioFemale')}${
+        vars.genderPosition ? ` (${vars.genderPosition})` : ''
+      }`
+    : '';
   // What the open question is about, and which end the second-half pull comes from.
   // Both arrive as i18n keys — assistOccurrence has no `t` — and are translated here.
   const kind = source.kindKey ? t(source.kindKey as never) : '';

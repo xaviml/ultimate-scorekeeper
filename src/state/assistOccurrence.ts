@@ -1,4 +1,9 @@
-import { isUniversePoint, secondHalfPuller, secondHalfPullSide } from './gameReducer';
+import {
+  isUniversePoint,
+  ratioBlockPosition,
+  secondHalfPuller,
+  secondHalfPullSide,
+} from './gameReducer';
 import { currentWhistle } from './whistleSignal';
 import type { GameState } from './types';
 
@@ -282,6 +287,10 @@ export function assistVars(state: GameState) {
   const a = state.config.teams.A;
   const b = state.config.teams.B;
   const gender = state.nextRatio ?? state.ratio ?? '';
+  // The live/upcoming point is always state.points.length (see ratioForPoint) —
+  // whichever of nextRatio/ratio above is set was itself computed for that same
+  // index, so reading it here can never drift from the gender it labels.
+  const genderPosition = gender ? ratioBlockPosition(state.points.length) : null;
   return {
     a: a.name,
     b: b.name,
@@ -313,6 +322,7 @@ export function assistVars(state: GameState) {
     // during the half-time break itself still names whoever scored into it.
     halfTeam: state.config.teams[secondHalfPuller(state)].name,
     gender,
+    genderPosition,
   };
 }
 

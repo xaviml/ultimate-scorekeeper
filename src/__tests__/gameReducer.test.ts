@@ -17,12 +17,14 @@ import {
   halfTargetApplies,
   isUniversePoint,
   leftEndzoneTeam,
+  passAverageFor,
   passTeam,
   passesFor,
   passesTracked,
   playerTrackingFor,
   possessionTracked,
   pullFromSide,
+  ratioBlockPosition,
   ruleARatio,
   statsTrackingEnabled,
   timeoutAvailability,
@@ -269,6 +271,10 @@ describe('mixed gender ratio (Rule A)', () => {
         ruleARatio('female', i),
       ),
     ).toEqual(['female', 'male', 'male', 'female', 'female', 'male', 'male', 'female']);
+  });
+
+  it('labels which of the two points a gender is on, and leaves point 1 unpaired', () => {
+    expect([0, 1, 2, 3, 4, 5, 6, 7].map(ratioBlockPosition)).toEqual([null, 1, 2, 1, 2, 1, 2, 1]);
   });
 });
 
@@ -1451,7 +1457,7 @@ describe('passes', () => {
     const before = live(bothTeams); // A received the pull
     const s = gameReducer(before, { type: 'PASS' });
 
-    expect(s.pointPasses).toEqual({ A: 1, B: 0 });
+    expect(s.passRuns).toEqual([{ team: 'A', passes: 1 }]);
     expect(s.passesCompleted).toEqual({ A: 1, B: 0 });
     // The whole point of a completed pass: the disc stays where it was.
     expect(s.possessionTeam).toBe('A');
@@ -1462,12 +1468,25 @@ describe('passes', () => {
     expect(s.assist).toBe(before.assist);
   });
 
-  it('follows the disc across a turnover', () => {
+  // Each possession is its own run, which is what the badge restarts on and what
+  // the per-possession average divides by.
+  it('opens a fresh possession on every turnover, and follows the disc into it', () => {
     let s = run(live(bothTeams), { type: 'PASS' }, { type: 'PASS' });
     s = gameReducer(s, { type: 'TURNOVER' }); // A → B
     s = gameReducer(s, { type: 'PASS' });
 
-    expect(s.pointPasses).toEqual({ A: 2, B: 1 });
+    expect(s.passRuns).toEqual([
+      { team: 'A', passes: 2 },
+      { team: 'B', passes: 1 },
+    ]);
+    // The lifetime totals are unaffected by the split.
+    expect(s.passesCompleted).toEqual({ A: 2, B: 1 });
+  });
+
+  it('opens the point on one possession for the receiving team', () => {
+    expect(live(bothTeams).passRuns).toEqual([{ team: 'A', passes: 0 }]);
+    // A game counting no passes keeps no runs at all.
+    expect(live(cfg({ statsMode: 'teams', trackTurnovers: true })).passRuns).toEqual([]);
   });
 
   it('is refused between points, where there is no disc to throw', () => {
@@ -1501,7 +1520,7 @@ describe('passes', () => {
       let s = run(live(bothTeams), { type: 'PASS' }, { type: 'PASS' });
       s = gameReducer(s, { type: 'UNDO_PASS' });
 
-      expect(s.pointPasses).toEqual({ A: 1, B: 0 });
+      expect(s.passRuns).toEqual([{ team: 'A', passes: 1 }]);
       expect(s.passesCompleted).toEqual({ A: 1, B: 0 });
       expect(s.possessionTeam).toBe('A'); // still nothing to do with possession
     });
@@ -1514,56 +1533,172 @@ describe('passes', () => {
 
     // A mis-tap is corrected on the spot. Once the disc has changed hands the
     // preceding pass belongs to the team that gave it away, and silently taking one
-    // off them would be worse than refusing.
+    // off them would be worse than refusing. With runs this is structural rather
+    // than a rule of its own: the new possession simply has nothing in it.
     it('does not reach back across a turnover', () => {
       let s = gameReducer(live(bothTeams), { type: 'PASS' }); // A: 1
       s = gameReducer(s, { type: 'TURNOVER' }); // now B holds it, with none of their own
       expect(canUndoPass(s).reason).toBe('noPassToUndo');
       expect(gameReducer(s, { type: 'UNDO_PASS' })).toBe(s);
-      expect(s.pointPasses).toEqual({ A: 1, B: 0 });
+      expect(s.passRuns).toEqual([
+        { team: 'A', passes: 1 },
+        { team: 'B', passes: 0 },
+      ]);
+    });
+
+    // Undoing the turnover says that possession never happened, so anything counted
+    // into it goes too — including off the lifetime total, which has to stay equal
+    // to the sum of the runs for the average to mean anything.
+    it('drops the possession an undone turnover opened, passes and all', () => {
+      let s = gameReducer(live(bothTeams), { type: 'PASS' }); // A: 1
+      s = gameReducer(s, { type: 'TURNOVER' });
+      s = run(s, { type: 'PASS' }, { type: 'PASS' }); // B: 2, into a phantom possession
+      expect(s.passesCompleted).toEqual({ A: 1, B: 2 });
+
+      s = gameReducer(s, { type: 'UNDO_TURNOVER' });
+      expect(s.passRuns).toEqual([{ team: 'A', passes: 1 }]);
+      expect(s.passesCompleted).toEqual({ A: 1, B: 0 });
+      expect(s.possessionTeam).toBe('A');
     });
   });
 
   describe('the point boundary', () => {
-    it('writes the point’s passes onto the record and starts the next at zero', () => {
+    it('writes the point’s possessions onto the record and consumes them', () => {
       let s = run(live(bothTeams), { type: 'PASS' }, { type: 'PASS' });
       s = gameReducer(s, { type: 'TURNOVER' });
       s = gameReducer(s, { type: 'PASS' });
       s = gameReducer(s, { type: 'GOAL', team: 'B' });
 
-      expect(s.points[0].passes).toEqual({ A: 2, B: 1 });
-      expect(s.pointPasses).toEqual({ A: 0, B: 0 });
+      expect(s.points[0].passRuns).toEqual([
+        { team: 'A', passes: 2 },
+        { team: 'B', passes: 1 },
+      ]);
+      expect(s.passRuns).toEqual([]);
       // The lifetime figure is not reset by the goal — it is what the report reads.
       expect(s.passesCompleted).toEqual({ A: 2, B: 1 });
     });
 
-    it('leaves the passes off a point in a game that does not count them', () => {
+    // The runs are consumed in the same update the point is appended in, which is
+    // what keeps a game-winning goal — where GOAL returns early through finishGame,
+    // before the "set up the next point" block — from leaving them counted twice.
+    it('consumes them on the goal that finishes the game too', () => {
+      const target = cfg({ ...bothTeams, targetScore: 1 });
+      let s = run(live(target), { type: 'PASS' }, { type: 'PASS' });
+      s = gameReducer(s, { type: 'GOAL', team: 'A' });
+
+      expect(s.status).toBe('finished');
+      expect(s.points[0].passRuns).toEqual([{ team: 'A', passes: 2 }]);
+      expect(s.passRuns).toEqual([]);
+      // Two passes over one possession, counted once.
+      expect(passAverageFor(s, 'A')).toBe(2);
+    });
+
+    it('leaves the possessions off a point in a game that does not count them', () => {
       const s = gameReducer(live(cfg({ statsMode: 'teams', trackTurnovers: true })), {
         type: 'GOAL',
         team: 'A',
       });
-      // Absent, not a zeroed pair: the two would otherwise be indistinguishable.
-      expect(s.points[0].passes).toBeUndefined();
+      // Absent, not an empty list: the two would otherwise be indistinguishable.
+      expect(s.points[0].passRuns).toBeUndefined();
     });
 
-    it('resets on the pull, so a point starts clean', () => {
+    it('opens a single fresh possession on the next pull', () => {
       let s = run(live(bothTeams), { type: 'PASS' });
       s = gameReducer(s, { type: 'GOAL', team: 'A' });
       s = gameReducer(s, { type: 'PULL_THROWN' });
-      expect(s.pointPasses).toEqual({ A: 0, B: 0 });
+      expect(s.passRuns).toEqual([{ team: 'B', passes: 0 }]);
     });
 
     // Same rule turnoversCommitted follows: undoing the goal puts you back inside
     // the point, so the passes thrown in it are restored — but the lifetime count
     // keeps them, because they really were thrown.
-    it('restores the point count on an undone goal, without rewinding the lifetime one', () => {
+    it('restores the possessions on an undone goal, without rewinding the lifetime count', () => {
       let s = run(live(bothTeams), { type: 'PASS' }, { type: 'PASS' });
       s = gameReducer(s, { type: 'GOAL', team: 'A' });
       s = gameReducer(s, { type: 'UNDO_GOAL', team: 'A' });
 
-      expect(s.pointPasses).toEqual({ A: 2, B: 0 });
+      expect(s.passRuns).toEqual([{ team: 'A', passes: 2 }]);
       expect(s.passesCompleted).toEqual({ A: 2, B: 0 });
       expect(s.points).toEqual([]);
+    });
+  });
+
+  /**
+   * Passes per possession: the team's passes over the number of times they held
+   * the disc. A point nobody turned over is one possession, so "the average over
+   * the whole point" is the same rule with a denominator of one, not a fallback.
+   */
+  describe('the per-possession average', () => {
+    it('divides by the possessions that team actually had', () => {
+      // A: 5 → turn, B: 3 → turn, A: 4 → turn, B: 2 → goal.
+      let s = live(bothTeams);
+      const passes = (n: number) => {
+        for (let i = 0; i < n; i++) s = gameReducer(s, { type: 'PASS' });
+      };
+      passes(5);
+      s = gameReducer(s, { type: 'TURNOVER' });
+      passes(3);
+      s = gameReducer(s, { type: 'TURNOVER' });
+      passes(4);
+      s = gameReducer(s, { type: 'TURNOVER' });
+      passes(2);
+
+      expect(passAverageFor(s, 'A')).toBe(4.5); // 9 over two possessions
+      expect(passAverageFor(s, 'B')).toBe(2.5); // 5 over two possessions
+    });
+
+    it('averages over the whole point when nobody turned it over', () => {
+      let s = live(bothTeams);
+      for (let i = 0; i < 8; i++) s = gameReducer(s, { type: 'PASS' });
+      // One possession, so the average is the point's own count.
+      expect(passAverageFor(s, 'A')).toBe(8);
+    });
+
+    it('carries across points, counting every possession of the game', () => {
+      let s = live(bothTeams);
+      for (let i = 0; i < 4; i++) s = gameReducer(s, { type: 'PASS' });
+      s = gameReducer(s, { type: 'GOAL', team: 'A' }); // A: 4 over 1 possession
+      s = gameReducer(s, { type: 'PULL_THROWN' }); // B receives now
+      s = gameReducer(s, { type: 'TURNOVER' }); // B → A, no passes for B
+      for (let i = 0; i < 2; i++) s = gameReducer(s, { type: 'PASS' });
+
+      expect(passAverageFor(s, 'A')).toBe(3); // (4 + 2) over two possessions
+      expect(passAverageFor(s, 'B')).toBe(0); // held once, threw none
+    });
+
+    it('is null for a team nobody counted, and for one yet to hold the disc', () => {
+      const followed = gameReducer(live(followA), { type: 'PASS' });
+      expect(passAverageFor(followed, 'A')).toBe(1);
+      expect(passAverageFor(followed, 'B')).toBeNull();
+      // Before the first pull there is no possession to divide by.
+      expect(passAverageFor(started(bothTeams), 'A')).toBeNull();
+      // And a game counting no passes has no average on either side.
+      expect(
+        passAverageFor(live(cfg({ statsMode: 'teams', trackTurnovers: true })), 'A'),
+      ).toBeNull();
+    });
+
+    // A game stored before runs were recorded carries a per-team total but not the
+    // possessions to divide it by, so the total row reads and this one says nothing
+    // rather than inventing a denominator.
+    it('is null for a point recorded before possessions were', () => {
+      const s: GameState = {
+        ...live(bothTeams),
+        points: [
+          {
+            scoredBy: 'A',
+            offense: 'A',
+            isBreak: false,
+            durationSeconds: 30,
+            half: 1,
+            turnovers: 0,
+          },
+        ],
+        passRuns: [],
+        passesCompleted: { A: 12, B: 0 },
+      };
+      expect(passesFor(s, 'A')).toBe(12);
+      expect(passAverageFor(s, 'A')).toBeNull();
     });
   });
 });

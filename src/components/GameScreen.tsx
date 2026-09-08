@@ -15,11 +15,13 @@ import {
   effectiveHalfTarget,
   effectiveTarget,
   goalPlayersTracked,
+  currentPassRun,
   isUniversePoint,
   passesTracked,
   playHalted,
   possessionTracked,
   pullFromSide,
+  ratioBlockPosition,
   rosterTeams,
   secondHalfPuller,
   secondHalfPullSide,
@@ -179,6 +181,7 @@ function ActionButton({
   label,
   name,
   badge,
+  badgeColor,
   onClick,
   onHold,
   disabled,
@@ -190,10 +193,9 @@ function ActionButton({
   /**
    * A count in the button's top-right corner, hidden below 1 and shown as `99+`
    * past ninety-nine so the disc keeps one size. Two digits rather than one
-   * because passes run an order of magnitude ahead of turnovers — a point with
-   * thirty of them is ordinary, and a badge reading `9+` for the whole point
-   * would be telling the volunteer nothing they could act on. Turn shares the
-   * cap and simply never reaches it.
+   * because passes run an order of magnitude ahead of turnovers — a possession of
+   * thirty of them is ordinary, and a badge reading `9+` would be telling the
+   * volunteer nothing they could act on. Turn shares the cap and never reaches it.
    *
    * It sits *inside* the border rather than straddling it the way a notification
    * badge usually does: these buttons are ~60 px wide with a couple of pixels
@@ -202,6 +204,16 @@ function ActionButton({
    * still true but not actionable.
    */
   badge?: number;
+  /**
+   * Paints the badge in a team's colour instead of the default amber, with
+   * `contrastText` picking black or white on top of whatever the team chose.
+   *
+   * Only Pass uses it, and only because its count belongs to one team: it is the
+   * passes of the possession in progress, so the colour is what says whose. Turn's
+   * badge stays amber because `pointTurnovers` is both teams' and a colour would
+   * be claiming it belongs to one of them.
+   */
+  badgeColor?: string;
   onClick: () => void;
   onHold?: () => void;
   disabled?: boolean;
@@ -224,7 +236,18 @@ function ActionButton({
       {badge !== undefined && badge >= 1 && (
         <span
           aria-hidden="true"
-          className="absolute top-0.5 right-0.5 lscape:top-px lscape:right-px flex items-center justify-center min-w-[14px] h-[14px] lscape:min-w-[11px] lscape:h-[11px] px-[3px] rounded-full bg-signal text-pitch font-board font-bold text-[9px] lscape:text-[7px] leading-none tabular-nums"
+          // The badge is decoration to a screen reader, so there is no accessible
+          // name to assert against — this carries the colour it was painted in, the
+          // same way the possession rule exposes `data-possession`.
+          data-badge={badgeColor ?? 'signal'}
+          className={`absolute top-0.5 right-0.5 lscape:top-px lscape:right-px flex items-center justify-center min-w-[14px] h-[14px] lscape:min-w-[11px] lscape:h-[11px] px-[3px] rounded-full font-board font-bold text-[9px] lscape:text-[7px] leading-none tabular-nums ${
+            badgeColor ? '' : 'bg-signal text-pitch'
+          }`}
+          style={
+            badgeColor
+              ? { backgroundColor: badgeColor, color: contrastText(badgeColor) }
+              : undefined
+          }
         >
           {badge > 99 ? '99+' : badge}
         </span>
@@ -545,7 +568,8 @@ function ratioLabel(
   const g = state.nextRatio ?? state.ratio;
   if (!g) return null;
   const gender = g === 'male' ? t('ratioMale' as never) : t('ratioFemale' as never);
-  return t('currentRatio' as never, { gender });
+  const position = ratioBlockPosition(state.points.length);
+  return t('currentRatio' as never, { gender: position ? `${gender} (${position})` : gender });
 }
 
 /**
@@ -564,6 +588,7 @@ function RatioSignalChip() {
   if (!g) return null;
   const genderKey = g === 'male' ? 'ratioMale' : 'ratioFemale';
   const file = g === 'male' ? 'ratio-4men' : 'ratio-4women';
+  const position = ratioBlockPosition(state.points.length);
   return (
     <button
       type="button"
@@ -584,6 +609,7 @@ function RatioSignalChip() {
         className="font-board font-bold uppercase tracking-wide text-sm sm:text-base lscape:text-xs text-pitch"
       >
         {t(genderKey as never)}
+        {position ? ` (${position})` : ''}
       </span>
     </button>
   );
@@ -1207,6 +1233,8 @@ export default function GameScreen() {
   // the same way: two buttons side by side, one dead and one not, for reasons the
   // volunteer cannot tell apart, is worse than either rule on its own.
   const passDead = canPass(state).reason === 'passesOtherTeam';
+  // The possession the Pass badge counts, and whose colour it takes.
+  const passRun = currentPassRun(state);
   // The team whose lines are recorded, or null when line tracking is off — which is
   // also what decides whether the Roster button opens a chooser or the editor.
   const lineTracked = lineTeam(state.config);
@@ -1585,13 +1613,19 @@ export default function GameScreen() {
                 icon={<PassIcon />}
                 label={t('lblPass')}
                 name={t('btnPass')}
-                // Passes in the point being played, both teams added — the same
-                // per-point counter Turn badges, resetting on PULL_THROWN/GOAL and
-                // coming back down on this button's own long-press. It matters more
-                // here than it does on Turn: a pass writes no log entry, moves no
-                // possession rule and changes nothing else on screen, so the badge
-                // is the only thing that confirms the tap landed.
-                badge={state.pointPasses.A + state.pointPasses.B}
+                // The passes of the possession in progress — one team's, which is
+                // what the colour says. It starts again at every turnover, not just
+                // at the pull, because the run does. It matters more here than on
+                // Turn: a pass writes no log entry, moves no possession rule and
+                // changes nothing else on screen, so the badge is the only thing
+                // that confirms the tap landed.
+                //
+                // In a game following one team it simply disappears while the other
+                // side has the disc — their run is real but its count is 0, since
+                // nobody is counting them — which is the same thing the greyed
+                // button is already saying.
+                badge={passRun?.passes ?? 0}
+                badgeColor={passRun ? state.config.teams[passRun.team].color : undefined}
                 onClick={tryPass}
                 onHold={tryUndoPass}
                 disabled={recordBusy || passDead}

@@ -138,7 +138,7 @@ export const en = {
     'Off, Turn just registers the turnover. On, it asks who lost the disc and who forced it — accurate, but a lot of taps in a fast point.',
   trackPassesLabel: 'Passes',
   trackPassesHint:
-    'Adds a Pass button next to Turn: one tap per completed pass, hold to take the last one back. It never asks who threw it. Following one team, it only counts theirs.',
+    'Adds a Pass button next to Turn: one tap per completed pass, hold to take the last one back. It never asks who threw it. The badge counts the possession in progress and is painted in that team\u2019s colour, so it starts again at every turnover. Following one team, it only counts theirs.',
 
   // Line tracking. Only offered where a single roster is followed —
   // see lineTrackingEnabled. MMP/FMP are the WFDF terms and stay English in every
@@ -615,6 +615,11 @@ export const en = {
   // row that can be a number on one side and "—" on the other: a game following
   // a single team counts only that team's passes.
   statPasses: 'Completed passes',
+  // Directly under the total. "per possession" rather than "per turn" because
+  // possession is this app's word for a stretch of holding the disc — Turn is the
+  // button that ends one — and a point nobody turned over is one possession, which
+  // is what makes this a single rule rather than a rule with a special case.
+  statPassesPerPossession: 'Passes per possession',
   statBreaks: 'Break points',
   statCleanBreaks: 'Clean breaks',
   statAvgHold: 'Avg. hold time',
@@ -1034,7 +1039,7 @@ export const en = {
     'Turn: one tap per turnover, with the badge counting them within the point. Press and hold to take the last one back. Watch the badge to know a tap landed: when the disc goes back to a team that has already had it this point, the possession bar returns to a side it has been on before and nothing else on screen moves.',
 
   statsGuideTour6:
-    'Pass: one tap per completed pass, with the badge counting them within the point, exactly as Turn does. Press and hold to take the last one back. Nothing else on screen moves when you tap it — no log entry, and the possession bar stays where it was, because a pass completing is what makes it not a turnover — so the badge is how you know it landed.',
+    'Pass: one tap per completed pass. Press and hold to take the last one back. The badge counts the possession being played rather than the whole point, in the colour of the team holding the disc, so it starts again from nothing at every turnover. Nothing else on screen moves when you tap it — no log entry, and the possession bar stays where it was, because a pass completing is what makes it not a turnover — so the badge is how you know it landed.',
 
   statsGuideGoalTitle: 'Who scored',
   statsGuideGoalBody:
@@ -1100,6 +1105,9 @@ export const en = {
   statsGuideStatPasses: 'Completed passes',
   statsGuideStatPassesBody:
     'Every pass tapped in, all game, net of anything undone. Following a single team, the other team shows a dash — nobody was counting their passes, which is a different thing from their having thrown none.',
+  statsGuideStatPassesAvg: 'Passes per possession',
+  statsGuideStatPassesAvgBody:
+    'The passes above divided by the number of times that team held the disc. A point nobody turned over is a single possession, so a clean point averages over the whole point \u2014 it is the same sum, not a different rule. Dashed for a team whose passes nobody counted.',
   statsGuideStatBreaks: 'Break points',
   statsGuideStatBreaksBody: 'Points won while pulling.',
   statsGuideStatCleanBreaks: 'Clean breaks',
@@ -1164,6 +1172,8 @@ export const en = {
   statsGuideDefTurnDo: 'Turnovers charged to the player who lost the disc',
   statsGuideDefPasses: 'Completed passes',
   statsGuideDefPassesDo: 'Passes tapped in for this team, all game',
+  statsGuideDefPassesAvg: 'Passes per possession',
+  statsGuideDefPassesAvgDo: 'Completed passes divided by the times that team held the disc',
   statsGuideDefD: 'D (Possession)',
   statsGuideDefDDo: 'Turnovers this player forced — blocks, and marks that ran the stall out',
   statsGuideDefOD: 'O / D (Playing)',

@@ -16,6 +16,7 @@
  */
 import type { Lang, TFunc } from '../i18n/useT';
 import {
+  passAverageFor,
   passesFor,
   passesTracked,
   rosterTeams,
@@ -163,9 +164,10 @@ export function playerStatsTeams(config: GameConfig): TeamId[] {
  * from turnovers, so they only exist once turnovers are recorded — without them
  * "clean" holds and breaks would be indistinguishable from plain ones.
  *
- * Passes sit directly after Turnovers, the figure they are the counterpart of, and
- * are the one row that can be a real number on one side and a dash on the other:
- * a game following a single team counts only that team's (see `passesFor`).
+ * Passes sit directly after Turnovers, the figure they are the counterpart of, with
+ * the per-possession average under them. They are the rows that can be a real
+ * number on one side and a dash on the other: a game following a single team counts
+ * only that team's (see `passesFor`).
  */
 export function teamStatRows(state: GameState, t: TFunc): StatRow[] {
   const A = teamStats(state, 'A');
@@ -174,6 +176,9 @@ export function teamStatRows(state: GameState, t: TFunc): StatRow[] {
   const passing = passesTracked(state.config);
   const clock = (s: number | null) => (s === null ? '—' : formatClock(s));
   const count = (n: number | null) => (n === null ? '—' : n);
+  // One decimal, because the whole use of an average is the gap between 4.4 and
+  // 4.6 that a rounded figure closes.
+  const rate = (n: number | null) => (n === null ? '—' : n.toFixed(1));
   const row = (label: string, a: string | number, b: string | number): StatRow => ({
     label,
     a: String(a),
@@ -185,7 +190,14 @@ export function teamStatRows(state: GameState, t: TFunc): StatRow[] {
     ...(tracking ? [row(t('statBreakChances'), A.breakChances, B.breakChances)] : []),
     ...(tracking ? [row(t('statTurnovers'), A.turnovers, B.turnovers)] : []),
     ...(passing
-      ? [row(t('statPasses'), count(passesFor(state, 'A')), count(passesFor(state, 'B')))]
+      ? [
+          row(t('statPasses'), count(passesFor(state, 'A')), count(passesFor(state, 'B'))),
+          row(
+            t('statPassesPerPossession'),
+            rate(passAverageFor(state, 'A')),
+            rate(passAverageFor(state, 'B')),
+          ),
+        ]
       : []),
     row(t('statBreaks'), A.breaks, B.breaks),
     ...(tracking ? [row(t('statCleanBreaks'), A.cleanBreaks, B.cleanBreaks)] : []),

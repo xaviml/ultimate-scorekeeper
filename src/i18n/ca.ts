@@ -565,6 +565,7 @@ export const ca: typeof en = {
   statBreakChances: 'Oportunitats de break',
   statTurnovers: 'Pèrdues',
   statPasses: 'Passades completades',
+  statPassesPerPossession: 'Passades per possessió',
   statBreaks: 'Breaks',
   statCleanBreaks: 'Breaks nets',
   statAvgHold: 'Durada mitjana de hold',
@@ -923,7 +924,7 @@ export const ca: typeof en = {
     'Imbricat sota Pèrdues, i desactivat per defecte. Activat, cada toc a Turn obre un diàleg que pregunta qui ha perdut el disc i qui l\u2019ha forçat. Desactivat, el toc registra la pèrdua i et torna la pantalla — el comptador, la barra de possessió i totes les xifres d\u2019equip continuen funcionant igual.',
   statsGuideStep1Passes: 'Passades',
   statsGuideStep1PassesBody:
-    "També imbricat sota Pèrdues, i desactivat per defecte. Afegeix un botó Pass al costat de Turn: un toc per passada completada. Mai pregunta qui l'ha llançada. Si se segueix un sol equip, només es compten les seves i el botó queda inactiu mentre el disc el té l'altre — per això l'informe els mostra una xifra i a l'altre equip un guionet.",
+    "També imbricat sota Pèrdues, i desactivat per defecte. Afegeix un botó Pass al costat de Turn: un toc per passada completada. Mai pregunta qui l'ha llançada. La insígnia compta la possessió en curs, en el color d'aquell equip, així que torna a començar a cada pèrdua. Si se segueix un sol equip, només es compten les seves i el botó queda inactiu mentre el disc el té l'altre — per això l'informe els mostra una xifra i a l'altre equip un guionet.",
   statsGuideStep1Goals: 'Preguntar qui ha marcat',
   statsGuideStep1GoalsBody:
     'Activat, cada gol obre un selector per a l\u2019anotador i l\u2019assistència. El senyal de gol es reté fins que acabes, així que el diàleg mai no tapa justament allò que has d\u2019anunciar.',
@@ -962,7 +963,7 @@ export const ca: typeof en = {
     'Turn: un toc per pèrdua, amb la insígnia comptant-les dins del punt. Mantén premut per desfer l\u2019última. Fixa\u2019t en la insígnia per saber que el toc ha entrat: quan el disc torna a un equip que ja l\u2019ha tingut en aquest punt, la barra de possessió torna a un costat on ja ha estat i res més no es mou a la pantalla.',
 
   statsGuideTour6:
-    "Pass: un toc per passada completada, amb la insígnia comptant-les dins del punt, igual que Turn. Mantén premut per desfer l'última. En tocar-lo no es mou res més a la pantalla — no es registra res a l'historial, i la barra de possessió es queda on era, perquè que una passada es completi és justament el que fa que no sigui una pèrdua — així que la insígnia és com saps que ha entrat.",
+    "Pass: un toc per passada completada. Mantén premut per desfer l'última. La insígnia compta la possessió que s'està jugant, no el punt sencer, en el color de l'equip que té el disc, així que torna a començar de zero a cada pèrdua. En tocar-lo no es mou res més a la pantalla — no es registra res a l'historial, i la barra de possessió es queda on era, perquè que una passada es completi és justament el que fa que no sigui una pèrdua — així que la insígnia és com saps que ha entrat.",
 
   statsGuideGoalTitle: 'Qui ha marcat',
   statsGuideGoalBody:
@@ -1029,6 +1030,9 @@ export const ca: typeof en = {
   statsGuideStatPasses: 'Passades completades',
   statsGuideStatPassesBody:
     "Totes les passades registrades, en tot el partit, descomptant el que s'hagi desfet. Si se segueix un sol equip, l'altre mostra un guionet — ningú comptava les seves passades, que no és el mateix que no haver-ne fet cap.",
+  statsGuideStatPassesAvg: 'Passades per possessió',
+  statsGuideStatPassesAvgBody:
+    'Les passades de dalt dividides per les vegades que aquell equip va tenir el disc. Un punt que ningú no va perdre és una sola possessió, així que un punt net fa la mitjana sobre el punt sencer — és el mateix càlcul, no una altra regla. Amb guionet per a un equip les passades del qual ningú comptava.',
   statsGuideStatBreaks: 'Punts de break',
   statsGuideStatBreaksBody: 'Punts guanyats servint.',
   statsGuideStatCleanBreaks: 'Breaks nets',
@@ -1093,6 +1097,9 @@ export const ca: typeof en = {
   statsGuideDefTurnDo: 'Pèrdues atribuïdes al jugador que va perdre el disc',
   statsGuideDefPasses: 'Passades completades',
   statsGuideDefPassesDo: 'Passades registrades per a aquest equip, en tot el partit',
+  statsGuideDefPassesAvg: 'Passades per possessió',
+  statsGuideDefPassesAvgDo:
+    'Passades completades dividides per les vegades que aquell equip va tenir el disc',
   statsGuideDefD: 'D (Possessió)',
   statsGuideDefDDo:
     'Pèrdues que va forçar aquest jugador — blocatges, i marques que van exhaurir el compte',

@@ -155,6 +155,52 @@ describe('report screen — team stats table', () => {
     renderReport(state);
 
     expect(rowCells('Completed passes')).toEqual(['42', '—']);
+    expect(rowCells('Passes per possession')).toEqual(['—', '—']);
+  });
+
+  // A team's passes over the number of times they held the disc — a point nobody
+  // turned over being one possession, so there is no separate rule for it.
+  it('averages the passes over the possessions they were thrown in', () => {
+    const state = baseState();
+    state.config.statsMode = 'teams';
+    state.config.trackTurnovers = true;
+    state.config.trackPasses = true;
+    state.points = [
+      // A held twice for 9, B twice for 5 — the point that changed hands three times.
+      point({
+        passRuns: [
+          { team: 'A', passes: 5 },
+          { team: 'B', passes: 3 },
+          { team: 'A', passes: 4 },
+          { team: 'B', passes: 2 },
+        ],
+      }),
+    ];
+    state.passesCompleted = { A: 9, B: 5 };
+    renderReport(state);
+
+    expect(rowCells('Completed passes')).toEqual(['9', '5']);
+    expect(rowCells('Passes per possession')).toEqual(['4.5', '2.5']);
+
+    const order = [...document.querySelectorAll('tbody tr')]
+      .map((r) => r.textContent ?? '')
+      .join('|');
+    expect(order.indexOf('Completed passes')).toBeLessThan(order.indexOf('Passes per possession'));
+  });
+
+  // A game stored before possessions were recorded has a total but nothing to
+  // divide it by, so the total still reads and the average says nothing.
+  it('dashes the average for a point recorded before possessions were', () => {
+    const state = baseState();
+    state.config.statsMode = 'teams';
+    state.config.trackTurnovers = true;
+    state.config.trackPasses = true;
+    state.points = [point()]; // no passRuns
+    state.passesCompleted = { A: 12, B: 8 };
+    renderReport(state);
+
+    expect(rowCells('Completed passes')).toEqual(['12', '8']);
+    expect(rowCells('Passes per possession')).toEqual(['—', '—']);
   });
 });
 

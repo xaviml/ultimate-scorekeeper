@@ -465,6 +465,25 @@ export interface PendingLine {
   name: string | null;
 }
 
+/**
+ * One unbroken possession inside a point, and the passes completed during it.
+ *
+ * A point is a list of these: one for the team that received the pull, and a new
+ * one at every turnover — so a point nobody turned over is a single run. That is
+ * what makes "passes per possession" one rule rather than a rule plus a special
+ * case for the clean point, and it is why the runs are stored rather than a
+ * per-team total: the total is a sum away, but the individual possessions cannot
+ * be recovered from one.
+ *
+ * A team the game does not follow still gets its runs, all of them at 0 passes —
+ * they are a true record of who held the disc, and `passesFor` returning null is
+ * what stops those zeroes being read as a figure about them.
+ */
+export interface PassRun {
+  team: TeamId;
+  passes: number;
+}
+
 export interface PointRecord {
   scoredBy: TeamId;
   offense: TeamId; // team that received the pull for this point
@@ -478,17 +497,17 @@ export interface PointRecord {
   /** Turnovers by either team during this point — 0 makes a hold "clean", 1 makes a break "clean" (see teamStats in stats.ts). */
   turnovers: number;
   /**
-   * Completed passes by each team during this point, when `passesTracked`. Absent
-   * otherwise — a zeroed pair would be indistinguishable from a point in a game
-   * that counted them and saw none, which is the same reason `possessionSeconds`
-   * below is absent rather than zeroed.
+   * This point's possessions in order, each with the passes thrown in it — see
+   * `PassRun`. Absent when the game counts no passes, for the same reason
+   * `possessionSeconds` below is: an empty list on a point that never counted them
+   * is indistinguishable from a point in which nobody held the disc.
    *
-   * The lifetime figure the report shows comes from `GameState.passesCompleted`,
-   * not from adding these up; this is here so a per-point reading (passes per
-   * hold, passes before a turnover) stays derivable from a game recorded today.
-   * A team the game does not follow is 0 here, never counted — see `passTeam`.
+   * It is what the report's per-possession average is computed over. It replaced a
+   * per-team total (`passes`) that nothing ever read — a stored game from that
+   * build still carries the old key, which is why such a game shows a lifetime
+   * total but no average: the possessions it averages over were never recorded.
    */
-  passes?: Record<TeamId, number>;
+  passRuns?: PassRun[];
   /**
    * Seconds each team held the disc during this point. Sums to at most
    * `durationSeconds` — halted play (calls, timeouts, stoppages) is credited to
@@ -524,7 +543,7 @@ export interface GoalSnapshot {
   offenseTeam: TeamId;
   possessionTeam: TeamId | null;
   pointTurnovers: number;
-  pointPasses: Record<TeamId, number>;
+  passRuns: PassRun[];
   possessionSeconds: Record<TeamId, number>;
   status: GameStatus;
   half: 1 | 2;
@@ -598,16 +617,21 @@ export interface GameState {
    */
   pointTurnovers: number;
   /**
-   * Completed passes by each team in the point being played, reset by every pull
-   * and every goal exactly like `pointTurnovers`, and written into the PointRecord
-   * at GOAL. Their sum is what the Pass button's badge shows — the only feedback a
-   * tap gets, since a pass writes no log entry and moves nothing else on screen.
+   * The possessions of the point being played, in order — the last entry is the
+   * one in progress. Opened by every pull as a single run for the receiving team,
+   * extended by every turnover, and written into `PointRecord.passRuns` at GOAL,
+   * which consumes it in the same update it appends the point in.
    *
-   * Also what a long-press has to take back from: undoing decrements the *current
-   * possessor's* count, since a mis-tap is corrected before anything else happens
-   * and a pass never changes hands (see canUndoPass).
+   * Three things fall out of it being a list of possessions rather than the flat
+   * per-team pair it replaced. The Pass badge shows the *last* run's count, so it
+   * starts again at every turnover and belongs to exactly one team — the one whose
+   * colour it carries. `canUndoPass` refuses across a turnover for free, the new
+   * run having no passes of its own to take back. And the report's per-possession
+   * average has a denominator to count.
+   *
+   * Empty between points, and for the whole of a game that counts no passes.
    */
-  pointPasses: Record<TeamId, number>;
+  passRuns: PassRun[];
   /**
    * Completed passes by each team over the whole game, net of any undo — the
    * lifetime figure the stats grid and the report's Passes row read. Never reset

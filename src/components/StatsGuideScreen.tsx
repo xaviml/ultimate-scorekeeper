@@ -31,13 +31,13 @@ import {
  */
 
 const FIG_SETUP: readonly Marker[] = [
-  [5.1, 9.6],
-  [5.1, 21.2],
-  [88.2, 26.4],
-  [88.5, 36.2],
-  [88.5, 46],
-  [88.2, 57.4],
-  [88.2, 67.2],
+  [5.1, 9.1],
+  [5.1, 20.2],
+  [88.2, 25.2],
+  [88.5, 34.4],
+  [88.5, 43.7],
+  [88.2, 59.5],
+  [88.2, 68.8],
 ];
 const FIG_ROSTER: readonly Marker[] = [
   [28.3, 65.9],
@@ -202,6 +202,7 @@ export default function StatsGuideScreen({ onBack }: { onBack: () => void }) {
           <Bullet label={t('statsGuideStatBreakCh')} body={t('statsGuideStatBreakChBody')} />
           <Bullet label={t('statsGuideStatTurnovers')} body={t('statsGuideStatTurnoversBody')} />
           <Bullet label={t('statsGuideStatPasses')} body={t('statsGuideStatPassesBody')} />
+          <Bullet label={t('statsGuideStatPassesAvg')} body={t('statsGuideStatPassesAvgBody')} />
           <Bullet label={t('statsGuideStatBreaks')} body={t('statsGuideStatBreaksBody')} />
           <Bullet
             label={t('statsGuideStatCleanBreaks')}
@@ -247,6 +248,7 @@ export default function StatsGuideScreen({ onBack }: { onBack: () => void }) {
             ['statsGuideDefCleanBreak', 'statsGuideDefCleanBreakDo'],
             ['statsGuideDefBreakCh', 'statsGuideDefBreakChDo'],
             ['statsGuideDefPasses', 'statsGuideDefPassesDo'],
+            ['statsGuideDefPassesAvg', 'statsGuideDefPassesAvgDo'],
             ['statsGuideDefTurn', 'statsGuideDefTurnDo'],
             ['statsGuideDefD', 'statsGuideDefDDo'],
             ['statsGuideDefOD', 'statsGuideDefODDo'],
