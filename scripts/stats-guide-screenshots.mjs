@@ -423,16 +423,19 @@ async function main() {
     // The roster and the line dialog live behind the header menu now — the action
     // row is capped at five buttons and Pass took the slot Roster used to hold.
     await marker(page, page.getByRole('button', { name: 'Menu' }), dash, 1.2, 0.5),
-    // The action row is wall-to-wall 60px buttons, so these sit in the gutters
-    // between them, as the walkthrough's own dashboard figure does — a badge on a
-    // button covers either its glyph or its micro-label, and both are the caption.
-    await marker(page, page.getByRole('button', { name: 'What was called?' }), dash, -0.1, 0.5),
-    await marker(page, turnBtn, dash, -0.1, 0.5),
+    // With five buttons the row is two columns of ~170px ones, whose glyph and
+    // label sit centred — so these go *inside* each button, at the empty left end.
+    // The walkthrough's own dashboard figure still uses the gutters between
+    // buttons, because a three-across row is 60px wide per button and has no
+    // empty end to put a badge in; at this width the gutter offsets it uses would
+    // land a marker off the side of the screen entirely.
+    await marker(page, page.getByRole('button', { name: 'What was called?' }), dash, 0.08, 0.5),
+    await marker(page, turnBtn, dash, 0.08, 0.5),
     await marker(
       page,
       page.getByRole('button', { name: 'Completed pass — hold to undo' }),
       dash,
-      1.1,
+      0.08,
       0.5,
     ),
   ];

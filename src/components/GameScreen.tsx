@@ -182,6 +182,8 @@ function ActionButton({
   name,
   badge,
   badgeColor,
+  big,
+  className,
   onClick,
   onHold,
   disabled,
@@ -214,25 +216,51 @@ function ActionButton({
    * be claiming it belongs to one of them.
    */
   badgeColor?: string;
+  /**
+   * The two-column portrait block (see the action row), where a button is ~170px
+   * wide and 56px or 88px tall rather than ~60px square. It only changes what
+   * goes *inside*: the glyph moves beside the word instead of above it, and the
+   * label grows from a 9px hint to something readable.
+   *
+   * It says nothing about the button's size, which comes from the grid cell it
+   * stretches into — and it deliberately changes nothing under `lscape:`, since
+   * in landscape that same markup is still the ordinary five-across row.
+   */
+  big?: boolean;
+  /**
+   * Extra classes, appended last. Only for where the button *sits* — the two-column
+   * block uses it to reorder one column without touching DOM order, which is what
+   * lets landscape keep its own order out of the same markup. Not for restyling
+   * the button: everything about how it looks belongs above.
+   */
+  className?: string;
   onClick: () => void;
   onHold?: () => void;
   disabled?: boolean;
 }) {
   const press = useLongPress(onClick, onHold ?? (() => {}));
+  // Every `lscape:` value in the three below is today's, in both variants: the
+  // wide-and-tall treatment is portrait-only, because landscape is short rather
+  // than narrow and its row never changes shape (see the action row).
+  const layout = big
+    ? 'flex-row gap-2 lscape:gap-1.5'
+    : 'flex-col lscape:flex-row gap-0.5 lscape:gap-1.5';
+  const labelSize = big ? 'text-[13px] lscape:text-[10px]' : 'text-[9px] lscape:text-[10px]';
+  const badgeSize = big
+    ? 'top-1 right-1 lscape:top-px lscape:right-px min-w-[18px] h-[18px] lscape:min-w-[11px] lscape:h-[11px] text-[11px] lscape:text-[7px]'
+    : 'top-0.5 right-0.5 lscape:top-px lscape:right-px min-w-[14px] h-[14px] lscape:min-w-[11px] lscape:h-[11px] text-[9px] lscape:text-[7px]';
   return (
     <button
       {...(onHold ? press : { onClick })}
-      className={`${utility} relative flex flex-col lscape:flex-row items-center justify-center gap-0.5 lscape:gap-1.5 ${
+      className={`${utility} relative flex ${layout} items-center justify-center ${
         onHold ? 'select-none touch-none' : ''
-      }`}
+      } ${className ?? ''}`}
       disabled={disabled}
       aria-label={name}
       title={name}
     >
       {icon}
-      {label && (
-        <span className="text-[9px] lscape:text-[10px] leading-none tracking-wide">{label}</span>
-      )}
+      {label && <span className={`${labelSize} leading-none tracking-wide`}>{label}</span>}
       {badge !== undefined && badge >= 1 && (
         <span
           aria-hidden="true"
@@ -240,7 +268,7 @@ function ActionButton({
           // name to assert against — this carries the colour it was painted in, the
           // same way the possession rule exposes `data-possession`.
           data-badge={badgeColor ?? 'signal'}
-          className={`absolute top-0.5 right-0.5 lscape:top-px lscape:right-px flex items-center justify-center min-w-[14px] h-[14px] lscape:min-w-[11px] lscape:h-[11px] px-[3px] rounded-full font-board font-bold text-[9px] lscape:text-[7px] leading-none tabular-nums ${
+          className={`absolute ${badgeSize} flex items-center justify-center px-[3px] rounded-full font-board font-bold leading-none tabular-nums ${
             badgeColor ? '' : 'bg-signal text-pitch'
           }`}
           style={
@@ -1245,9 +1273,24 @@ export default function GameScreen() {
   // The possession rule under the score panels, and the border it carries for the
   // action row below it — both stand or fall together.
   const possessionRule = possessionTracked(state);
+  // Five buttons get a portrait layout of their own: two columns, the three that
+  // only read stacked on the left and Turn/Pass stacked on the right. At five
+  // across a button is ~60px square, which is the smallest target on the screen
+  // and carries a 9px label — this trades height off the score panels (which are
+  // `flex-1`, so they simply give it up) for buttons ~3x the area, and makes the
+  // two most-tapped ones half again as tall as the rest. Three and four keep the
+  // single row, where they are already 90-120px wide.
+  //
+  // `passesTracked` implies `turnoversTracked`, so Pass showing is enough on its
+  // own to mean five; the conjunction is written out anyway because that
+  // implication lives in another file.
+  const twoColumnActions = showTurnBtn && showPassBtn;
   const actionRowCols = 3 + (showTurnBtn ? 1 : 0) + (showPassBtn ? 1 : 0);
-  const actionRowColsClass =
-    actionRowCols === 5 ? 'grid-cols-5' : actionRowCols === 4 ? 'grid-cols-4' : 'grid-cols-3';
+  // Only 3 or 4 reach this — 5 goes down the two-column path above.
+  const actionRowColsClass = actionRowCols === 4 ? 'grid-cols-4' : 'grid-cols-3';
+  // Portrait's glyph in the two-column block, where there is room for a real one.
+  // Landscape keeps the size it has always had, in both layouts.
+  const actionIcon = twoColumnActions ? 'w-7 h-7 lscape:w-4 lscape:h-4' : undefined;
 
   // The guide is a screen, not a dialog — same early return ConfigScreen uses, so
   // the game screen's own state survives the round trip and the reducer stays free
@@ -1568,73 +1611,116 @@ export default function GameScreen() {
             />
           </div>
 
-          {/* Log / Stoppage / Call / Turn / Pass, ordered from the surfaces that only
-            read (left) to the ones that record something (right), so the thumb's
-            reach matches how consequential the button is. Timeouts left this row
-            for the score panels and Roster left it for the header menu; Turn and
-            Pass each appear on their own depending on what this game records (see
-            showTurnBtn/showPassBtn), leaving three to five. */}
-          <div className={`grid ${actionRowColsClass} gap-2 lscape:gap-1 lscape:flex-1`}>
-            <ActionButton
-              icon={<LogIcon />}
-              label={t('lblLog')}
-              name={t('btnLog')}
-              onClick={() => setShowLog(true)}
-            />
-            <ActionButton
-              icon={<StoppageIcon />}
-              name={t('btnStoppageSotg')}
-              onClick={tryStoppage}
-              disabled={stoppageBusy}
-            />
-            <ActionButton
-              icon={<CallIcon />}
-              label={t('lblCall')}
-              name={t('callDialogTitle')}
-              onClick={openCall}
-              disabled={recordBusy}
-            />
-            {showTurnBtn && (
+          {/* Log / Stoppage / Call on the left, Pass / Turn on the right — split by
+            the surfaces that only read against the ones that record something, so
+            the thumb's reach matches how consequential the button is. Timeouts left
+            this row for the score panels and Roster left it for the header menu.
+            Turn and Pass each appear only as the game records more, leaving three,
+            four or five (see showTurnBtn/showPassBtn), and five is the one that
+            reflows into two columns — see twoColumnActions.
+
+            The markup order is Turn then Pass throughout, which is the order the
+            landscape row wants; portrait's right-hand column puts Pass on top with
+            `order` instead of a second tree. */}
+          <div
+            className={
+              twoColumnActions
+                ? 'grid grid-cols-2 gap-2 h-[184px] lscape:h-auto lscape:grid-cols-5 lscape:gap-1 lscape:flex-1'
+                : `grid ${actionRowColsClass} gap-2 lscape:gap-1 lscape:flex-1`
+            }
+          >
+            {/* `display: contents` is what lets one DOM tree be both layouts rather
+              than two trees with the same five buttons in them. In the two-column
+              portrait block these wrappers are real grids that stack their buttons;
+              everywhere else — landscape, and every three- or four-button game —
+              they dissolve, and the buttons are direct children of the outer grid
+              exactly as they have always been. */}
+            <div
+              className={twoColumnActions ? 'grid grid-rows-3 gap-2 lscape:contents' : 'contents'}
+            >
               <ActionButton
-                icon={<TurnIcon />}
-                label={t('lblTurn')}
-                name={t('btnTurnoverHold')}
-                // Turnovers in the point being played, which is the counter that
-                // already resets on PULL_THROWN/GOAL and comes back down on this
-                // button's own long-press — so the badge self-corrects with no
-                // state of its own. It is also the only confirmation that a press
-                // landed: when the disc goes back to a team that has already held
-                // it this point, the rule below the panels returns to a half it
-                // has been on before and nothing else on screen moves.
-                badge={state.pointTurnovers}
-                onClick={tryTurnover}
-                onHold={tryUndoTurnover}
+                big={twoColumnActions}
+                icon={<LogIcon size={actionIcon} />}
+                label={t('lblLog')}
+                name={t('btnLog')}
+                onClick={() => setShowLog(true)}
+              />
+              <ActionButton
+                big={twoColumnActions}
+                icon={<StoppageIcon size={actionIcon} />}
+                label={t('lblStoppage')}
+                name={t('btnStoppageSotg')}
+                onClick={tryStoppage}
+                disabled={stoppageBusy}
+              />
+              <ActionButton
+                big={twoColumnActions}
+                icon={<CallIcon size={actionIcon} />}
+                label={t('lblCall')}
+                name={t('callDialogTitle')}
+                onClick={openCall}
                 disabled={recordBusy}
               />
-            )}
-            {showPassBtn && (
-              <ActionButton
-                icon={<PassIcon />}
-                label={t('lblPass')}
-                name={t('btnPass')}
-                // The passes of the possession in progress — one team's, which is
-                // what the colour says. It starts again at every turnover, not just
-                // at the pull, because the run does. It matters more here than on
-                // Turn: a pass writes no log entry, moves no possession rule and
-                // changes nothing else on screen, so the badge is the only thing
-                // that confirms the tap landed.
-                //
-                // In a game following one team it simply disappears while the other
-                // side has the disc — their run is real but its count is 0, since
-                // nobody is counting them — which is the same thing the greyed
-                // button is already saying.
-                badge={passRun?.passes ?? 0}
-                badgeColor={passRun ? state.config.teams[passRun.team].color : undefined}
-                onClick={tryPass}
-                onHold={tryUndoPass}
-                disabled={recordBusy || passDead}
-              />
-            )}
+            </div>
+            {/* Two rows against the left column's three, at one shared column
+              height — so the pair that gets tapped most is half again as tall as
+              anything else on the screen. Pass sits in the first row (see its
+              `order-first`), Turn in the second. */}
+            <div
+              className={twoColumnActions ? 'grid grid-rows-2 gap-2 lscape:contents' : 'contents'}
+            >
+              {showTurnBtn && (
+                <ActionButton
+                  big={twoColumnActions}
+                  icon={<TurnIcon size={actionIcon} />}
+                  label={t('lblTurn')}
+                  name={t('btnTurnoverHold')}
+                  // Turnovers in the point being played, which is the counter that
+                  // already resets on PULL_THROWN/GOAL and comes back down on this
+                  // button's own long-press — so the badge self-corrects with no
+                  // state of its own. It is also the only confirmation that a press
+                  // landed: when the disc goes back to a team that has already held
+                  // it this point, the rule below the panels returns to a half it
+                  // has been on before and nothing else on screen moves.
+                  badge={state.pointTurnovers}
+                  onClick={tryTurnover}
+                  onHold={tryUndoTurnover}
+                  disabled={recordBusy}
+                />
+              )}
+              {showPassBtn && (
+                <ActionButton
+                  big={twoColumnActions}
+                  icon={<PassIcon size={actionIcon} />}
+                  label={t('lblPass')}
+                  name={t('btnPass')}
+                  // The passes of the possession in progress — one team's, which is
+                  // what the colour says. It starts again at every turnover, not just
+                  // at the pull, because the run does. It matters more here than on
+                  // Turn: a pass writes no log entry, moves no possession rule and
+                  // changes nothing else on screen, so the badge is the only thing
+                  // that confirms the tap landed.
+                  //
+                  // In a game following one team it simply disappears while the other
+                  // side has the disc — their run is real but its count is 0, since
+                  // nobody is counting them — which is the same thing the greyed
+                  // button is already saying.
+                  badge={passRun?.passes ?? 0}
+                  badgeColor={passRun ? state.config.teams[passRun.team].color : undefined}
+                  // Top of the right-hand column, above Turn. Done with `order`
+                  // rather than by swapping the two in the markup, because this
+                  // one DOM tree is also the landscape row (see the wrappers
+                  // above) and that row keeps Turn first — `lscape:order-none` is
+                  // what hands it back. Pass only ever renders in the two-column
+                  // layout, passes needing turnovers, but the flag is read anyway
+                  // so the class and the layout it belongs to are named together.
+                  className={twoColumnActions ? 'order-first lscape:order-none' : undefined}
+                  onClick={tryPass}
+                  onHold={tryUndoPass}
+                  disabled={recordBusy || passDead}
+                />
+              )}
+            </div>
           </div>
         </div>
       </div>

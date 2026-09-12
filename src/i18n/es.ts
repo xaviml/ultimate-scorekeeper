@@ -311,6 +311,7 @@ export const es: typeof en = {
   // Micro-etiquetas de la fila de acciones: en inglés en todos los idiomas a
   // propósito — el vocabulario de Ultimate ya es inglés en los campos españoles y
   // catalanas, y así el ancho de los botones es idéntico en los tres.
+  lblStoppage: 'Stoppage',
   lblTurn: 'Turn',
   lblPass: 'Pass',
   lblCall: 'Call',

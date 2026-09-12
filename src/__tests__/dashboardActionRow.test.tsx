@@ -48,21 +48,62 @@ function mount(state: GameState) {
 beforeEach(() => sessionStorage.clear());
 
 describe('the action row', () => {
-  it('is Log, Stoppage, Call, Turn, Pass in that order', () => {
+  const labelsIn = (el: HTMLElement) =>
+    within(el)
+      .getAllByRole('button')
+      .map((b) => b.getAttribute('aria-label'));
+
+  // Five buttons reflow into two columns in portrait: the three that only read on
+  // the left, the two that record on the right. One DOM tree serves both layouts
+  // (the wrappers are `display: contents` in landscape), so the order the buttons
+  // appear in is the same either way.
+  it('splits five buttons into a reading column and a recording column', () => {
     const state = liveGame();
     state.config = { ...state.config, trackPasses: true };
     mount(state);
-    const row = screen.getByLabelText('Log').parentElement as HTMLElement;
-    const names = within(row)
-      .getAllByRole('button')
-      .map((b) => b.getAttribute('aria-label'));
-    expect(names).toEqual([
+
+    const left = screen.getByLabelText('Log').parentElement as HTMLElement;
+    const right = screen.getByLabelText('Turnover — hold to undo').parentElement as HTMLElement;
+    expect(labelsIn(left)).toEqual(['Log', 'Stoppage or SOTG', 'What was called?']);
+    // Markup order stays Turn then Pass, because this same tree is the landscape
+    // row — portrait floats Pass to the top of the column with `order` instead.
+    expect(labelsIn(right)).toEqual(['Turnover — hold to undo', 'Completed pass — hold to undo']);
+    const pass = screen.getByLabelText('Completed pass — hold to undo');
+    expect(pass.className).toContain('order-first');
+    expect(pass.className).toContain('lscape:order-none');
+    // Matched on whole classes: "border-line" contains the substring "order-".
+    const turnClasses = screen.getByLabelText('Turnover — hold to undo').className.split(/\s+/);
+    expect(turnClasses).not.toContain('order-first');
+    expect(turnClasses).not.toContain('lscape:order-none');
+
+    // Three rows against two at one shared height, which is what makes Turn and
+    // Pass the tallest targets on the screen.
+    expect(left.className).toContain('grid-rows-3');
+    expect(right.className).toContain('grid-rows-2');
+    // Both dissolve in landscape, handing their buttons back to the outer grid.
+    expect(left.className).toContain('lscape:contents');
+    expect(right.className).toContain('lscape:contents');
+    expect((left.parentElement as HTMLElement).className).toContain('grid-cols-2');
+  });
+
+  // Three and four keep the single row they have always had. The wrappers are
+  // still in the DOM — `contents` only takes them out of the *layout* — so the row
+  // itself is one level further up, which is also why the five-button test reads
+  // the columns rather than the row.
+  it('keeps four buttons in one row, with no columns to speak of', () => {
+    mount(liveGame()); // turnovers on, passes off
+
+    const wrapper = screen.getByLabelText('Log').parentElement as HTMLElement;
+    const row = wrapper.parentElement as HTMLElement;
+    expect(labelsIn(row)).toEqual([
       'Log',
       'Stoppage or SOTG',
       'What was called?',
       'Turnover — hold to undo',
-      'Completed pass — hold to undo',
     ]);
+    expect(row.className).toContain('grid-cols-4');
+    // Laid out as if the wrappers were not there, in either orientation.
+    expect(wrapper.className).toBe('contents');
   });
 
   // Roster was the leftmost button until Pass needed the space. The row is capped
@@ -154,7 +195,10 @@ describe('the action row', () => {
     expect(screen.getByLabelText('Turnover — hold to undo')).toBeInTheDocument();
   });
 
-  it('labels every button but the stoppage one, which no short word covers', () => {
+  // Every button carries a visible label, the raised hand included — it went
+  // unlabelled while the row was five across and 60px wide. The accessible name
+  // stays the fuller wording, which is what names the two things it leads to.
+  it('labels every button, the stoppage one included', () => {
     const state = liveGame();
     state.config = { ...state.config, trackPasses: true };
     mount(state);
@@ -162,7 +206,13 @@ describe('the action row', () => {
     expect(screen.getByLabelText('Completed pass — hold to undo')).toHaveTextContent('Pass');
     expect(screen.getByLabelText('Log')).toHaveTextContent('Log');
     expect(screen.getByLabelText('What was called?')).toHaveTextContent('Call');
-    expect(screen.getByLabelText('Stoppage or SOTG')).toHaveTextContent('');
+    expect(screen.getByLabelText('Stoppage or SOTG')).toHaveTextContent('Stoppage');
+  });
+
+  // The label is there in the narrow single row too, not just the wide block.
+  it('labels the stoppage button in the single-row layout as well', () => {
+    mount(liveGame()); // four buttons, one row
+    expect(screen.getByLabelText('Stoppage or SOTG')).toHaveTextContent('Stoppage');
   });
 
   it('opens the call menu with travel in it and nothing that is not a call', () => {

@@ -327,6 +327,7 @@ export const en = {
   // (~7 characters at 9px). Deliberately English in every dictionary — Ultimate
   // vocabulary is English on Spanish and Catalan fields too, and it keeps the
   // widths identical across languages.
+  lblStoppage: 'Stoppage',
   lblTurn: 'Turn',
   lblPass: 'Pass',
   lblCall: 'Call',

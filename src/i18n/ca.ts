@@ -310,6 +310,7 @@ export const ca: typeof en = {
   // Microetiquetes de la fila d'accions: en anglès en tots els idiomes a posta —
   // el vocabulari d'Ultimate ja és anglès a les pistes catalanes i espanyoles, i
   // així l'amplada dels botons és idèntica en els tres.
+  lblStoppage: 'Stoppage',
   lblTurn: 'Turn',
   lblPass: 'Pass',
   lblCall: 'Call',

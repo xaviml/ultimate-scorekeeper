@@ -46,12 +46,12 @@ const FIG_ROSTER: readonly Marker[] = [
   [15.1, 92.9],
 ];
 const FIG_DASHBOARD: readonly Marker[] = [
-  [25, 65.9],
-  [94.4, 72.1],
+  [25, 49.9],
+  [94.4, 56.1],
   [11.7, 2.8],
-  [39.7, 89.5],
-  [58.9, 89.5],
-  [98.6, 89.5],
+  [6.7, 89],
+  [54.7, 87.1],
+  [54.7, 75.8],
 ];
 
 export default function StatsGuideScreen({ onBack }: { onBack: () => void }) {
