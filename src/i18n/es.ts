@@ -100,6 +100,7 @@ export const es: typeof en = {
   aboutBasedOnMiddle: ', de Kýkhë #00 ',
   aboutBasedOnSuffix: '.',
   aboutQuestion: '¿Alguna duda o sugerencia? Abre un issue en GitHub:',
+  aboutVersion: 'Versión {version}',
 
   installBannerTitle: 'Instala Scorekeeper',
   installBannerBody:

@@ -102,6 +102,7 @@ export const en = {
   aboutBasedOnMiddle: ', by Kýkhë #00 ',
   aboutBasedOnSuffix: '.',
   aboutQuestion: 'Questions or suggestions? Open an issue on GitHub:',
+  aboutVersion: 'Version {version}',
 
   // Install banner — shown above the config/report screens only, never during
   // an in-progress game (that screen has no vertical room to spare).

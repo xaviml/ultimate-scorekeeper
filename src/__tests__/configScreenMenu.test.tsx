@@ -40,6 +40,21 @@ describe('the setup screen header menu', () => {
     expect(screen.getByText(/designed for scorekeepers/)).toBeInTheDocument();
   });
 
+  it('shows the build version, stamped in rather than fetched', () => {
+    renderConfigScreen();
+    openMenu();
+    fireEvent.click(screen.getByRole('button', { name: /About/ }));
+
+    // The whole point is that the string is compiled into the bundle: a stale
+    // PWA has to report the build it is actually running. So the assertion is
+    // that `define` reached the code at all — an unwired one renders
+    // "undefined" here, and the value itself is whatever git said at build.
+    const line = screen.getByText(/^Version /);
+    expect(line).toHaveTextContent(`Version ${__APP_VERSION__}`);
+    expect(__APP_VERSION__).not.toMatch(/undefined/);
+    expect(__APP_VERSION__.length).toBeGreaterThan(0);
+  });
+
   it('opens the past-games screen over the form, and leaves it as it was', () => {
     renderConfigScreen();
     fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'Ravens' } });

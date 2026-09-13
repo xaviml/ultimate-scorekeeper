@@ -1,10 +1,14 @@
 // Minimal app-shell service worker. Static assets are cached on first load;
 // game state is intentionally NEVER persisted (in-memory only, per spec).
 //
-// __CACHE_VERSION__ is stamped in by scripts/stamp-sw-version.mjs after every
-// build, so this file's bytes differ per deploy — that's what makes browsers
-// notice there's a new service worker to install. Without it, sw.js never
-// changes and the app shell stays pinned to whatever was cached on first visit.
+// The version placeholder below is stamped in by scripts/stamp-sw-version.mjs
+// after every build, so this file's bytes differ per deploy — that's what makes
+// browsers notice there's a new service worker to install, and what makes
+// `activate` drop the previous deploy's cache instead of keeping it forever.
+//
+// The placeholder token is deliberately written nowhere else in this file: the
+// stamper replaces the first occurrence, so a second mention (in a comment,
+// say) would silently eat the stamp and leave the cache name constant.
 const CACHE = 'scorekeeper-__CACHE_VERSION__';
 
 self.addEventListener('install', (e) => {

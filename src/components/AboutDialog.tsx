@@ -67,6 +67,9 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
           {GITHUB_URL}
         </a>
       </p>
+      <p className="text-xs text-chalk/50 text-center select-all">
+        {t('aboutVersion', { version: __APP_VERSION__ })}
+      </p>
       <button className={`w-full ${secondaryButton}`} onClick={onClose}>
         {t('close')}
       </button>
