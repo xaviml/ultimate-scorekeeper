@@ -1092,6 +1092,45 @@ describe('halves and pulls', () => {
     expect(s.status).toBe('halftime');
   });
 
+  describe('with half-time switched off', () => {
+    const noHalf = (patch: Partial<GameConfig> = {}) =>
+      cfg({ halfTimeEnabled: false, halfScore: 2, startingOffense: 'A', ...patch });
+
+    it('plays straight past the half score, with no call-out and no break', () => {
+      let s = gameReducer(live(noHalf()), { type: 'GOAL', team: 'A' }); // 1-0, one short
+      expect(s.assist).toBe('goalScored');
+      expect(s.halfAnnounced).toBe(false);
+      s = run(s, { type: 'PULL_THROWN' }, { type: 'GOAL', team: 'A' }); // 2-0
+      expect(s.status).toBe('awaitingPull');
+      expect(s.half).toBe(1);
+      expect(s.halftimePlayed).toBe(false);
+      expect(s.log.some((e) => e.type === 'halftimeStart')).toBe(false);
+      expect(halfTargetApplies(s)).toBe(false);
+    });
+
+    it('never reaches the half time limit, so neither cap nor chip appears', () => {
+      let s = ticks(live(noHalf({ halfTimeLimitMinutes: 1, halfScore: 8 })), 120);
+      expect(s.halfTimeCapReached).toBe(false);
+      expect(s.log.some((e) => e.type === 'halfTimeCap')).toBe(false);
+      s = gameReducer(s, { type: 'GOAL', team: 'A' });
+      expect(s.status).toBe('awaitingPull');
+      expect(s.halfCappedTarget).toBeNull();
+      expect(capTargetOptions(s, 'half')).toEqual([]);
+    });
+
+    it('still finishes the game at the target', () => {
+      const s = run(
+        live(noHalf({ targetScore: 3 })),
+        { type: 'GOAL', team: 'A' },
+        { type: 'PULL_THROWN' },
+        { type: 'GOAL', team: 'A' },
+        { type: 'PULL_THROWN' },
+        { type: 'GOAL', team: 'A' },
+      );
+      expect(s.status).toBe('finished');
+    });
+  });
+
   it('records holds vs breaks correctly', () => {
     // A receives the first pull (offense). A scores = hold; then B receives, A scores = break.
     const s = run(

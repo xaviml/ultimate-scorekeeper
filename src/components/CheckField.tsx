@@ -21,6 +21,9 @@ import type { ReactNode } from 'react';
  *   which is what the statistics section is a list of.
  * - `check` (default) — an answer to the question in front of you: was this a
  *   Callahan, replace the roster, was the other team hurt too.
+ *
+ * `labelHidden` keeps the label for a screen reader only, for a box whose meaning is
+ * already on screen beside it — a config section's own on/off in its heading.
  */
 export function CheckField({
   label,
@@ -29,6 +32,7 @@ export function CheckField({
   hint,
   variant = 'check',
   disabled = false,
+  labelHidden = false,
 }: {
   label: ReactNode;
   checked: boolean;
@@ -37,6 +41,7 @@ export function CheckField({
   hint?: ReactNode;
   variant?: 'check' | 'switch';
   disabled?: boolean;
+  labelHidden?: boolean;
 }) {
   return (
     <div>
@@ -51,7 +56,7 @@ export function CheckField({
           onChange={(e) => onChange(e.target.checked)}
         />
         {variant === 'switch' ? <SwitchTrack /> : <CheckBox />}
-        <span className="text-sm">{label}</span>
+        <span className={labelHidden ? 'sr-only' : 'text-sm'}>{label}</span>
       </label>
       {hint && (
         <p className={`text-xs text-chalk/50 ${variant === 'switch' ? 'pl-14' : 'pl-9'}`}>{hint}</p>

@@ -1329,7 +1329,10 @@ export default function GameScreen() {
           {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </span>
         <span className="font-board justify-self-end flex flex-col items-end leading-tight">
-          <span>{state.half === 1 ? t('half1') : t('half2')}</span>
+          {/* A game played straight through has no halves to number. */}
+          {state.config.halfTimeEnabled && (
+            <span>{state.half === 1 ? t('half1') : t('half2')}</span>
+          )}
           {/* Always the target actually in force: the configured score until a cap
               lowers it, and the capped one from then on. */}
           <span>{t('target', { n: target })}</span>

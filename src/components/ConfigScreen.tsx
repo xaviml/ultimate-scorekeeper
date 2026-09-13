@@ -76,6 +76,7 @@ function Section({
   collapsed,
   onToggleCollapsed,
   toggleAriaLabel,
+  enabled,
 }: {
   title: string;
   children: React.ReactNode;
@@ -83,10 +84,29 @@ function Section({
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
   toggleAriaLabel?: string;
+  /**
+   * An on/off for the whole section, drawn as an unlabelled switch in the heading's
+   * top-right corner. Off folds the section down to its title: there is nothing in it
+   * left to set, and the values stay as they were for when it is switched back on.
+   */
+  enabled?: { checked: boolean; onChange: (checked: boolean) => void; label: string };
 }) {
   return (
     <section className="rounded-xl bg-panel border border-line p-4 space-y-3">
-      {collapsible ? (
+      {enabled ? (
+        <div className="flex items-center justify-between">
+          <h2 className={sectionTitle}>{title}</h2>
+          <div className="-my-1.5">
+            <CheckField
+              variant="switch"
+              label={enabled.label}
+              labelHidden
+              checked={enabled.checked}
+              onChange={enabled.onChange}
+            />
+          </div>
+        </div>
+      ) : collapsible ? (
         <button
           type="button"
           className="w-full flex items-center justify-between"
@@ -105,7 +125,7 @@ function Section({
       ) : (
         <h2 className={sectionTitle}>{title}</h2>
       )}
-      {(!collapsible || !collapsed) && children}
+      {(!collapsible || !collapsed) && (!enabled || enabled.checked) && children}
     </section>
   );
 }
@@ -267,7 +287,14 @@ export default function ConfigScreen() {
     else if (key.startsWith('custom:')) {
       const name = key.slice('custom:'.length);
       const template = savedTemplates.find((t) => t.name === name);
-      if (template) setCfg((c) => ({ ...c, ...template.settings }));
+      // A template saved before half-time could be switched off never carries the
+      // field, and every one of those games had a half.
+      if (template)
+        setCfg((c) => ({
+          ...c,
+          ...template.settings,
+          halfTimeEnabled: template.settings.halfTimeEnabled ?? true,
+        }));
     }
   };
   const selectedCustomName = selectedTemplateKey.startsWith('custom:')
@@ -445,7 +472,8 @@ export default function ConfigScreen() {
   const teamsReady = cfg.teams.A.name.trim() !== '' && cfg.teams.B.name.trim() !== '';
   const duplicateTeamNames =
     teamsReady && normalizeTeamName(cfg.teams.A.name) === normalizeTeamName(cfg.teams.B.name);
-  const halfScoreValid = cfg.halfScore < cfg.targetScore;
+  // A half that is switched off has no score to be out of range.
+  const halfScoreValid = !cfg.halfTimeEnabled || cfg.halfScore < cfg.targetScore;
   const startingTimeReady =
     !cfg.startingTime.enabled || startingTimeIsFuture(cfg.startingTime.time);
   const canStart = teamsReady && !duplicateTeamNames && halfScoreValid && startingTimeReady;
@@ -997,7 +1025,14 @@ export default function ConfigScreen() {
         </div>
       </Section>
 
-      <Section title={t('halfTimeTitle')}>
+      <Section
+        title={t('halfTimeTitle')}
+        enabled={{
+          checked: cfg.halfTimeEnabled,
+          onChange: (v) => set('halfTimeEnabled', v),
+          label: t('halfTimeEnabled'),
+        }}
+      >
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={fieldLabel}>{t('halfScore')}</label>
@@ -1042,17 +1077,15 @@ export default function ConfigScreen() {
         />
       </Section>
 
-      <Section title={t('timeoutsTitle')}>
-        <CheckField
-          variant="switch"
-          label={t('timeoutsEnabled')}
-          checked={cfg.timeouts.enabled}
-          onChange={(v) => set('timeouts', { ...cfg.timeouts, enabled: v })}
-        />
-        <div
-          className={`grid grid-cols-2 gap-3 ${cfg.timeouts.enabled ? '' : 'opacity-40'}`}
-          aria-disabled={!cfg.timeouts.enabled}
-        >
+      <Section
+        title={t('timeoutsTitle')}
+        enabled={{
+          checked: cfg.timeouts.enabled,
+          onChange: (v) => set('timeouts', { ...cfg.timeouts, enabled: v }),
+          label: t('timeoutsEnabled'),
+        }}
+      >
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={fieldLabel}>{t('timeoutsCount')}</label>
             <input
@@ -1070,29 +1103,32 @@ export default function ConfigScreen() {
                   });
                 },
               )}
-              disabled={!cfg.timeouts.enabled}
             />
           </div>
-          <div>
-            <label className={fieldLabel}>{t('timeoutsScope')}</label>
-            <select
-              className={inputClass}
-              disabled={!cfg.timeouts.enabled}
-              value={cfg.timeouts.perGame === null ? 'half' : 'game'}
-              onChange={(e) => {
-                const count = cfg.timeouts.perHalf ?? cfg.timeouts.perGame ?? 0;
-                const perHalf = e.target.value === 'half';
-                set('timeouts', {
-                  ...cfg.timeouts,
-                  perHalf: perHalf ? count : null,
-                  perGame: perHalf ? null : count,
-                });
-              }}
-            >
-              <option value="half">{t('timeoutsScopeHalf')}</option>
-              <option value="game">{t('timeoutsScopeGame')}</option>
-            </select>
-          </div>
+          {/* With no half-time there is no second half to budget for, so per half and
+              per game are the same allowance and the choice is hidden. What was
+              picked is kept, and comes back with half-time. */}
+          {cfg.halfTimeEnabled && (
+            <div>
+              <label className={fieldLabel}>{t('timeoutsScope')}</label>
+              <select
+                className={inputClass}
+                value={cfg.timeouts.perGame === null ? 'half' : 'game'}
+                onChange={(e) => {
+                  const count = cfg.timeouts.perHalf ?? cfg.timeouts.perGame ?? 0;
+                  const perHalf = e.target.value === 'half';
+                  set('timeouts', {
+                    ...cfg.timeouts,
+                    perHalf: perHalf ? count : null,
+                    perGame: perHalf ? null : count,
+                  });
+                }}
+              >
+                <option value="half">{t('timeoutsScopeHalf')}</option>
+                <option value="game">{t('timeoutsScopeGame')}</option>
+              </select>
+            </div>
+          )}
           <div>
             <label className={fieldLabel}>{t('timeoutDuration')}</label>
             <input
@@ -1103,16 +1139,15 @@ export default function ConfigScreen() {
                 300,
                 (durationSeconds) => set('timeouts', { ...cfg.timeouts, durationSeconds }),
               )}
-              disabled={!cfg.timeouts.enabled}
             />
           </div>
           <div className="col-span-2">
             <CheckField
               variant="switch"
               label={t('timeoutLastFive')}
-              disabled={!cfg.timeouts.enabled}
-              checked={cfg.timeouts.disallowLastFiveMinutes}
-              onChange={(v) => set('timeouts', { ...cfg.timeouts, disallowLastFiveMinutes: v })}
+              // Worded as a permission, so the switch is the stored flag inverted.
+              checked={!cfg.timeouts.disallowLastFiveMinutes}
+              onChange={(v) => set('timeouts', { ...cfg.timeouts, disallowLastFiveMinutes: !v })}
             />
           </div>
         </div>

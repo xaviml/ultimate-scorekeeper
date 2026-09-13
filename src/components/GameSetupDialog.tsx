@@ -91,14 +91,18 @@ export function GameSetupDialog({ onClose }: { onClose: () => void }) {
           <Row label={t('endCapLabel')} value={endCapText(cfg.endCap, t)} />
         </Group>
 
-        <Group title={t('halfTimeTitle')}>
-          <Row label={t('halfScore')} value={cfg.halfScore} />
-          <Row label={t('halfTimeLimit')} value={cfg.halfTimeLimitMinutes} />
-          <Row label={t('setupBreak')} value={formatDuration(cfg.halfTimeBreakSeconds)} />
-          <Row
-            label={t('endCapLabel')}
-            value={t(cfg.halfCap.kind === 'cap' ? 'halfCapPlus' : 'setupNoCap')}
-          />
+        <Group title={t('halfTimeTitle')} note={cfg.halfTimeEnabled ? undefined : t('setupNoHalf')}>
+          {cfg.halfTimeEnabled && (
+            <>
+              <Row label={t('halfScore')} value={cfg.halfScore} />
+              <Row label={t('halfTimeLimit')} value={cfg.halfTimeLimitMinutes} />
+              <Row label={t('setupBreak')} value={formatDuration(cfg.halfTimeBreakSeconds)} />
+              <Row
+                label={t('endCapLabel')}
+                value={t(cfg.halfCap.kind === 'cap' ? 'halfCapPlus' : 'setupNoCap')}
+              />
+            </>
+          )}
         </Group>
 
         <Group
@@ -107,7 +111,7 @@ export function GameSetupDialog({ onClose }: { onClose: () => void }) {
             !timeouts
               ? t('setupNoTimeouts')
               : cfg.timeouts.disallowLastFiveMinutes
-                ? t('timeoutLastFive')
+                ? t('setupNoTimeoutsLastFive')
                 : undefined
           }
         >
@@ -119,7 +123,12 @@ export function GameSetupDialog({ onClose }: { onClose: () => void }) {
               />
               <Row
                 label={t('timeoutsScope')}
-                value={t(cfg.timeouts.perGame === null ? 'timeoutsScopeHalf' : 'timeoutsScopeGame')}
+                value={t(
+                  // Without a half-time a per-half allowance is the game's allowance.
+                  cfg.halfTimeEnabled && cfg.timeouts.perGame === null
+                    ? 'timeoutsScopeHalf'
+                    : 'timeoutsScopeGame',
+                )}
               />
               <Row
                 label={t('setupDuration')}

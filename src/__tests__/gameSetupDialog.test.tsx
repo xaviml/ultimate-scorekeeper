@@ -101,7 +101,13 @@ describe('the game setup dialog', () => {
       game((s) => (s.config.timeouts = { ...s.config.timeouts, enabled: false })),
     );
     expect(within(panel).getByText('No timeouts in this game.')).toBeInTheDocument();
-    expect(within(panel).queryByText('Timeout duration (seconds)')).toBeNull();
+    expect(within(panel).queryByText('time (seconds)')).toBeNull();
+  });
+
+  it('says a game has no half-time rather than listing settings that do nothing', () => {
+    const panel = openSetup(game((s) => (s.config.halfTimeEnabled = false)));
+    expect(within(panel).getByText('No half-time in this game.')).toBeInTheDocument();
+    expect(within(panel).queryByText('TIME (Minutes)')).toBeNull();
   });
 
   it('spells out the timeout budget when there is one', () => {
@@ -121,6 +127,26 @@ describe('the game setup dialog', () => {
     expect(valueFor(panel, 'Per team')).toBe('3');
     expect(valueFor(panel, 'Allowance')).toBe('Per game');
     expect(valueFor(panel, 'Duration')).toBe("1' 10''");
+  });
+
+  it('notes when timeouts are not allowed in the last 5 minutes', () => {
+    const panel = openSetup(
+      game((s) => (s.config.timeouts = { ...s.config.timeouts, disallowLastFiveMinutes: true })),
+    );
+    expect(
+      within(panel).getByText('No timeouts in the last 5 minutes of the game.'),
+    ).toBeInTheDocument();
+  });
+
+  it('calls a per-half allowance per game when there is no half-time', () => {
+    const panel = openSetup(
+      game((s) => {
+        s.config.halfTimeEnabled = false;
+        s.config.timeouts = { ...s.config.timeouts, enabled: true, perHalf: 2, perGame: null };
+      }),
+    );
+    expect(valueFor(panel, 'Per team')).toBe('2');
+    expect(valueFor(panel, 'Allowance')).toBe('Per game');
   });
 
   // Every break is stored in seconds because that is what the timers count, but

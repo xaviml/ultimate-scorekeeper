@@ -4,3 +4,7 @@ coverage
 *.local
 .DS_Store
 .claude/
+
+# Vite bundles vite.config.ts into this next to it while loading it; it would
+# otherwise mark every build dirty (see scripts/version.mjs).
+vite.config.*.timestamp-*

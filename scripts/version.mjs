@@ -20,7 +20,13 @@ const date = git('git log -1 --format=%cd --date=format:%Y.%m.%d', 'unknown');
 // Date.now() rather than a fixed string: without git the sha is the only thing
 // left making the service worker's bytes differ per build.
 const sha = git('git rev-parse --short HEAD', String(Date.now()));
-const dirty = git('git status --porcelain', '') !== '';
+// A CI build is by definition a build of a commit, so it is never dirty —
+// whatever the pipeline writes into the workspace on the way (a rewritten
+// tsconfig.tsbuildinfo, say) is not a local change to the code.
+const dirty = !process.env.CI && git('git status --porcelain', '') !== '';
 
 // `-dev` so a screenshot off `yarn dev` is never mistaken for a deployed build.
+// Beware that this module runs *inside* Vite's config load, while Vite's own
+// temporary `vite.config.ts.timestamp-*.mjs` sits in the project root — which
+// is why that pattern is gitignored; without it every build counted as dirty.
 export const appVersion = `${date}+${sha}${dirty ? '-dev' : ''}`;

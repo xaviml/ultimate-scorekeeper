@@ -29,6 +29,7 @@ export const defaultConfig: GameConfig = {
   startingSide: 'A',
   startingRatio: 'female',
   targetScore: 15,
+  halfTimeEnabled: true,
   halfScore: 8,
   timeLimitMinutes: 100,
   halfTimeLimitMinutes: 55,
@@ -948,6 +949,21 @@ function snapshot(state: GameState): GoalSnapshot {
 export function effectiveTarget(state: GameState): number {
   return state.cappedTarget ?? state.config.targetScore;
 }
+/**
+ * Whether this game still has a half-time to come: the game is on, it is configured
+ * to have one at all, and it has not been played yet. With `halfTimeEnabled` off it
+ * is false from the first point, which is the one switch that retires the half target,
+ * the half cap, its call-outs and the break alike.
+ */
+export function halfTimeAhead(state: GameState): boolean {
+  return (
+    state.phase === 'game' &&
+    state.config.halfTimeEnabled &&
+    !state.halftimePlayed &&
+    state.half === 1
+  );
+}
+
 export function effectiveHalfTarget(state: GameState): number {
   return state.halfCappedTarget ?? state.config.halfScore;
 }
@@ -964,7 +980,7 @@ export function effectiveHalfTarget(state: GameState): number {
  *     the next goal whatever the score — the threshold no longer governs anything.
  */
 export function halfTargetApplies(state: GameState): boolean {
-  if (state.phase !== 'game' || state.halftimePlayed || state.half !== 1) return false;
+  if (!halfTimeAhead(state)) return false;
   if (state.timeCapReached && state.config.endCap.kind === 'none') return false;
   if (state.halfTimeCapReached && state.config.halfCap.kind === 'none') return false;
   return effectiveHalfTarget(state) < effectiveTarget(state);
@@ -1015,7 +1031,7 @@ export function capTargetOptions(state: GameState, which: 'game' | 'half'): numb
   if (state.phase !== 'game' || state.status === 'finished') return [];
   const half = which === 'half';
   if (half) {
-    if (state.halftimePlayed || state.half !== 1) return [];
+    if (!halfTimeAhead(state)) return [];
     // Option A ends the game on the point in progress, so no half is coming. The rest
     // of halfTargetApplies is deliberately not consulted: while a half cap is pending
     // it reads the configured half score, which is precisely the number about to be
@@ -1315,8 +1331,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         s.halfTimeCapReached &&
         halfCapRule.kind === 'cap' &&
         s.halfCappedTarget === null &&
-        !s.halftimePlayed &&
-        s.half === 1
+        halfTimeAhead(s)
       ) {
         const leader = Math.max(s.scores.A, s.scores.B);
         s = {
@@ -1334,8 +1349,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
       //   - half cap: play continues until the capped half target is reached.
       // Reaching the half by score (no time cap) is the same path with cap unset.
       const reachHalf =
-        !s.halftimePlayed &&
-        s.half === 1 &&
+        halfTimeAhead(s) &&
         (newScore >= effectiveHalfTarget(s) ||
           (s.halfTimeCapReached && s.config.halfCap.kind === 'none'));
 
@@ -1349,10 +1363,9 @@ export function gameReducer(state: GameState, action: Action): GameState {
       // resolving already announced the number itself.
       const announceHalf =
         !reachHalf &&
-        !s.halftimePlayed &&
+        halfTimeAhead(s) &&
         !s.halfAnnounced &&
         !halfCapResolved &&
-        s.half === 1 &&
         newScore === effectiveHalfTarget(s) - 1;
 
       // The same, one goal short of the game target. Deliberately NOT suppressed on a
@@ -1986,8 +1999,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
           // Half-time cap
           if (
             !s.halfTimeCapReached &&
-            !s.halftimePlayed &&
-            s.half === 1 &&
+            halfTimeAhead(s) &&
             s.gameSeconds >= s.config.halfTimeLimitMinutes * 60
           ) {
             s = applyHalfCap(s);

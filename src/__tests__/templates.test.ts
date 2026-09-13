@@ -75,6 +75,7 @@ describe('extractTemplateSettings', () => {
       mixedRule: cfg.mixedRule,
       lineSize: 5,
       targetScore: cfg.targetScore,
+      halfTimeEnabled: cfg.halfTimeEnabled,
       halfScore: cfg.halfScore,
       timeLimitMinutes: cfg.timeLimitMinutes,
       halfTimeLimitMinutes: cfg.halfTimeLimitMinutes,

@@ -151,6 +151,13 @@ export interface GameConfig {
   startingSide: TeamId; // team that starts on the "left" side of the scoreboard
   startingRatio: Gender; // starting gender ratio (mixed only)
   targetScore: number; // game target
+  /**
+   * Whether the game has a half-time at all. On by default; a pickup game or a
+   * training session often plays straight through. When false the half settings
+   * below are kept but ignored — no half target, no half cap, no break, no end swap —
+   * so turning it back on restores what was there.
+   */
+  halfTimeEnabled: boolean;
   halfScore: number; // half target
   timeLimitMinutes: number; // game time limit
   halfTimeLimitMinutes: number; // half time limit
