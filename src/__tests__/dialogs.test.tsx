@@ -93,9 +93,9 @@ describe('Modal backdrop dismissal', () => {
 describe('dialogs render through the shared Modal', () => {
   const noop = () => {};
 
-  it('GameLog shows the history heading and column headers', () => {
+  it('GameLog shows the full log heading and column headers', () => {
     renderWithProviders(<GameLog onClose={noop} onAddEvent={noop} />);
-    expect(screen.getByText('Game summary')).toBeInTheDocument();
+    expect(screen.getByText('Full game log')).toBeInTheDocument();
     // Twice over: the table's own column header, and the header button that adds one.
     expect(screen.getAllByText('Event')).toHaveLength(2);
   });

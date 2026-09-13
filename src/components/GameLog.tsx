@@ -34,7 +34,7 @@ export function GameLog({ onClose, onAddEvent }: { onClose: () => void; onAddEve
   };
   return (
     <Modal
-      title={t('historyTitle')}
+      title={t('fullLogTitle')}
       onClose={onClose}
       showClose
       headerAction={
