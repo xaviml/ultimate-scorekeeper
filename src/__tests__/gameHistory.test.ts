@@ -6,6 +6,7 @@ import {
   groupGamesByDate,
   loadGameHistory,
   saveGameToHistory,
+  shouldArchiveGame,
 } from '../state/gameHistory';
 import { createInitialState, defaultConfig, gameReducer } from '../state/gameReducer';
 import type { GameState, LogEntry } from '../state/types';
@@ -109,6 +110,41 @@ describe('the archive of past games', () => {
     saveGameToHistory(first);
     saveGameToHistory({ ...second, status: 'finished', log: [startEntry(AUG_18_LATER)] });
     expect(loadGameHistory()).toHaveLength(2);
+  });
+
+  describe('which games are filed', () => {
+    function inProgress(): GameState {
+      const config = structuredClone(defaultConfig);
+      const s = gameReducer(createInitialState(config), { type: 'START_GAME', config });
+      return gameReducer(s, { type: 'BEGIN_PLAY' });
+    }
+
+    it('files a game the scoreline finished', () => {
+      expect(shouldArchiveGame(finished(AUG_18))).toBe(true);
+    });
+
+    it('files a game left from the menu, although it never finished', () => {
+      const left = gameReducer(inProgress(), { type: 'END_GAME' });
+      expect(left.status).not.toBe('finished');
+      expect(shouldArchiveGame(left)).toBe(true);
+    });
+
+    it('does not file a game started and never ended', () => {
+      expect(shouldArchiveGame(inProgress())).toBe(false);
+    });
+
+    it('stops re-filing a left game once it is picked up again', () => {
+      const left = gameReducer(inProgress(), { type: 'END_GAME' });
+      const back = gameReducer(left, { type: 'BACK_TO_GAME' });
+      const resumed = gameReducer(back, { type: 'SOTG_TOGGLE' });
+      expect(shouldArchiveGame(resumed)).toBe(false);
+    });
+
+    it('does not file a game that never kicked off', () => {
+      const config = structuredClone(defaultConfig);
+      const s = gameReducer(createInitialState(config), { type: 'START_GAME', config });
+      expect(shouldArchiveGame({ ...s, phase: 'report' })).toBe(false);
+    });
   });
 
   it('survives storage holding something that isn’t an archive at all', () => {

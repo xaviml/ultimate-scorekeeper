@@ -5,7 +5,7 @@ import { useAssistQueue } from '../hooks/useAssistQueue';
 import { whistle } from '../audio/whistle';
 import { currentWhistle } from './whistleSignal';
 import { loadPersistedState, persistState } from './persistence';
-import { saveGameToHistory } from './gameHistory';
+import { saveGameToHistory, shouldArchiveGame } from './gameHistory';
 import { lineTeam } from './lines';
 import { saveTeam } from './rosterStorage';
 
@@ -31,22 +31,19 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [state]);
 
   // The archive of past games (localStorage, so it survives the app closing —
-  // unlike the sessionStorage game above). A game is filed the moment the
-  // scoreline finishes it, and re-filed on every later change while it is still
-  // finished, so a correction made from the dashboard (an undone mis-tap, an
-  // attribution fixed in the log) reaches the stored report without anyone
-  // pressing save.
+  // unlike the sessionStorage game above). A game is filed the moment it ends —
+  // the scoreline finishing it, or the volunteer leaving it from the header menu
+  // (END_GAME) — and re-filed on every later change while it still qualifies, so
+  // a correction made from the dashboard (an undone mis-tap, an attribution fixed
+  // in the log) reaches the stored report without anyone pressing save.
   //
-  // The gate is 'finished' and nothing else, which is what makes the archive a
-  // record of results rather than of afternoons: leaving a game from the header
-  // menu (END_GAME) pauses the clock and opens the report but does not finish it,
-  // and a game whose final goal is undone stops being finished too. The record
-  // already stored then simply stays as it was — the last state in which the game
-  // was over — and is overwritten again when the game is finished once more. That
-  // is also why nothing here ever deletes: the archive is emptied by hand, from
-  // the list itself.
+  // A game that stops qualifying (its final goal undone, or resumed from the
+  // report) keeps the record already stored — the last state in which it had
+  // ended — and is overwritten again when it ends once more. A game started and
+  // never ended at all is never filed. That is also why nothing here ever
+  // deletes: the archive is emptied by hand, from the list itself.
   useEffect(() => {
-    if (state.status !== 'finished') return;
+    if (!shouldArchiveGame(state)) return;
     saveGameToHistory(state);
   }, [state]);
 

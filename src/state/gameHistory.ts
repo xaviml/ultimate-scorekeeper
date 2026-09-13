@@ -13,7 +13,7 @@ const STORAGE_KEY = 'ultimate-scorekeeper:game-history';
 export const HISTORY_LIMIT = 50;
 
 /**
- * Every finished game this device recorded, newest first.
+ * Every finished or left game this device recorded, newest first.
  *
  * The archive stores whole states rather than a summary, because the report is a
  * pure read of one: everything it draws — the stat tables, the possession ledger,
@@ -49,15 +49,36 @@ function write(games: GameState[]): void {
 }
 
 /**
- * Files a finished game, or overwrites the record of one already filed.
+ * Whether a game belongs in the archive right now: one the scoreline (or a cap)
+ * finished, or one the volunteer left from the header menu (END_GAME). Leaving pauses
+ * the clock rather than finishing the game, but it is the volunteer saying "this is
+ * where it ended", so the afternoon is worth keeping. An unfinished game only reaches
+ * phase 'report' through END_GAME — OPEN_REPORT needs 'finished', and the live report
+ * is a layer over phase 'game' — so the phase is the whole test for having left.
+ *
+ * What stays out is a game that started and was simply never ended: closed mid-point,
+ * or resumed from the report and abandoned there. A game left and then resumed keeps
+ * the record it was filed with when it was left, exactly as a finished game whose
+ * final goal is undone does, and is overwritten when it ends again.
+ *
+ * The 'gameStart' entry is what "started" means, so a game that never got past its
+ * pull can't be filed by any path.
+ */
+export function shouldArchiveGame(state: GameState): boolean {
+  if (!state.log.some((e) => e.type === 'gameStart')) return false;
+  return state.status === 'finished' || state.phase === 'report';
+}
+
+/**
+ * Files a finished or left game, or overwrites the record of one already filed.
  *
  * Identity is `state.id`, which the game carries from the moment it was set up, so
  * a game corrected after the final whistle — a mis-tapped goal undone from the
  * dashboard, an attribution fixed in the log — replaces its own record rather than
  * filing a second copy of the same afternoon.
  *
- * The caller decides when a game qualifies (see GameProvider: only while its status
- * is 'finished'). This function is deliberately not that judgement — it is the
+ * The caller decides when a game qualifies (see GameProvider, which asks
+ * shouldArchiveGame). This function is deliberately not that judgement — it is the
  * writer, and the archive should be able to hold whatever a caller hands it.
  */
 export function saveGameToHistory(state: GameState): void {

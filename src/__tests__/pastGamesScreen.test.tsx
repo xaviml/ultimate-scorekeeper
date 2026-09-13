@@ -138,11 +138,20 @@ describe('filing a game into the archive', () => {
     expect(loadGameHistory().map((g) => g.id)).toEqual([game.id]);
   });
 
-  it('does not file a game that is merely paused on the way out (END_GAME)', () => {
+  it('files a game left from the menu (END_GAME), although it never finished', () => {
     // What "End game" leaves behind: the clock stopped and the report open, but
-    // the game itself not finished — see GameProvider's archive effect.
+    // the game itself not finished — see shouldArchiveGame.
     const game = finishedGame(['Ravens', 'Foxes'], [8, 6], AUG_18);
     game.status = 'paused';
+    mount(game);
+    expect(loadGameHistory().map((g) => g.id)).toEqual([game.id]);
+  });
+
+  it('does not file a game that started and was never ended', () => {
+    const game = finishedGame(['Ravens', 'Foxes'], [8, 6], AUG_18);
+    game.status = 'live';
+    game.phase = 'game';
+    game.log = game.log.slice(0, 1);
     mount(game);
     expect(loadGameHistory()).toEqual([]);
   });
@@ -152,7 +161,7 @@ describe('filing a game into the archive', () => {
     mount(game).unmount();
     // The final goal undone from the dashboard: the game is live again, so the
     // archive keeps the last state in which it was actually over.
-    mount({ ...game, status: 'live', scores: { A: 14, B: 12 } });
+    mount({ ...game, phase: 'game', status: 'live', scores: { A: 14, B: 12 } });
     expect(loadGameHistory()[0].scores).toEqual({ A: 15, B: 12 });
   });
 });
