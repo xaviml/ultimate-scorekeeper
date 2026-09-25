@@ -952,9 +952,11 @@ describe('timeouts', () => {
     // "offence set" window before it goes live again (a 75 s timeout → 90 s).
     expect(s.secondary).toMatchObject({ kind: 'timeout', afterPull: true, total: 90, seconds: 90 });
 
-    s = ticks(s, 90);
-    expect(s.secondary).toMatchObject({ seconds: 0 });
-    s = gameReducer(s, { type: 'TIMEOUT_END' });
+    s = ticks(s, 89);
+    expect(s.status).toBe('timeout');
+    expect(s.secondary).toMatchObject({ seconds: 1 });
+    // The second the countdown reaches 0 ends it — no separate TIMEOUT_END needed.
+    s = ticks(s, 1);
     expect(s.status).toBe('live'); // disc back in play, not awaiting a pull
     expect(s.assist).toBe('timeoutRestart');
     expect(s.secondary).toBeNull();
@@ -3192,5 +3194,112 @@ describe('PointRecord.aliveSeconds', () => {
     s = run(s, { type: 'UNDO_GOAL', team: 'B' });
     expect(s.aliveSeconds).toBe(7);
     expect(s.points).toHaveLength(1);
+  });
+});
+
+describe('the heartbeat follows the wall clock', () => {
+  const T = new Date('2024-06-01T10:00:00').getTime();
+  /** A TICK as GameContext sends it. */
+  const at = (ms: number): Action => ({ type: 'TICK', now: ms });
+  /** Anchored at T, the way the first heartbeat of a game leaves it. */
+  const anchored = (s: GameState) => gameReducer(s, at(T));
+  const withoutAnchor = (s: GameState) => ({ ...s, clockAnchorMs: null });
+
+  it('only anchors on the first tick of a game', () => {
+    const s = anchored(live());
+    expect(s.clockAnchorMs).toBe(T);
+    expect(s.gameSeconds).toBe(0);
+  });
+
+  it('replays one second per whole second elapsed, however rarely it is asked', () => {
+    const start = live(cfg({ trackTurnovers: true, statsMode: 'teams' }));
+    const oneBigTick = gameReducer(anchored(start), at(T + 10_000));
+    expect(oneBigTick.gameSeconds).toBe(10);
+    expect(oneBigTick.clockAnchorMs).toBe(T + 10_000);
+    // Identical to ten one-second ticks: every counter keeps its own rules.
+    expect(withoutAnchor(oneBigTick)).toEqual(withoutAnchor(ticks(start, 10)));
+  });
+
+  it('carries the fraction of a second over instead of dropping it', () => {
+    let s = anchored(live());
+    s = gameReducer(s, at(T + 1_500));
+    s = gameReducer(s, at(T + 2_600));
+    s = gameReducer(s, at(T + 3_000));
+    expect(s.gameSeconds).toBe(3);
+    expect(s.clockAnchorMs).toBe(T + 3_000);
+  });
+
+  it('changes nothing when less than a second has passed', () => {
+    const s = anchored(live());
+    expect(gameReducer(s, at(T + 999))).toBe(s);
+  });
+
+  it('fires a time cap crossed during the gap once, logged when it actually happened', () => {
+    const config = cfg({ timeLimitMinutes: 1, halfScore: 99 });
+    const s = gameReducer(anchored(live(config)), at(T + 90_000));
+    expect(s.gameSeconds).toBe(90);
+    expect(s.timeCapReached).toBe(true);
+    const caps = s.log.filter((e) => e.type === 'timeCap');
+    expect(caps).toHaveLength(1);
+    expect(caps[0]).toMatchObject({ gameSeconds: 60, atMs: T + 60_000 });
+  });
+
+  it('stops the clock at two minutes of a stoppage left open across the gap', () => {
+    let s = gameReducer(anchored(live()), { type: 'STOPPAGE', kind: 'technical' });
+    s = gameReducer(s, at(T + 300_000));
+    expect(s.status).toBe('paused');
+    expect(s.gameSeconds).toBe(120);
+    expect(s.pendingStoppage).toMatchObject({ elapsedSeconds: 300, clockStopped: true });
+    expect(s.pauseElapsedSeconds).toBe(180);
+  });
+
+  it('ends a timeout that ran out during the gap, and the pull clock counts the rest', () => {
+    let s = gameReducer(live(), { type: 'GOAL', team: 'A' }); // awaitingPull
+    s = gameReducer(anchored(s), { type: 'TIMEOUT_START', team: 'B' }); // 75 s, before the pull
+    s = gameReducer(s, at(T + 100_000));
+    expect(s.status).toBe('awaitingPull');
+    expect(s.secondary).toMatchObject({ kind: 'pull', seconds: 25 });
+    expect(s.gameSeconds).toBe(100);
+  });
+
+  it('ends half-time that ran out during the gap', () => {
+    const config = cfg({ halfScore: 1, halfTimeBreakSeconds: 60 });
+    let s = gameReducer(live(config), { type: 'GOAL', team: 'A' });
+    expect(s.status).toBe('halftime');
+    s = gameReducer(anchored(s), at(T + 80_000));
+    expect(s.half).toBe(2);
+    expect(s.status).toBe('awaitingPull');
+    expect(s.secondary).toMatchObject({ kind: 'pull', seconds: 20 });
+  });
+
+  it('keeps a run-out timeout waiting while a stoppage is open, and ends it once answered', () => {
+    let s = gameReducer(live(), { type: 'TIMEOUT_START', team: 'A' });
+    s = gameReducer(s, { type: 'STOPPAGE', kind: 'technical' });
+    // A countdown already at 0 under an open stoppage (as a game saved by the build
+    // that ended breaks from an effect could be left).
+    s = { ...s, secondary: s.secondary && { ...s.secondary, seconds: 0 } };
+    s = ticks(s, 5);
+    expect(s.status).toBe('timeout');
+    s = ticks(gameReducer(s, { type: 'STOPPAGE_RESOLVED' }), 1);
+    expect(s.status).toBe('live');
+  });
+
+  it('re-anchors without replaying anything when the device clock goes backwards', () => {
+    const s = gameReducer(anchored(live()), at(T - 5_000));
+    expect(s.clockAnchorMs).toBe(T - 5_000);
+    expect(s.gameSeconds).toBe(0);
+  });
+
+  it('counts a long gap in full, up to a six-hour limit', () => {
+    const noCaps = cfg({ timeLimitMinutes: 10_000, halfTimeLimitMinutes: 10_000 });
+    const now = T + 7 * 60 * 60 * 1000;
+    const s = gameReducer(anchored(live(noCaps)), at(now));
+    expect(s.gameSeconds).toBe(6 * 60 * 60);
+    expect(s.clockAnchorMs).toBe(now);
+  });
+
+  it('does nothing outside a game', () => {
+    const s = createInitialState(cfg());
+    expect(gameReducer(s, at(T))).toBe(s);
   });
 });

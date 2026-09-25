@@ -697,6 +697,14 @@ export interface GameState {
    */
   turnoversCommitted: Record<TeamId, number>;
   gameSeconds: number; // elapsed game clock
+  /**
+   * Epoch ms of real time every per-second counter has been accounted up to — the
+   * wall-clock instant the last applied second ended. A `TICK` carrying `now` runs
+   * one second of game logic for each whole second between this and `now`, so the
+   * clocks follow real time however irregularly the heartbeat fires (a backgrounded
+   * tab, a locked phone, a reload). Null until the first such tick of a game.
+   */
+  clockAnchorMs: number | null;
   /** Epoch ms of the scheduled kickoff, while status is 'awaitingStart'; null otherwise. */
   startingAtMs: number | null;
   pointStartSeconds: number | null; // gameSeconds when the current pull was thrown
@@ -847,7 +855,12 @@ export type Action =
    * (see capTargetOptions). Refused for anything that isn't currently on offer.
    */
   | { type: 'SET_CAP_TARGET'; which: 'game' | 'half'; target: number }
-  | { type: 'TICK' } // 1 s of real time while clocks run
+  /**
+   * The heartbeat. With `now` (what GameContext sends) it catches the game up to that
+   * wall-clock instant, one second of game logic per whole second since
+   * `clockAnchorMs`. Without it, exactly one second — the form the reducer tests fold.
+   */
+  | { type: 'TICK'; now?: number }
   /**
    * Leaving a game in progress for the report, from the header menu. It stops the
    * clock rather than finishing the game — the report can come back (BACK_TO_GAME)

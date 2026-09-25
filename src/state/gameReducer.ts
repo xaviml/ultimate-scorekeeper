@@ -144,8 +144,20 @@ const other = (t: TeamId): TeamId => (t === 'A' ? 'B' : 'A');
 /** How long an injury/technical stoppage may sit unresolved before the game clock auto-stops (see TICK), same threshold whether the stoppage started mid-point or between points. */
 const PROLONGED_STOPPAGE_SECONDS = 2 * 60;
 
+/** No more than this much real time is ever caught up in one TICK — see there. */
+const MAX_CATCH_UP_SECONDS = 6 * 60 * 60;
+
+/**
+ * The instant a second being replayed by a catch-up TICK actually ended, while one
+ * is running; null otherwise. Set and cleared only by TICK, around its loop. It is
+ * what lets an entry logged inside that loop — a cap, a stoppage auto-stopping the
+ * clock — carry the time it happened rather than the time the volunteer came back.
+ */
+let replayNowMs: number | null = null;
+const nowMs = () => replayNowMs ?? Date.now();
+
 function wallClock(): string {
-  return new Date().toLocaleTimeString([], {
+  return new Date(nowMs()).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
@@ -176,7 +188,7 @@ function log(
       {
         id: state.nextLogId,
         wallClock: wallClock(),
-        atMs: Date.now(),
+        atMs: nowMs(),
         gameSeconds: state.gameSeconds,
         type,
         team,
@@ -288,6 +300,7 @@ export function createInitialState(config: GameConfig = defaultConfig): GameStat
     turnoversCommitted: { A: 0, B: 0 },
     passesCompleted: { A: 0, B: 0 },
     gameSeconds: 0,
+    clockAnchorMs: null,
     startingAtMs: null,
     pointStartSeconds: null,
     secondary: null,
@@ -1165,6 +1178,205 @@ function beginPlay(state: GameState): GameState {
   };
 }
 
+/**
+ * One second of game logic — every per-second counter, and everything that fires
+ * when one of them crosses a threshold. TICK decides how many of these to run.
+ */
+function tickOnce(state: GameState): GameState {
+  let s = state;
+  // One-minute-to-start whistle for a scheduled kickoff (scenario 1a). Skipped
+  // when the kickoff was already under a minute away at START_GAME (startWarned
+  // seeded true there), so a near-immediate start never warns.
+  if (
+    s.status === 'awaitingStart' &&
+    s.startingAtMs !== null &&
+    !s.startWarned &&
+    nowMs() >= s.startingAtMs - 60_000 &&
+    nowMs() < s.startingAtMs
+  ) {
+    s = { ...s, startWarned: true, assist: 'startWarning' };
+  }
+  // Scheduled kickoff reached: open the pull exactly as START_GAME would have
+  // if no starting time had been configured.
+  if (s.status === 'awaitingStart' && s.startingAtMs !== null && nowMs() >= s.startingAtMs) {
+    s = beginPlay(s);
+  }
+  // Game clock only stops for a pause (status 'paused') — manual, SOTG, or
+  // auto-triggered by a prolonged stoppage below; halftime, timeouts and water
+  // breaks don't stop it. 'finished' doesn't stop it either: the screen shows it
+  // frozen (see
+  // GameScreen) but it keeps advancing underneath so that undoing the goal that
+  // finished the game (see canUndo) resumes from the time that would have
+  // elapsed, not from a clock that lost however long the review took.
+  const clockRuns =
+    s.status === 'live' ||
+    s.status === 'awaitingPull' ||
+    s.status === 'timeout' ||
+    s.status === 'halftime' ||
+    s.status === 'waterBreak' ||
+    s.status === 'finished';
+  if (clockRuns) {
+    s = { ...s, gameSeconds: s.gameSeconds + 1 };
+    // Caps only ever matter to a game still being decided — once finished, the
+    // time limit has nothing left to cap.
+    if (s.status !== 'finished') {
+      // Half-time cap
+      if (
+        !s.halfTimeCapReached &&
+        halfTimeAhead(s) &&
+        s.gameSeconds >= s.config.halfTimeLimitMinutes * 60
+      ) {
+        s = applyHalfCap(s);
+      }
+      // End-game time cap
+      if (!s.timeCapReached && s.gameSeconds >= s.config.timeLimitMinutes * 60) {
+        s = applyEndCap(s);
+      }
+    }
+  }
+  // How long the clock has been stopped, logged by sotgEnd/pauseEnd when play
+  // resumes. Read off the status this tick started with, so the pause that the
+  // prolonged-stoppage rule below opens starts counting from its own 0.
+  if (s.status === 'paused') {
+    s = { ...s, pauseElapsedSeconds: s.pauseElapsedSeconds + 1 };
+  }
+  // Pending stoppage bookkeeping: elapsedSeconds keeps counting every tick for
+  // recording purposes even once the clock below has stopped. Left unresolved
+  // for PROLONGED_STOPPAGE_SECONDS, the game clock auto-stops exactly like an
+  // SOTG pause, so a lingering injury/technical stoppage doesn't quietly eat
+  // into game time — "Resume game" then also resolves the stoppage (see
+  // STOPPAGE_RESOLVED). Gated on `clockRuns` (the status the clock actually had
+  // this tick, before any of the above touches it) so this never fires twice —
+  // once already paused (manually, or by this same rule), there's nothing left
+  // to stop.
+  if (s.pendingStoppage !== null) {
+    const pending = {
+      ...s.pendingStoppage,
+      elapsedSeconds: s.pendingStoppage.elapsedSeconds + 1,
+    };
+    s = { ...s, pendingStoppage: pending };
+    if (
+      !pending.clockStopped &&
+      clockRuns &&
+      pending.elapsedSeconds >= PROLONGED_STOPPAGE_SECONDS
+    ) {
+      s = log(s, 'stoppageClockStopped', pending.team, undefined, {
+        stoppageKind: pending.kind,
+      });
+      s = {
+        ...s,
+        status: 'paused',
+        statusBeforePause: s.status,
+        pauseElapsedSeconds: 0,
+        pendingStoppage: { ...pending, clockStopped: true },
+        assist: 'stoppageClockStopped',
+      };
+    }
+  }
+  // Everything below measures a stretch of play, so all of it waits while play is
+  // halted — an open stoppage, or a stopped clock. A pause would freeze the
+  // secondary timer for free (it leaves the status each one ticks under), but a
+  // stoppage leaves the status alone, so both go through the one check and both
+  // pick up from exactly where they were.
+  const halted = playHalted(s);
+  // How long the disc has been live in the point in progress: the same stretch
+  // durationSeconds measures, less every stretch in which play was stopped — a
+  // timeout or half-time (neither is `live`), a stoppage or a pause (`halted`),
+  // an open call. It is what the report averages hold and break times over, so
+  // those describe playing time rather than elapsed time.
+  //
+  // Deliberately not gated on turnoversTracked the way the per-team split below
+  // is: this attributes to nobody, so it needs no possessionTeam, and the
+  // averages it feeds are shown whatever the game tracks. Where both are
+  // recorded they agree by construction — possessionTeam is never null while
+  // the status is 'live' — which is what keeps the ledger and the averages from
+  // disagreeing about the same point.
+  if (s.status === 'live' && !halted && s.pendingCall === null) {
+    s = { ...s, aliveSeconds: s.aliveSeconds + 1 };
+  }
+  // Per-team possession time for the point in progress. Credited only while
+  // the disc is genuinely live: same `halted` freeze as every other stretch
+  // of play, plus an open call — the disc is dead mid-dispute, so those
+  // seconds belong to neither team (which is what keeps the pair summing to
+  // at most the point's duration). Skipped entirely where turnovers are not
+  // recorded, since possession never changes hands there and the whole point
+  // would be credited to the receiving team.
+  if (
+    s.status === 'live' &&
+    !halted &&
+    s.pendingCall === null &&
+    s.possessionTeam !== null &&
+    turnoversTracked(s.config)
+  ) {
+    const holder = s.possessionTeam;
+    s = {
+      ...s,
+      possessionSeconds: {
+        ...s.possessionSeconds,
+        [holder]: s.possessionSeconds[holder] + 1,
+      },
+    };
+  }
+  // Pending call bookkeeping: elapsedSeconds is how long the discussion has run,
+  // driving both the 45/60 s "still unresolved" whistle and the duration logged
+  // by CALL_RESOLVED. Independent of the game clock — a timeout doesn't stall a
+  // dispute — but not of a stoppage, which interrupts the discussion itself.
+  if (s.pendingCall !== null && !halted) {
+    s = {
+      ...s,
+      pendingCall: { ...s.pendingCall, elapsedSeconds: s.pendingCall.elapsedSeconds + 1 },
+    };
+  }
+  // Secondary timer — the pull countdown, a timeout, the half-time break, a
+  // water break.
+  if (s.secondary && !halted) {
+    const sec = s.secondary;
+    if (sec.kind === 'pull' && s.status === 'awaitingPull') {
+      s = { ...s, secondary: { ...sec, seconds: sec.seconds + 1 } };
+    } else if (sec.kind === 'waterBreak' && s.status === 'waterBreak') {
+      // Counts up and keeps going past the configured duration: the break ends
+      // when the volunteer says it does, not when the clock says so. Crossing
+      // the duration is announced once — that is the whole event, and the
+      // display turns amber off the same comparison.
+      const next = sec.seconds + 1;
+      s = { ...s, secondary: { ...sec, seconds: next } };
+      if (sec.total !== null && sec.seconds < sec.total && next >= sec.total) {
+        s = { ...s, assist: 'waterBreakDue' };
+      }
+    } else if (
+      (sec.kind === 'timeout' && s.status === 'timeout') ||
+      (sec.kind === 'halftime' && s.status === 'halftime')
+    ) {
+      const next = Math.max(0, sec.seconds - 1);
+      s = { ...s, secondary: { ...sec, seconds: next } };
+    }
+  }
+  return endExpiredBreak(s);
+}
+
+/**
+ * A timeout or half-time whose countdown has run out ends itself, through the same
+ * action the volunteer's button dispatches — so the guards come with it: a stoppage
+ * still has to be answered first, and a pause leaves the status the check reads, so
+ * the break ends on the first second after play resumes.
+ *
+ * This lives in the tick rather than in an effect that watches for 0, because a
+ * catch-up runs many seconds in one update: an effect would only see the end of it,
+ * leaving the countdown sitting at 0 for the rest of the gap while the pull clock
+ * that should have followed it never started.
+ */
+function endExpiredBreak(s: GameState): GameState {
+  const sec = s.secondary;
+  if (sec?.seconds !== 0) return s;
+  if (sec.kind === 'timeout' && s.status === 'timeout') {
+    return gameReducer(s, { type: 'TIMEOUT_END' });
+  }
+  if (sec.kind === 'halftime' && s.status === 'halftime') {
+    return gameReducer(s, { type: 'HALFTIME_END' });
+  }
+  return s;
+}
+
 export function gameReducer(state: GameState, action: Action): GameState {
   switch (action.type) {
     case 'START_GAME': {
@@ -1959,175 +2171,39 @@ export function gameReducer(state: GameState, action: Action): GameState {
 
     case 'TICK': {
       if (state.phase !== 'game') return state;
+      // The one-second form, which is what the reducer tests fold.
+      if (action.now === undefined) return tickOnce(state);
+      // The heartbeat's form: game time follows the wall clock, not the number of
+      // times a timer happened to fire. A browser delays or skips intervals whenever
+      // the tab is hidden or the phone is locked, and counting callbacks lost every
+      // one of those seconds for good — the caps then fell late by however long the
+      // volunteer had spent in another app. So each tick replays one second of game
+      // logic per whole second since the anchor: every counter keeps its own rules
+      // (a pause, a stoppage, an open call), and every threshold crossed in the gap
+      // still fires, in order and at the right game second.
+      const anchor = state.clockAnchorMs;
+      // The first heartbeat of a game only sets the anchor. So does a device clock
+      // set back behind it: there is no negative time to replay, and waiting for the
+      // clock to catch up with the old anchor would freeze the game until it did.
+      if (anchor === null || action.now < anchor) return { ...state, clockAnchorMs: action.now };
+      const due = Math.floor((action.now - anchor) / 1000);
+      if (due === 0) return state;
+      // All of a long gap counts — the game went on while the phone was away — up to
+      // a limit only a wildly wrong device clock should ever reach.
+      const seconds = Math.min(due, MAX_CATCH_UP_SECONDS);
       let s = state;
-      // One-minute-to-start whistle for a scheduled kickoff (scenario 1a). Skipped
-      // when the kickoff was already under a minute away at START_GAME (startWarned
-      // seeded true there), so a near-immediate start never warns.
-      if (
-        s.status === 'awaitingStart' &&
-        s.startingAtMs !== null &&
-        !s.startWarned &&
-        Date.now() >= s.startingAtMs - 60_000 &&
-        Date.now() < s.startingAtMs
-      ) {
-        s = { ...s, startWarned: true, assist: 'startWarning' };
-      }
-      // Scheduled kickoff reached: open the pull exactly as START_GAME would have
-      // if no starting time had been configured.
-      if (s.status === 'awaitingStart' && s.startingAtMs !== null && Date.now() >= s.startingAtMs) {
-        s = beginPlay(s);
-      }
-      // Game clock only stops for a pause (status 'paused') — manual, SOTG, or
-      // auto-triggered by a prolonged stoppage below; halftime, timeouts and water
-      // breaks don't stop it. 'finished' doesn't stop it either: the screen shows it
-      // frozen (see
-      // GameScreen) but it keeps advancing underneath so that undoing the goal that
-      // finished the game (see canUndo) resumes from the time that would have
-      // elapsed, not from a clock that lost however long the review took.
-      const clockRuns =
-        s.status === 'live' ||
-        s.status === 'awaitingPull' ||
-        s.status === 'timeout' ||
-        s.status === 'halftime' ||
-        s.status === 'waterBreak' ||
-        s.status === 'finished';
-      if (clockRuns) {
-        s = { ...s, gameSeconds: s.gameSeconds + 1 };
-        // Caps only ever matter to a game still being decided — once finished, the
-        // time limit has nothing left to cap.
-        if (s.status !== 'finished') {
-          // Half-time cap
-          if (
-            !s.halfTimeCapReached &&
-            halfTimeAhead(s) &&
-            s.gameSeconds >= s.config.halfTimeLimitMinutes * 60
-          ) {
-            s = applyHalfCap(s);
-          }
-          // End-game time cap
-          if (!s.timeCapReached && s.gameSeconds >= s.config.timeLimitMinutes * 60) {
-            s = applyEndCap(s);
-          }
+      try {
+        for (let i = 1; i <= seconds; i++) {
+          replayNowMs = anchor + i * 1000;
+          s = tickOnce(s);
         }
+      } finally {
+        replayNowMs = null;
       }
-      // How long the clock has been stopped, logged by sotgEnd/pauseEnd when play
-      // resumes. Read off the status this tick started with, so the pause that the
-      // prolonged-stoppage rule below opens starts counting from its own 0.
-      if (s.status === 'paused') {
-        s = { ...s, pauseElapsedSeconds: s.pauseElapsedSeconds + 1 };
-      }
-      // Pending stoppage bookkeeping: elapsedSeconds keeps counting every tick for
-      // recording purposes even once the clock below has stopped. Left unresolved
-      // for PROLONGED_STOPPAGE_SECONDS, the game clock auto-stops exactly like an
-      // SOTG pause, so a lingering injury/technical stoppage doesn't quietly eat
-      // into game time — "Resume game" then also resolves the stoppage (see
-      // STOPPAGE_RESOLVED). Gated on `clockRuns` (the status the clock actually had
-      // this tick, before any of the above touches it) so this never fires twice —
-      // once already paused (manually, or by this same rule), there's nothing left
-      // to stop.
-      if (s.pendingStoppage !== null) {
-        const pending = {
-          ...s.pendingStoppage,
-          elapsedSeconds: s.pendingStoppage.elapsedSeconds + 1,
-        };
-        s = { ...s, pendingStoppage: pending };
-        if (
-          !pending.clockStopped &&
-          clockRuns &&
-          pending.elapsedSeconds >= PROLONGED_STOPPAGE_SECONDS
-        ) {
-          s = log(s, 'stoppageClockStopped', pending.team, undefined, {
-            stoppageKind: pending.kind,
-          });
-          s = {
-            ...s,
-            status: 'paused',
-            statusBeforePause: s.status,
-            pauseElapsedSeconds: 0,
-            pendingStoppage: { ...pending, clockStopped: true },
-            assist: 'stoppageClockStopped',
-          };
-        }
-      }
-      // Everything below measures a stretch of play, so all of it waits while play is
-      // halted — an open stoppage, or a stopped clock. A pause would freeze the
-      // secondary timer for free (it leaves the status each one ticks under), but a
-      // stoppage leaves the status alone, so both go through the one check and both
-      // pick up from exactly where they were.
-      const halted = playHalted(s);
-      // How long the disc has been live in the point in progress: the same stretch
-      // durationSeconds measures, less every stretch in which play was stopped — a
-      // timeout or half-time (neither is `live`), a stoppage or a pause (`halted`),
-      // an open call. It is what the report averages hold and break times over, so
-      // those describe playing time rather than elapsed time.
-      //
-      // Deliberately not gated on turnoversTracked the way the per-team split below
-      // is: this attributes to nobody, so it needs no possessionTeam, and the
-      // averages it feeds are shown whatever the game tracks. Where both are
-      // recorded they agree by construction — possessionTeam is never null while
-      // the status is 'live' — which is what keeps the ledger and the averages from
-      // disagreeing about the same point.
-      if (s.status === 'live' && !halted && s.pendingCall === null) {
-        s = { ...s, aliveSeconds: s.aliveSeconds + 1 };
-      }
-      // Per-team possession time for the point in progress. Credited only while
-      // the disc is genuinely live: same `halted` freeze as every other stretch
-      // of play, plus an open call — the disc is dead mid-dispute, so those
-      // seconds belong to neither team (which is what keeps the pair summing to
-      // at most the point's duration). Skipped entirely where turnovers are not
-      // recorded, since possession never changes hands there and the whole point
-      // would be credited to the receiving team.
-      if (
-        s.status === 'live' &&
-        !halted &&
-        s.pendingCall === null &&
-        s.possessionTeam !== null &&
-        turnoversTracked(s.config)
-      ) {
-        const holder = s.possessionTeam;
-        s = {
-          ...s,
-          possessionSeconds: {
-            ...s.possessionSeconds,
-            [holder]: s.possessionSeconds[holder] + 1,
-          },
-        };
-      }
-      // Pending call bookkeeping: elapsedSeconds is how long the discussion has run,
-      // driving both the 45/60 s "still unresolved" whistle and the duration logged
-      // by CALL_RESOLVED. Independent of the game clock — a timeout doesn't stall a
-      // dispute — but not of a stoppage, which interrupts the discussion itself.
-      if (s.pendingCall !== null && !halted) {
-        s = {
-          ...s,
-          pendingCall: { ...s.pendingCall, elapsedSeconds: s.pendingCall.elapsedSeconds + 1 },
-        };
-      }
-      // Secondary timer — the pull countdown, a timeout, the half-time break, a
-      // water break.
-      if (s.secondary && !halted) {
-        const sec = s.secondary;
-        if (sec.kind === 'pull' && s.status === 'awaitingPull') {
-          s = { ...s, secondary: { ...sec, seconds: sec.seconds + 1 } };
-        } else if (sec.kind === 'waterBreak' && s.status === 'waterBreak') {
-          // Counts up and keeps going past the configured duration: the break ends
-          // when the volunteer says it does, not when the clock says so. Crossing
-          // the duration is announced once — that is the whole event, and the
-          // display turns amber off the same comparison.
-          const next = sec.seconds + 1;
-          s = { ...s, secondary: { ...sec, seconds: next } };
-          if (sec.total !== null && sec.seconds < sec.total && next >= sec.total) {
-            s = { ...s, assist: 'waterBreakDue' };
-          }
-        } else if (
-          (sec.kind === 'timeout' && s.status === 'timeout') ||
-          (sec.kind === 'halftime' && s.status === 'halftime')
-        ) {
-          const next = Math.max(0, sec.seconds - 1);
-          s = { ...s, secondary: { ...sec, seconds: next } };
-        }
-      }
-      return s;
+      // The anchor moves by whole seconds, so the fraction left over carries into the
+      // next tick instead of being dropped — otherwise a heartbeat firing at 1.2 s
+      // intervals would lose a second every five.
+      return { ...s, clockAnchorMs: seconds === due ? anchor + seconds * 1000 : action.now };
     }
 
     case 'END_GAME': {

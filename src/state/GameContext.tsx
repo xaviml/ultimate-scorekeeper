@@ -94,11 +94,27 @@ export function GameProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [state.phase]);
 
-  // 1-second heartbeat while a game is running.
+  // Heartbeat while a game is running. The interval is only what prompts a tick —
+  // how much game time passes is the wall clock's answer (see TICK), because a
+  // browser throttles or suspends timers in a hidden tab. So it also ticks at once:
+  // on mount, which catches a reloaded game up across the reload (and anchors a new
+  // one), and whenever the page comes back into view, rather than up to a second
+  // after the volunteer is looking at it again.
   useEffect(() => {
     if (state.phase !== 'game') return;
-    const id = setInterval(() => dispatch({ type: 'TICK' }), 1000);
-    return () => clearInterval(id);
+    const tick = () => dispatch({ type: 'TICK', now: Date.now() });
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') tick();
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('pageshow', tick);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('pageshow', tick);
+    };
   }, [state.phase]);
 
   // Every whistle the app blows comes from one place — currentWhistle — so the audio
@@ -113,18 +129,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (w && w.key !== lastWhistleKey.current) whistle(w.blasts);
     lastWhistleKey.current = w?.key ?? null;
   }, [state]);
-
-  // Auto-resume when a break timer hits 0. Re-running on every status change is
-  // deliberate: it retries ending the break if it ran out while the game was paused.
-  // The whistle for the restart is handled by currentWhistle above, not here.
-  const breakDone =
-    (state.secondary?.kind === 'timeout' || state.secondary?.kind === 'halftime') &&
-    state.secondary.seconds === 0;
-  useEffect(() => {
-    if (!breakDone) return;
-    if (state.status === 'timeout') dispatch({ type: 'TIMEOUT_END' });
-    if (state.status === 'halftime') dispatch({ type: 'HALFTIME_END' });
-  }, [breakDone, state.status]);
 
   // Keep the screen awake during a game: locking the phone suspends timers and
   // audio, silently breaking the pull/timeout/cap whistles. The lock is released
