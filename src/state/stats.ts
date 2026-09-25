@@ -305,7 +305,7 @@ export function playerStatLines(state: GameState, teams: TeamId[], t: TFunc): Pl
 
   const lines: PlayerStatLine[] = [...counts.values()].map(({ lines: named, ...rest }) => ({
     ...rest,
-    label: playerLabel(findPlayer(state.config.players[rest.team], rest.playerId)),
+    label: playerLabel(findGamePlayer(state, rest.team, rest.playerId)),
     total: rest.goals + rest.assists,
     lines: [...named.entries()]
       .map(([name, points]) => ({ name, points }))
@@ -378,6 +378,20 @@ export function findPlayer(players: PlayerInfo[], id?: string): PlayerInfo | und
   return players.find((p) => p.id === id);
 }
 
+/**
+ * A player of this game by id: the roster first, then whoever was removed from it
+ * mid-game. Everything that names a player for something already recorded — the log,
+ * the report — goes through this, so taking someone off the roster stops the pickers
+ * offering them without blanking out the goals they already scored.
+ */
+export function findGamePlayer(
+  state: GameState,
+  team: TeamId,
+  id?: string,
+): PlayerInfo | undefined {
+  return findPlayer(state.config.players[team], id) ?? findPlayer(state.removedPlayers[team], id);
+}
+
 export function playerLabel(player?: PlayerInfo): string {
   if (!player) return '';
   return player.number ? `#${player.number} ${player.name}`.trim() : player.name;
@@ -395,9 +409,8 @@ export function playerLabel(player?: PlayerInfo): string {
  */
 export function goalPlayersDetail(state: GameState, e: LogEntry, t: TFunc): string {
   if (e.type !== 'goal' || !e.team || (!e.scorerId && !e.assistId && !e.callahan)) return '';
-  const roster = state.config.players[e.team];
-  const scorer = playerLabel(findPlayer(roster, e.scorerId));
-  const assist = playerLabel(findPlayer(roster, e.assistId));
+  const scorer = playerLabel(findGamePlayer(state, e.team, e.scorerId));
+  const assist = playerLabel(findGamePlayer(state, e.team, e.assistId));
   const parts: string[] = [];
   if (scorer) parts.push(scorer);
   if (e.callahan) parts.push(t('callahan'));
@@ -412,10 +425,8 @@ export function goalPlayersDetail(state: GameState, e: LogEntry, t: TFunc): stri
  */
 export function turnoverPlayersDetail(state: GameState, e: LogEntry, t: TFunc): string {
   if (e.type !== 'turnover' || !e.team || (!e.turnoverId && !e.defenseId)) return '';
-  const lost = playerLabel(findPlayer(state.config.players[e.team], e.turnoverId));
-  const forced = playerLabel(
-    findPlayer(state.config.players[e.team === 'A' ? 'B' : 'A'], e.defenseId),
-  );
+  const lost = playerLabel(findGamePlayer(state, e.team, e.turnoverId));
+  const forced = playerLabel(findGamePlayer(state, e.team === 'A' ? 'B' : 'A', e.defenseId));
   const parts: string[] = [];
   if (lost) parts.push(t('turnoverBy', { name: lost }));
   if (forced) parts.push(t('defenseBy', { name: forced }));

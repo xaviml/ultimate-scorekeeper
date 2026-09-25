@@ -13,7 +13,7 @@ import type {
   TeamId,
   TimeoutConfig,
 } from './types';
-import { findPlayer, playerLabel } from './stats';
+import { findGamePlayer, findPlayer, playerLabel } from './stats';
 import { lineTrackedFor, lineTrackingEnabled } from './lines';
 import { uid } from './uid';
 
@@ -220,7 +220,7 @@ function injuryAttribution(
   const teams = [...new Set([...named.map((p) => p.team), ...(team ? [team] : [])])];
   const namedLabels = named
     .map((p) => {
-      const label = playerLabel(findPlayer(state.config.players[p.team], p.playerId));
+      const label = playerLabel(findGamePlayer(state, p.team, p.playerId));
       return teams.length > 1 ? `${state.config.teams[p.team].name}: ${label}` : label;
     })
     .filter(Boolean);
@@ -328,6 +328,7 @@ export function createInitialState(config: GameConfig = defaultConfig): GameStat
     pointLine: [],
     nextLine: null,
     lineName: null,
+    removedPlayers: { A: [], B: [] },
   };
 }
 
@@ -2269,11 +2270,17 @@ export function gameReducer(state: GameState, action: Action): GameState {
       // Removing someone takes them off the field too, otherwise the composition
       // counters would keep counting a player who is no longer on the roster and the
       // size check would read one too many. Log entries and closed PointRecords keep
-      // their dangling id on purpose, exactly as goal attribution already does — what
-      // happened happened, and the report renders an unknown id as a blank label.
+      // their id on purpose — what happened happened — and the player moves to
+      // `removedPlayers`, so the log and the report still have a name for it.
+      const removed = findPlayer(state.config.players[action.team], action.id);
+      if (!removed) return state;
       const tracked = lineTrackedFor(state.config, action.team);
       return {
         ...state,
+        removedPlayers: {
+          ...state.removedPlayers,
+          [action.team]: [...state.removedPlayers[action.team], removed],
+        },
         config: {
           ...state.config,
           players: {

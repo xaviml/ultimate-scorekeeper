@@ -793,6 +793,14 @@ export interface GameState {
   nextLine: PendingLine | null;
   /** The predefined line `line` came from, when it was loaded by name rather than hand-picked. */
   lineName: string | null;
+  /**
+   * Players taken off the roster mid-game (REMOVE_PLAYER), kept so that what they
+   * already did still carries a name: the log and the report look an id up here when
+   * the roster no longer has it (see `findGamePlayer`). No picker ever reads it —
+   * removing someone is exactly "stop offering them" — and it does not ride
+   * GoalSnapshot, since undoing a goal is not undoing a roster edit.
+   */
+  removedPlayers: Record<TeamId, PlayerInfo[]>;
 }
 
 export type Action =

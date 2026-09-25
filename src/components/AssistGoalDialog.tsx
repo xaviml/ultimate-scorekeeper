@@ -50,12 +50,6 @@ export function AssistGoalDialog({
     onSave();
   };
 
-  const removePlayer = (id: string) => {
-    dispatch({ type: 'REMOVE_PLAYER', team, id });
-    if (scorerId === id) setScorerId(null);
-    if (assistId === id) setAssistId(null);
-  };
-
   return (
     <Modal
       title={t('assistDialogTitle', { team: state.config.teams[team].name })}
@@ -70,7 +64,6 @@ export function AssistGoalDialog({
             players={players.filter((p) => p.id !== assistId)}
             selected={scorerId}
             onSelect={setScorerId}
-            onRemove={removePlayer}
           />
         </div>
       )}
@@ -84,7 +77,6 @@ export function AssistGoalDialog({
             players={players.filter((p) => p.id !== scorerId)}
             selected={assistId}
             onSelect={setAssistId}
-            onRemove={removePlayer}
           />
         </div>
       )}

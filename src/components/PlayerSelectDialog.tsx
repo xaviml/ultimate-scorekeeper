@@ -102,20 +102,12 @@ export function PlayerSelectDialog({
                 players={roster}
                 selected={section.selected}
                 onToggle={section.onToggle}
-                onRemove={(id) => {
-                  dispatch({ type: 'REMOVE_PLAYER', team: section.team, id });
-                  if (section.selected.includes(id)) section.onToggle(id);
-                }}
               />
             ) : (
               <PlayerPicker
                 players={roster.filter((p) => p.id !== section.exclude)}
                 selected={section.selected}
                 onSelect={section.onSelect}
-                onRemove={(id) => {
-                  dispatch({ type: 'REMOVE_PLAYER', team: section.team, id });
-                  if (section.selected === id) section.onSelect(null);
-                }}
               />
             )}
             {isLastForTeam &&

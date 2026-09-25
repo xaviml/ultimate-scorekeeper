@@ -1,4 +1,3 @@
-import { useLongPress } from '../hooks/useLongPress';
 import { useT } from '../i18n/useT';
 import { genderGroups } from '../state/lines';
 import { playerLabel } from '../state/stats';
@@ -10,26 +9,18 @@ function PlayerChip({
   active,
   showGender,
   onSelect,
-  onRemove,
 }: {
   player: PlayerInfo;
   active: boolean;
   showGender?: boolean;
   onSelect: (id: string | null) => void;
-  onRemove?: (id: string) => void;
 }) {
   const { t } = useT();
-  const press = useLongPress(
-    () => onSelect(active ? null : player.id),
-    () => onRemove?.(player.id),
-  );
-
   return (
     <button
       type="button"
       className={pillClass(active)}
-      aria-label={onRemove ? `${playerLabel(player)} — ${t('removePlayer')}` : undefined}
-      {...press}
+      onClick={() => onSelect(active ? null : player.id)}
     >
       {playerLabel(player)}
       {/* The marking rides on the chip rather than in a second row, because the one
@@ -47,31 +38,27 @@ function PlayerChip({
 /**
  * A row of selectable player chips. Tapping the active chip clears the
  * selection, so a mis-tap is undone with a second tap rather than needing a
- * separate "none" affordance. Long-pressing a chip removes that player from
- * the roster instead, when `onRemove` is supplied.
+ * separate "none" affordance.
+ *
+ * A chip only ever selects. Removing a player is a roster edit, and it lives in
+ * the roster editor behind a confirmation: a chip is pressed dozens of times a
+ * game, often hesitantly, and a hold that deleted someone mid-game was far too
+ * easy to trigger by accident.
  */
 export function PlayerPicker({
   players,
   selected,
   onSelect,
-  onRemove,
 }: {
   players: PlayerInfo[];
   selected: string | null;
   onSelect: (id: string | null) => void;
-  onRemove?: (id: string) => void;
 }) {
   if (players.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-2">
       {players.map((p) => (
-        <PlayerChip
-          key={p.id}
-          player={p}
-          active={selected === p.id}
-          onSelect={onSelect}
-          onRemove={onRemove}
-        />
+        <PlayerChip key={p.id} player={p} active={selected === p.id} onSelect={onSelect} />
       ))}
     </div>
   );
@@ -89,7 +76,6 @@ export function PlayerMultiPicker({
   showGender,
   groupByGender,
   onToggle,
-  onRemove,
 }: {
   players: PlayerInfo[];
   selected: string[];
@@ -105,7 +91,6 @@ export function PlayerMultiPicker({
    */
   groupByGender?: boolean;
   onToggle: (id: string) => void;
-  onRemove?: (id: string) => void;
 }) {
   const { t } = useT();
   if (players.length === 0) return null;
@@ -117,7 +102,6 @@ export function PlayerMultiPicker({
       active={selected.includes(p.id)}
       showGender={marking}
       onSelect={() => onToggle(p.id)}
-      onRemove={onRemove}
     />
   );
 

@@ -1,7 +1,8 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '../i18n';
 import { PlayerMultiPicker, PlayerPicker } from '../components/PlayerPicker';
+import { PlayerRosterEditor } from '../components/PlayerRosterEditor';
 import type { PlayerInfo } from '../state/types';
 import { hold, tap } from './gestures';
 
@@ -11,11 +12,11 @@ const twoPlayers: PlayerInfo[] = [
   { id: 'p2', number: '9', name: 'Sam' },
 ];
 
-function renderPicker(onRemove?: (id: string) => void) {
+function renderPicker(selected: string | null = null) {
   const onSelect = vi.fn();
   render(
     <I18nProvider>
-      <PlayerPicker players={players} selected={null} onSelect={onSelect} onRemove={onRemove} />
+      <PlayerPicker players={players} selected={selected} onSelect={onSelect} />
     </I18nProvider>,
   );
   return onSelect;
@@ -23,42 +24,37 @@ function renderPicker(onRemove?: (id: string) => void) {
 
 function renderMultiPicker(selected: string[] = []) {
   const onToggle = vi.fn();
-  const onRemove = vi.fn();
   render(
     <I18nProvider>
-      <PlayerMultiPicker
-        players={twoPlayers}
-        selected={selected}
-        onToggle={onToggle}
-        onRemove={onRemove}
-      />
+      <PlayerMultiPicker players={twoPlayers} selected={selected} onToggle={onToggle} />
     </I18nProvider>,
   );
-  return { onToggle, onRemove };
+  return { onToggle };
 }
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
-describe('PlayerPicker long-press removal', () => {
-  it('removes the player on a long press and does not select it', () => {
-    const onRemove = vi.fn();
-    const onSelect = renderPicker(onRemove);
-
-    hold(screen.getByText('#7 Alex'), 600);
-
-    expect(onRemove).toHaveBeenCalledWith('p1');
-    expect(onSelect).not.toHaveBeenCalled();
+describe('PlayerPicker', () => {
+  it('selects the player on a tap', () => {
+    const onSelect = renderPicker();
+    tap(screen.getByText('#7 Alex'));
+    expect(onSelect).toHaveBeenCalledWith('p1');
   });
 
-  it('selects the player on a quick tap instead of removing it', () => {
-    const onRemove = vi.fn();
-    const onSelect = renderPicker(onRemove);
-
+  it('clears the selection when the active chip is tapped again', () => {
+    const onSelect = renderPicker('p1');
     tap(screen.getByText('#7 Alex'));
+    expect(onSelect).toHaveBeenCalledWith(null);
+  });
 
+  // Regression: a hesitant press used to delete the player from the roster mid-game.
+  it('treats a slow press as a tap, not as a removal', () => {
+    const onSelect = renderPicker();
+    hold(screen.getByText('#7 Alex'), 1000);
     expect(onSelect).toHaveBeenCalledWith('p1');
-    expect(onRemove).not.toHaveBeenCalled();
+    // And the chip is announced as the player, not as a "Remove" action.
+    expect(screen.getByRole('button', { name: '#7 Alex' })).toBeTruthy();
   });
 });
 
@@ -76,12 +72,49 @@ describe('PlayerMultiPicker', () => {
     expect(onToggle).toHaveBeenCalledTimes(2);
   });
 
-  it('long-presses a chip to remove it without toggling', () => {
-    const { onToggle, onRemove } = renderMultiPicker(['p1']);
+  it('toggles on a slow press rather than removing anyone', () => {
+    const { onToggle } = renderMultiPicker(['p1']);
+    hold(screen.getByText('#7 Alex'), 1000);
+    expect(onToggle).toHaveBeenCalledWith('p1');
+  });
+});
 
-    hold(screen.getByText('#7 Alex'), 600);
+describe('PlayerRosterEditor removal', () => {
+  function renderEditor(removeNote?: string) {
+    const onRemove = vi.fn();
+    render(
+      <I18nProvider>
+        <PlayerRosterEditor
+          label="Ravens"
+          players={twoPlayers}
+          onAdd={vi.fn()}
+          onRemove={onRemove}
+          removeNote={removeNote}
+        />
+      </I18nProvider>,
+    );
+    return onRemove;
+  }
 
-    expect(onRemove).toHaveBeenCalledWith('p1');
-    expect(onToggle).not.toHaveBeenCalled();
+  it('asks before removing, and cancelling keeps the player', () => {
+    const onRemove = renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove #7 Alex' }));
+
+    expect(screen.getByText('Remove #7 Alex from Ravens?')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(onRemove).not.toHaveBeenCalled();
+    expect(screen.queryByText('Remove #7 Alex from Ravens?')).toBeNull();
+  });
+
+  it('removes the player once confirmed', () => {
+    const onRemove = renderEditor('Kept in the log.');
+    fireEvent.click(screen.getByRole('button', { name: 'Remove #9 Sam' }));
+    expect(screen.getByText('Kept in the log.')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+
+    expect(onRemove).toHaveBeenCalledWith('p2');
+    expect(onRemove).toHaveBeenCalledTimes(1);
   });
 });

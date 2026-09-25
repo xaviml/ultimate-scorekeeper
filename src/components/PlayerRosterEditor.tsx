@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useT } from '../i18n/useT';
 import { playerLabel } from '../state/stats';
 import type { Gender, PlayerInfo } from '../state/types';
+import { ConfirmRemovePlayerDialog } from './ConfirmRemovePlayerDialog';
 import { inputClass } from './ui';
 
 /** unset → MMP → FMP → unset. Unset is a real answer: most rosters arrive unmarked. */
@@ -49,13 +50,20 @@ export function PlayerRosterEditor({
   players,
   onAdd,
   onRemove,
+  removeNote,
   onSetGender,
   onImport,
   label,
 }: {
   players: PlayerInfo[];
   onAdd: (number: string, name: string) => void;
+  /**
+   * Shows the ✕ on each row. It asks first: a player is one light tap from gone, and
+   * on a saved team the roster on this device goes with them.
+   */
   onRemove?: (id: string) => void;
+  /** Extra line in that confirmation — see ConfirmRemovePlayerDialog. */
+  removeNote?: string;
   /**
    * Shows the MMP/FMP toggle on each row. Every roster editor passes it: a marking is
    * a fact about the player, recorded whether or not anything in this game reads it,
@@ -76,6 +84,7 @@ export function PlayerRosterEditor({
   const [number, setNumber] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState(false);
+  const [removing, setRemoving] = useState<PlayerInfo | null>(null);
 
   const add = () => {
     if (!number.trim() && !name.trim()) return;
@@ -120,7 +129,7 @@ export function PlayerRosterEditor({
                     type="button"
                     className="text-chalk/50 px-2"
                     aria-label={`${t('removePlayer')} ${playerLabel(p)}`}
-                    onClick={() => onRemove(p.id)}
+                    onClick={() => setRemoving(p)}
                   >
                     ✕
                   </button>
@@ -163,6 +172,18 @@ export function PlayerRosterEditor({
         </button>
       </div>
       {error && <p className="text-sm text-chalk/60">{t('duplicatePlayer')}</p>}
+      {removing && onRemove && (
+        <ConfirmRemovePlayerDialog
+          name={playerLabel(removing)}
+          team={label}
+          note={removeNote}
+          onCancel={() => setRemoving(null)}
+          onConfirm={() => {
+            onRemove(removing.id);
+            setRemoving(null);
+          }}
+        />
+      )}
     </div>
   );
 }

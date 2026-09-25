@@ -225,6 +225,11 @@ export const ca: typeof en = {
   playerName: 'Nom',
   addPlayer: 'Afegir',
   removePlayer: 'Treure',
+  confirmRemovePlayerTitle: 'Treure jugador?',
+  confirmRemovePlayer: 'Vols treure {name} de {team}?',
+  confirmRemovePlayerInGame:
+    "El que ja s'hagi registrat al seu nom en aquest partit el conserva al registre i a l'informe.",
+  btnRemovePlayer: 'Treure',
   duplicatePlayer: 'Aquest jugador ja és al roster',
   close: 'Tancar',
   noPlayersYet: "Encara no s'han afegit jugadors.",

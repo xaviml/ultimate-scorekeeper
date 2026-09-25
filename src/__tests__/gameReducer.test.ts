@@ -1245,6 +1245,19 @@ describe('player tracking', () => {
     expect(s.points[0].scorerId).toBe(scorerId);
     const goalEntry = [...s.log].reverse().find((e) => e.type === 'goal');
     expect(goalEntry).toMatchObject({ scorerId });
+    // Kept aside rather than forgotten, so the log and the report can still name them.
+    expect(s.removedPlayers.A).toEqual([{ id: scorerId, number: '7', name: 'Alex' }]);
+  });
+
+  it('ignores a remove for a player who is not on the roster', () => {
+    const before = gameReducer(live(), {
+      type: 'ADD_PLAYER',
+      team: 'A',
+      number: '7',
+      name: 'Alex',
+    });
+    const s = gameReducer(before, { type: 'REMOVE_PLAYER', team: 'A', id: 'nobody' });
+    expect(s).toBe(before);
   });
 
   it('records scorer and assist on the last point and the matching goal log entry', () => {

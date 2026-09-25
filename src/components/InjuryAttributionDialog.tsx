@@ -103,10 +103,6 @@ export function InjuryAttributionDialog({
             players={eligible}
             selected={selected.map((p) => p.playerId)}
             onToggle={(playerId) => toggle(tracked, playerId)}
-            onRemove={(id) => {
-              dispatch({ type: 'REMOVE_PLAYER', team: tracked, id });
-              if (selected.some((p) => p.playerId === id)) toggle(tracked, id);
-            }}
           />
           {narrowed ? (
             <p className="text-xs text-chalk/50">{t('lineOnlyOnField')}</p>

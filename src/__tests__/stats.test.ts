@@ -4,6 +4,7 @@ import type { TFunc } from '../i18n/useT';
 import { createInitialState, defaultConfig, gameReducer } from '../state/gameReducer';
 import {
   formatSeconds,
+  goalPlayersDetail,
   playerStatLines,
   pointDurationDetail,
   possessionTopShare,
@@ -198,6 +199,20 @@ describe('playerStatLines', () => {
     const lines = playerStatLines(withRoster(), ['A', 'B'], t);
     expect(lines.map((l) => l.playerId)).toEqual(['a1', 'a2', 'b1', '']);
     expect(lines[2]).toMatchObject({ team: 'B', label: 'Jo', goals: 1, assists: 0, total: 1 });
+  });
+
+  // Regression: removing someone mid-game used to blank their name wherever it had
+  // already been recorded — a nameless row in the report and a scorer silently
+  // dropped from the log line ("0-1 — assist: #12 Liam").
+  it('still names a player removed from the roster mid-game', () => {
+    const s = gameReducer(withRoster(), { type: 'REMOVE_PLAYER', team: 'A', id: 'a1' });
+    expect(s.config.players.A.map((p) => p.id)).toEqual(['a2', 'a3']);
+
+    const lines = playerStatLines(s, ['A'], t);
+    expect(lines.find((l) => l.playerId === 'a1')).toMatchObject({ label: 'Alex', goals: 1 });
+
+    const goal = s.log.find((e) => e.type === 'goal' && e.team === 'A')!;
+    expect(goalPlayersDetail(s, goal, t)).toBe(' — Alex, assist: Sam');
   });
 
   describe('the unassigned aggregate', () => {

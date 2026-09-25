@@ -225,6 +225,11 @@ export const es: typeof en = {
   playerName: 'Nombre',
   addPlayer: 'Añadir',
   removePlayer: 'Quitar',
+  confirmRemovePlayerTitle: '¿Quitar jugador?',
+  confirmRemovePlayer: '¿Quitar a {name} de {team}?',
+  confirmRemovePlayerInGame:
+    'Lo que ya se haya registrado a su nombre en este partido lo conserva en el registro y en el informe.',
+  btnRemovePlayer: 'Quitar',
   duplicatePlayer: 'Este jugador ya está en el roster',
   close: 'Cerrar',
   noPlayersYet: 'Todavía no se han añadido jugadores.',

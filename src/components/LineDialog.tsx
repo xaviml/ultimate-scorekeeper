@@ -237,16 +237,6 @@ export function LineDialog({ team, onClose }: { team: TeamId; onClose: () => voi
           // not this game is checking the split.
           groupByGender
           onToggle={toggle}
-          onRemove={(id) => {
-            // The reducer scrubs a removed player off the field itself, so both drafts
-            // are all that is left to keep in step — and both, not just the active one,
-            // since the other may well have had them picked too.
-            dispatch({ type: 'REMOVE_PLAYER', team, id });
-            setDrafts((d) => ({
-              current: { ...d.current, selected: d.current.selected.filter((x) => x !== id) },
-              next: { ...d.next, selected: d.next.selected.filter((x) => x !== id) },
-            }));
-          }}
         />
       )}
 

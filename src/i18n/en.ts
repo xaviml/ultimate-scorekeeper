@@ -231,6 +231,11 @@ export const en = {
   playerName: 'Name',
   addPlayer: 'Add',
   removePlayer: 'Remove',
+  confirmRemovePlayerTitle: 'Remove player?',
+  confirmRemovePlayer: 'Remove {name} from {team}?',
+  confirmRemovePlayerInGame:
+    'Anything already recorded for them in this game keeps their name in the log and the report.',
+  btnRemovePlayer: 'Remove',
   duplicatePlayer: 'This player is already on the roster',
   close: 'Close',
   noPlayersYet: 'No players added yet.',

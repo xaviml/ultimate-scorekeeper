@@ -32,6 +32,7 @@ export function PlayersDialog({ onClose }: { onClose: () => void }) {
           players={state.config.players[id]}
           onAdd={(number, name) => dispatch({ type: 'ADD_PLAYER', team: id, number, name })}
           onRemove={(playerId) => dispatch({ type: 'REMOVE_PLAYER', team: id, id: playerId })}
+          removeNote={t('confirmRemovePlayerInGame')}
           onSetGender={(playerId, gender) =>
             dispatch({ type: 'SET_PLAYER_GENDER', team: id, id: playerId, gender })
           }
