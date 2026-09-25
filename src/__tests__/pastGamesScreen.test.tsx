@@ -81,6 +81,20 @@ describe('the past-games screen', () => {
     expect(row.textContent).toMatch(/2026/);
   });
 
+  it('marks a game left from the menu as unfinished, and only that one', () => {
+    const left = finishedGame(['Owls', 'Hawks'], [7, 9], AUG_18_LATER);
+    left.status = 'paused';
+    saveGameToHistory(left);
+    saveGameToHistory(finishedGame(['Ravens', 'Foxes'], [15, 12], AUG_18));
+    const { container } = renderScreen();
+
+    const [leftRow, finishedRow] = [...container.querySelectorAll('[data-past-game]')];
+    expect(leftRow.textContent).toContain('Unfinished');
+    expect(leftRow.querySelector('[data-unfinished]')).not.toBeNull();
+    expect(finishedRow.textContent).not.toContain('Unfinished');
+    expect(finishedRow.querySelector('[data-unfinished]')).toBeNull();
+  });
+
   it('deletes a game only once the confirmation is answered', () => {
     saveGameToHistory(finishedGame(['Ravens', 'Foxes'], [15, 12], AUG_18));
     saveGameToHistory(finishedGame(['Kites', 'Gulls'], [11, 13], AUG_17));

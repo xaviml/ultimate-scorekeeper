@@ -84,6 +84,7 @@ export const ca: typeof en = {
   pastGamesTitle: 'Historial de partits',
   pastGamesEmpty:
     "Encara no hi ha partits desats. Un partit es desa aquí automàticament quan s'anota el seu últim punt.",
+  pastGameUnfinished: 'Sense acabar',
   deleteGameAria: 'Eliminar {match} dels partits anteriors',
   confirmDeleteGameTitle: 'Eliminar aquest partit?',
   confirmDeleteGame: 'Eliminar "{match}" d\'aquest dispositiu? Aquesta acció no es pot desfer.',

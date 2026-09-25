@@ -121,63 +121,77 @@ export default function PastGamesScreen({ onClose }: { onClose: () => void }) {
       {groups.map((group) => (
         <section key={group.key} className="space-y-2">
           <h2 className={sectionTitle}>{dayFormat.format(new Date(group.atMs))}</h2>
-          {group.games.map((game) => (
-            <div
-              key={game.id}
-              className="flex items-stretch gap-2 rounded-xl bg-panel border border-line"
-            >
-              {/* The row and its cross are siblings rather than nested buttons: a
-                  button inside a button is invalid, and the cross must not be a
-                  way of opening the game it deletes. */}
-              <button
-                type="button"
-                data-past-game={game.id}
-                className="flex-1 min-w-0 text-left px-3 py-3 active:scale-[0.99]"
-                onClick={() => setOpenId(game.id)}
+          {group.games.map((game) => {
+            // A game the volunteer left from the menu rather than one the scoreline
+            // (or a cap) ended. It recedes — the pitch showing through, a dashed
+            // edge — and says so in words beside the date; not amber, because an
+            // archived game has nothing left for anyone to act on.
+            const unfinished = game.status !== 'finished';
+            return (
+              <div
+                key={game.id}
+                className={`flex items-stretch gap-2 rounded-xl border ${
+                  unfinished ? 'bg-pitch border-dashed border-chalk/30' : 'bg-panel border-line'
+                }`}
               >
-                <div className="text-xs text-chalk/50">
-                  {stampFormat.format(new Date(gameStartedAtMs(game)))}
-                </div>
-                <div className="flex items-center gap-2 mt-1.5">
-                  {(['A', 'B'] as TeamId[]).map((id, i) => (
-                    <div
-                      key={id}
-                      className={`flex-1 min-w-0 flex items-center gap-2 ${
-                        i === 1 ? 'flex-row-reverse text-right' : ''
-                      }`}
-                    >
-                      {/* The score in the team's own colour, as the report paints
-                          it — the two teams are told apart by colour on the
-                          dashboard all game, and this is the same scoreline. */}
-                      <span
-                        className="w-10 shrink-0 text-center font-clock text-2xl font-semibold rounded-lg py-0.5"
-                        style={{
-                          backgroundColor: game.config.teams[id].color,
-                          color: contrastText(game.config.teams[id].color),
-                        }}
+                {/* The row and its cross are siblings rather than nested buttons: a
+                    button inside a button is invalid, and the cross must not be a
+                    way of opening the game it deletes. */}
+                <button
+                  type="button"
+                  data-past-game={game.id}
+                  className="flex-1 min-w-0 text-left px-3 py-3 active:scale-[0.99]"
+                  onClick={() => setOpenId(game.id)}
+                >
+                  <div className="text-xs text-chalk/50">
+                    {stampFormat.format(new Date(gameStartedAtMs(game)))}
+                    {unfinished && <span data-unfinished> - {t('pastGameUnfinished')}</span>}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    {(['A', 'B'] as TeamId[]).map((id, i) => (
+                      <div
+                        key={id}
+                        className={`flex-1 min-w-0 flex items-center gap-2 ${
+                          i === 1 ? 'flex-row-reverse text-right' : ''
+                        }`}
                       >
-                        {game.scores[id]}
-                      </span>
-                      {/* Wrapped rather than truncated: a club name is how a
-                          volunteer recognises the game in this list, and half of
-                          one identifies nothing. The row grows a line instead. */}
-                      <span className="min-w-0 font-board leading-tight break-words">
-                        {game.config.teams[id].name}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </button>
-              <button
-                type="button"
-                className="shrink-0 px-3 text-chalk/40 active:scale-95"
-                aria-label={t('deleteGameAria', { match: matchLabel(game) })}
-                onClick={() => setPendingDelete(game)}
-              >
-                <CrossIcon size="w-4 h-4" />
-              </button>
-            </div>
-          ))}
+                        {/* The score in the team's own colour, as the report paints
+                            it — the two teams are told apart by colour on the
+                            dashboard all game, and this is the same scoreline. */}
+                        <span
+                          className="w-10 shrink-0 text-center font-clock text-2xl font-semibold rounded-lg py-0.5"
+                          style={{
+                            backgroundColor: game.config.teams[id].color,
+                            color: contrastText(game.config.teams[id].color),
+                          }}
+                        >
+                          {game.scores[id]}
+                        </span>
+                        {/* Wrapped rather than truncated: a club name is how a
+                            volunteer recognises the game in this list, and half of
+                            one identifies nothing. The row grows a line instead. */}
+                        <span
+                          className={`min-w-0 font-board leading-tight break-words ${
+                            unfinished ? 'text-chalk/80' : ''
+                          }`}
+                        >
+                          {game.config.teams[id].name}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  className="shrink-0 px-3 text-chalk/40 active:scale-95"
+                  aria-label={t('deleteGameAria', { match: matchLabel(game) })}
+                  onClick={() => setPendingDelete(game)}
+                >
+                  <CrossIcon size="w-4 h-4" />
+                </button>
+              </div>
+            );
+          })}
         </section>
       ))}
 

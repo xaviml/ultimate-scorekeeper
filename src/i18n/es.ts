@@ -84,6 +84,7 @@ export const es: typeof en = {
   pastGamesTitle: 'Historial de partidos',
   pastGamesEmpty:
     'Todavía no hay partidos guardados. Un partido se guarda aquí automáticamente en cuanto se anota su último punto.',
+  pastGameUnfinished: 'Sin terminar',
   deleteGameAria: 'Eliminar {match} de los partidos anteriores',
   confirmDeleteGameTitle: '¿Eliminar este partido?',
   confirmDeleteGame: '¿Eliminar "{match}" de este dispositivo? Esta acción no se puede deshacer.',

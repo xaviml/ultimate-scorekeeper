@@ -86,6 +86,7 @@ export const en = {
   pastGamesTitle: 'Match History',
   pastGamesEmpty:
     'No games saved yet. A game is saved here automatically as soon as its final point is scored.',
+  pastGameUnfinished: 'Unfinished',
   deleteGameAria: 'Delete {match} from past games',
   confirmDeleteGameTitle: 'Delete this game?',
   confirmDeleteGame: 'Delete "{match}" from this device? This cannot be undone.',
