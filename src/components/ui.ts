@@ -46,8 +46,15 @@ export const pillClass = (active: boolean) =>
 /**
  * Picks black or white so text stays legible on an arbitrary user-chosen team
  * colour (score panels, report, call dialogs all paint that colour as a
- * background). WCAG relative-luminance crossover, not a flat midpoint split.
+ * background). Measured on WCAG relative luminance, not a flat midpoint split.
+ *
+ * The cut-off sits above the 0.179 crossover where black and white tie on contrast
+ * ratio: the app is read outdoors, where white on a saturated mid-tone (a red, a
+ * teal, a grass green) holds up better than black does, so those get white. Light
+ * colours — sky blue, orange, yellow, pastels — still get black.
  */
+const INK_LUMINANCE_CUTOFF = 0.3;
+
 export function contrastText(hex: string): '#000000' | '#ffffff' {
   const clean = hex.replace('#', '');
   const full = clean.length === 3 ? clean.replace(/(.)/g, '$1$1') : clean;
@@ -56,5 +63,5 @@ export function contrastText(hex: string): '#000000' | '#ffffff' {
     .map(channel)
     .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
   const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return luminance > 0.179 ? '#000000' : '#ffffff';
+  return luminance > INK_LUMINANCE_CUTOFF ? '#000000' : '#ffffff';
 }
