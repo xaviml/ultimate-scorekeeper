@@ -660,6 +660,24 @@ export function canSetLine(
 }
 
 /**
+ * May the teams be renamed to these names? The same two rules the setup screen's
+ * Start button enforces — both named, and not the same name — and nothing about the
+ * game's status: the field and the names are bookkeeping, so they stay correctable
+ * from kickoff until after the final whistle. `reason` is the i18n key the game
+ * setup dialog shows under its Save button.
+ */
+export function canEditGameInfo(teams: Record<TeamId, { name: string }>): {
+  ok: boolean;
+  reason?: 'teamNameRequired' | 'duplicateTeamNames';
+} {
+  const a = teams.A.name.trim().toLowerCase();
+  const b = teams.B.name.trim().toLowerCase();
+  if (!a || !b) return { ok: false, reason: 'teamNameRequired' };
+  if (a === b) return { ok: false, reason: 'duplicateTeamNames' };
+  return { ok: true };
+}
+
+/**
  * The rows one recorded event writes, in the order it writes them. An attribution
  * edit applies to the whole group, so the log can never say a foul was Red's on
  * one line and Blue's on the next; the first type in each group opens an episode,
@@ -2246,6 +2264,53 @@ export function gameReducer(state: GameState, action: Action): GameState {
 
     case 'BACK_TO_CONFIG':
       return createInitialState(state.config);
+
+    // A correction, not an event: nothing is logged and nothing is snapshotted, so
+    // undoing a goal never undoes a rename. Everything that shows a team name or
+    // colour reads it from config when it is drawn, so the log and the report follow.
+    case 'EDIT_GAME_INFO': {
+      if (state.phase !== 'game' || !canEditGameInfo(action.teams).ok) return state;
+      const trim = (team: GameConfig['teams'][TeamId]) => ({ ...team, name: team.name.trim() });
+      let next: GameState = {
+        ...state,
+        config: {
+          ...state.config,
+          fieldNumber: action.fieldNumber,
+          teams: { A: trim(action.teams.A), B: trim(action.teams.B) },
+        },
+      };
+      // Picking a saved team swaps the roster, the way REMOVE_PLAYER takes a player
+      // off: the outgoing players move to `removedPlayers`, so whatever the log and
+      // the points already name them for keeps its name, and the line in progress is
+      // cleared rather than left holding players who are no longer on the roster.
+      for (const team of ['A', 'B'] as TeamId[]) {
+        const load = action.load?.[team];
+        if (!load) continue;
+        const tracked = lineTrackedFor(next.config, team);
+        next = {
+          ...next,
+          removedPlayers: {
+            ...next.removedPlayers,
+            [team]: [...next.removedPlayers[team], ...next.config.players[team]],
+          },
+          config: {
+            ...next.config,
+            players: {
+              ...next.config.players,
+              // Ids are minted per game, as the setup screen does when loading one.
+              [team]: load.players.map((p) => ({ ...p, id: uid() })),
+            },
+            // The predefined lines come with the roster they are made of — only for
+            // the followed team, since config holds that one team's list.
+            ...(next.config.trackedTeam === team
+              ? { lines: { ...next.config.lines, saved: load.lines } }
+              : {}),
+          },
+          ...(tracked ? { line: [], pointLine: [], nextLine: null } : {}),
+        };
+      }
+      return next;
+    }
 
     case 'ADD_PLAYER': {
       if (state.phase !== 'game') return state;

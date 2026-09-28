@@ -369,6 +369,12 @@ export const en = {
   // which until now was reachable only before kickoff.
   menuTitle: 'Menu',
   menuGameSetup: 'Game setup',
+  setupFieldTeams: 'Field & teams',
+  teamNameRequired: 'Both teams need a name',
+  btnSaveChanges: 'Save changes',
+  setupTeamLoadNote:
+    'Saving loads the {team} roster. The current players keep their names on everything already recorded.',
+  setupTeamNewNote: '"{team}" will be saved as a new team.',
   menuGuide: "Beginner's guide",
   // The report on the game so far, readable mid-game — see ReportScreen's `live`.
   menuReport: 'Report so far',
@@ -816,7 +822,7 @@ export const en = {
   guideStep4Body:
     'This is the only screen you will use during the game. Nothing here can be pressed by mistake in a way you cannot take back.',
   guideTour1:
-    'Field number, the time of day, which half it is and the score the game is played to. The menu on the left holds this guide, the setup the game is being played under, and the way out of the game.',
+    'Field number, the time of day, which half it is and the score the game is played to. The menu on the left holds this guide, the setup the game is being played under (where the field, the team names and their colours can still be corrected), and the way out of the game.',
   guideTour2:
     'One panel per team, painted in the team colour. This is where you add goals (step 5), and each team\u2019s timeout button sits in the top outer corner of its own panel.',
   guideTour3:

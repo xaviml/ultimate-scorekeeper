@@ -58,6 +58,29 @@ export function saveTeamLines(name: string, lines: SavedLine[]): void {
   }
 }
 
+/**
+ * Moves a saved team to a new name, keeping its roster, colour and lines — a team
+ * renamed mid-game is the same squad, and the roster sync would otherwise file it
+ * under the new name while leaving the old one behind as a near-duplicate. A team
+ * already stored under `to` is replaced, which is what the kickoff sync does to a
+ * name typed on the setup screen. Nothing happens when `from` isn't stored.
+ */
+export function renameTeam(from: string, to: string): void {
+  const target = to.trim();
+  if (!target || normalize(from) === normalize(target)) return;
+  try {
+    const all = loadSavedTeams();
+    const entry = all.find((t) => normalize(t.name) === normalize(from));
+    if (!entry) return;
+    const rest = all.filter(
+      (t) => normalize(t.name) !== normalize(from) && normalize(t.name) !== normalize(target),
+    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...rest, { ...entry, name: target }]));
+  } catch {
+    /* storage unavailable (private mode, quota, ...) — game still works without it */
+  }
+}
+
 /** Removes a saved team by case-insensitive, trimmed name match. */
 export function deleteTeam(name: string): void {
   try {

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  canEditGameInfo,
   canPass,
   canRecordEvent,
   canScore,
@@ -3314,5 +3315,131 @@ describe('the heartbeat follows the wall clock', () => {
   it('does nothing outside a game', () => {
     const s = createInitialState(cfg());
     expect(gameReducer(s, at(T))).toBe(s);
+  });
+});
+
+describe('editing the field and the teams mid-game', () => {
+  const teams = (a: string, b: string) => ({
+    A: { name: a, color: '#ff0000' },
+    B: { name: b, color: '#0000ff' },
+  });
+  const edit = (
+    a: string,
+    b: string,
+    extra: Partial<Extract<Action, { type: 'EDIT_GAME_INFO' }>> = {},
+  ): Action => ({
+    type: 'EDIT_GAME_INFO',
+    fieldNumber: '4',
+    teams: teams(a, b),
+    ...extra,
+  });
+
+  it('renames, recolours and moves the field without touching the game', () => {
+    const before = run(live(), { type: 'GOAL', team: 'A' });
+    const s = gameReducer(before, edit('  Ravens ', 'Foxes'));
+
+    expect(s.config.fieldNumber).toBe('4');
+    expect(s.config.teams).toEqual({
+      A: { name: 'Ravens', color: '#ff0000' },
+      B: { name: 'Foxes', color: '#0000ff' },
+    });
+    // A correction, not an event: nothing logged, score and clock untouched.
+    expect(s.log).toBe(before.log);
+    expect(s.scores).toEqual(before.scores);
+    expect(s.gameSeconds).toBe(before.gameSeconds);
+  });
+
+  it('is open after the final whistle, so names can be fixed before sharing the report', () => {
+    let s = live(cfg({ targetScore: 1 }));
+    s = gameReducer(s, { type: 'GOAL', team: 'A' });
+    expect(s.status).toBe('finished');
+    expect(gameReducer(s, edit('Ravens', 'Foxes')).config.teams.A.name).toBe('Ravens');
+  });
+
+  it('refuses an empty name or the same name twice, as the setup screen does', () => {
+    const before = live();
+    expect(canEditGameInfo(teams(' ', 'Foxes')).reason).toBe('teamNameRequired');
+    expect(canEditGameInfo(teams('Ravens', ' ravens ')).reason).toBe('duplicateTeamNames');
+    expect(gameReducer(before, edit('', 'Foxes'))).toBe(before);
+    expect(gameReducer(before, edit('Ravens', 'RAVENS'))).toBe(before);
+  });
+
+  it('survives undoing a goal — a rename is not part of the snapshot', () => {
+    let s = run(live(), { type: 'GOAL', team: 'A' });
+    s = gameReducer(s, edit('Ravens', 'Foxes'));
+    s = gameReducer(s, { type: 'UNDO_GOAL', team: 'A' });
+    expect(s.config.teams.A.name).toBe('Ravens');
+  });
+
+  it('loads a picked roster, keeping the outgoing players named on what they did', () => {
+    let s = gameReducer(live(), { type: 'ADD_PLAYER', team: 'A', number: '7', name: 'Alex' });
+    const scorerId = s.config.players.A[0].id;
+    s = run(
+      s,
+      { type: 'GOAL', team: 'A' },
+      { type: 'SET_GOAL_PLAYERS', team: 'A', scorerId, assistId: null },
+    );
+
+    s = gameReducer(
+      s,
+      edit('Ravens', 'Team 2', {
+        load: { A: { players: [{ id: 'stored', number: '12', name: 'Kim' }], lines: [] } },
+      }),
+    );
+
+    expect(s.config.players.A).toHaveLength(1);
+    expect(s.config.players.A[0]).toMatchObject({ number: '12', name: 'Kim' });
+    // Ids are minted for this game, never taken from the store.
+    expect(s.config.players.A[0].id).not.toBe('stored');
+    expect(s.removedPlayers.A).toEqual([{ id: scorerId, number: '7', name: 'Alex' }]);
+    expect(s.points[0].scorerId).toBe(scorerId);
+  });
+
+  it("clears the followed team's line and swaps in the picked team's predefined lines", () => {
+    const config = cfg({
+      statsMode: 'players',
+      trackedTeam: 'A',
+      lines: {
+        ...defaultConfig.lines,
+        enabled: true,
+        saved: [{ id: 'l1', name: 'O1', playerKeys: [] }],
+      },
+      players: {
+        A: [{ id: 'p1', number: '1', name: 'One' }],
+        B: [{ id: 'q1', number: '1', name: 'Uno' }],
+      },
+    });
+    let s = gameReducer(live(config), { type: 'SET_LINE', playerIds: ['p1'] });
+    const saved = [{ id: 'l2', name: 'D1', playerKeys: ['2|two'] }];
+
+    s = gameReducer(
+      s,
+      edit('Ravens', 'Foxes', {
+        load: { A: { players: [{ id: 'x', number: '2', name: 'Two' }], lines: saved } },
+      }),
+    );
+
+    expect(s.line).toEqual([]);
+    expect(s.pointLine).toEqual([]);
+    expect(s.config.lines.saved).toEqual(saved);
+    expect(s.config.players.B).toEqual(config.players.B);
+  });
+
+  it("leaves the followed team's line alone when the other team is swapped", () => {
+    const config = cfg({
+      statsMode: 'players',
+      trackedTeam: 'A',
+      lines: { ...defaultConfig.lines, enabled: true },
+      players: { A: [{ id: 'p1', number: '1', name: 'One' }], B: [] },
+    });
+    let s = gameReducer(live(config), { type: 'SET_LINE', playerIds: ['p1'] });
+    s = gameReducer(
+      s,
+      edit('Ravens', 'Foxes', {
+        load: { B: { players: [{ id: 'y', number: '3', name: 'Tres' }], lines: [] } },
+      }),
+    );
+    expect(s.line).toEqual(['p1']);
+    expect(s.config.lines).toEqual(config.lines);
   });
 });

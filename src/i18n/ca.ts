@@ -348,6 +348,12 @@ export const ca: typeof en = {
 
   menuTitle: 'Menú',
   menuGameSetup: 'Configuració del partit',
+  setupFieldTeams: 'Camp i equips',
+  teamNameRequired: 'Els dos equips necessiten un nom',
+  btnSaveChanges: 'Desar els canvis',
+  setupTeamLoadNote:
+    "En desar es carrega el roster de {team}. Els jugadors actuals conserven el nom en tot el que ja s'ha registrat.",
+  setupTeamNewNote: '"{team}" es desarà com a equip nou.',
   menuGuide: 'Guia per a principiants',
   menuReport: 'Informe fins ara',
   menuRoster: 'Roster',
@@ -745,7 +751,7 @@ export const ca: typeof en = {
   guideStep4Body:
     "És l'única pantalla que faràs servir durant el partit. Res del que hi ha aquí es pot prémer sense voler de manera irreversible.",
   guideTour1:
-    "Número de camp, l'hora, en quina part som i el marcador al qual es juga el partit. El menú de l'esquerra conté aquesta guia, la configuració amb què es juga el partit i la sortida del partit.",
+    "Número de camp, l'hora, en quina part som i el marcador al qual es juga el partit. El menú de l'esquerra conté aquesta guia, la configuració amb què es juga el partit (on encara es poden corregir el camp, els noms dels equips i els seus colors) i la sortida del partit.",
   guideTour2:
     "Un panell per equip, pintat amb el color de l'equip. Aquí és on sumes gols (pas 5), i el botó de temps mort de cada equip és al cantó superior exterior del seu propi panell.",
   guideTour3:

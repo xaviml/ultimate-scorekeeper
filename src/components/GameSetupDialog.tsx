@@ -5,6 +5,8 @@ import { useGame } from '../state/gameHooks';
 import { ratioForPoint, timeoutsConfigured } from '../state/gameReducer';
 import { expectedSplit, lineTrackingEnabled } from '../state/lines';
 import type { Division, EndCapRule, GameConfig, Gender, LogEntry, TeamId } from '../state/types';
+import { useGameInfoDraft } from '../hooks/useGameInfoDraft';
+import { GameInfoFields, GameInfoSaveBar } from './GameInfoEditor';
 import { Modal } from './Modal';
 import { sectionTitle } from './ui';
 
@@ -15,7 +17,7 @@ const DIVISION_KEY: Record<Division, 'divisionOpen' | 'divisionWomen' | 'divisio
 };
 
 /**
- * The setup this game is being played under, read-only.
+ * The setup this game is being played under.
  *
  * It exists for the moment a captain asks the scorekeeper something the dashboard
  * doesn't answer — who received the first pull, which ratio the game started on,
@@ -23,10 +25,12 @@ const DIVISION_KEY: Record<Division, 'divisionOpen' | 'divisionWomen' | 'divisio
  * once, consumed by createInitialState, and until now was never shown again
  * anywhere in the app.
  *
- * A pure read of state.config, so unlike every other dialog on this screen it
- * needs no guard — there is no status in which looking at the rules is wrong.
- * Field number and team names are deliberately absent: they are already in the
- * header and on the score panels.
+ * A read of state.config, so unlike every other dialog on this screen it needs no
+ * guard — there is no status in which looking at the rules is wrong. The one
+ * exception to read-only is the top block: the field and the teams' names and
+ * colours (GameInfoEditor), which are bookkeeping rather than rules and so stay
+ * correctable all game, the report included. Everything below it is the game's
+ * rules and stays as it was set up.
  */
 export function GameSetupDialog({ onClose }: { onClose: () => void }) {
   const state = useGame();
@@ -35,10 +39,13 @@ export function GameSetupDialog({ onClose }: { onClose: () => void }) {
   const teamName = (id: TeamId) => cfg.teams[id].name;
   const kickoff = startedAt(state.log);
   const timeouts = timeoutsConfigured(cfg.timeouts);
+  const info = useGameInfoDraft();
 
   return (
     <Modal title={t('menuGameSetup')} onClose={onClose} showClose>
       <div className="flex flex-col gap-4">
+        <GameInfoFields draft={info} />
+
         <Group title={t('division')}>
           <Row label={t('division')} value={t(DIVISION_KEY[cfg.division])} />
         </Group>
@@ -168,6 +175,7 @@ export function GameSetupDialog({ onClose }: { onClose: () => void }) {
           </Group>
         )}
       </div>
+      <GameInfoSaveBar draft={info} />
     </Modal>
   );
 }

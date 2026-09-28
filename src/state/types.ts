@@ -880,6 +880,17 @@ export type Action =
   /** Back out of the report onto the game it was opened on, however it got there. */
   | { type: 'BACK_TO_GAME' }
   | { type: 'BACK_TO_CONFIG' }
+  /**
+   * Correct the field and the teams' names and colours from the game setup dialog.
+   * A team in `load` was picked from the saved teams: its roster replaces the one
+   * in play (see `canEditGameInfo` and the reducer for what that costs).
+   */
+  | {
+      type: 'EDIT_GAME_INFO';
+      fieldNumber: string;
+      teams: Record<TeamId, TeamConfig>;
+      load?: Partial<Record<TeamId, { players: PlayerInfo[]; lines: SavedLine[] }>>;
+    }
   | { type: 'ADD_PLAYER'; team: TeamId; number: string; name: string }
   | { type: 'REMOVE_PLAYER'; team: TeamId; id: string }
   /** Mark a roster player MMP/FMP, from the roster editor's gender toggle. */

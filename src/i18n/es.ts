@@ -349,6 +349,12 @@ export const es: typeof en = {
 
   menuTitle: 'Menú',
   menuGameSetup: 'Configuración del partido',
+  setupFieldTeams: 'Campo y equipos',
+  teamNameRequired: 'Los dos equipos necesitan un nombre',
+  btnSaveChanges: 'Guardar cambios',
+  setupTeamLoadNote:
+    'Al guardar se carga el roster de {team}. Los jugadores actuales conservan su nombre en todo lo ya registrado.',
+  setupTeamNewNote: '"{team}" se guardará como un equipo nuevo.',
   menuGuide: 'Guía para principiantes',
   menuReport: 'Informe hasta ahora',
   menuRoster: 'Roster',
@@ -747,7 +753,7 @@ export const es: typeof en = {
   guideStep4Body:
     'Es la única pantalla que usarás durante el partido. Nada de lo que hay aquí se puede pulsar sin querer de forma irreversible.',
   guideTour1:
-    'Número de campo, la hora, en qué parte vamos y el marcador al que se juega el partido. El menú de la izquierda contiene esta guía, la configuración con la que se juega el partido y la salida del partido.',
+    'Número de campo, la hora, en qué parte vamos y el marcador al que se juega el partido. El menú de la izquierda contiene esta guía, la configuración con la que se juega el partido (donde aún se pueden corregir el campo, los nombres de los equipos y sus colores) y la salida del partido.',
   guideTour2:
     'Un panel por equipo, pintado con el color del equipo. Aquí es donde sumas goles (paso 5), y el botón de tiempo muerto de cada equipo está en la esquina superior exterior de su propio panel.',
   guideTour3:

@@ -15,6 +15,7 @@ export function TeamNameCombobox({
   onSelectTeam,
   onAddAsNewTeam,
   onDeleteTeam,
+  addedAsNew = false,
   maxLength,
 }: {
   label: string;
@@ -25,7 +26,13 @@ export function TeamNameCombobox({
   onSelectTeam: (team: SavedTeam) => void;
   /** Saves the typed name as a saved team immediately — no need to start the game. */
   onAddAsNewTeam: (name: string) => void;
-  onDeleteTeam: (name: string) => void;
+  /** Omitted where saved teams can't be deleted (the game setup dialog): no ✕ is drawn. */
+  onDeleteTeam?: (name: string) => void;
+  /**
+   * The typed name has already been marked to become a new team when the form is
+   * saved, rather than there and then — so the offer is answered and is not repeated.
+   */
+  addedAsNew?: boolean;
   maxLength?: number;
 }) {
   const { t } = useT();
@@ -48,7 +55,7 @@ export function TeamNameCombobox({
       normalize(team.name) !== normalize(otherTeamName),
   );
   const hasExactMatch = savedTeams.some((team) => normalize(team.name) === normalize(value));
-  const showAddAsNew = value.trim() !== '' && !hasExactMatch;
+  const showAddAsNew = value.trim() !== '' && !hasExactMatch && !addedAsNew;
   const showPanel = open && (matches.length > 0 || showAddAsNew);
 
   return (
@@ -97,17 +104,19 @@ export function TeamNameCombobox({
                   />
                   <span className="truncate">{team.name}</span>
                 </button>
-                <button
-                  type="button"
-                  aria-label={t('deleteTeamAria', { name: team.name })}
-                  className="px-3 py-2 text-chalk/60 shrink-0"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setPendingDelete(team);
-                  }}
-                >
-                  ✕
-                </button>
+                {onDeleteTeam && (
+                  <button
+                    type="button"
+                    aria-label={t('deleteTeamAria', { name: team.name })}
+                    className="px-3 py-2 text-chalk/60 shrink-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPendingDelete(team);
+                    }}
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
             ))}
             {showAddAsNew && (
@@ -125,7 +134,7 @@ export function TeamNameCombobox({
           </div>
         )}
       </div>
-      {pendingDelete && (
+      {pendingDelete && onDeleteTeam && (
         <ConfirmDeleteTeamDialog
           name={pendingDelete.name}
           onCancel={() => setPendingDelete(null)}

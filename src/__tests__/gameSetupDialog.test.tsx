@@ -46,7 +46,10 @@ function valueFor(panel: HTMLElement, label: string) {
   return within(panel).getByText(label).nextElementSibling?.textContent;
 }
 
-beforeEach(() => sessionStorage.clear());
+beforeEach(() => {
+  sessionStorage.clear();
+  localStorage.clear();
+});
 
 describe('the game setup dialog', () => {
   it('names the teams from the coin toss, which nothing else in the app shows', () => {
@@ -209,5 +212,108 @@ describe('the game setup dialog', () => {
 
     expect(valueFor(panel, 'Scheduled')).toBe('17:00');
     expect(valueFor(panel, 'Started')).toBe('17:06:12');
+  });
+});
+
+/**
+ * The top block — field, team names and colours — is the one part of the dialog
+ * that can be changed, as a draft that only lands on Save.
+ */
+describe('correcting the field and the teams from the game setup dialog', () => {
+  const SAVED = 'ultimate-scorekeeper:saved-teams';
+  const savedTeams = () =>
+    JSON.parse(localStorage.getItem(SAVED) ?? '[]') as { name: string; players: unknown[] }[];
+  const storedGame = () =>
+    JSON.parse(sessionStorage.getItem('ultimate-scorekeeper:game-state')!) as GameState;
+  const save = () => screen.queryByRole('button', { name: 'Save changes' });
+  const nameBox = (panel: HTMLElement, team: 'Team 1' | 'Team 2') =>
+    within(panel).getByLabelText(team) as HTMLInputElement;
+
+  it('offers Save only once something has changed, and applies it to the game', () => {
+    const panel = openSetup(game());
+    expect(save()).toBeNull();
+
+    fireEvent.change(within(panel).getByLabelText('Field'), { target: { value: '7' } });
+    fireEvent.change(nameBox(panel, 'Team 1'), { target: { value: 'Ravens United' } });
+    fireEvent.click(save()!);
+
+    expect(storedGame().config.fieldNumber).toBe('7');
+    expect(storedGame().config.teams.A.name).toBe('Ravens United');
+    expect(screen.getByText('Field 7')).toBeInTheDocument();
+    // Saved means nothing is pending any more.
+    expect(save()).toBeNull();
+  });
+
+  it('drops the draft when the dialog is closed without saving', () => {
+    let panel = openSetup(game());
+    fireEvent.change(nameBox(panel, 'Team 1'), { target: { value: 'Owls' } });
+    fireEvent.click(within(panel).getByLabelText('Close'));
+
+    expect(storedGame().config.teams.A.name).toBe('Ravens');
+    fireEvent.click(screen.getByLabelText('Menu'));
+    fireEvent.click(screen.getByText('Game setup'));
+    panel = screen.getByRole('heading', { name: 'Game setup' }).parentElement!.parentElement!;
+    expect(nameBox(panel, 'Team 1').value).toBe('Ravens');
+  });
+
+  it('refuses an empty or duplicate name and says why', () => {
+    const panel = openSetup(game());
+    fireEvent.change(nameBox(panel, 'Team 1'), { target: { value: 'foxes' } });
+    expect(save()).toBeDisabled();
+    expect(screen.getByText('Team names must be different')).toBeInTheDocument();
+
+    fireEvent.change(nameBox(panel, 'Team 1'), { target: { value: '  ' } });
+    expect(screen.getByText('Both teams need a name')).toBeInTheDocument();
+  });
+
+  it('moves the saved team to its new name rather than leaving the old one behind', () => {
+    const panel = openSetup(game());
+    expect(savedTeams().map((t) => t.name)).toContain('Ravens');
+
+    fireEvent.change(nameBox(panel, 'Team 1'), { target: { value: 'Ravenz' } });
+    fireEvent.click(save()!);
+
+    const names = savedTeams().map((t) => t.name);
+    expect(names).toContain('Ravenz');
+    expect(names).not.toContain('Ravens');
+  });
+
+  it('keeps the old saved team when the new name is added as a new team', () => {
+    const panel = openSetup(game());
+    fireEvent.change(nameBox(panel, 'Team 1'), { target: { value: 'Ravens B' } });
+    fireEvent.click(within(panel).getByText('Add "Ravens B" as a new team'));
+    expect(within(panel).getByText('"Ravens B" will be saved as a new team.')).toBeInTheDocument();
+    fireEvent.click(save()!);
+
+    const names = savedTeams().map((t) => t.name);
+    expect(names).toEqual(expect.arrayContaining(['Ravens', 'Ravens B']));
+  });
+
+  it("loads a picked saved team's roster, and offers no way to delete saved teams", () => {
+    localStorage.setItem(
+      SAVED,
+      JSON.stringify([
+        { name: 'Owls', color: '#123456', players: [{ id: 'o1', number: '5', name: 'Hoot' }] },
+      ]),
+    );
+    const panel = openSetup(
+      game((s) => {
+        s.config.players.A = [{ id: 'a1', number: '7', name: 'Alex' }];
+      }),
+    );
+
+    fireEvent.focus(nameBox(panel, 'Team 1'));
+    fireEvent.change(nameBox(panel, 'Team 1'), { target: { value: 'Ow' } });
+    expect(within(panel).queryByLabelText(/Delete/i)).toBeNull();
+    fireEvent.click(within(panel).getByText('Owls'));
+    expect(panel.querySelector('[data-team-load="A"]')).not.toBeNull();
+    fireEvent.click(save()!);
+
+    const s = storedGame();
+    expect(s.config.teams.A).toEqual({ name: 'Owls', color: '#123456' });
+    expect(s.config.players.A).toMatchObject([{ number: '5', name: 'Hoot' }]);
+    expect(s.removedPlayers.A).toEqual([{ id: 'a1', number: '7', name: 'Alex' }]);
+    // The team it replaced stays stored as it was.
+    expect(savedTeams().map((t) => t.name)).toEqual(expect.arrayContaining(['Ravens', 'Owls']));
   });
 });
