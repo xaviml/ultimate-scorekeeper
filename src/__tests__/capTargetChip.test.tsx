@@ -47,6 +47,22 @@ describe('the cap target chip', () => {
     expect(screen.getByRole('button', { name: 'Half at 6 or 7' })).toBeInTheDocument();
   });
 
+  it('names the one number a tied point can settle the half on, still tappable', async () => {
+    // 5-5: whoever scores leads 6-5, so the half is at 7 either way.
+    mountWith(halfHornAt5_3({ scores: { A: 5, B: 5 } }));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Half at 7' }));
+    expect(screen.getByRole('button', { name: 'At 6' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'At 7' })).toBeInTheDocument();
+  });
+
+  it('does the same for the game cap', () => {
+    const state = halfHornAt5_3({ timeCapReached: true, scores: { A: 5, B: 5 } });
+    mountWith({ ...state, config: { ...state.config, endCap: { kind: 'cap', plus: 1 } } });
+
+    expect(screen.getByRole('button', { name: 'Game at 7' })).toBeInTheDocument();
+  });
+
   it('sets the half by hand, for the goal that beat the horn', async () => {
     mountWith(halfHornAt5_3());
 

@@ -12,6 +12,7 @@ import {
   canSetLine,
   canWaterBreak,
   capTargetOptions,
+  pendingCapOutcomes,
   createInitialState,
   defaultConfig,
   gameReducer,
@@ -469,6 +470,38 @@ describe('naming a capped target by hand', () => {
     // cap has touched.
     expect(capTargetOptions(at5_3(), 'half')).toEqual([]);
     expect(capTargetOptions(s, 'game')).toEqual([]);
+  });
+
+  it('names only the one target a tied point can resolve to, but keeps both pickable', () => {
+    // 5-5 at the horn: whoever scores leads 6-5, so the half is at 7 either way.
+    let s = run(at5_3(), { type: 'GOAL', team: 'B' }, { type: 'PULL_THROWN' });
+    s = run(s, { type: 'GOAL', team: 'B' }, { type: 'PULL_THROWN' });
+    expect(s.scores).toEqual({ A: 5, B: 5 });
+    s = ticks(s, 60);
+    expect(s.halfCappedTarget).toBeNull();
+    expect(pendingCapOutcomes(s, 'half')).toEqual([7]);
+    // 6 stays on offer: the goal that tied it may have come after the horn.
+    expect(capTargetOptions(s, 'half')).toEqual([6, 7]);
+    expect(gameReducer(s, { type: 'GOAL', team: 'A' }).halfCappedTarget).toBe(7);
+    expect(gameReducer(s, { type: 'GOAL', team: 'B' }).halfCappedTarget).toBe(7);
+  });
+
+  it('names both targets an untied point can resolve to', () => {
+    const s = ticks(at5_3(), 60);
+    expect(pendingCapOutcomes(s, 'half')).toEqual([6, 7]);
+    // Nothing pending once it has resolved.
+    expect(pendingCapOutcomes(gameReducer(s, { type: 'GOAL', team: 'B' }), 'half')).toEqual([]);
+  });
+
+  it('names one target from a tie for the end cap too', () => {
+    const config = cfg({ timeLimitMinutes: 1, endCap: { kind: 'cap', plus: 1 }, targetScore: 15 });
+    let s = at5_3(config);
+    s = run(s, { type: 'GOAL', team: 'B' }, { type: 'PULL_THROWN' });
+    s = run(s, { type: 'GOAL', team: 'B' }, { type: 'PULL_THROWN' });
+    s = ticks(s, 60);
+    expect(s.timeCapReached).toBe(true);
+    expect(pendingCapOutcomes(s, 'game')).toEqual([7]);
+    expect(capTargetOptions(s, 'game')).toEqual([6, 7]);
   });
 
   it('takes the hand-named half target and lets the next goal alone', () => {

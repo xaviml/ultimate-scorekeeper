@@ -12,6 +12,7 @@ import {
   canUndoTurnover,
   capChipVisible,
   capTargetOptions,
+  pendingCapOutcomes,
   effectiveHalfTarget,
   effectiveTarget,
   goalPlayersTracked,
@@ -555,13 +556,23 @@ function CapChip({ which, onOpen }: { which: 'game' | 'half'; onOpen: () => void
   const universe = !half && isUniversePoint(state);
 
   // Both numbers while the point in progress still decides between them, one number
-  // the rest of the time — including a cap whose bounds only ever allowed one.
-  const range = capped === null && options.length > 1;
-  const label = range
-    ? t((half ? 'halfCapChipRange' : 'gameCapChipRange') as never, { a: options[0], b: options[1] })
-    : t((universe ? 'universePointChip' : half ? 'halfCapChip' : 'gameCapChip') as never, {
-        n: capped ?? options[0] ?? (half ? effectiveHalfTarget(state) : effectiveTarget(state)),
-      });
+  // the rest of the time — including a pending cap from a tie, where whoever scores
+  // lands on the same target. The label names what the point can resolve to; the
+  // dialog behind it still offers the wider set (see capTargetOptions).
+  const outcomes = pendingCapOutcomes(state, which);
+  const label =
+    outcomes.length > 1
+      ? t((half ? 'halfCapChipRange' : 'gameCapChipRange') as never, {
+          a: outcomes[0],
+          b: outcomes[1],
+        })
+      : t((universe ? 'universePointChip' : half ? 'halfCapChip' : 'gameCapChip') as never, {
+          n:
+            capped ??
+            outcomes[0] ??
+            options[0] ??
+            (half ? effectiveHalfTarget(state) : effectiveTarget(state)),
+        });
   const className = `rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-white/95 border text-pitch ${
     universe
       ? 'border-signal animate-pulse'

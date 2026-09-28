@@ -1030,9 +1030,10 @@ export function halfTargetApplies(state: GameState): boolean {
  * speed. So while a capped target is in force it stays editable, over the values it
  * could legitimately have taken:
  *   - still unresolved: the point in progress either leaves the leading score where it
- *     is or lifts it by one, so the target is `leader + plus` or one more. Both are
- *     named on the chip ("Half at 5 or 6") rather than the volunteer being told to wait
- *     for a number the game may already have decided.
+ *     is or lifts it by one, so the target is `leader + plus` or one more. The lower
+ *     one also covers the goal just tapped having come after the horn. The chip names
+ *     only what the point in progress can resolve to (pendingCapOutcomes): from a tie
+ *     that is the higher number alone, since whoever scores lifts the leading score.
  *   - resolved: the same one-goal uncertainty, now sitting around the number on screen.
  *
  * Bounded below by `leader + 1` — a target at or under the current score is not a
@@ -1085,6 +1086,43 @@ export function capTargetOptions(state: GameState, which: 'game' | 'half'): numb
       ? [leader + rule.plus, leader + rule.plus + 1]
       : [current - 1, current, current + 1];
   return [...new Set(candidates)].filter((n) => n > leader && n <= ceiling).sort((a, b) => a - b);
+}
+
+/**
+ * The capped target GOAL writes when a pending cap resolves: the leading score once
+ * the point in progress has finished, plus the cap, never beyond the configured score.
+ * Shared by GOAL and pendingCapOutcomes, so the chip names exactly what will happen.
+ */
+function resolvedCapTarget(
+  scores: Record<TeamId, number>,
+  config: GameConfig,
+  which: 'game' | 'half',
+): number {
+  const rule = which === 'half' ? config.halfCap : config.endCap;
+  const plus = rule.kind === 'none' ? 0 : rule.plus;
+  const leader = Math.max(scores.A, scores.B);
+  return Math.min(leader + plus, which === 'half' ? config.halfScore : config.targetScore);
+}
+
+/**
+ * What the chip names while a cap is still pending: the targets the point in progress
+ * can actually resolve to, one per team that might score it. Narrower than
+ * capTargetOptions, which also allows for the horn having landed in a different point
+ * than the one tapped in. From a tie there is only one: whoever scores leads by one,
+ * so 3-3 puts the half at 5 either way — never 4, even though 4 stays pickable (the
+ * goal that made it 3-3 may have come after the horn). Empty once resolved, or when
+ * there is nothing to choose.
+ */
+export function pendingCapOutcomes(state: GameState, which: 'game' | 'half'): number[] {
+  const options = capTargetOptions(state, which);
+  const current = which === 'half' ? state.halfCappedTarget : state.cappedTarget;
+  if (current !== null || options.length < 2) return [];
+  const { A, B } = state.scores;
+  const outcomes = [
+    resolvedCapTarget({ A: A + 1, B }, state.config, which),
+    resolvedCapTarget({ A, B: B + 1 }, state.config, which),
+  ].filter((n) => options.includes(n));
+  return [...new Set(outcomes)].sort((a, b) => a - b);
 }
 
 /**
@@ -1542,8 +1580,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         if (cap.kind === 'conditional' && Math.abs(s.scores.A - s.scores.B) > cap.minDiff) {
           return finishGame(s);
         }
-        const leader = Math.max(s.scores.A, s.scores.B);
-        s = { ...s, cappedTarget: Math.min(leader + cap.plus, s.config.targetScore) };
+        s = { ...s, cappedTarget: resolvedCapTarget(s.scores, s.config, 'game') };
         capResolved = true;
       }
       // End-cap Option A: time reached, finish this point, game over.
@@ -1564,11 +1601,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         s.halfCappedTarget === null &&
         halfTimeAhead(s)
       ) {
-        const leader = Math.max(s.scores.A, s.scores.B);
-        s = {
-          ...s,
-          halfCappedTarget: Math.min(leader + halfCapRule.plus, s.config.halfScore),
-        };
+        s = { ...s, halfCappedTarget: resolvedCapTarget(s.scores, s.config, 'half') };
         halfCapResolved = true;
       }
 
