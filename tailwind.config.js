@@ -32,9 +32,21 @@ export default {
           '0%': { opacity: '0', transform: 'scale(0.9)' },
           '100%': { opacity: '1', transform: 'scale(1)' },
         },
+        // Turn and Pass light up amber under the finger and fade, so a tap reads
+        // in the corner of the eye of someone watching the disc (see ActionButton).
+        pressFlash: {
+          '0%': { opacity: '0.9' },
+          '100%': { opacity: '0' },
+        },
+        badgePop: {
+          '0%': { transform: 'scale(1.5)' },
+          '100%': { transform: 'scale(1)' },
+        },
       },
       animation: {
         signalIn: 'signalIn 0.25s ease-out',
+        pressFlash: 'pressFlash 0.3s ease-out forwards',
+        badgePop: 'badgePop 0.2s ease-out',
       },
     },
   },

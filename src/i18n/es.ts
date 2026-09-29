@@ -906,6 +906,12 @@ export const es: typeof en = {
 
   // Guía de estadísticas — la segunda página, desde el menú de la pantalla inicial.
   menuStatsGuide: 'Guía avanzada',
+  settingsTitle: 'Preferencias',
+  settingsVibration: 'Vibración',
+  settingsVibrationHint:
+    'Vibra al tocar Turn o Pass, siempre que la vibración del móvil esté activada.',
+  settingsSound: 'Sonido',
+  settingsSoundHint: 'Reproduce los silbatos.',
   statsGuideTitle: 'Guía avanzada',
   statsGuideSubtitle: 'Qué registrar, cómo registrarlo y qué sale al final',
   statsGuideIntro:

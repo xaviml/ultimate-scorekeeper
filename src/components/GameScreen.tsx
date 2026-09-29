@@ -36,6 +36,7 @@ import { lineTeam, lineTrackingEnabled } from '../state/lines';
 import { formatClock } from '../state/stats';
 import { handOverBackGuard, useBackGuard } from '../hooks/useBackGuard';
 import { useLongPress } from '../hooks/useLongPress';
+import { haptic } from '../audio/haptics';
 import type { CallKind, CallResolution, GameState, TeamId } from '../state/types';
 import { AssistanceBar } from './AssistanceBar';
 import { AssistGoalDialog } from './AssistGoalDialog';
@@ -47,6 +48,7 @@ import { ConfirmLeaveGameDialog } from './ConfirmLeaveGameDialog';
 import { ConfirmPauseGameDialog } from './ConfirmPauseGameDialog';
 import { GameLog } from './GameLog';
 import { GameMenuDialog, type LeaveKind } from './GameMenuDialog';
+import { SettingsDialog } from './SettingsDialog';
 import { GameSetupDialog } from './GameSetupDialog';
 import GuideScreen from './GuideScreen';
 import { CallIcon, LogIcon, MenuIcon, PassIcon, StoppageIcon, SwapIcon, TurnIcon } from './icons';
@@ -188,6 +190,8 @@ function ActionButton({
   onClick,
   onHold,
   disabled,
+  dimmed,
+  flash,
 }: {
   icon: React.ReactNode;
   label?: string;
@@ -238,6 +242,20 @@ function ActionButton({
   onClick: () => void;
   onHold?: () => void;
   disabled?: boolean;
+  /**
+   * Looks exactly like `disabled` but still takes the tap and the hold, so the
+   * handler can answer with the refusal buzz. Turn and Pass use it instead of
+   * `disabled`: they are pressed without looking, and a truly disabled button
+   * does nothing at all, which feels the same as a tap that missed.
+   */
+  dimmed?: boolean;
+  /**
+   * Bumped by the caller every time a tap or hold on this button was recorded,
+   * which lights it amber for a moment. A counter rather than a flag, because the
+   * overlay is keyed on it: every bump remounts it and restarts the animation, so
+   * two passes a second read as two flashes rather than one that never fades.
+   */
+  flash?: number;
 }) {
   const press = useLongPress(onClick, onHold ?? (() => {}));
   // Every `lscape:` value in the three below is today's, in both variants: the
@@ -253,23 +271,37 @@ function ActionButton({
   return (
     <button
       {...(onHold ? press : { onClick })}
-      className={`${utility} relative flex ${layout} items-center justify-center ${
+      className={`${utility} relative isolate flex ${layout} items-center justify-center aria-disabled:opacity-40 aria-disabled:active:scale-100 ${
         onHold ? 'select-none touch-none' : ''
       } ${className ?? ''}`}
       disabled={disabled}
+      aria-disabled={dimmed || undefined}
       aria-label={name}
       title={name}
     >
+      {!!flash && (
+        // Behind the glyph and the label (`-z-10` inside the button's `isolate`),
+        // so they stay readable while the fill fades out underneath them.
+        <span
+          key={`flash-${flash}`}
+          aria-hidden="true"
+          data-flash={flash}
+          className="pointer-events-none absolute inset-0 -z-10 rounded-lg bg-signal animate-pressFlash"
+        />
+      )}
       {icon}
       {label && <span className={`${labelSize} leading-none tracking-wide`}>{label}</span>}
       {badge !== undefined && badge >= 1 && (
         <span
+          // Remounted on every change, which replays the pop: the count moving is
+          // the part worth catching out of the corner of an eye.
+          key={`badge-${badge}`}
           aria-hidden="true"
           // The badge is decoration to a screen reader, so there is no accessible
           // name to assert against — this carries the colour it was painted in, the
           // same way the possession rule exposes `data-possession`.
           data-badge={badgeColor ?? 'signal'}
-          className={`absolute ${badgeSize} flex items-center justify-center px-[3px] rounded-full font-board font-bold leading-none tabular-nums ${
+          className={`absolute ${badgeSize} flex items-center justify-center px-[3px] rounded-full motion-safe:animate-badgePop font-board font-bold leading-none tabular-nums ${
             badgeColor ? '' : 'bg-signal text-pitch'
           }`}
           style={
@@ -877,6 +909,7 @@ export default function GameScreen() {
   const [showMenu, setShowMenu] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   // The report on the game so far — the same screen the finished game opens,
   // minus its finished-game furniture (see ReportScreen's `live` mode), with a way
   // back. A screen like the guide, and for the same reason: the dashboard stays
@@ -933,9 +966,11 @@ export default function GameScreen() {
         ? setShowReport
         : showSetup
           ? setShowSetup
-          : showMenu
-            ? setShowMenu
-            : null;
+          : showSettings
+            ? setShowSettings
+            : showMenu
+              ? setShowMenu
+              : null;
     if (layer) {
       stay();
       layer(false);
@@ -1139,12 +1174,25 @@ export default function GameScreen() {
     setShowStoppage(true);
   };
 
+  // Turn and Pass are pressed with the eyes on the disc, so every press answers in
+  // the hand as well as on screen: one pulse and an amber flash when it was
+  // recorded, two when a hold took one back, three when nothing happened (see
+  // haptics.ts). A dimmed button still takes the press for exactly that reason —
+  // it buzzes the refusal and says nothing more, since the fade is the explanation
+  // and the hint would fire dozens of times a point while the other team passes.
+  const [turnFlash, setTurnFlash] = useState(0);
+  const [passFlash, setPassFlash] = useState(0);
+
   const tryTurnover = () => {
+    if (recordBusy) return haptic('refused');
     const check = canTurnover(state);
     if (!check.ok) {
+      haptic('refused');
       flashHint(t(`assist_blocked_${check.reason}` as never));
       return;
     }
+    haptic('tap');
+    setTurnFlash((n) => n + 1);
     // Unless this game asks who was involved, the turnover registers on the tap
     // and the row is free again — which is the default, and is also all a game
     // with no roster on either side can do, having nobody to ask about.
@@ -1160,38 +1208,50 @@ export default function GameScreen() {
   // reachable within the point the turnover was recorded in, which is what the
   // refusal says when it isn't.
   const tryUndoTurnover = () => {
+    if (recordBusy) return haptic('refused');
     const check = canUndoTurnover(state);
     if (!check.ok) {
+      haptic('refused');
       flashHint(t(`assist_blocked_${check.reason}` as never));
       return;
     }
+    haptic('undo');
+    setTurnFlash((n) => n + 1);
     dispatch({ type: 'UNDO_TURNOVER' });
   };
 
-  // Pass never asks anything: one dispatch, and the badge going up is the whole of
-  // the feedback (nothing is logged and possession does not move, so without it a
-  // tap would look like nothing happened). The long-press takes the last one back.
+  // Pass never asks anything: one dispatch, and the badge going up (with the pulse
+  // and the flash above) is the whole of the feedback — nothing is logged and
+  // possession does not move. The long-press takes the last one back.
   //
   // Both explain themselves exactly as Turn does, because they share every refusal
   // Turn has — the game not started, the pull not thrown, a call pending. The one
   // reason that greys the button out instead is `passesOtherTeam` (see passDead
-  // below); it never reaches here, so every reason that does has an
+  // below); it only buzzes, so every reason that reaches the hint has an
   // `assist_blocked_*` string already written for Turn.
   const tryPass = () => {
+    if (recordBusy || passDead) return haptic('refused');
     const check = canPass(state);
     if (!check.ok) {
+      haptic('refused');
       flashHint(t(`assist_blocked_${check.reason}` as never));
       return;
     }
+    haptic('tap');
+    setPassFlash((n) => n + 1);
     dispatch({ type: 'PASS' });
   };
 
   const tryUndoPass = () => {
+    if (recordBusy || passDead) return haptic('refused');
     const check = canUndoPass(state);
     if (!check.ok) {
+      haptic('refused');
       flashHint(t(`assist_blocked_${check.reason}` as never));
       return;
     }
+    haptic('undo');
+    setPassFlash((n) => n + 1);
     dispatch({ type: 'UNDO_PASS' });
   };
 
@@ -1697,9 +1757,10 @@ export default function GameScreen() {
                   // it this point, the rule below the panels returns to a half it
                   // has been on before and nothing else on screen moves.
                   badge={state.pointTurnovers}
+                  flash={turnFlash}
                   onClick={tryTurnover}
                   onHold={tryUndoTurnover}
-                  disabled={recordBusy}
+                  dimmed={recordBusy}
                 />
               )}
               {showPassBtn && (
@@ -1729,9 +1790,10 @@ export default function GameScreen() {
                   // layout, passes needing turnovers, but the flag is read anyway
                   // so the class and the layout it belongs to are named together.
                   className={twoColumnActions ? 'order-first lscape:order-none' : undefined}
+                  flash={passFlash}
                   onClick={tryPass}
                   onHold={tryUndoPass}
-                  disabled={recordBusy || passDead}
+                  dimmed={recordBusy || passDead}
                 />
               )}
             </div>
@@ -1768,6 +1830,10 @@ export default function GameScreen() {
             setShowMenu(false);
             setShowGuide(true);
           }}
+          onSettings={() => {
+            setShowMenu(false);
+            setShowSettings(true);
+          }}
           // The two doors the Roster action button used to hold behind a chooser,
           // now one row each — the menu has the height the action row did not.
           // Roster needs a roster to show; Line additionally needs tracking on, so
@@ -1802,6 +1868,7 @@ export default function GameScreen() {
         />
       )}
       {showSetup && <GameSetupDialog onClose={() => setShowSetup(false)} />}
+      {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
       {showCall && <CallDialog onClose={() => setShowCall(false)} onChoose={chooseCall} />}
       {callKind && <CallTeamDialog kind={callKind} onClose={() => setCallKind(null)} />}
       {showNote && <NoteDialog onClose={() => setShowNote(false)} />}

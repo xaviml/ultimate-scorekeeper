@@ -1,5 +1,5 @@
 import { useT } from '../i18n/useT';
-import { GuideIcon, HistoryIcon, InfoIcon, StatsIcon } from './icons';
+import { GuideIcon, HistoryIcon, InfoIcon, SettingsIcon, StatsIcon } from './icons';
 import { MENU_ICON, MenuRow } from './MenuRow';
 import { Modal } from './Modal';
 
@@ -16,6 +16,7 @@ export function ConfigMenuDialog({
   onPastGames,
   onGuide,
   onStatsGuide,
+  onSettings,
   onAbout,
 }: {
   onClose: () => void;
@@ -27,6 +28,8 @@ export function ConfigMenuDialog({
    * the game menu's own guide row already answers the mid-game question.
    */
   onStatsGuide: () => void;
+  /** The same dialog the game menu opens: sound and vibration, set per phone. */
+  onSettings: () => void;
   onAbout: () => void;
 }) {
   const { t } = useT();
@@ -45,6 +48,11 @@ export function ConfigMenuDialog({
           icon={<StatsIcon size={MENU_ICON} />}
           label={t('menuStatsGuide')}
           onClick={onStatsGuide}
+        />
+        <MenuRow
+          icon={<SettingsIcon size={MENU_ICON} />}
+          label={t('settingsTitle')}
+          onClick={onSettings}
         />
         <MenuRow icon={<InfoIcon size={MENU_ICON} />} label={t('aboutTitle')} onClick={onAbout} />
       </div>
