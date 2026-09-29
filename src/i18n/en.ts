@@ -980,6 +980,12 @@ export const en = {
   // what every figure in the report actually counts. Its subtitle carries the
   // detail its name no longer does.
   menuStatsGuide: 'Advanced guide',
+  settingsTitle: 'Settings',
+  settingsVibration: 'Vibration',
+  settingsVibrationHint:
+    "Vibrates when you tap Turn or Pass, as long as your phone's vibration is on.",
+  settingsSound: 'Sound',
+  settingsSoundHint: 'Play the whistles.',
   statsGuideTitle: 'Advanced guide',
   statsGuideSubtitle: 'What to record, how to record it, and what comes out',
   statsGuideIntro:

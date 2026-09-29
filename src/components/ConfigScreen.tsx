@@ -32,6 +32,7 @@ import {
 import { AboutDialog } from './AboutDialog';
 import { CheckField } from './CheckField';
 import { ConfigMenuDialog } from './ConfigMenuDialog';
+import { SettingsDialog } from './SettingsDialog';
 import { ConfirmDeleteTemplateDialog } from './ConfirmDeleteTemplateDialog';
 import GuideScreen from './GuideScreen';
 import { MenuIcon } from './icons';
@@ -175,6 +176,7 @@ export default function ConfigScreen() {
   }, []);
   const [savedTeams, setSavedTeams] = useState<SavedTeam[]>(() => loadSavedTeams());
   const [showAbout, setShowAbout] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   // The header menu, and the two full screens behind it. Both are rendered from
   // here rather than from App so this screen stays mounted underneath them —
   // everything already typed into the form is still there when the volunteer
@@ -558,12 +560,17 @@ export default function ConfigScreen() {
             setShowMenu(false);
             setShowStatsGuide(true);
           }}
+          onSettings={() => {
+            setShowMenu(false);
+            setShowSettings(true);
+          }}
           onAbout={() => {
             setShowMenu(false);
             setShowAbout(true);
           }}
         />
       )}
+      {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
       {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
 
       <Section title={t('setupTitle')}>

@@ -239,7 +239,10 @@ describe('the action row', () => {
     mount(state);
 
     expect(screen.getByLabelText('What was called?')).toBeDisabled();
-    expect(screen.getByLabelText('Turnover — hold to undo')).toBeDisabled();
+    expect(screen.getByLabelText('Turnover — hold to undo')).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
     // The raised hand is the exception: an injury during a call is still an injury,
     // and raising it freezes the discussion rather than competing with it.
     expect(screen.getByLabelText('Stoppage or SOTG')).not.toBeDisabled();
@@ -252,7 +255,10 @@ describe('the action row', () => {
 
     expect(screen.getByLabelText('Stoppage or SOTG')).toBeDisabled();
     expect(screen.getByLabelText('What was called?')).toBeDisabled();
-    expect(screen.getByLabelText('Turnover — hold to undo')).toBeDisabled();
+    expect(screen.getByLabelText('Turnover — hold to undo')).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
     expect(screen.getByLabelText('Log')).not.toBeDisabled();
   });
 
@@ -277,7 +283,7 @@ describe('the action row', () => {
     // Nothing has happened yet for a call or a turnover to be about, but that's
     // a reason worth telling the volunteer, not a reason to go quietly dead.
     expect(screen.getByLabelText('What was called?')).not.toBeDisabled();
-    expect(screen.getByLabelText('Turnover — hold to undo')).not.toBeDisabled();
+    expect(screen.getByLabelText('Turnover — hold to undo')).not.toHaveAttribute('aria-disabled');
     // An SOTG stoppage can still be called while the teams line up, and it is the
     // only way to stop the clock from here.
     expect(screen.getByLabelText('Stoppage or SOTG')).not.toBeDisabled();
@@ -451,14 +457,14 @@ describe('the turn count badge', () => {
   });
 
   it('stays up while the button itself is refused, fading with it', () => {
-    // A pause is one of the few things that actually disables Turn (a timeout
-    // does not — the button stays live and tryTurnover explains the refusal).
-    // The count is still true, so it is left inside `disabled`'s fade.
+    // A pause is one of the few things that dims Turn (a timeout does not — the
+    // button stays live and tryTurnover explains the refusal). The count is still
+    // true, so it is left inside the fade.
     mount(liveGame({ status: 'paused', pointTurnovers: 2 }));
     const turn = turnButton();
-    expect(turn).toBeDisabled();
+    expect(turn).toHaveAttribute('aria-disabled', 'true');
     expect(turn).toHaveTextContent('2');
-    expect(turn.className).toContain('disabled:opacity-40');
+    expect(turn.className).toContain('aria-disabled:opacity-40');
   });
 });
 
@@ -558,14 +564,14 @@ describe('the pass button', () => {
     const followingB = passing();
     followingB.config = { ...followingB.config, trackedTeam: 'B' };
     mount(followingB);
-    expect(passButton()).not.toBeDisabled();
+    expect(passButton()).not.toHaveAttribute('aria-disabled');
     cleanup();
 
     // Following A, with B holding it, there is nothing this tap could count.
     const followingA = passing();
     followingA.config = { ...followingA.config, trackedTeam: 'A' };
     mount(followingA);
-    expect(passButton()).toBeDisabled();
+    expect(passButton()).toHaveAttribute('aria-disabled', 'true');
     // And the badge simply disappears — B's run is real, but its count is 0
     // because nobody is counting them, which is what the greyed button says too.
     expect(badge()).toBeNull();
@@ -575,7 +581,7 @@ describe('the pass button', () => {
     const state = passing();
     state.config = { ...state.config, trackedTeam: null };
     mount(state);
-    expect(passButton()).not.toBeDisabled();
+    expect(passButton()).not.toHaveAttribute('aria-disabled');
   });
 
   // The refusals Pass shares with Turn are explained, not greyed out. Two buttons
@@ -589,8 +595,8 @@ describe('the pass button', () => {
     mount(passing(overrides));
 
     const pass = passButton();
-    expect(pass).not.toBeDisabled();
-    expect(screen.getByLabelText('Turnover — hold to undo')).not.toBeDisabled();
+    expect(pass).not.toHaveAttribute('aria-disabled');
+    expect(screen.getByLabelText('Turnover — hold to undo')).not.toHaveAttribute('aria-disabled');
 
     fireEvent.click(pass);
     expect(screen.getByRole('tooltip')).toBeInTheDocument();
