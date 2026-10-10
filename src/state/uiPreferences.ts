@@ -34,3 +34,38 @@ export function saveWaterBreakSectionCollapsed(collapsed: boolean): void {
     /* storage unavailable (private mode, quota, ...) — collapse state just won't persist */
   }
 }
+
+/*
+ * The Settings dialog's switches. Both are about this device rather than about a
+ * game — a phone that should stay quiet stays quiet for every game played on it —
+ * so they live here beside the other per-device preferences rather than in
+ * `GameConfig`, and a new game or a template never touches them. Both default on,
+ * and anything but an explicit 'false' reads as on, so a device with no storage
+ * behaves exactly as the app did before the switches existed.
+ */
+const SOUND_KEY = 'ultimate-scorekeeper:sound-enabled';
+const VIBRATION_KEY = 'ultimate-scorekeeper:vibration-enabled';
+
+function loadFlag(key: string): boolean {
+  try {
+    return localStorage.getItem(key) !== 'false';
+  } catch {
+    return true;
+  }
+}
+
+function saveFlag(key: string, on: boolean): void {
+  try {
+    localStorage.setItem(key, String(on));
+  } catch {
+    /* storage unavailable — the switch just won't survive a reload */
+  }
+}
+
+/** Whether the whistles sound. */
+export const loadSoundEnabled = () => loadFlag(SOUND_KEY);
+export const saveSoundEnabled = (on: boolean) => saveFlag(SOUND_KEY, on);
+
+/** Whether Turn and Pass vibrate on a tap. */
+export const loadVibrationEnabled = () => loadFlag(VIBRATION_KEY);
+export const saveVibrationEnabled = (on: boolean) => saveFlag(VIBRATION_KEY, on);

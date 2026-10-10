@@ -6,6 +6,7 @@ import {
   LineIcon,
   PlayersIcon,
   ReportIcon,
+  SettingsIcon,
   SetupIcon,
 } from './icons';
 import { MENU_ICON, MenuRow } from './MenuRow';
@@ -35,6 +36,7 @@ export function GameMenuDialog({
   onClose,
   onSetup,
   onGuide,
+  onSettings,
   onReport,
   onRoster,
   onLine,
@@ -44,6 +46,8 @@ export function GameMenuDialog({
   onClose: () => void;
   onSetup: () => void;
   onGuide: () => void;
+  /** Sound and vibration — about the phone, so it is here and not in the setup. */
+  onSettings: () => void;
   /**
    * The report on the game so far, readable mid-game (half-time is exactly when
    * a captain asks). Absent once the game is finished — the leave row is
@@ -99,6 +103,11 @@ export function GameMenuDialog({
           <MenuRow icon={<LineIcon size={MENU_ICON} />} label={t('menuLine')} onClick={onLine} />
         )}
         <MenuRow icon={<GuideIcon size={MENU_ICON} />} label={t('menuGuide')} onClick={onGuide} />
+        <MenuRow
+          icon={<SettingsIcon size={MENU_ICON} />}
+          label={t('settingsTitle')}
+          onClick={onSettings}
+        />
         <MenuRow icon={<Icon size={MENU_ICON} />} label={t(labelKey)} onClick={onLeave} />
       </div>
     </Modal>

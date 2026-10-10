@@ -3,6 +3,7 @@ import { createInitialState, gameReducer } from './gameReducer';
 import { AssistCtx, DispatchCtx, StateCtx } from './gameHooks';
 import { useAssistQueue } from '../hooks/useAssistQueue';
 import { whistle } from '../audio/whistle';
+import { loadSoundEnabled } from './uiPreferences';
 import { currentWhistle } from './whistleSignal';
 import { loadPersistedState, persistState } from './persistence';
 import { saveGameToHistory, shouldArchiveGame } from './gameHistory';
@@ -126,7 +127,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const lastWhistleKey = useRef(currentWhistle(state)?.key ?? null);
   useEffect(() => {
     const w = currentWhistle(state);
-    if (w && w.key !== lastWhistleKey.current) whistle(w.blasts);
+    // Muting skips the audio only: the key still moves on, so switching sound back
+    // on never replays a whistle that fell due while it was off, and SignalCard
+    // shows the hand signal either way.
+    if (w && w.key !== lastWhistleKey.current && loadSoundEnabled()) whistle(w.blasts);
     lastWhistleKey.current = w?.key ?? null;
   }, [state]);
 
