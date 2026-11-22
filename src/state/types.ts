@@ -236,6 +236,11 @@ export interface GameConfig {
  * a fact about grass against beach, so it belongs to the format and rides the
  * template like every other rule.
  */
+/**
+ * `stats` is optional: the built-in Grass and Beach templates carry none, and
+ * neither does a custom template saved before templates remembered statistics —
+ * applying either leaves the statistics section exactly as it was.
+ */
 export type TemplateSettings = Omit<
   GameConfig,
   | 'teams'
@@ -251,7 +256,22 @@ export type TemplateSettings = Omit<
   | 'lines'
   | 'players'
   | 'startingTime'
->;
+> & { stats?: TemplateStats };
+
+/**
+ * What a saved template remembers about statistics: how much detail and which
+ * features are on — never which team is followed (`trackedTeam` is "team 1" or
+ * "team 2" on the form, not a real team, so it would follow whoever happens to be
+ * in that slot next time) and never a team's predefined lines.
+ */
+export interface TemplateStats {
+  statsMode: StatsMode;
+  trackTurnovers: boolean;
+  trackGoalPlayers: boolean;
+  trackTurnoverPlayers: boolean;
+  trackPasses: boolean;
+  linesEnabled: boolean;
+}
 
 /** A named bundle of rule settings, saved from the config screen (see templates.ts). */
 export interface SavedTemplate {
@@ -350,6 +370,17 @@ export interface LogEntry {
    * point had no recorded start, so the log says nothing rather than "0s".
    */
   pointSeconds?: number;
+  /**
+   * Goal entries only: the score once this goal counted, for the log's Score
+   * column. Kept on the entry rather than recounted from the log, because a goal
+   * undone after something else was logged stays in the log beside its
+   * correction, and a running count would be off by it from there on. Games
+   * logged before this existed carry it in `detail` as "2-1" instead — see
+   * `goalScore`.
+   */
+  score?: Record<TeamId, number>;
+  /** Goal entries only: scored by the team that pulled — shown as "Goal (break)". */
+  isBreak?: boolean;
   /** Turnover entries only: the attacker who lost the disc (team = attacking team). */
   turnoverId?: string;
   /** Turnover entries only: the defender who forced it, from the other team. */
@@ -525,17 +556,16 @@ export interface PointRecord {
   /**
    * Seconds the disc was actually live during this point — `durationSeconds` less
    * every stretch in which play was stopped: a timeout, an open call, a stoppage,
-   * a pause. It is what the report's average hold and break times are computed
-   * over, so those figures describe playing time rather than elapsed time.
+   * a pause. Nothing reads it at the moment: it fed the report's average hold and
+   * break times, which were taken out, and is still recorded so a stored game keeps
+   * the playing time of each point should a figure need it again.
    *
    * Where `possessionSeconds` is also recorded the two agree by construction — the
    * disc is live for exactly the ticks one team or the other is credited with, so
-   * this equals their sum — which is what keeps the possession ledger and the
-   * averages from telling different stories about the same point. Unlike that
-   * field it is recorded in every game: it needs no `possessionTeam` to attribute
-   * to, and the averages it feeds are shown whatever this game tracks.
+   * this equals their sum. Unlike that field it is recorded in every game: it
+   * needs no `possessionTeam` to attribute to.
    *
-   * Absent for points recorded before it was tracked; see `pointPlaySeconds`.
+   * Absent for points recorded before it was tracked.
    */
   aliveSeconds?: number;
   /**

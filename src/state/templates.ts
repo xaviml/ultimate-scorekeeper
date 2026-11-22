@@ -52,7 +52,11 @@ export const BEACH_TEMPLATE: Omit<TemplateSettings, 'fieldNumber'> = {
   waterBreaks: { enabled: false, atScores: [4, 12], durationSeconds: 180 },
 };
 
-/** Picks the fields a custom template saves — the config screen's current settings minus teams, coin toss, players and statsMode/trackedTeam. */
+/**
+ * Picks the fields a custom template saves — the config screen's current rules plus
+ * what it records (see `TemplateStats`), minus the teams, coin toss, players, the
+ * followed team and the predefined lines.
+ */
 export function extractTemplateSettings(cfg: GameConfig): TemplateSettings {
   return {
     division: cfg.division,
@@ -69,6 +73,45 @@ export function extractTemplateSettings(cfg: GameConfig): TemplateSettings {
     halfCap: cfg.halfCap,
     timeouts: cfg.timeouts,
     waterBreaks: cfg.waterBreaks,
+    stats: {
+      statsMode: cfg.statsMode,
+      trackTurnovers: cfg.trackTurnovers,
+      trackGoalPlayers: cfg.trackGoalPlayers,
+      trackTurnoverPlayers: cfg.trackTurnoverPlayers,
+      trackPasses: cfg.trackPasses,
+      linesEnabled: cfg.lines.enabled,
+    },
+  };
+}
+
+/**
+ * The config with a template applied. Every rule is replaced; the statistics only
+ * when the template carries them (`stats` — a custom template saved since they
+ * were remembered), so Grass, Beach and older custom templates leave that section
+ * as the volunteer set it. The followed team and the predefined lines are never
+ * touched: a template knows nothing about who is playing.
+ */
+export function applyTemplate(
+  cfg: GameConfig,
+  settings: Omit<TemplateSettings, 'fieldNumber'> & { fieldNumber?: string },
+): GameConfig {
+  const { stats, ...rules } = settings;
+  const next: GameConfig = {
+    ...cfg,
+    ...rules,
+    // A template saved before half-time could be switched off never carries the
+    // field, and every one of those games had a half.
+    halfTimeEnabled: rules.halfTimeEnabled ?? true,
+  };
+  if (!stats) return next;
+  return {
+    ...next,
+    statsMode: stats.statsMode,
+    trackTurnovers: stats.trackTurnovers,
+    trackGoalPlayers: stats.trackGoalPlayers,
+    trackTurnoverPlayers: stats.trackTurnoverPlayers,
+    trackPasses: stats.trackPasses,
+    lines: { ...cfg.lines, enabled: stats.linesEnabled },
   };
 }
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useT } from '../i18n/useT';
+import { teamNameCase } from '../state/teamName';
 import type { SavedTeam } from '../state/types';
 import { ConfirmDeleteTeamDialog } from './ConfirmDeleteTeamDialog';
 import { inputClass } from './ui';
@@ -37,6 +38,13 @@ export function TeamNameCombobox({
 }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
+  // The keystrokes as typed, shown in capitals by CSS while the parent stores the
+  // cased name (see `teamNameCase`). Feeding the cased value straight back into the
+  // input would move the caret on every key and fight a phone keyboard mid-word.
+  // Whenever the value changes for any other reason — a saved team picked, the box
+  // cleared — the two no longer match ignoring case, and the value wins.
+  const [typed, setTyped] = useState(value);
+  const shown = teamNameCase(typed) === value ? typed : value;
   const [pendingDelete, setPendingDelete] = useState<SavedTeam | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -63,11 +71,13 @@ export function TeamNameCombobox({
       <div className="relative" ref={containerRef}>
         <input
           aria-label={label}
-          className={`${inputClass} ${value ? 'pr-9' : ''}`}
-          value={value}
+          className={`${inputClass} uppercase ${value ? 'pr-9' : ''}`}
+          value={shown}
           maxLength={maxLength}
+          autoCapitalize="characters"
           onChange={(e) => {
-            onChangeText(e.target.value);
+            setTyped(e.target.value);
+            onChangeText(teamNameCase(e.target.value));
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}

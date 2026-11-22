@@ -49,9 +49,9 @@ describe('the past-games screen', () => {
   });
 
   it('lists games newest first, under one subtitle per day', () => {
-    saveGameToHistory(finishedGame(['Ravens', 'Foxes'], [15, 12], AUG_18));
-    saveGameToHistory(finishedGame(['Kites', 'Gulls'], [11, 13], AUG_17));
-    saveGameToHistory(finishedGame(['Owls', 'Hawks'], [9, 15], AUG_18_LATER));
+    saveGameToHistory(finishedGame(['RAVENS', 'FOXES'], [15, 12], AUG_18));
+    saveGameToHistory(finishedGame(['KITES', 'Gulls'], [11, 13], AUG_17));
+    saveGameToHistory(finishedGame(['OWLS', 'HAWKS'], [9, 15], AUG_18_LATER));
     const { container } = renderScreen();
 
     // The heading is formatted in the user's locale, so it is matched on the parts
@@ -65,14 +65,14 @@ describe('the past-games screen', () => {
     // Games inside the newest day are themselves newest first.
     const rows = [...container.querySelectorAll('[data-past-game]')];
     expect(rows.map((r) => r.textContent)).toEqual([
-      expect.stringContaining('Owls'),
-      expect.stringContaining('Ravens'),
-      expect.stringContaining('Kites'),
+      expect.stringContaining('OWLS'),
+      expect.stringContaining('RAVENS'),
+      expect.stringContaining('KITES'),
     ]);
   });
 
   it('shows only the teams, the score and when the game started', () => {
-    saveGameToHistory(finishedGame(['Ravens', 'Foxes'], [15, 12], AUG_18));
+    saveGameToHistory(finishedGame(['RAVENS', 'FOXES'], [15, 12], AUG_18));
     const { container } = renderScreen();
     const row = container.querySelector('[data-past-game]') as HTMLElement;
     expect(within(row).getByText('15')).toBeInTheDocument();
@@ -82,10 +82,10 @@ describe('the past-games screen', () => {
   });
 
   it('marks a game left from the menu as unfinished, and only that one', () => {
-    const left = finishedGame(['Owls', 'Hawks'], [7, 9], AUG_18_LATER);
+    const left = finishedGame(['OWLS', 'HAWKS'], [7, 9], AUG_18_LATER);
     left.status = 'paused';
     saveGameToHistory(left);
-    saveGameToHistory(finishedGame(['Ravens', 'Foxes'], [15, 12], AUG_18));
+    saveGameToHistory(finishedGame(['RAVENS', 'FOXES'], [15, 12], AUG_18));
     const { container } = renderScreen();
 
     const [leftRow, finishedRow] = [...container.querySelectorAll('[data-past-game]')];
@@ -96,25 +96,25 @@ describe('the past-games screen', () => {
   });
 
   it('deletes a game only once the confirmation is answered', () => {
-    saveGameToHistory(finishedGame(['Ravens', 'Foxes'], [15, 12], AUG_18));
-    saveGameToHistory(finishedGame(['Kites', 'Gulls'], [11, 13], AUG_17));
+    saveGameToHistory(finishedGame(['RAVENS', 'FOXES'], [15, 12], AUG_18));
+    saveGameToHistory(finishedGame(['KITES', 'Gulls'], [11, 13], AUG_17));
     renderScreen();
 
-    fireEvent.click(screen.getByLabelText(/Delete Ravens 15 — 12 Foxes/));
+    fireEvent.click(screen.getByLabelText(/Delete RAVENS 15 — 12 FOXES/));
     expect(loadGameHistory()).toHaveLength(2);
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(loadGameHistory()).toHaveLength(2);
 
-    fireEvent.click(screen.getByLabelText(/Delete Ravens 15 — 12 Foxes/));
+    fireEvent.click(screen.getByLabelText(/Delete RAVENS 15 — 12 FOXES/));
     fireEvent.click(screen.getByRole('button', { name: 'Delete game' }));
 
-    expect(loadGameHistory().map((g) => g.config.teams.A.name)).toEqual(['Kites']);
-    expect(screen.queryByRole('button', { name: /Ravens/ })).not.toBeInTheDocument();
+    expect(loadGameHistory().map((g) => g.config.teams.A.name)).toEqual(['KITES']);
+    expect(screen.queryByRole('button', { name: /RAVENS/ })).not.toBeInTheDocument();
   });
 
   it('opens the game as a report, with a way back to the list and no way to start a new game', () => {
-    saveGameToHistory(finishedGame(['Ravens', 'Foxes'], [15, 12], AUG_18));
+    saveGameToHistory(finishedGame(['RAVENS', 'FOXES'], [15, 12], AUG_18));
     const { container } = renderScreen();
 
     fireEvent.click(container.querySelector('[data-past-game]') as HTMLElement);
@@ -147,7 +147,7 @@ describe('filing a game into the archive', () => {
   };
 
   it('files a game whose scoreline finished it', () => {
-    const game = finishedGame(['Ravens', 'Foxes'], [15, 12], AUG_18);
+    const game = finishedGame(['RAVENS', 'FOXES'], [15, 12], AUG_18);
     mount(game);
     expect(loadGameHistory().map((g) => g.id)).toEqual([game.id]);
   });
@@ -155,14 +155,14 @@ describe('filing a game into the archive', () => {
   it('files a game left from the menu (END_GAME), although it never finished', () => {
     // What "End game" leaves behind: the clock stopped and the report open, but
     // the game itself not finished — see shouldArchiveGame.
-    const game = finishedGame(['Ravens', 'Foxes'], [8, 6], AUG_18);
+    const game = finishedGame(['RAVENS', 'FOXES'], [8, 6], AUG_18);
     game.status = 'paused';
     mount(game);
     expect(loadGameHistory().map((g) => g.id)).toEqual([game.id]);
   });
 
   it('does not file a game that started and was never ended', () => {
-    const game = finishedGame(['Ravens', 'Foxes'], [8, 6], AUG_18);
+    const game = finishedGame(['RAVENS', 'FOXES'], [8, 6], AUG_18);
     game.status = 'live';
     game.phase = 'game';
     game.log = game.log.slice(0, 1);
@@ -171,7 +171,7 @@ describe('filing a game into the archive', () => {
   });
 
   it('leaves the stored record alone when a finished game is edited back into play', () => {
-    const game = finishedGame(['Ravens', 'Foxes'], [15, 12], AUG_18);
+    const game = finishedGame(['RAVENS', 'FOXES'], [15, 12], AUG_18);
     mount(game).unmount();
     // The final goal undone from the dashboard: the game is live again, so the
     // archive keeps the last state in which it was actually over.

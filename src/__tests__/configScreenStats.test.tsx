@@ -67,21 +67,21 @@ describe('config screen statistics section', () => {
 
   it('lists both rosters for both teams, and only the followed one when narrowed', () => {
     renderConfigScreen();
-    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'Foxes' } });
-    fireEvent.change(screen.getByLabelText('Team 2'), { target: { value: 'Wolves' } });
+    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'FOXES' } });
+    fireEvent.change(screen.getByLabelText('Team 2'), { target: { value: 'WOLVES' } });
     fireEvent.change(fieldSelect('Track'), { target: { value: 'players' } });
     fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
 
-    expect(within(rosterSection()).getByText('Foxes')).toBeInTheDocument();
-    expect(within(rosterSection()).getByText('Wolves')).toBeInTheDocument();
+    expect(within(rosterSection()).getByText('FOXES')).toBeInTheDocument();
+    expect(within(rosterSection()).getByText('WOLVES')).toBeInTheDocument();
 
     fireEvent.change(fieldSelect('Players of'), { target: { value: 'A' } });
-    expect(within(rosterSection()).getByText('Foxes')).toBeInTheDocument();
-    expect(within(rosterSection()).queryByText('Wolves')).toBeNull();
+    expect(within(rosterSection()).getByText('FOXES')).toBeInTheDocument();
+    expect(within(rosterSection()).queryByText('WOLVES')).toBeNull();
 
     fireEvent.change(fieldSelect('Players of'), { target: { value: 'B' } });
-    expect(within(rosterSection()).queryByText('Foxes')).toBeNull();
-    expect(within(rosterSection()).getByText('Wolves')).toBeInTheDocument();
+    expect(within(rosterSection()).queryByText('FOXES')).toBeNull();
+    expect(within(rosterSection()).getByText('WOLVES')).toBeInTheDocument();
   });
 
   // The Turn button is opt-in: the tournament scorekeeper tracking goals and assists

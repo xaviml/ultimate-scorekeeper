@@ -5,6 +5,8 @@ import { createInitialState, defaultConfig, gameReducer } from '../state/gameRed
 import {
   formatSeconds,
   goalPlayersDetail,
+  logRow,
+  logTextLines,
   playerStatLines,
   pointDurationDetail,
   possessionTopShare,
@@ -121,8 +123,6 @@ describe('teamStats', () => {
       turnovers: 2,
       breaks: 1,
       cleanBreaks: 1,
-      avgHoldSeconds: 0,
-      avgBreakSeconds: 0,
       timeoutsUsed: 0,
     });
     expect(teamStats(s, 'B')).toMatchObject({
@@ -133,8 +133,6 @@ describe('teamStats', () => {
       turnovers: 3,
       breaks: 1,
       cleanBreaks: 0,
-      avgHoldSeconds: 0,
-      avgBreakSeconds: 0,
       timeoutsUsed: 0,
     });
   });
@@ -613,47 +611,84 @@ describe('sortPlayerStatLines', () => {
   });
 });
 
-describe('average hold and break times', () => {
-  const point = (patch: Partial<PointRecord> = {}): PointRecord => ({
-    scoredBy: 'A',
-    offense: 'A',
-    isBreak: false,
-    durationSeconds: 120,
-    half: 1,
-    turnovers: 0,
-    ...patch,
-  });
-  const withPoints = (points: PointRecord[]): GameState => ({
-    ...createInitialState(defaultConfig),
-    points,
-  });
+describe('the log row of a goal', () => {
+  it('records the score and whether it was a break on the goal entry', () => {
+    // A receives the first pull and holds; B then receives, and A breaks.
+    const s = run(
+      liveGame(),
+      { type: 'GOAL', team: 'A' },
+      { type: 'PULL_THROWN' },
+      {
+        type: 'GOAL',
+        team: 'A',
+      },
+    );
+    const goals = s.log.filter((e) => e.type === 'goal');
 
-  it('averages the live-disc time, not the elapsed time', () => {
-    const s = withPoints([
-      point({ scoredBy: 'A', isBreak: false, durationSeconds: 120, aliveSeconds: 60 }),
-      point({ scoredBy: 'A', isBreak: false, durationSeconds: 100, aliveSeconds: 80 }),
-      point({ scoredBy: 'A', offense: 'B', isBreak: true, durationSeconds: 200, aliveSeconds: 90 }),
+    expect(goals.map((g) => [g.score, g.isBreak])).toEqual([
+      [{ A: 1, B: 0 }, false],
+      [{ A: 2, B: 0 }, true],
     ]);
-    expect(teamStats(s, 'A').avgHoldSeconds).toBe(70);
-    expect(teamStats(s, 'A').avgBreakSeconds).toBe(90);
+    // The score has a column of its own now; nothing is left for the detail.
+    expect(goals.every((g) => g.detail === undefined)).toBe(true);
   });
 
-  it('is 0 for a point that was all stopped play, not the length of the stoppage', () => {
-    const s = withPoints([point({ durationSeconds: 180, aliveSeconds: 0 })]);
-    expect(teamStats(s, 'A').avgHoldSeconds).toBe(0);
+  it('puts the score in its own column and "(break)" in the event, leaving the duration', () => {
+    const state = createInitialState();
+    const goal = entry({
+      type: 'goal',
+      team: 'A',
+      score: { A: 2, B: 1 },
+      isBreak: true,
+      pointSeconds: 25,
+    });
+
+    expect(logRow(state, goal, t)).toEqual({
+      clock: '00:00',
+      score: '2-1',
+      event: 'Goal (break) — TEAM A',
+      detail: 'in 25s',
+    });
+    expect(logRow(state, { ...goal, isBreak: false }, t).event).toBe('Goal — TEAM A');
   });
 
-  // TECH DEBT (see pointPlaySeconds): games archived before aliveSeconds existed
-  // keep the figure they were reported with on the day. Drop this test with the
-  // fallback.
-  it('falls back to the elapsed duration for a point recorded before live time was tracked', () => {
-    const s = withPoints([point({ durationSeconds: 120 })]);
-    expect(teamStats(s, 'A').avgHoldSeconds).toBe(120);
+  // TECH DEBT (see goalScore): drop with the legacy branch.
+  it('reads the score out of a goal logged before it was a field of its own', () => {
+    const state = createInitialState();
+    const legacy = entry({ type: 'goal', team: 'B', detail: '3-4 (break)', pointSeconds: 90 });
+
+    expect(logRow(state, legacy, t)).toEqual({
+      clock: '00:00',
+      score: '3-4',
+      event: 'Goal (break) — TEAM B',
+      detail: 'in 1m 30s',
+    });
   });
 
-  it('stays null for a team that won nothing that way', () => {
-    const s = withPoints([point({ durationSeconds: 120, aliveSeconds: 60 })]);
-    expect(teamStats(s, 'A').avgBreakSeconds).toBeNull();
-    expect(teamStats(s, 'B').avgHoldSeconds).toBeNull();
+  it('leaves the score column empty for anything that is not a goal', () => {
+    const state = createInitialState();
+    expect(logRow(state, entry({ type: 'note', detail: 'windy' }), t)).toEqual({
+      clock: '00:00',
+      score: '',
+      event: 'Event',
+      detail: 'windy',
+    });
+  });
+
+  it('writes the same pieces into the copied text', () => {
+    const state = createInitialState();
+    const lines = logTextLines(
+      state,
+      [
+        entry({ type: 'goal', team: 'A', score: { A: 2, B: 1 }, isBreak: true, pointSeconds: 25 }),
+        entry({ type: 'note', detail: 'windy' }),
+      ],
+      t,
+    );
+
+    expect(lines).toEqual([
+      '  [00:00] Goal (break) — TEAM A (2-1) — in 25s',
+      '  [00:00] Event — windy',
+    ]);
   });
 });

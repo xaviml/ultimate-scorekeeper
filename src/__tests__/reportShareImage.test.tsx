@@ -19,8 +19,8 @@ function baseState(): GameState {
   state.phase = 'report';
   state.status = 'finished';
   state.config.teams = {
-    A: { name: 'Foxes', color: '#ff0000' },
-    B: { name: 'Los Búhos', color: '#0000ff' },
+    A: { name: 'FOXES', color: '#ff0000' },
+    B: { name: 'LOS BÚHOS', color: '#0000ff' },
   };
   state.scores = { A: 15, B: 12 };
   return state;
@@ -79,7 +79,7 @@ describe('report screen — share as image', () => {
     const payload = share.mock.calls[0][0] as { files: File[]; title: string };
     expect(payload.files).toHaveLength(1);
     expect(payload.files[0].type).toBe('image/png');
-    expect(payload.title).toBe('Foxes 15 — 12 Los Búhos');
+    expect(payload.title).toBe('FOXES 15 — 12 LOS BÚHOS');
     expect(anchorClick).not.toHaveBeenCalled();
   });
 

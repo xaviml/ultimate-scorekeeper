@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { I18nProvider } from '../i18n';
 import { GameProvider } from '../state/GameContext';
 import ConfigScreen from '../components/ConfigScreen';
+import { loadSavedTemplates } from '../state/templates';
 
 function renderConfigScreen() {
   return render(
@@ -127,5 +128,77 @@ describe('save / delete a custom template', () => {
     expect(fieldInput('break (seconds)').value).toBe('420');
     expect(fieldInput('Per team').value).toBe('2');
     expect(fieldSelect('Allowance').value).toBe('game');
+  });
+});
+
+describe('updating a saved template', () => {
+  /** Saves the current settings as a new template under `name`, through the dialog. */
+  function saveNew(name: string) {
+    fireEvent.click(screen.getByRole('button', { name: 'Save as template' }));
+    const newTab = screen.queryByRole('tab', { name: 'New template' });
+    if (newTab) fireEvent.click(newTab);
+    fireEvent.change(screen.getByLabelText('Template name'), { target: { value: name } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+  }
+
+  function setBreak(seconds: string) {
+    const input = fieldInput('break (seconds)');
+    fireEvent.change(input, { target: { value: seconds } });
+    fireEvent.blur(input);
+  }
+
+  it('opens on the template in use and overwrites it, rather than adding a second one', () => {
+    renderConfigScreen();
+    saveNew('League');
+    setBreak('300');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save as template' }));
+    expect(screen.getByRole('tab', { name: 'Update existing' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(screen.getByRole('radio', { name: 'League' })).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Update' }));
+
+    const saved = loadSavedTemplates();
+    expect(saved.map((t) => t.name)).toEqual(['League']);
+    expect(saved[0].settings.halfTimeBreakSeconds).toBe(300);
+  });
+
+  it('can update a template other than the one in use', () => {
+    renderConfigScreen();
+    saveNew('League');
+    saveNew('Cup');
+    setBreak('120');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save as template' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'League' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Update' }));
+
+    const byName = Object.fromEntries(loadSavedTemplates().map((t) => [t.name, t.settings]));
+    expect(byName.League.halfTimeBreakSeconds).toBe(120);
+    expect(byName.Cup.halfTimeBreakSeconds).toBe(420);
+    expect((screen.getByLabelText('Template') as HTMLSelectElement).value).toBe('custom:League');
+  });
+
+  it('warns before a new name overwrites a saved one, and keeps the saved spelling', () => {
+    renderConfigScreen();
+    saveNew('League');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save as template' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'New template' }));
+    fireEvent.change(screen.getByLabelText('Template name'), { target: { value: 'league ' } });
+
+    expect(screen.getByText(/already exists/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Replace' }));
+    expect(loadSavedTemplates().map((t) => t.name)).toEqual(['League']);
+  });
+
+  it('still creates a new template when others exist', () => {
+    renderConfigScreen();
+    saveNew('League');
+    saveNew('Cup');
+
+    expect(loadSavedTemplates().map((t) => t.name)).toEqual(['League', 'Cup']);
   });
 });

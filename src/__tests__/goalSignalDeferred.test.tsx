@@ -44,23 +44,23 @@ describe('the goal sign and gender-ratio sign, with player tracking on', () => {
   it('holds the goal sign/message back until the scorer/assist dialog closes, but scores and starts the pull clock right away', () => {
     const { container } = mount(liveGame());
 
-    tap(screen.getByLabelText('Team A: 0'));
+    tap(screen.getByLabelText('TEAM A: 0'));
 
     // Score and pull-clock advance immediately — nothing about that is deferred.
-    expect(screen.getByLabelText('Team A: 1')).toBeInTheDocument();
+    expect(screen.getByLabelText('TEAM A: 1')).toBeInTheDocument();
     expect(screen.getByText('Pull thrown')).toBeInTheDocument();
 
     // The scorer/assist dialog is up, and the goal sign/call-out are not shown yet.
     expect(screen.getByText(/Who scored/i)).toBeInTheDocument();
     expect(screen.queryByRole('img', { name: 'Goal' })).toBeNull();
-    expect(screen.queryByText('"Team A 1, Team B 0!"')).toBeNull();
+    expect(screen.queryByText('"TEAM A 1, TEAM B 0!"')).toBeNull();
 
     dismissAssistDialog(container);
 
     // Dialog closed: the goal sign and its call-out now show.
     expect(screen.queryByText(/Who scored/i)).toBeNull();
     expect(screen.getByRole('img', { name: 'Goal' })).toBeInTheDocument();
-    expect(screen.getByText('"Team A 1, Team B 0!"')).toBeInTheDocument();
+    expect(screen.getByText('"TEAM A 1, TEAM B 0!"')).toBeInTheDocument();
   });
 
   it('shows the goal sign immediately when player tracking is off', () => {
@@ -68,7 +68,7 @@ describe('the goal sign and gender-ratio sign, with player tracking on', () => {
     state.config.statsMode = 'none';
     mount(state);
 
-    tap(screen.getByLabelText('Team A: 0'));
+    tap(screen.getByLabelText('TEAM A: 0'));
 
     expect(screen.queryByText(/Who scored/i)).toBeNull();
     expect(screen.getByRole('img', { name: 'Goal' })).toBeInTheDocument();
@@ -82,7 +82,7 @@ describe('the goal sign and gender-ratio sign, with player tracking on', () => {
       state.config.mixedRule = 'A';
       const { container } = mount(state);
 
-      tap(screen.getByLabelText('Team A: 0'));
+      tap(screen.getByLabelText('TEAM A: 0'));
 
       expect(screen.getByText(/Who scored/i)).toBeInTheDocument();
 
@@ -112,9 +112,9 @@ describe('the goal sign and gender-ratio sign, with player tracking on', () => {
     state.config = { ...state.config, trackGoalPlayers: false };
     mount(state);
 
-    tap(screen.getByLabelText('Team A: 0'));
+    tap(screen.getByLabelText('TEAM A: 0'));
 
-    expect(screen.getByLabelText('Team A: 1')).toBeInTheDocument();
+    expect(screen.getByLabelText('TEAM A: 1')).toBeInTheDocument();
     expect(screen.queryByText(/Who scored/i)).toBeNull();
     expect(screen.getByRole('img', { name: 'Goal' })).toBeInTheDocument();
   });

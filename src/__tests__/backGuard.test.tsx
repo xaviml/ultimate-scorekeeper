@@ -19,7 +19,7 @@ function seedMidGame() {
   const state = createInitialState();
   state.phase = 'game';
   state.status = 'live';
-  state.config.teams.A.name = 'Foxes';
+  state.config.teams.A.name = 'FOXES';
   state.scores = { A: 3, B: 1 };
   sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
 }
@@ -29,7 +29,7 @@ function seedNotStartedGame() {
   const state = createInitialState();
   state.phase = 'game';
   state.status = 'notStarted';
-  state.config.teams.A.name = 'Foxes';
+  state.config.teams.A.name = 'FOXES';
   sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
 }
 
@@ -76,7 +76,7 @@ describe('phone back button in a game', () => {
     // No confirmation — nothing to lose before the game starts — just setup, with names kept.
     expect(screen.queryByText('Leave the game?')).toBeNull();
     expect(screen.getByText('Game setup')).toBeInTheDocument();
-    expect(screen.getByLabelText('Team 1')).toHaveValue('Foxes');
+    expect(screen.getByLabelText('Team 1')).toHaveValue('FOXES');
   });
 
   // The menu and what it opens are layers over the dashboard, so a back press has
@@ -123,7 +123,7 @@ describe('phone back button in a game', () => {
     const backSpy = vi.spyOn(history, 'back');
     seedMidGame();
     renderApp();
-    expect(screen.getByText('Foxes')).toBeInTheDocument();
+    expect(screen.getByText('FOXES')).toBeInTheDocument();
 
     pressPhoneBack();
     fireEvent.click(screen.getByText('Leave'));
@@ -131,7 +131,7 @@ describe('phone back button in a game', () => {
     expect(screen.getByText('Game setup')).toBeInTheDocument();
     expect(screen.queryByText('Leave the game?')).toBeNull();
     // BACK_TO_CONFIG carries the team names forward, same as the report screen's flow.
-    expect(screen.getByLabelText('Team 1')).toHaveValue('Foxes');
+    expect(screen.getByLabelText('Team 1')).toHaveValue('FOXES');
     // The guard entry pushed for this game was popped, not abandoned on the stack.
     expect(backSpy).toHaveBeenCalledTimes(1);
 
@@ -199,7 +199,7 @@ describe('phone back button on the report', () => {
     const state = createInitialState();
     state.phase = 'game';
     state.status = 'finished';
-    state.config.teams.A.name = 'Foxes';
+    state.config.teams.A.name = 'FOXES';
     sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
   }
 

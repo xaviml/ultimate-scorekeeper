@@ -56,11 +56,47 @@ function renderReport(state: GameState) {
   );
 }
 
-/** The two value cells of a stat row (label sits in the middle cell), in [Team A, Team B] order. */
-function rowCells(label: string): string[] {
-  const row = screen.getByText(label).closest('tr') as HTMLElement;
-  const cells = [...row.querySelectorAll('td')];
+/** The two value cells of a stat row (label sits in the middle cell), in [TEAM A, TEAM B] order. */
+/**
+ * The team-stat row with this label — the `nth` one, since "Clean" sits under both
+ * Holds and Breaks. Scoped to the team table, whose labels can recur elsewhere.
+ */
+function statRow(label: string, nth = 0): HTMLElement {
+  const rows = [...document.querySelectorAll<HTMLElement>('[data-team-stats] tbody tr')].filter(
+    (r) => r.querySelectorAll('td')[1].textContent === label,
+  );
+  if (!rows[nth]) throw new Error(`no team-stat row "${label}" #${nth}`);
+  return rows[nth];
+}
+
+function rowCells(label: string, nth = 0): string[] {
+  const cells = [...statRow(label, nth).querySelectorAll('td')];
   return [cells[0].textContent ?? '', cells[2].textContent ?? ''];
+}
+
+/** A figure row's value and percentage per side, read apart — they share a cell. */
+function headlineCells(label: string): { value: string; pct: string | null }[] {
+  const cells = [...statRow(label).querySelectorAll('td')];
+  return [cells[0], cells[2]].map((cell) => ({
+    value: cell.querySelector('[data-value]')?.textContent ?? '',
+    pct: cell.querySelector('[data-pct]')?.textContent ?? null,
+  }));
+}
+
+/**
+ * Queries scoped to the player-stats section. A goal's detail in the game summary
+ * is the scorer's name on its own, so an unscoped query finds the player twice.
+ */
+function playerTable() {
+  return within(screen.getByText('Player stats').closest('section') as HTMLElement);
+}
+
+/** Every team-stat row's label, top to bottom, the small ones indented. */
+function statOrder(): string[] {
+  return [...document.querySelectorAll('[data-team-stats] tbody tr')].map(
+    (r) =>
+      `${r.getAttribute('data-stat-tier') === 'sub' ? '  ' : ''}${r.querySelectorAll('td')[1].textContent}`,
+  );
 }
 
 beforeEach(() => {
@@ -76,12 +112,7 @@ describe('report screen — team stats table', () => {
     state.points = [point()];
     renderReport(state);
 
-    expect(screen.getByText('O-line holds')).toBeInTheDocument();
-    expect(screen.getByText('Break points')).toBeInTheDocument();
-    expect(screen.queryByText('Clean holds')).toBeNull();
-    expect(screen.queryByText('Break chances')).toBeNull();
-    expect(screen.queryByText('Turnovers')).toBeNull();
-    expect(screen.queryByText('Clean breaks')).toBeNull();
+    expect(statOrder()).toEqual(['Holds', 'Breaks', 'Timeouts']);
   });
 
   // The extended rows are all turnover-derived, so they follow the turnover flag
@@ -94,14 +125,48 @@ describe('report screen — team stats table', () => {
     state.points = [point()];
     renderReport(state);
 
-    expect(screen.getByText('O-line holds')).toBeInTheDocument();
-    expect(screen.queryByText('Clean holds')).toBeNull();
+    expect(screen.getByText('Holds')).toBeInTheDocument();
+    expect(screen.queryByText('Clean')).toBeNull();
     expect(screen.queryByText('Turnovers')).toBeNull();
     // And no possession ledger either — it would be a strip of flat columns.
     expect(screen.queryByText('Possession')).toBeNull();
   });
 
-  it('adds clean hold/break, break chances and turnovers, correctly valued, once turnovers are recorded', () => {
+  it('heads the table with holds and breaks as made / possible, with the percentage', () => {
+    const state = baseState();
+    state.config.statsMode = 'teams';
+    state.config.trackTurnovers = true;
+    state.points = [
+      point({ scoredBy: 'A', offense: 'A', isBreak: false, turnovers: 0 }),
+      point({ scoredBy: 'A', offense: 'B', isBreak: true, turnovers: 1 }),
+      point({ scoredBy: 'B', offense: 'B', isBreak: false, turnovers: 0 }),
+    ];
+    renderReport(state);
+
+    expect(headlineCells('Holds')).toEqual([
+      { value: '1/1', pct: '100%' },
+      { value: '1/2', pct: '50%' },
+    ]);
+    // A pulled one point with a turnover in it and converted; B never pulled one.
+    expect(headlineCells('Breaks')).toEqual([
+      { value: '1/1', pct: '100%' },
+      { value: '0/0', pct: '—' },
+    ]);
+  });
+
+  it('shows breaks as a plain count when turnovers are not recorded', () => {
+    const state = baseState();
+    state.config.statsMode = 'none';
+    state.points = [point({ scoredBy: 'A', offense: 'B', isBreak: true })];
+    renderReport(state);
+
+    expect(headlineCells('Breaks')).toEqual([
+      { value: '1', pct: null },
+      { value: '0', pct: null },
+    ]);
+  });
+
+  it('adds turnovers, and the clean counts under holds and breaks, once turnovers are recorded', () => {
     const state = baseState();
     state.config.statsMode = 'teams';
     state.config.trackTurnovers = true;
@@ -112,18 +177,14 @@ describe('report screen — team stats table', () => {
     state.turnoversCommitted = { A: 1, B: 2 };
     renderReport(state);
 
-    expect(rowCells('Clean holds')).toEqual(['1', '0']);
-    expect(rowCells('Clean breaks')).toEqual(['1', '0']);
-    // A pulled point1 and converted its single break chance; B never pulled a
-    // point with a turnover in it, so B has none.
-    expect(rowCells('Break chances')).toEqual(['1', '0']);
-    expect(rowCells('Turnovers')).toEqual(['1', '2']);
+    expect(headlineCells('Turnovers').map((c) => c.value)).toEqual(['1', '2']);
+    expect(rowCells('Clean', 0)).toEqual(['1', '0']); // under Holds
+    expect(rowCells('Clean', 1)).toEqual(['1', '0']); // under Breaks
     // Passes are their own opt-in on top of turnovers.
-    expect(screen.queryByText('Completed passes')).toBeNull();
+    expect(screen.queryByText('Passes')).toBeNull();
   });
 
-  // Directly after Turnovers, the figure it is the counterpart of.
-  it('adds completed passes after turnovers once the game counts them', () => {
+  it('puts each small row under the figure it qualifies', () => {
     const state = baseState();
     state.config.statsMode = 'teams';
     state.config.trackTurnovers = true;
@@ -132,14 +193,17 @@ describe('report screen — team stats table', () => {
     state.passesCompleted = { A: 42, B: 37 };
     renderReport(state);
 
-    expect(rowCells('Completed passes')).toEqual(['42', '37']);
-
-    const labels = [...document.querySelectorAll('tbody tr')].map(
-      (r) => r.querySelector('th')?.textContent ?? r.textContent,
-    );
-    const order = labels.join('|');
-    expect(order.indexOf('Turnovers')).toBeLessThan(order.indexOf('Completed passes'));
-    expect(order.indexOf('Completed passes')).toBeLessThan(order.indexOf('Break points'));
+    expect(rowCells('Passes')).toEqual(['42', '37']);
+    expect(statOrder()).toEqual([
+      'Holds',
+      '  Clean',
+      'Breaks',
+      '  Clean',
+      'Turnovers',
+      'Passes',
+      '  Per possession',
+      'Timeouts',
+    ]);
   });
 
   // The one row that can be a real number on one side and a dash on the other: a
@@ -154,8 +218,8 @@ describe('report screen — team stats table', () => {
     state.passesCompleted = { A: 42, B: 0 };
     renderReport(state);
 
-    expect(rowCells('Completed passes')).toEqual(['42', '—']);
-    expect(rowCells('Passes per possession')).toEqual(['—', '—']);
+    expect(rowCells('Passes')).toEqual(['42', '—']);
+    expect(rowCells('Per possession')).toEqual(['—', '—']);
   });
 
   // A team's passes over the number of times they held the disc — a point nobody
@@ -179,13 +243,11 @@ describe('report screen — team stats table', () => {
     state.passesCompleted = { A: 9, B: 5 };
     renderReport(state);
 
-    expect(rowCells('Completed passes')).toEqual(['9', '5']);
-    expect(rowCells('Passes per possession')).toEqual(['4.5', '2.5']);
+    expect(rowCells('Passes')).toEqual(['9', '5']);
+    expect(rowCells('Per possession')).toEqual(['4.5', '2.5']);
 
-    const order = [...document.querySelectorAll('tbody tr')]
-      .map((r) => r.textContent ?? '')
-      .join('|');
-    expect(order.indexOf('Completed passes')).toBeLessThan(order.indexOf('Passes per possession'));
+    expect(statOrder()).toContain('  Per possession');
+    expect(statOrder().indexOf('Passes')).toBe(statOrder().indexOf('  Per possession') - 1);
   });
 
   // A game stored before possessions were recorded has a total but nothing to
@@ -199,8 +261,8 @@ describe('report screen — team stats table', () => {
     state.passesCompleted = { A: 12, B: 8 };
     renderReport(state);
 
-    expect(rowCells('Completed passes')).toEqual(['12', '8']);
-    expect(rowCells('Passes per possession')).toEqual(['—', '—']);
+    expect(rowCells('Passes')).toEqual(['12', '8']);
+    expect(rowCells('Per possession')).toEqual(['—', '—']);
   });
 });
 
@@ -232,11 +294,11 @@ describe('report screen — player stats table', () => {
     renderReport(state);
 
     expect(screen.getByText('Player stats')).toBeInTheDocument();
-    expect(screen.getByText('Alex')).toBeInTheDocument();
+    expect(playerTable().getByText('Alex')).toBeInTheDocument();
     // Bench never scored or assisted, so it never shows up.
     expect(screen.queryByText('Bench')).toBeNull();
     expect(screen.queryByText('All')).toBeNull();
-    const row = screen.getByText('Alex').closest('tr') as HTMLElement;
+    const row = playerTable().getByText('Alex').closest('tr') as HTMLElement;
     expect(row.querySelector('span')).toBeNull();
   });
 
@@ -245,8 +307,8 @@ describe('report screen — player stats table', () => {
     state.config.statsMode = 'players';
     state.config.trackTurnovers = true;
     state.config.teams = {
-      A: { name: 'Foxes', color: '#ff0000' },
-      B: { name: 'Wolves', color: '#0000ff' },
+      A: { name: 'FOXES', color: '#ff0000' },
+      B: { name: 'WOLVES', color: '#0000ff' },
     };
     state.config.players = {
       A: [{ id: 'a1', number: '', name: 'Alex' }],
@@ -262,16 +324,16 @@ describe('report screen — player stats table', () => {
     ];
     renderReport(state);
 
-    expect(screen.getByText('Alex')).toBeInTheDocument();
-    expect(screen.getByText('Jo')).toBeInTheDocument();
+    expect(playerTable().getByText('Alex')).toBeInTheDocument();
+    expect(playerTable().getByText('Jo')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
 
-    const alexRow = screen.getByText('Alex').closest('tr') as HTMLElement;
+    const alexRow = playerTable().getByText('Alex').closest('tr') as HTMLElement;
     expect(alexRow.querySelector('span')).not.toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Wolves' }));
-    expect(screen.queryByText('Alex')).toBeNull();
-    expect(screen.getByText('Jo')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'WOLVES' }));
+    expect(playerTable().queryByText('Alex')).toBeNull();
+    expect(playerTable().getByText('Jo')).toBeInTheDocument();
   });
 
   it('lists Assists, Goals then Total, with Total as their sum', () => {
@@ -296,7 +358,7 @@ describe('report screen — player stats table', () => {
       .map((th) => th.textContent);
     expect(headerCells).toEqual(['Player', 'Assists', 'Goals', 'Total']);
 
-    const row = screen.getByText('Alex').closest('tr') as HTMLElement;
+    const row = playerTable().getByText('Alex').closest('tr') as HTMLElement;
     const values = [...row.querySelectorAll('td')].slice(1).map((td) => td.textContent);
     expect(values).toEqual(['1', '1', '2']);
   });
@@ -324,12 +386,11 @@ describe('report screen — clipboard text', () => {
     await screen.findByText('Copied!');
 
     const text = writeText.mock.calls[0][0] as string;
-    expect(text).toContain('Clean holds: 1');
-    expect(text).toContain('Break chances: 1');
-    expect(text).toContain('Turnovers: 0');
-    expect(text).toContain('Clean breaks: 1');
+    expect(text).toContain('  Holds: 1/1 (100%)\n    Clean: 1\n');
+    expect(text).toContain('  Breaks: 1/1 (100%)\n    Clean: 1\n');
+    expect(text).toContain('  Turnovers: 0');
     expect(text).toContain('Player stats');
-    expect(text).toContain('Team A — Alex: Assists 0, Goals 1, Total 1');
+    expect(text).toContain('TEAM A — Alex: Assists 0, Goals 1, Total 1');
     expect(text).toContain('This game was tracked with:');
     expect(text.trim().endsWith('https://xaviml.github.io/ultimate-scorekeeper/')).toBe(true);
   });

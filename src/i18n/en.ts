@@ -10,8 +10,14 @@ export const en = {
   saveAsTemplateBtn: 'Save as template',
   saveTemplateTitle: 'Save as template',
   saveTemplateHint:
-    'Saves these rule settings for reuse — not the teams, coin toss results or players.',
+    'Saves these rules and the statistics settings for reuse — not the teams, coin toss results, players or which team is followed.',
   saveTemplateNamePlaceholder: 'e.g. Summer League',
+  saveTemplateNameLabel: 'Template name',
+  saveTemplateModeNew: 'New template',
+  saveTemplateModeUpdate: 'Update existing',
+  saveTemplateReplaces: 'A template called "{name}" already exists — saving will replace it.',
+  saveTemplateUpdateBtn: 'Update',
+  saveTemplateReplaceBtn: 'Replace',
   btnDeleteTemplate: 'Delete template',
   confirmDeleteTemplateTitle: 'Delete saved template?',
   confirmDeleteTemplate: 'Delete "{name}"? This cannot be undone.',
@@ -624,24 +630,19 @@ export const en = {
   reportFinished: 'Finished: {time}',
   reportDuration: 'Duration: {duration}',
   finalScore: 'Final score',
-  statOLineHolds: 'O-line holds',
-  statCleanHold: 'Clean holds',
-  statBreakChances: 'Break chances',
+  statHolds: 'Holds',
+  statClean: 'Clean',
   statTurnovers: 'Turnovers',
-  // Directly after Turnovers, the figure it is the counterpart of. It is the one
-  // row that can be a number on one side and "—" on the other: a game following
-  // a single team counts only that team's passes.
-  statPasses: 'Completed passes',
+  // The one team row that can be a number on one side and "—" on the other: a
+  // game following a single team counts only that team's passes.
+  statPasses: 'Passes',
   // Directly under the total. "per possession" rather than "per turn" because
   // possession is this app's word for a stretch of holding the disc — Turn is the
   // button that ends one — and a point nobody turned over is one possession, which
   // is what makes this a single rule rather than a rule with a special case.
-  statPassesPerPossession: 'Passes per possession',
-  statBreaks: 'Break points',
-  statCleanBreaks: 'Clean breaks',
-  statAvgHold: 'Avg. hold time',
-  statAvgBreak: 'Avg. break time',
-  statTimeouts: 'Timeouts used',
+  statPassesPerPossession: 'Per possession',
+  statBreaks: 'Breaks',
+  statTimeouts: 'Timeouts',
   // The possession ledger, reused from the live-stats slot (see PossessionLedger).
   possessionTitle: 'Possession by point',
   possessionLegend:
@@ -688,6 +689,7 @@ export const en = {
   fullLogTitle: 'Full game log',
   copyLog: 'Copy log',
   colClock: 'Clock',
+  colScore: 'Score',
   colEvent: 'Event',
   colTeam: 'Team',
   colDetail: 'Detail',
@@ -717,8 +719,12 @@ export const en = {
   newGame: 'New game',
   event_gameStart: 'Game start',
   event_goal: 'Goal',
+  // Appended to the event name of a goal scored by the team that pulled. English in
+  // every dictionary on purpose, like the action row's `lbl*` keys: "break" is the
+  // word used on Spanish and Catalan fields too. Do not translate it.
+  logBreak: '(break)',
   event_undo: 'Score correction (undo)',
-  event_latePull: 'Late pull (over 75s)',
+  event_latePull: 'Late pull (>75s)',
   event_timeout: 'Timeout',
   event_timeoutEnd: 'Timeout ended',
   event_stoppage: 'Stoppage',
@@ -771,7 +777,7 @@ export const en = {
     'The first screen describes the game you are about to keep. Most of it is filled in for you — usually you only have to type the two team names.',
   guideStep1Template: 'Template',
   guideStep1TemplateBody:
-    'Grass and Beach preset every rule below with the usual values for that surface. If your tournament plays something else, change the fields and press "Save as template" at the bottom to reuse them next time.',
+    'Grass and Beach preset every rule below with the usual values for that surface, and leave the statistics settings as they are. If your tournament plays something else, change the fields and press "Save as template" at the bottom to reuse them next time — a template you save also remembers what this game records.',
   guideStep1Division: 'Division',
   guideStep1DivisionBody:
     "Open, Women's or Mixed. Mixed adds the gender ratio, which you will have to announce every point (step 7).",
@@ -1113,33 +1119,28 @@ export const en = {
 
   statsGuideStep5Title: 'The report — team figures',
   statsGuideStep5Body:
-    'The table under the final score: one row per figure, one column per team. Most of the rows need turnovers to have been recorded; without them the table falls back to holds, breaks, the two averages and timeouts.',
-  statsGuideStatHold: 'O-line holds',
+    'The table under the final score, one column per team: holds, breaks, turnovers, passes and timeouts, each followed by the small rows that qualify it. Holds and breaks read as scored out of possible, with the percentage beside them. Most of it needs turnovers to have been recorded: without them the table is holds, a plain count of breaks, and timeouts.',
+  statsGuideStatHold: 'Holds',
   statsGuideStatHoldBody:
-    'Points won while receiving the pull — the points a team is expected to win.',
+    'Points won while receiving the pull, out of the points the team received, with the percentage beside it: 6/8 and 75% is six held out of eight.',
   statsGuideStatCleanHold: 'Clean holds',
   statsGuideStatCleanHoldBody:
-    'Of those, the ones where the disc never changed hands at all: zero turnovers by anybody, from the pull to the end zone.',
-  statsGuideStatBreakCh: 'Break chances',
-  statsGuideStatBreakChBody:
-    'How often this team won the disc while on defence — every odd-numbered turnover of a point they pulled, since a point starts in the offence\u2019s hands and every turnover after that alternates. Read it against Break points to get the conversion rate.',
+    'The small row under Holds: of the holds, the ones where the disc never changed hands at all — zero turnovers by anybody, from the pull to the end zone.',
   statsGuideStatTurnovers: 'Turnovers',
   statsGuideStatTurnoversBody: 'This team\u2019s own, all game, net of anything undone.',
-  statsGuideStatPasses: 'Completed passes',
+  statsGuideStatPasses: 'Passes',
   statsGuideStatPassesBody:
     'Every pass tapped in, all game, net of anything undone. Following a single team, the other team shows a dash — nobody was counting their passes, which is a different thing from their having thrown none.',
-  statsGuideStatPassesAvg: 'Passes per possession',
+  statsGuideStatPassesAvg: 'Per possession',
   statsGuideStatPassesAvgBody:
-    'The passes above divided by the number of times that team held the disc. A point nobody turned over is a single possession, so a clean point averages over the whole point \u2014 it is the same sum, not a different rule. Dashed for a team whose passes nobody counted.',
-  statsGuideStatBreaks: 'Break points',
-  statsGuideStatBreaksBody: 'Points won while pulling.',
+    'The small row under Passes: the passes divided by the number of times that team held the disc. A point nobody turned over is a single possession, so a clean point averages over the whole point. Dashed for a team whose passes nobody counted.',
+  statsGuideStatBreaks: 'Breaks',
+  statsGuideStatBreaksBody:
+    'Points won while pulling, out of the team\u2019s break chances \u2014 the times it won the disc back on defence \u2014 with the percentage beside it. Without turnovers recorded there are no break chances to count, so the row is just the number of breaks.',
   statsGuideStatCleanBreaks: 'Clean breaks',
   statsGuideStatCleanBreaksBody:
-    'Of those, the ones converted on the first turnover with nothing given back — exactly one turnover in the whole point.',
-  statsGuideStatAvg: 'Avg. hold / break time',
-  statsGuideStatAvgBody:
-    'How long the points this team won took with the disc live, split by whether they were receiving or pulling. Stopped play is left out \u2014 a timeout, a call being talked through, an injury \u2014 so a point held up for two minutes counts what was played, not what the game clock ran.',
-  statsGuideStatTimeouts: 'Timeouts used',
+    'The small row under Breaks: of the breaks, the ones converted on the first turnover with nothing given back — exactly one turnover in the whole point.',
+  statsGuideStatTimeouts: 'Timeouts',
   statsGuideStatTimeoutsBody:
     'Both halves added together. A water break costs neither team one, so it never appears here.',
 
@@ -1190,15 +1191,13 @@ export const en = {
   statsGuideDefCleanBreak: 'Clean break',
   statsGuideDefCleanBreakDo: 'Break taken on the first turnover, with no reply',
   statsGuideDefBreakCh: 'Break chance',
-  statsGuideDefBreakChDo: 'Every odd-numbered turnover of a point this team pulled',
-  statsGuideDefAvgTimes: 'Avg. hold / break time',
-  statsGuideDefAvgTimesDo: 'Mean live-disc time of the points that team won, stopped play left out',
+  statsGuideDefBreakChDo: 'Each time this team won the disc back on a point it pulled',
   statsGuideDefTurn: 'Turns',
   statsGuideDefTurnDo: 'Turnovers charged to the player who lost the disc',
-  statsGuideDefPasses: 'Completed passes',
+  statsGuideDefPasses: 'Passes',
   statsGuideDefPassesDo: 'Passes tapped in for this team, all game',
-  statsGuideDefPassesAvg: 'Passes per possession',
-  statsGuideDefPassesAvgDo: 'Completed passes divided by the times that team held the disc',
+  statsGuideDefPassesAvg: 'Per possession',
+  statsGuideDefPassesAvgDo: 'Passes divided by the times that team held the disc',
   statsGuideDefD: 'D (Possession)',
   statsGuideDefDDo: 'Turnovers this player forced — blocks, and marks that ran the stall out',
   statsGuideDefOD: 'O / D (Playing)',

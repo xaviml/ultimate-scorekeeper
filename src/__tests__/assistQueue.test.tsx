@@ -73,34 +73,34 @@ describe('the assistance queue', () => {
     mountWith(liveGame());
 
     send({ type: 'GOAL', team: 'A' });
-    expect(screen.getByText('"Team A 1, Team B 0!"')).toBeInTheDocument();
+    expect(screen.getByText('"TEAM A 1, TEAM B 0!"')).toBeInTheDocument();
 
     send({ type: 'PULL_THROWN' });
     send({ type: 'GOAL', team: 'A' });
 
     // The first score is still the thing being announced — the second is behind it.
-    expect(screen.getByText('"Team A 1, Team B 0!"')).toBeInTheDocument();
-    expect(screen.queryByText('"Team A 2, Team B 0!"')).toBeNull();
+    expect(screen.getByText('"TEAM A 1, TEAM B 0!"')).toBeInTheDocument();
+    expect(screen.queryByText('"TEAM A 2, TEAM B 0!"')).toBeNull();
 
     // Once the first has had its full window, the second gets its turn.
     wait(7000);
-    expect(screen.getByText('"Team A 2, Team B 0!"')).toBeInTheDocument();
+    expect(screen.getByText('"TEAM A 2, TEAM B 0!"')).toBeInTheDocument();
   });
 
   it('lets an injury interrupt a score, and gives the score back afterwards', () => {
     mountWith(liveGame());
 
     send({ type: 'GOAL', team: 'A' });
-    expect(screen.getByText('"Team A 1, Team B 0!"')).toBeInTheDocument();
+    expect(screen.getByText('"TEAM A 1, TEAM B 0!"')).toBeInTheDocument();
 
     // Tier 2 over tier 0: safety does not wait behind a scoreline.
     send({ type: 'STOPPAGE', kind: 'injury', team: 'A' });
     expect(screen.getByText('"Injury — stop play!"')).toBeInTheDocument();
-    expect(screen.queryByText('"Team A 1, Team B 0!"')).toBeNull();
+    expect(screen.queryByText('"TEAM A 1, TEAM B 0!"')).toBeNull();
 
     // Interrupted, not lost: it went back to the front of the queue.
     wait(7000);
-    expect(screen.getByText('"Team A 1, Team B 0!"')).toBeInTheDocument();
+    expect(screen.getByText('"TEAM A 1, TEAM B 0!"')).toBeInTheDocument();
   });
 
   it('drops a queued call-out once the call it was about has been resolved', () => {
@@ -111,13 +111,13 @@ describe('the assistance queue', () => {
     expect(screen.getByText('"Travel!"')).toBeInTheDocument();
 
     send({ type: 'CALL_MADE', kind: 'foul', team: 'B' });
-    expect(screen.queryByText('"Foul — Team B!"')).toBeNull();
+    expect(screen.queryByText('"Foul — TEAM B!"')).toBeNull();
 
     // Resolved while it was still waiting — announcing it now would read as a bug.
     send({ type: 'CALL_RESOLVED', resolution: 'accepted' });
 
     wait(7000);
-    expect(screen.queryByText('"Foul — Team B!"')).toBeNull();
+    expect(screen.queryByText('"Foul — TEAM B!"')).toBeNull();
     expect(screen.getByText('"Uncontested — play on!"')).toBeInTheDocument();
   });
 
@@ -129,11 +129,11 @@ describe('the assistance queue', () => {
     send({ type: 'GOAL', team: 'A' });
 
     wait(7000);
-    expect(screen.getByText('"Team A 2, Team B 0!"')).toBeInTheDocument();
+    expect(screen.getByText('"TEAM A 2, TEAM B 0!"')).toBeInTheDocument();
 
     // 4 s, not 7 — it already missed its moment.
     wait(4000);
-    expect(screen.queryByText('"Team A 2, Team B 0!"')).toBeNull();
+    expect(screen.queryByText('"TEAM A 2, TEAM B 0!"')).toBeNull();
   });
 
   it('keeps the hand signal on the same message as the words', () => {
@@ -150,7 +150,7 @@ describe('the assistance queue', () => {
 
     // ...and hands them both back together.
     wait(7000);
-    expect(screen.getByText('"Team A 1, Team B 0!"')).toBeInTheDocument();
+    expect(screen.getByText('"TEAM A 1, TEAM B 0!"')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Goal' })).toBeInTheDocument();
   });
 
@@ -160,7 +160,7 @@ describe('the assistance queue', () => {
     send({ type: 'GOAL', team: 'A' });
     wait(7000);
 
-    expect(screen.queryByText('"Team A 1, Team B 0!"')).toBeNull();
+    expect(screen.queryByText('"TEAM A 1, TEAM B 0!"')).toBeNull();
     expect(screen.getByText(/pull/i)).toBeInTheDocument();
   });
 });

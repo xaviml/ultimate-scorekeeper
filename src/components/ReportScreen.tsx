@@ -102,10 +102,11 @@ export default function ReportScreen({
   const B = teamStats(state, 'B');
   const nameOf = (id: TeamId) => state.config.teams[id].name;
 
-  const fmt = (s: number | null) => (s === null ? '—' : formatClock(s));
+  // Shared with the image so the two can never drift — see state/reportCard.ts.
+  const statRows = teamStatRows(state, t);
 
-  // The extended team-stat rows are all turnover-derived (see teamStatRows), which
-  // is a narrower question than whether this game tracks anything.
+  // The possession ledger is turnover-derived, which is a narrower question than
+  // whether this game tracks anything.
   const trackingOn = turnoversTracked(state.config);
   const playerStatTeams = playerStatsTeams(state.config);
   // A game following one team has player detail for that side only; following both
@@ -160,20 +161,15 @@ export default function ReportScreen({
 
     lines.push(`${t('finalScore')}: ${nameOf('A')} ${A.score} — ${B.score} ${nameOf('B')}`);
     lines.push('');
-    for (const [id, s] of [
-      ['A', A],
-      ['B', B],
-    ] as const) {
+    for (const id of ['A', 'B'] as const) {
       lines.push(`${nameOf(id)}:`);
-      lines.push(`  ${t('statOLineHolds')}: ${s.oLineHolds}`);
-      if (trackingOn) lines.push(`  ${t('statCleanHold')}: ${s.cleanHolds}`);
-      if (trackingOn) lines.push(`  ${t('statBreakChances')}: ${s.breakChances}`);
-      if (trackingOn) lines.push(`  ${t('statTurnovers')}: ${s.turnovers}`);
-      lines.push(`  ${t('statBreaks')}: ${s.breaks}`);
-      if (trackingOn) lines.push(`  ${t('statCleanBreaks')}: ${s.cleanBreaks}`);
-      lines.push(`  ${t('statAvgHold')}: ${fmt(s.avgHoldSeconds)}`);
-      lines.push(`  ${t('statAvgBreak')}: ${fmt(s.avgBreakSeconds)}`);
-      lines.push(`  ${t('statTimeouts')}: ${s.timeoutsUsed}`);
+      // The same rows the table shows, in the same order — a fraction carries its
+      // percentage in brackets, and a small row is indented under its parent.
+      for (const row of statRows) {
+        const value = id === 'A' ? row.a : row.b;
+        const pct = id === 'A' ? row.aPct : row.bPct;
+        lines.push(`${row.sub ? '    ' : '  '}${row.label}: ${value}${pct ? ` (${pct})` : ''}`);
+      }
       lines.push('');
     }
 
@@ -208,9 +204,6 @@ export default function ReportScreen({
     setCopyState(ok ? 'copied' : 'failed');
     setTimeout(() => setCopyState('idle'), 2000);
   };
-
-  // Shared with the image so the two can never drift — see state/reportCard.ts.
-  const statRows = teamStatRows(state, t);
 
   // The possession ledger, reused from the live-stats slot. Only worth drawing
   // once at least one point actually tracked possession — a game that never
@@ -289,23 +282,62 @@ export default function ReportScreen({
         </div>
       </section>
 
+      {/* Modelled on a broadcast game summary: large figures, each followed by the
+          small rows that qualify it (the clean count under Holds, the average under
+          Passes) with no rule in between. The percentage shares the figure's cell
+          rather than taking a column of its own: at 360px a fifth column would leave
+          the labels between them a few words wide. */}
       <section className="rounded-xl bg-panel border border-line p-4">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-chalk/50">
-              <th className="text-right py-1 w-1/4">{nameOf('A')}</th>
-              <th className="py-1"></th>
-              <th className="text-left py-1 w-1/4">{nameOf('B')}</th>
-            </tr>
-          </thead>
+        {/* No header row: the team names are on the score boxes directly above, in
+            the same left/right order. */}
+        <table className="w-full text-sm" data-team-stats>
+          <colgroup>
+            <col className="w-[30%]" />
+            <col />
+            <col className="w-[30%]" />
+          </colgroup>
           <tbody>
-            {statRows.map((row) => (
-              <tr key={row.label} className="border-t border-line/50">
-                <td className="py-1.5 text-right font-clock">{row.a}</td>
-                <td className="py-1.5 text-center text-chalk/70">{row.label}</td>
-                <td className="py-1.5 text-left font-clock">{row.b}</td>
-              </tr>
-            ))}
+            {statRows.map((row, i) =>
+              row.sub ? (
+                <tr key={`${i}-${row.label}`} data-stat-tier="sub" className="text-chalk/60">
+                  <td className="pb-1.5 text-right font-clock text-sm">{row.a}</td>
+                  <td className="pb-1.5 text-center font-board text-[10px] uppercase tracking-wide">
+                    {row.label}
+                  </td>
+                  <td className="pb-1.5 text-left font-clock text-sm">{row.b}</td>
+                </tr>
+              ) : (
+                <tr
+                  key={`${i}-${row.label}`}
+                  className={i === 0 ? '' : 'border-t border-line'}
+                  data-stat-tier="main"
+                >
+                  <td className="pt-1.5 pb-1 text-right whitespace-nowrap">
+                    {row.aPct && (
+                      <span className="font-clock text-xs text-chalk/50 mr-1.5" data-pct>
+                        {row.aPct}
+                      </span>
+                    )}
+                    <span className="font-clock text-xl font-semibold" data-value>
+                      {row.a}
+                    </span>
+                  </td>
+                  <td className="pt-1.5 pb-1 text-center font-board text-xs uppercase tracking-wide">
+                    {row.label}
+                  </td>
+                  <td className="pt-1.5 pb-1 text-left whitespace-nowrap">
+                    <span className="font-clock text-xl font-semibold" data-value>
+                      {row.b}
+                    </span>
+                    {row.bPct && (
+                      <span className="font-clock text-xs text-chalk/50 ml-1.5" data-pct>
+                        {row.bPct}
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ),
+            )}
           </tbody>
         </table>
       </section>

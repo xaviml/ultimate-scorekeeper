@@ -17,7 +17,7 @@ function renderConfigScreen() {
 }
 
 const RAVENS: SavedTeam = {
-  name: 'Ravens',
+  name: 'RAVENS',
   color: '#ff0000',
   players: [{ id: 'p1', number: '7', name: 'Ana' }],
 };
@@ -33,7 +33,7 @@ function seedSavedTeams(teams: SavedTeam[]) {
 function loadRavensIntoTeamA() {
   fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: '' } });
   fireEvent.focus(screen.getByLabelText('Team 1'));
-  fireEvent.click(screen.getByRole('button', { name: 'Ravens' }));
+  fireEvent.click(screen.getByRole('button', { name: 'RAVENS' }));
 }
 
 /** The Roster section (and its Expand/Collapse toggle) only exists once a mode with a roster is picked. */
@@ -57,9 +57,9 @@ describe('config screen saved teams', () => {
     loadRavensIntoTeamA();
     expect(screen.getByText('#7 Ana')).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'Ravens B' } });
+    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'RAVENS B' } });
 
-    expect(screen.getByLabelText('Team 1')).toHaveValue('Ravens B');
+    expect(screen.getByLabelText('Team 1')).toHaveValue('RAVENS B');
     expect(screen.getByText('#7 Ana')).toBeInTheDocument();
   });
 
@@ -67,22 +67,22 @@ describe('config screen saved teams', () => {
     renderConfigScreen();
     pickPlayerStats();
     fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
-    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'Foxes' } });
+    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'FOXES' } });
     fireEvent.change(screen.getAllByPlaceholderText('#')[0], { target: { value: '9' } });
     fireEvent.change(screen.getAllByPlaceholderText('Name')[0], { target: { value: 'Sam' } });
     fireEvent.click(screen.getAllByRole('button', { name: 'Add' })[0]);
 
     fireEvent.focus(screen.getByLabelText('Team 1'));
-    fireEvent.click(screen.getByRole('button', { name: 'Add "Foxes" as a new team' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add "FOXES" as a new team' }));
 
     const saved = loadSavedTeams();
     expect(saved).toHaveLength(1);
-    expect(saved[0].name).toBe('Foxes');
+    expect(saved[0].name).toBe('FOXES');
     expect(saved[0].players.map((p) => p.name)).toEqual(['Sam']);
     // Saved, so the combobox now offers it as an existing team instead.
     fireEvent.focus(screen.getByLabelText('Team 1'));
-    expect(screen.queryByRole('button', { name: 'Add "Foxes" as a new team' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Foxes' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add "FOXES" as a new team' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'FOXES' })).toBeInTheDocument();
   });
 
   it('keeps roster edits to a saved team when the field is switched away and back', () => {
@@ -91,20 +91,20 @@ describe('config screen saved teams', () => {
     pickPlayerStats();
     fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
     // A brand new team, saved from the combobox with an empty roster...
-    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'Foxes' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add "Foxes" as a new team' }));
+    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'FOXES' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add "FOXES" as a new team' }));
     // ...then filled in.
     fireEvent.change(screen.getAllByPlaceholderText('#')[0], { target: { value: '9' } });
     fireEvent.change(screen.getAllByPlaceholderText('Name')[0], { target: { value: 'Sam' } });
     fireEvent.click(screen.getAllByRole('button', { name: 'Add' })[0]);
-    expect(loadSavedTeams().find((t) => t.name === 'Foxes')?.players).toHaveLength(1);
+    expect(loadSavedTeams().find((t) => t.name === 'FOXES')?.players).toHaveLength(1);
 
     // Switch the same field to another saved team and back again.
     loadRavensIntoTeamA();
     expect(screen.getByText('#7 Ana')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: '' } });
     fireEvent.focus(screen.getByLabelText('Team 1'));
-    fireEvent.click(screen.getByRole('button', { name: 'Foxes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'FOXES' }));
 
     expect(screen.getByText('#9 Sam')).toBeInTheDocument();
   });
@@ -113,7 +113,7 @@ describe('config screen saved teams', () => {
     renderConfigScreen();
     pickPlayerStats();
     fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
-    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'Foxes' } });
+    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'FOXES' } });
     fireEvent.change(screen.getAllByPlaceholderText('#')[0], { target: { value: '9' } });
     fireEvent.change(screen.getAllByPlaceholderText('Name')[0], { target: { value: 'Sam' } });
     fireEvent.click(screen.getAllByRole('button', { name: 'Add' })[0]);
@@ -126,12 +126,12 @@ describe('config screen saved teams', () => {
     seedSavedTeams([RAVENS]);
     renderConfigScreen();
     loadRavensIntoTeamA();
-    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'Ravens B' } });
+    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'RAVENS B' } });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add "Ravens B" as a new team' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add "RAVENS B" as a new team' }));
 
     const saved = loadSavedTeams();
-    expect(saved.map((t) => t.name)).toEqual(['Ravens', 'Ravens B']);
+    expect(saved.map((t) => t.name)).toEqual(['RAVENS', 'RAVENS B']);
     expect(saved[0].players).toEqual(RAVENS.players);
     expect(saved[1].players.map((p) => p.name)).toEqual(['Ana']);
   });

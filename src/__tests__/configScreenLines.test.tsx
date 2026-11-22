@@ -204,10 +204,10 @@ describe('the roster markings', () => {
   it('persists a marking to the saved team', () => {
     localStorage.setItem(
       'ultimate-scorekeeper:saved-teams',
-      JSON.stringify([{ name: 'Ravens', color: '#111111', players: [] }]),
+      JSON.stringify([{ name: 'RAVENS', color: '#111111', players: [] }]),
     );
     intoTeamMode();
-    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'Ravens' } });
+    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'RAVENS' } });
     fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
     addPlayer('Alex');
     fireEvent.click(screen.getByRole('button', { name: 'Alex — gender: Not set' }));
@@ -223,7 +223,7 @@ describe('predefined lines on the config screen', () => {
       'ultimate-scorekeeper:saved-teams',
       JSON.stringify([
         {
-          name: 'Ravens',
+          name: 'RAVENS',
           color: '#111111',
           players: [
             // Alex is marked and Jo is not, so the counters have both a marking to
@@ -237,11 +237,11 @@ describe('predefined lines on the config screen', () => {
     );
   }
 
-  /** Loads Ravens through the combobox, which is what brings its lines with it. */
+  /** Loads RAVENS through the combobox, which is what brings its lines with it. */
   function loadRavens() {
     fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'Rav' } });
     fireEvent.focus(screen.getByLabelText('Team 1'));
-    fireEvent.click(screen.getByRole('button', { name: /^Ravens$/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^RAVENS$/ }));
   }
 
   const storedLines = () =>
@@ -411,7 +411,7 @@ describe('predefined lines on the config screen', () => {
   });
 
   // The tracked team is which roster the lines belong to, so moving it has to swap
-  // them — otherwise Ravens' lines would follow the pointer onto Foxes.
+  // them — otherwise RAVENS' lines would follow the pointer onto FOXES.
   it('swaps the listed lines when the tracked team moves', () => {
     saveTeamWithLine();
     intoTeamMode();

@@ -11,8 +11,14 @@ export const es: typeof en = {
   saveAsTemplateBtn: 'Guardar como plantilla',
   saveTemplateTitle: 'Guardar como plantilla',
   saveTemplateHint:
-    'Guarda estos ajustes de reglas para reutilizarlos — no los equipos, el resultado del lanzamiento de moneda ni los jugadores.',
+    'Guarda estas reglas y los ajustes de estadísticas para reutilizarlos — no los equipos, el resultado del lanzamiento de moneda, los jugadores ni qué equipo se sigue.',
   saveTemplateNamePlaceholder: 'p. ej. Liga de verano',
+  saveTemplateNameLabel: 'Nombre de la plantilla',
+  saveTemplateModeNew: 'Nueva plantilla',
+  saveTemplateModeUpdate: 'Actualizar existente',
+  saveTemplateReplaces: 'Ya existe una plantilla llamada "{name}" — al guardar se reemplazará.',
+  saveTemplateUpdateBtn: 'Actualizar',
+  saveTemplateReplaceBtn: 'Reemplazar',
   btnDeleteTemplate: 'Eliminar plantilla',
   confirmDeleteTemplateTitle: '¿Eliminar plantilla guardada?',
   confirmDeleteTemplate: '¿Eliminar "{name}"? Esta acción no se puede deshacer.',
@@ -581,17 +587,13 @@ export const es: typeof en = {
   reportFinished: 'Fin: {time}',
   reportDuration: 'Duración: {duration}',
   finalScore: 'Marcador final',
-  statOLineHolds: 'Holds de ataque',
-  statCleanHold: 'Holds limpios',
-  statBreakChances: 'Oportunidades de break',
+  statHolds: 'Holds',
+  statClean: 'Limpios',
   statTurnovers: 'Pérdidas',
-  statPasses: 'Pases completados',
-  statPassesPerPossession: 'Pases por posesión',
+  statPasses: 'Pases',
+  statPassesPerPossession: 'Por posesión',
   statBreaks: 'Breaks',
-  statCleanBreaks: 'Breaks limpios',
-  statAvgHold: 'Duración media de hold',
-  statAvgBreak: 'Duración media de break',
-  statTimeouts: 'Tiempos muertos usados',
+  statTimeouts: 'Tiempos muertos',
   // El gráfico de posesión, reutilizado del hueco de estadísticas en directo.
   possessionTitle: 'Posesión por punto',
   possessionLegend:
@@ -631,6 +633,7 @@ export const es: typeof en = {
   fullLogTitle: 'Registro completo del partido',
   copyLog: 'Copiar registro',
   colClock: 'Reloj',
+  colScore: 'Marcador',
   colEvent: 'Evento',
   colTeam: 'Equipo',
   colDetail: 'Detalle',
@@ -654,8 +657,12 @@ export const es: typeof en = {
   newGame: 'Nuevo partido',
   event_gameStart: 'Inicio del partido',
   event_goal: 'Gol',
+  // Appended to the event name of a goal scored by the team that pulled. English in
+  // every dictionary on purpose, like the action row's `lbl*` keys: "break" is the
+  // word used on Spanish and Catalan fields too. Do not translate it.
+  logBreak: '(break)',
   event_undo: 'Corrección del marcador (deshacer)',
-  event_latePull: 'Pull tardío (más de 75s)',
+  event_latePull: 'Pull tardío (>75s)',
   event_timeout: 'Tiempo muerto',
   event_timeoutEnd: 'Fin del tiempo muerto',
   event_stoppage: 'Parada',
@@ -702,7 +709,7 @@ export const es: typeof en = {
     'La primera pantalla describe el partido que vas a anotar. Casi todo viene ya relleno: normalmente solo tienes que escribir los nombres de los dos equipos.',
   guideStep1Template: 'Plantilla',
   guideStep1TemplateBody:
-    'Hierba y Playa rellenan todas las reglas de abajo con los valores habituales de esa superficie. Si tu torneo juega con otras, cambia los campos y pulsa "Guardar como plantilla" al final para reutilizarlas la próxima vez.',
+    'Hierba y Playa rellenan todas las reglas de abajo con los valores habituales de esa superficie, y dejan las estadísticas como estén. Si tu torneo juega con otras, cambia los campos y pulsa "Guardar como plantilla" al final para reutilizarlas la próxima vez — una plantilla que guardes también recuerda qué registra este partido.',
   guideStep1Division: 'División',
   guideStep1DivisionBody:
     'Open, Femenino o Mixto. La mixta añade la ratio de género, que tendrás que anunciar cada punto (paso 7).',
@@ -1039,34 +1046,29 @@ export const es: typeof en = {
 
   statsGuideStep5Title: 'El informe — cifras de equipo',
   statsGuideStep5Body:
-    'La tabla bajo el marcador final: una fila por cifra, una columna por equipo. Casi todas las filas necesitan que se hayan registrado pérdidas; sin ellas la tabla se queda en holds, breaks, las dos medias y los tiempos muertos.',
-  statsGuideStatHold: 'Holds de línea O',
+    'La tabla bajo el marcador final, una columna por equipo: holds, breaks, pérdidas, pases y tiempos muertos, cada uno seguido de las filas pequeñas que lo detallan. Holds y breaks se leen como conseguidos sobre posibles, con el porcentaje al lado. Casi todo necesita que se hayan registrado pérdidas: sin ellas la tabla son los holds, el número de breaks y los tiempos muertos.',
+  statsGuideStatHold: 'Holds',
   statsGuideStatHoldBody:
-    'Puntos ganados recibiendo el saque — los puntos que se espera que un equipo gane.',
+    'Puntos ganados recibiendo el saque, sobre los puntos que recibió el equipo, con el porcentaje al lado: 6/8 y 75% son seis holds de ocho.',
   statsGuideStatCleanHold: 'Holds limpios',
   statsGuideStatCleanHoldBody:
-    'De esos, aquellos en los que el disco no cambió de manos ni una vez: cero pérdidas de nadie, del saque a la zona de gol.',
-  statsGuideStatBreakCh: 'Oportunidades de break',
-  statsGuideStatBreakChBody:
-    'Cuántas veces este equipo recuperó el disco en defensa — cada pérdida impar de un punto en el que sacó, ya que un punto empieza en manos del ataque y cada pérdida posterior alterna. Léelo junto a los Breaks para sacar el porcentaje de conversión.',
+    'La fila pequeña bajo Holds: de los holds, aquellos en los que el disco no cambió de manos ni una vez — cero pérdidas de nadie, del saque a la zona de gol.',
   statsGuideStatTurnovers: 'Pérdidas',
   statsGuideStatTurnoversBody:
     'Las propias de este equipo, en todo el partido, descontando lo deshecho.',
-  statsGuideStatPasses: 'Pases completados',
+  statsGuideStatPasses: 'Pases',
   statsGuideStatPassesBody:
     'Todos los pases registrados, en todo el partido, descontando lo deshecho. Si se sigue un solo equipo, el otro muestra un guion — nadie contaba sus pases, que no es lo mismo que no haber dado ninguno.',
-  statsGuideStatPassesAvg: 'Pases por posesión',
+  statsGuideStatPassesAvg: 'Por posesión',
   statsGuideStatPassesAvgBody:
-    'Los pases de arriba divididos por las veces que ese equipo tuvo el disco. Un punto que nadie perdió es una sola posesión, así que un punto limpio promedia sobre el punto entero — es la misma cuenta, no otra regla. Con guion para un equipo cuyos pases nadie contaba.',
-  statsGuideStatBreaks: 'Puntos de break',
-  statsGuideStatBreaksBody: 'Puntos ganados sacando.',
+    'La fila pequeña bajo Pases: los pases divididos por las veces que ese equipo tuvo el disco. Un punto que nadie perdió es una sola posesión, así que un punto limpio promedia sobre el punto entero. Con guion para un equipo cuyos pases nadie contaba.',
+  statsGuideStatBreaks: 'Breaks',
+  statsGuideStatBreaksBody:
+    'Puntos ganados sacando, sobre las oportunidades de break del equipo \u2014 las veces que recuperó el disco en defensa \u2014, con el porcentaje al lado. Sin pérdidas registradas no hay oportunidades que contar, así que la fila es solo el número de breaks.',
   statsGuideStatCleanBreaks: 'Breaks limpios',
   statsGuideStatCleanBreaksBody:
-    'De esos, los convertidos a la primera pérdida y sin devolver nada — exactamente una pérdida en todo el punto.',
-  statsGuideStatAvg: 'Tiempo medio de hold / break',
-  statsGuideStatAvgBody:
-    'Cuánto duraron con el disco en juego los puntos que ganó este equipo, separando los que recibía de los que sacaba. El juego parado queda fuera \u2014 un tiempo muerto, una falta que se está hablando, una lesión \u2014, así que un punto detenido dos minutos cuenta lo que se jugó, no lo que corrió el reloj de partido.',
-  statsGuideStatTimeouts: 'Tiempos muertos usados',
+    'La fila pequeña bajo Breaks: de los breaks, los convertidos a la primera pérdida y sin devolver nada — exactamente una pérdida en todo el punto.',
+  statsGuideStatTimeouts: 'Tiempos muertos',
   statsGuideStatTimeoutsBody:
     'Las dos partes sumadas. Una pausa de hidratación no cuesta ninguno, así que nunca aparece aquí.',
 
@@ -1117,17 +1119,13 @@ export const es: typeof en = {
   statsGuideDefCleanBreak: 'Break limpio',
   statsGuideDefCleanBreakDo: 'Break convertido a la primera pérdida, sin devolverla',
   statsGuideDefBreakCh: 'Oportunidad de break',
-  statsGuideDefBreakChDo: 'Cada pérdida impar de un punto en el que este equipo sacaba',
-  statsGuideDefAvgTimes: 'Tiempo medio de hold / break',
-  statsGuideDefAvgTimesDo:
-    'Media del tiempo con el disco en juego de los puntos que ganó ese equipo, sin el juego parado',
+  statsGuideDefBreakChDo: 'Cada vez que este equipo recuperó el disco en un punto en el que sacaba',
   statsGuideDefTurn: 'Turns',
   statsGuideDefTurnDo: 'Pérdidas atribuidas al jugador que perdió el disco',
-  statsGuideDefPasses: 'Pases completados',
+  statsGuideDefPasses: 'Pases',
   statsGuideDefPassesDo: 'Pases registrados para este equipo, en todo el partido',
-  statsGuideDefPassesAvg: 'Pases por posesión',
-  statsGuideDefPassesAvgDo:
-    'Pases completados divididos por las veces que ese equipo tuvo el disco',
+  statsGuideDefPassesAvg: 'Por posesión',
+  statsGuideDefPassesAvgDo: 'Pases divididos por las veces que ese equipo tuvo el disco',
   statsGuideDefD: 'D (Posesión)',
   statsGuideDefDDo: 'Pérdidas que forzó este jugador — bloqueos, y marcas que agotaron el conteo',
   statsGuideDefOD: 'O / D (Juego)',

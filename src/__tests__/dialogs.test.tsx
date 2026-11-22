@@ -146,8 +146,8 @@ describe('dialogs render through the shared Modal', () => {
 
     renderWithProviders(<PlayersDialog onClose={noop} />);
     expect(screen.getByText('Roster')).toBeInTheDocument();
-    expect(screen.getByText('Team A')).toBeInTheDocument();
-    expect(screen.getByText('Team B')).toBeInTheDocument();
+    expect(screen.getByText('TEAM A')).toBeInTheDocument();
+    expect(screen.getByText('TEAM B')).toBeInTheDocument();
   });
 
   it('StoppageDialog asks injury vs. technical vs. SOTG first', () => {
@@ -206,8 +206,8 @@ describe('dialogs render through the shared Modal', () => {
     renderWithProviders(<StoppageDialog onClose={noop} />);
     fireEvent.click(screen.getByText('Injury'));
     expect(screen.getByText('Save')).toBeInTheDocument();
-    expect(screen.getByText('Team A')).toBeInTheDocument();
-    expect(screen.getByText('Team B')).toBeInTheDocument();
+    expect(screen.getByText('TEAM A')).toBeInTheDocument();
+    expect(screen.getByText('TEAM B')).toBeInTheDocument();
   });
 
   it('StoppageDialog attributes an injury to players on both teams at once', () => {
@@ -279,8 +279,8 @@ describe('dialogs render through the shared Modal', () => {
     renderWithProviders(<StoppageDialog onClose={onClose} />);
     fireEvent.click(screen.getByText('SOTG'));
     expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByText('Team A')).toBeInTheDocument();
-    expect(screen.getByText('Team B')).toBeInTheDocument();
+    expect(screen.getByText('TEAM A')).toBeInTheDocument();
+    expect(screen.getByText('TEAM B')).toBeInTheDocument();
     expect(screen.queryByText('No team')).toBeNull();
   });
 
@@ -293,7 +293,7 @@ describe('dialogs render through the shared Modal', () => {
     const onClose = vi.fn();
     renderWithProviders(<StoppageDialog onClose={onClose} />);
     fireEvent.click(screen.getByText('SOTG'));
-    fireEvent.click(screen.getByText('Team A'));
+    fireEvent.click(screen.getByText('TEAM A'));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
@@ -323,11 +323,11 @@ describe('dialogs render through the shared Modal', () => {
     const onClose = vi.fn();
     renderWithProviders(<StoppageDialog onClose={onClose} />);
     fireEvent.click(screen.getByText('Injury'));
-    expect(screen.getByText('Team A')).toBeInTheDocument();
-    expect(screen.getByText('Team B')).toBeInTheDocument();
+    expect(screen.getByText('TEAM A')).toBeInTheDocument();
+    expect(screen.getByText('TEAM B')).toBeInTheDocument();
     expect(screen.getByText('No team')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('Team A'));
+    fireEvent.click(screen.getByText('TEAM A'));
     expect(onClose).toHaveBeenCalledTimes(1);
     const stored = JSON.parse(sessionStorage.getItem('ultimate-scorekeeper:game-state')!);
     expect(stored.pendingStoppage.team).toBe('A');
@@ -355,7 +355,7 @@ describe('dialogs render through the shared Modal', () => {
     tap(screen.getByText('#7 Alex'));
 
     // The other team is a plain checkbox, no roster.
-    fireEvent.click(screen.getByLabelText(/Also mark Team B as injured/));
+    fireEvent.click(screen.getByLabelText(/Also mark TEAM B as injured/));
     fireEvent.click(screen.getByText('Save'));
 
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -374,8 +374,8 @@ describe('dialogs render through the shared Modal', () => {
     renderWithProviders(<TurnoverDialog attacking="A" onClose={noop} />);
     // The team name renders bold inside its own element, so the label's text is
     // split across nodes — match by paragraph content rather than a single node.
-    expect(findLabel(/Team A — who lost the disc/)).toBeInTheDocument();
-    expect(findLabel(/Team B — who forced it/)).toBeInTheDocument();
+    expect(findLabel(/TEAM A — who lost the disc/)).toBeInTheDocument();
+    expect(findLabel(/TEAM B — who forced it/)).toBeInTheDocument();
     expect(screen.getByText('Cancel')).toBeInTheDocument();
   });
 
@@ -387,8 +387,8 @@ describe('dialogs render through the shared Modal', () => {
     sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
 
     renderWithProviders(<TurnoverDialog attacking="A" onClose={noop} />);
-    expect(queryLabel(/Team A — who lost the disc/)).toBeNull();
-    expect(findLabel(/Team B — who forced it/)).toBeInTheDocument();
+    expect(queryLabel(/TEAM A — who lost the disc/)).toBeNull();
+    expect(findLabel(/TEAM B — who forced it/)).toBeInTheDocument();
   });
 
   it('AssistGoalDialog hides scorer/assist titles when the roster is empty', () => {
@@ -464,8 +464,8 @@ describe('dialogs render through the shared Modal', () => {
   it('CallTeamDialog offers both teams as the way to record who called it', () => {
     renderWithProviders(<CallTeamDialog kind="pick" onClose={noop} />);
     expect(screen.getByText(/Pick — who called it/)).toBeInTheDocument();
-    expect(screen.getByText('Team A')).toBeInTheDocument();
-    expect(screen.getByText('Team B')).toBeInTheDocument();
+    expect(screen.getByText('TEAM A')).toBeInTheDocument();
+    expect(screen.getByText('TEAM B')).toBeInTheDocument();
   });
 
   it('TravelTeamDialog picks a team and closes immediately, with no resolution step', () => {
@@ -474,7 +474,7 @@ describe('dialogs render through the shared Modal', () => {
     expect(screen.getByText(/Travel — who called it/)).toBeInTheDocument();
     expect(screen.queryByText('Accepted')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('Team A'));
+    fireEvent.click(screen.getByText('TEAM A'));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 

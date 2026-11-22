@@ -29,6 +29,12 @@ const SCORE_BOX_H = 78;
 const TEAM_NAME_H = 26;
 const TABLE_HEAD_H = 26;
 const ROW_H = 30;
+/** A team-stat figure row: holds, breaks, turnovers, passes, timeouts. */
+const STAT_ROW_H = 36;
+/** The small row qualifying the figure above it — "Clean", "Per possession". */
+const STAT_SUB_H = 20;
+/** Space between a figure and the percentage on its outer side. */
+const PCT_GAP = 8;
 const SECTION_TITLE_H = 20;
 
 // The player table. Numeric columns are measured rather than evenly spaced — the
@@ -221,11 +227,16 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
   const measureMax = (values: string[]) =>
     values.reduce((w, v) => Math.max(w, measuring.measureText(v).width), 0);
   let historyClockW = 0;
+  let historyScoreW = 0;
   let historyEventW = 0;
   let historyNeedW = 0;
   if (history) {
     measuring.font = clock(14, 600);
     historyClockW = Math.ceil(measureMax(history.rows.map((r) => r.clock))) + HISTORY_CLOCK_GUTTER;
+    // The score column only exists once a goal is in the summary; it reads in the
+    // clock's face, being a figure, and takes no width at all when every row is empty.
+    const scoreTextW = Math.ceil(measureMax(history.rows.map((r) => r.score)));
+    historyScoreW = scoreTextW > 0 ? scoreTextW + HISTORY_CLOCK_GUTTER : 0;
     measuring.font = board(14, 500);
     historyEventW = Math.min(
       HISTORY_EVENT_MAX,
@@ -236,7 +247,7 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
       HISTORY_DETAIL_MAX,
       Math.ceil(measureMax(history.rows.map((r) => r.detail))),
     );
-    historyNeedW = historyClockW + historyEventW + detailW + (PAD + PANEL_PAD) * 2;
+    historyNeedW = historyClockW + historyScoreW + historyEventW + detailW + (PAD + PANEL_PAD) * 2;
   }
 
   const width = Math.max(WIDTH, ledgerNeedW, playersNeedW, historyNeedW);
@@ -250,7 +261,9 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
 
   const headerH = metaLines.length * META_LINE_H;
   const scoreH = PANEL_PAD * 2 + SCORE_BOX_H + TEAM_NAME_H;
-  const statsH = PANEL_PAD * 2 + TABLE_HEAD_H + model.statRows.length * ROW_H;
+  // No header row: the team names are on the score boxes directly above.
+  const statsH =
+    PANEL_PAD * 2 + model.statRows.reduce((h, r) => h + (r.sub ? STAT_SUB_H : STAT_ROW_H), 0);
   const ledgerH = model.ledger ? PANEL_PAD * 2 + SECTION_TITLE_H + 10 + LEDGER_CHART_H : 0;
   const groupH = model.playerGroups ? PLAYER_GROUP_H : 0;
   const playersH = hasPlayers
@@ -336,28 +349,55 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
   const colB = right - 112;
 
   let rowY = y + PANEL_PAD;
-  ctx.font = board(12, 600);
-  ctx.fillStyle = C.chalkDim;
-  ctx.textAlign = 'right';
-  ctx.fillText(fitText(ctx, model.statHeader[0], 132), colA, rowY + TABLE_HEAD_H / 2);
-  ctx.textAlign = 'left';
-  ctx.fillText(fitText(ctx, model.statHeader[1], 132), colB, rowY + TABLE_HEAD_H / 2);
-  rowY += TABLE_HEAD_H;
 
+  // Each figure big against the inner column edge, its percentage small on the
+  // outer side and the label in capitals between them; a small row qualifying it
+  // follows with no rule in between, so the two read as one entry.
   for (const row of model.statRows) {
-    separator(ctx, left, right, rowY);
-    const midY = rowY + ROW_H / 2;
-    ctx.font = clock(18, 600);
+    if (row.sub) {
+      const midY = rowY + STAT_SUB_H / 2 - 3;
+      ctx.font = clock(14, 500);
+      ctx.fillStyle = C.chalkMid;
+      ctx.textAlign = 'right';
+      ctx.fillText(row.a, colA, midY);
+      ctx.textAlign = 'left';
+      ctx.fillText(row.b, colB, midY);
+      ctx.font = board(10, 600);
+      ctx.fillStyle = C.chalkDim;
+      ctx.textAlign = 'center';
+      withTracking(ctx, '1px');
+      ctx.fillText(fitText(ctx, row.label.toUpperCase(), colB - colA - 16), centre, midY);
+      withTracking(ctx, '0px');
+      rowY += STAT_SUB_H;
+      continue;
+    }
+    if (row !== model.statRows[0]) separator(ctx, left, right, rowY);
+    const midY = rowY + STAT_ROW_H / 2;
+    ctx.font = clock(21, 600);
     ctx.fillStyle = C.chalk;
     ctx.textAlign = 'right';
     ctx.fillText(row.a, colA, midY);
+    const aW = ctx.measureText(row.a).width;
     ctx.textAlign = 'left';
     ctx.fillText(row.b, colB, midY);
-    ctx.font = board(14, 500);
-    ctx.fillStyle = C.chalkMid;
+    const bW = ctx.measureText(row.b).width;
+    ctx.font = clock(14, 500);
+    ctx.fillStyle = C.chalkDim;
+    if (row.aPct) {
+      ctx.textAlign = 'right';
+      ctx.fillText(row.aPct, colA - aW - PCT_GAP, midY + 1);
+    }
+    if (row.bPct) {
+      ctx.textAlign = 'left';
+      ctx.fillText(row.bPct, colB + bW + PCT_GAP, midY + 1);
+    }
+    ctx.font = board(13, 600);
+    ctx.fillStyle = C.chalk;
     ctx.textAlign = 'center';
-    ctx.fillText(fitText(ctx, row.label, colB - colA - 16), centre, midY);
-    rowY += ROW_H;
+    withTracking(ctx, '1px');
+    ctx.fillText(fitText(ctx, row.label.toUpperCase(), colB - colA - 16), centre, midY);
+    withTracking(ctx, '0px');
+    rowY += STAT_ROW_H;
   }
   y += statsH + GAP;
 
@@ -554,7 +594,8 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
     withTracking(ctx, '0px');
     hY += SECTION_TITLE_H + 10;
 
-    const eventX = left + historyClockW;
+    const scoreX = left + historyClockW;
+    const eventX = scoreX + historyScoreW;
     const detailX = eventX + historyEventW;
     history.rows.forEach((row, i) => {
       // No rule above the first row: with no heading over it there is nothing to
@@ -565,6 +606,10 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
       ctx.font = clock(14, 600);
       ctx.fillStyle = C.chalkMid;
       ctx.fillText(row.clock, left, midY);
+      if (row.score) {
+        ctx.fillStyle = C.chalk;
+        ctx.fillText(row.score, scoreX, midY);
+      }
       ctx.font = board(14, 500);
       ctx.fillStyle = C.chalk;
       ctx.fillText(fitText(ctx, row.event, historyEventW - 6), eventX, midY);

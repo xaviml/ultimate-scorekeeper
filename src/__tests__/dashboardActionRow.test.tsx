@@ -649,7 +649,7 @@ describe('the pull chip and assistance bar through half-time', () => {
     mount(state);
 
     const side = secondHalfPullSide(state) === 'left' ? 'Left' : 'Right';
-    expect(screen.getByText(`Pull: Team A (${side})`)).toBeInTheDocument();
+    expect(screen.getByText(`Pull: TEAM A (${side})`)).toBeInTheDocument();
   });
 
   it('shows the call-out naming the next puller and the side they pull from', () => {
@@ -658,7 +658,7 @@ describe('the pull chip and assistance bar through half-time', () => {
     mount(state);
 
     const side = secondHalfPullSide(state) === 'left' ? 'Left' : 'Right';
-    expect(screen.getByText(`"Half-time! Team A pulls from the ${side}!"`)).toBeInTheDocument();
+    expect(screen.getByText(`"Half-time! TEAM A pulls from the ${side}!"`)).toBeInTheDocument();
   });
 
   it('keeps naming it in the ambient line once the call-out has had its moment', () => {
@@ -670,7 +670,7 @@ describe('the pull chip and assistance bar through half-time', () => {
 
     const side = secondHalfPullSide(state) === 'left' ? 'Left' : 'Right';
     expect(
-      screen.getByText(new RegExp(`Half-time break — Team A pulls from the ${side}\\b`)),
+      screen.getByText(new RegExp(`Half-time break — TEAM A pulls from the ${side}\\b`)),
     ).toBeInTheDocument();
   });
 });
@@ -787,8 +787,8 @@ describe('the stoppage dialog', () => {
 describe('timeouts on the score panels', () => {
   it('gives each team its own, showing the count it had under the clocks', () => {
     mount(liveGame());
-    expect(screen.getByLabelText('Team A — 2 timeouts left')).toBeInTheDocument();
-    expect(screen.getByLabelText('Team B — 2 timeouts left')).toBeInTheDocument();
+    expect(screen.getByLabelText('TEAM A — 2 timeouts left')).toBeInTheDocument();
+    expect(screen.getByLabelText('TEAM B — 2 timeouts left')).toBeInTheDocument();
   });
 
   it('shows none at all when the game is configured without timeouts', () => {

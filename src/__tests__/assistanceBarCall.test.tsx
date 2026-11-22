@@ -35,7 +35,7 @@ describe('the ambient assistance line while a call is open', () => {
   it('says the score is locked until the call is resolved, not "disc in play"', () => {
     mountWith(withOpenCall(5));
 
-    expect(screen.getByText(/Foul called by Team A/)).toBeInTheDocument();
+    expect(screen.getByText(/Foul called by TEAM A/)).toBeInTheDocument();
     expect(screen.getByText(/score is locked/)).toBeInTheDocument();
     expect(screen.queryByText(/Disc in play/)).not.toBeInTheDocument();
   });

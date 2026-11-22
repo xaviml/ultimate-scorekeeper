@@ -38,7 +38,7 @@ describe('guide', () => {
 
   it('comes back to the config screen with what was typed still there', () => {
     renderConfigScreen();
-    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'Foxes' } });
+    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'FOXES' } });
 
     openGuide();
     // The header's back button is the only way out — worded neutrally, since the
@@ -46,7 +46,7 @@ describe('guide', () => {
     fireEvent.click(screen.getByRole('button', { name: '← Back' }));
 
     expect(screen.getByText('Game setup')).toBeInTheDocument();
-    expect(screen.getByLabelText('Team 1')).toHaveValue('Foxes');
+    expect(screen.getByLabelText('Team 1')).toHaveValue('FOXES');
   });
 
   it('translates on the fly from its own language picker', () => {

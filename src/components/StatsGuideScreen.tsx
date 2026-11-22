@@ -199,16 +199,14 @@ export default function StatsGuideScreen({ onBack }: { onBack: () => void }) {
         <ul className="space-y-2">
           <Bullet label={t('statsGuideStatHold')} body={t('statsGuideStatHoldBody')} />
           <Bullet label={t('statsGuideStatCleanHold')} body={t('statsGuideStatCleanHoldBody')} />
-          <Bullet label={t('statsGuideStatBreakCh')} body={t('statsGuideStatBreakChBody')} />
-          <Bullet label={t('statsGuideStatTurnovers')} body={t('statsGuideStatTurnoversBody')} />
-          <Bullet label={t('statsGuideStatPasses')} body={t('statsGuideStatPassesBody')} />
-          <Bullet label={t('statsGuideStatPassesAvg')} body={t('statsGuideStatPassesAvgBody')} />
           <Bullet label={t('statsGuideStatBreaks')} body={t('statsGuideStatBreaksBody')} />
           <Bullet
             label={t('statsGuideStatCleanBreaks')}
             body={t('statsGuideStatCleanBreaksBody')}
           />
-          <Bullet label={t('statsGuideStatAvg')} body={t('statsGuideStatAvgBody')} />
+          <Bullet label={t('statsGuideStatTurnovers')} body={t('statsGuideStatTurnoversBody')} />
+          <Bullet label={t('statsGuideStatPasses')} body={t('statsGuideStatPassesBody')} />
+          <Bullet label={t('statsGuideStatPassesAvg')} body={t('statsGuideStatPassesAvgBody')} />
           <Bullet label={t('statsGuideStatTimeouts')} body={t('statsGuideStatTimeoutsBody')} />
         </ul>
       </Card>
@@ -247,7 +245,6 @@ export default function StatsGuideScreen({ onBack }: { onBack: () => void }) {
             ['statsGuideDefCleanHold', 'statsGuideDefCleanHoldDo'],
             ['statsGuideDefCleanBreak', 'statsGuideDefCleanBreakDo'],
             ['statsGuideDefBreakCh', 'statsGuideDefBreakChDo'],
-            ['statsGuideDefAvgTimes', 'statsGuideDefAvgTimesDo'],
             ['statsGuideDefPasses', 'statsGuideDefPassesDo'],
             ['statsGuideDefPassesAvg', 'statsGuideDefPassesAvgDo'],
             ['statsGuideDefTurn', 'statsGuideDefTurnDo'],

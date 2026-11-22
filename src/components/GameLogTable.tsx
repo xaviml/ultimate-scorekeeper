@@ -48,6 +48,7 @@ export function GameLogTable({
         <thead className="text-chalk/50 text-left">
           <tr>
             <th className="py-1 pr-2">{t('colClock')}</th>
+            <th className="py-1 pr-2">{t('colScore')}</th>
             <th className="py-1 pr-2">{t('colEvent')}</th>
             <th className="py-1">{t('colDetail')}</th>
             {/* The column has no visible heading — two icons need no caption, and the
@@ -61,11 +62,14 @@ export function GameLogTable({
         </thead>
         <tbody>
           {entries.map((e) => {
-            // The same three columns the shared image paints — see `logRow`.
+            // The same four columns the shared image paints — see `logRow`.
             const row = logRow(state, e, t);
             return (
               <tr key={e.id} className="border-t border-line/50">
                 <td className="py-1 pr-2 font-clock whitespace-nowrap">{row.clock}</td>
+                <td className="py-1 pr-2 font-clock whitespace-nowrap" data-log-score>
+                  {row.score}
+                </td>
                 <td className="py-1 pr-2">{row.event}</td>
                 <td className="py-1 text-chalk/60">{row.detail}</td>
                 {editable && (

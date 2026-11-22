@@ -57,7 +57,7 @@ describe('the setup screen header menu', () => {
 
   it('opens the past-games screen over the form, and leaves it as it was', () => {
     renderConfigScreen();
-    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'Ravens' } });
+    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'RAVENS' } });
 
     openMenu();
     fireEvent.click(screen.getByRole('button', { name: /Match History/ }));
@@ -65,7 +65,7 @@ describe('the setup screen header menu', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Back/ }));
     // The form was mounted underneath the whole time, so what was typed survives.
-    expect(screen.getByLabelText('Team 1')).toHaveValue('Ravens');
+    expect(screen.getByLabelText('Team 1')).toHaveValue('RAVENS');
   });
 
   it('is the only door to either guide — the chip under the title is gone', () => {

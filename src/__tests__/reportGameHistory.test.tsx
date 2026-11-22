@@ -87,9 +87,9 @@ describe('report screen — game history', () => {
     expect(history.queryByText('Travel')).toBeNull();
 
     expect(history.getByText('Game start')).toBeInTheDocument();
-    expect(history.getByText('Goal — Team A')).toBeInTheDocument();
+    expect(history.getByText('Goal — TEAM A')).toBeInTheDocument();
     expect(history.getByText('Stoppage')).toBeInTheDocument();
-    expect(history.getByText('SOTG stoppage (clock paused) — Team B')).toBeInTheDocument();
+    expect(history.getByText('SOTG stoppage (clock paused) — TEAM B')).toBeInTheDocument();
     expect(history.getByText('Ball on the pitch')).toBeInTheDocument();
     expect(history.getByText('Game end')).toBeInTheDocument();
   });
@@ -100,9 +100,9 @@ describe('report screen — game history', () => {
     fireEvent.click(within(historySection()).getByRole('button', { name: 'Full log' }));
     const dialog = within(document.querySelector('.fixed') as HTMLElement);
 
-    expect(dialog.getByText('Turnover — Team A')).toBeInTheDocument();
-    expect(dialog.getByText('Call made — Team B')).toBeInTheDocument();
-    expect(dialog.getByText('Travel — Team A')).toBeInTheDocument();
+    expect(dialog.getByText('Turnover — TEAM A')).toBeInTheDocument();
+    expect(dialog.getByText('Call made — TEAM B')).toBeInTheDocument();
+    expect(dialog.getByText('Travel — TEAM A')).toBeInTheDocument();
     // A record, not a game in progress: no fixing or deleting entries here.
     expect(screen.queryByRole('button', { name: 'Fix this entry' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Delete this entry' })).toBeNull();
@@ -119,7 +119,7 @@ describe('report screen — game history', () => {
     await screen.findByText('Copied!');
     const report = writeText.mock.calls[0][0] as string;
     expect(report).toContain('Game summary');
-    expect(report).toContain('] Goal — Team A');
+    expect(report).toContain('] Goal — TEAM A');
     expect(report).not.toContain('] Turnover');
     expect(report).not.toContain('] Call made');
     expect(report).not.toContain('] Travel');
@@ -129,9 +129,9 @@ describe('report screen — game history', () => {
     await screen.findByText('Copied!');
     const log = writeText.mock.calls[1][0] as string;
     expect(log).toContain('Full game log');
-    expect(log).toContain('] Turnover — Team A');
-    expect(log).toContain('] Call made — Team B');
-    expect(log).toContain('] Goal — Team A');
+    expect(log).toContain('] Turnover — TEAM A');
+    expect(log).toContain('] Call made — TEAM B');
+    expect(log).toContain('] Goal — TEAM A');
     // The log and nothing else — the stat tables are the report's copy button.
     expect(log).not.toContain('O-line holds');
   });

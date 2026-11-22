@@ -47,13 +47,13 @@ describe('the statistics guide', () => {
 
   it('comes back to the config screen with what was typed still there', () => {
     renderConfigScreen();
-    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'Ravens' } });
+    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'RAVENS' } });
 
     openStatsGuide();
     fireEvent.click(screen.getByRole('button', { name: '← Back' }));
 
     expect(screen.getByText('Game setup')).toBeInTheDocument();
-    expect(screen.getByLabelText('Team 1')).toHaveValue('Ravens');
+    expect(screen.getByLabelText('Team 1')).toHaveValue('RAVENS');
   });
 
   it('translates on the fly from its own language picker, like the walkthrough', () => {
@@ -76,13 +76,13 @@ describe('the statistics guide', () => {
     // because several of them are named twice on purpose: once where the row is
     // explained, once in the closing "what each figure counts" list.
     for (const label of [
-      'O-line holds',
-      'Clean holds',
-      'Break chances',
+      'Holds',
+      'Breaks',
+      'break chances',
       'Turnovers',
-      'Break points',
+      'Clean holds',
       'Clean breaks',
-      'Timeouts used',
+      'Timeouts',
     ]) {
       expect(screen.getAllByText(new RegExp(label)).length).toBeGreaterThan(0);
     }

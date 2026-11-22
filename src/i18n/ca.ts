@@ -11,8 +11,14 @@ export const ca: typeof en = {
   saveAsTemplateBtn: 'Desar com a plantilla',
   saveTemplateTitle: 'Desar com a plantilla',
   saveTemplateHint:
-    'Desa aquests ajustos de regles per reutilitzar-los — no els equips, el resultat del llançament de moneda ni els jugadors.',
+    "Desa aquestes regles i els ajustos d'estadístiques per reutilitzar-los — no els equips, el resultat del llançament de moneda, els jugadors ni quin equip se segueix.",
   saveTemplateNamePlaceholder: "p. ex. Lliga d'estiu",
+  saveTemplateNameLabel: 'Nom de la plantilla',
+  saveTemplateModeNew: 'Nova plantilla',
+  saveTemplateModeUpdate: 'Actualitzar existent',
+  saveTemplateReplaces: 'Ja existeix una plantilla anomenada "{name}" — en desar es reemplaçarà.',
+  saveTemplateUpdateBtn: 'Actualitzar',
+  saveTemplateReplaceBtn: 'Reemplaçar',
   btnDeleteTemplate: 'Eliminar plantilla',
   confirmDeleteTemplateTitle: 'Eliminar plantilla desada?',
   confirmDeleteTemplate: 'Eliminar "{name}"? Aquesta acció no es pot desfer.',
@@ -577,17 +583,13 @@ export const ca: typeof en = {
   reportFinished: 'Fi: {time}',
   reportDuration: 'Durada: {duration}',
   finalScore: 'Marcador final',
-  statOLineHolds: "Holds d'atac",
-  statCleanHold: 'Holds nets',
-  statBreakChances: 'Oportunitats de break',
+  statHolds: 'Holds',
+  statClean: 'Nets',
   statTurnovers: 'Pèrdues',
-  statPasses: 'Passades completades',
-  statPassesPerPossession: 'Passades per possessió',
+  statPasses: 'Passades',
+  statPassesPerPossession: 'Per possessió',
   statBreaks: 'Breaks',
-  statCleanBreaks: 'Breaks nets',
-  statAvgHold: 'Durada mitjana de hold',
-  statAvgBreak: 'Durada mitjana de break',
-  statTimeouts: 'Temps morts usats',
+  statTimeouts: 'Temps morts',
   // El gràfic de possessió, reutilitzat del buit d'estadístiques en directe.
   possessionTitle: 'Possessió per punt',
   possessionLegend:
@@ -628,6 +630,7 @@ export const ca: typeof en = {
   fullLogTitle: 'Registre complet del partit',
   copyLog: 'Copiar registre',
   colClock: 'Rellotge',
+  colScore: 'Marcador',
   colEvent: 'Esdeveniment',
   colTeam: 'Equip',
   colDetail: 'Detall',
@@ -652,8 +655,12 @@ export const ca: typeof en = {
   newGame: 'Nou partit',
   event_gameStart: 'Inici del partit',
   event_goal: 'Gol',
+  // Appended to the event name of a goal scored by the team that pulled. English in
+  // every dictionary on purpose, like the action row's `lbl*` keys: "break" is the
+  // word used on Spanish and Catalan fields too. Do not translate it.
+  logBreak: '(break)',
   event_undo: 'Correcció del marcador (desfer)',
-  event_latePull: 'Pull tardà (més de 75s)',
+  event_latePull: 'Pull tardà (>75s)',
   event_timeout: 'Temps mort',
   event_timeoutEnd: 'Fi del temps mort',
   event_stoppage: 'Aturada',
@@ -700,7 +707,7 @@ export const ca: typeof en = {
     "La primera pantalla descriu el partit que vas a anotar. Gairebé tot ve ja omplert: normalment només has d'escriure els noms dels dos equips.",
   guideStep1Template: 'Plantilla',
   guideStep1TemplateBody:
-    'Gespa i Platja omplen totes les regles de sota amb els valors habituals d\'aquella superfície. Si el teu torneig en fa servir unes altres, canvia els camps i prem "Desar com a plantilla" al final per reutilitzar-les el proper cop.',
+    'Gespa i Platja omplen totes les regles de sota amb els valors habituals d\'aquella superfície, i deixen les estadístiques com estiguin. Si el teu torneig en fa servir unes altres, canvia els camps i prem "Desar com a plantilla" al final per reutilitzar-les el proper cop — una plantilla que desis també recorda què registra aquest partit.',
   guideStep1Division: 'Divisió',
   guideStep1DivisionBody:
     "Open, Femení o Mixta. La mixta afegeix la ràtio de gènere, que hauràs d'anunciar cada punt (pas 7).",
@@ -1037,34 +1044,29 @@ export const ca: typeof en = {
 
   statsGuideStep5Title: 'L\u2019informe — xifres d\u2019equip',
   statsGuideStep5Body:
-    'La taula sota el marcador final: una fila per xifra, una columna per equip. Gairebé totes les files necessiten que s\u2019hagin registrat pèrdues; sense elles la taula es queda en holds, breaks, les dues mitjanes i els temps morts.',
-  statsGuideStatHold: 'Holds de línia O',
+    'La taula sota el marcador final, una columna per equip: holds, breaks, pèrdues, passades i temps morts, cadascun seguit de les files petites que el detallen. Holds i breaks es llegeixen com a aconseguits sobre possibles, amb el percentatge al costat. Gairebé tot necessita que s\u2019hagin registrat pèrdues: sense elles la taula són els holds, el nombre de breaks i els temps morts.',
+  statsGuideStatHold: 'Holds',
   statsGuideStatHoldBody:
-    'Punts guanyats rebent el servei — els punts que s\u2019espera que un equip guanyi.',
+    'Punts guanyats rebent el servei, sobre els punts que va rebre l\u2019equip, amb el percentatge al costat: 6/8 i 75% són sis holds de vuit.',
   statsGuideStatCleanHold: 'Holds nets',
   statsGuideStatCleanHoldBody:
-    'D\u2019aquests, aquells en què el disc no va canviar de mans ni una vegada: cap pèrdua de ningú, del servei a la zona de gol.',
-  statsGuideStatBreakCh: 'Oportunitats de break',
-  statsGuideStatBreakChBody:
-    'Quantes vegades aquest equip va recuperar el disc en defensa — cada pèrdua senar d\u2019un punt en què servia, ja que un punt comença en mans de l\u2019atac i cada pèrdua posterior alterna. Llegeix-ho al costat dels Breaks per treure el percentatge de conversió.',
+    'La fila petita sota Holds: dels holds, aquells en què el disc no va canviar de mans ni una vegada — cap pèrdua de ningú, del servei a la zona de gol.',
   statsGuideStatTurnovers: 'Pèrdues',
   statsGuideStatTurnoversBody:
     'Les pròpies d\u2019aquest equip, en tot el partit, descomptant el que s\u2019hagi desfet.',
-  statsGuideStatPasses: 'Passades completades',
+  statsGuideStatPasses: 'Passades',
   statsGuideStatPassesBody:
     "Totes les passades registrades, en tot el partit, descomptant el que s'hagi desfet. Si se segueix un sol equip, l'altre mostra un guionet — ningú comptava les seves passades, que no és el mateix que no haver-ne fet cap.",
-  statsGuideStatPassesAvg: 'Passades per possessió',
+  statsGuideStatPassesAvg: 'Per possessió',
   statsGuideStatPassesAvgBody:
-    'Les passades de dalt dividides per les vegades que aquell equip va tenir el disc. Un punt que ningú no va perdre és una sola possessió, així que un punt net fa la mitjana sobre el punt sencer — és el mateix càlcul, no una altra regla. Amb guionet per a un equip les passades del qual ningú comptava.',
-  statsGuideStatBreaks: 'Punts de break',
-  statsGuideStatBreaksBody: 'Punts guanyats servint.',
+    'La fila petita sota Passades: les passades dividides per les vegades que aquell equip va tenir el disc. Un punt que ningú no va perdre és una sola possessió, així que un punt net fa la mitjana sobre el punt sencer. Amb guionet per a un equip les passades del qual ningú comptava.',
+  statsGuideStatBreaks: 'Breaks',
+  statsGuideStatBreaksBody:
+    'Punts guanyats servint, sobre les oportunitats de break de l\u2019equip \u2014 les vegades que va recuperar el disc en defensa \u2014, amb el percentatge al costat. Sense pèrdues registrades no hi ha oportunitats per comptar, així que la fila és només el nombre de breaks.',
   statsGuideStatCleanBreaks: 'Breaks nets',
   statsGuideStatCleanBreaksBody:
-    'D\u2019aquests, els convertits a la primera pèrdua i sense tornar-ne cap — exactament una pèrdua en tot el punt.',
-  statsGuideStatAvg: 'Temps mitjà de hold / break',
-  statsGuideStatAvgBody:
-    'Quant van durar amb el disc en joc els punts que va guanyar aquest equip, separant els que rebia dels que servia. El joc aturat queda fora \u2014 un temps mort, una falta que s\u2019està parlant, una lesió \u2014, així que un punt aturat dos minuts compta el que es va jugar, no el que va córrer el rellotge del partit.',
-  statsGuideStatTimeouts: 'Temps morts fets servir',
+    'La fila petita sota Breaks: dels breaks, els convertits a la primera pèrdua i sense tornar-ne cap — exactament una pèrdua en tot el punt.',
+  statsGuideStatTimeouts: 'Temps morts',
   statsGuideStatTimeoutsBody:
     'Les dues parts sumades. Una pausa d\u2019hidratació no en costa cap, així que mai no apareix aquí.',
 
@@ -1115,17 +1117,14 @@ export const ca: typeof en = {
   statsGuideDefCleanBreak: 'Break net',
   statsGuideDefCleanBreakDo: 'Break convertit a la primera pèrdua, sense tornar-la',
   statsGuideDefBreakCh: 'Oportunitat de break',
-  statsGuideDefBreakChDo: 'Cada pèrdua senar d\u2019un punt en què aquest equip servia',
-  statsGuideDefAvgTimes: 'Temps mitjà de hold / break',
-  statsGuideDefAvgTimesDo:
-    'Mitjana del temps amb el disc en joc dels punts que va guanyar aquell equip, sense el joc aturat',
+  statsGuideDefBreakChDo:
+    'Cada vegada que aquest equip va recuperar el disc en un punt en què servia',
   statsGuideDefTurn: 'Turns',
   statsGuideDefTurnDo: 'Pèrdues atribuïdes al jugador que va perdre el disc',
-  statsGuideDefPasses: 'Passades completades',
+  statsGuideDefPasses: 'Passades',
   statsGuideDefPassesDo: 'Passades registrades per a aquest equip, en tot el partit',
-  statsGuideDefPassesAvg: 'Passades per possessió',
-  statsGuideDefPassesAvgDo:
-    'Passades completades dividides per les vegades que aquell equip va tenir el disc',
+  statsGuideDefPassesAvg: 'Per possessió',
+  statsGuideDefPassesAvgDo: 'Passades dividides per les vegades que aquell equip va tenir el disc',
   statsGuideDefD: 'D (Possessió)',
   statsGuideDefDDo:
     'Pèrdues que va forçar aquest jugador — blocatges, i marques que van exhaurir el compte',

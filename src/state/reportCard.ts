@@ -41,6 +41,19 @@ export interface StatRow {
   label: string;
   a: string;
   b: string;
+  /**
+   * The share each side's figure is of what it could have been, already formatted
+   * ("75%", or "—" with nothing to divide by). Only the rows that are a fraction
+   * carry one.
+   */
+  aPct?: string;
+  bPct?: string;
+  /**
+   * A small row qualifying the one above it — the clean holds under Holds, the
+   * per-possession average under Passes — drawn smaller, with no rule between it
+   * and its parent.
+   */
+  sub?: boolean;
 }
 
 export interface CardPlayerRow {
@@ -82,9 +95,11 @@ export interface CardLedgerModel {
   columns: CardLedgerColumn[];
 }
 
-/** One row of the game summary, in the three columns the on-screen table uses. */
+/** One row of the game summary, in the four columns the on-screen table uses. */
 export interface CardHistoryRow {
   clock: string;
+  /** The score once a goal counted; empty for anything else. */
+  score: string;
   event: string;
   detail: string;
 }
@@ -104,7 +119,6 @@ export interface ReportCardModel {
    */
   meta: string[];
   teams: { name: string; color: string; score: string }[];
-  statHeader: [string, string];
   statRows: StatRow[];
   /**
    * The possession ledger, or null when no point tracked possession. Unlike the
@@ -160,49 +174,63 @@ export function playerStatsTeams(config: GameConfig): TeamId[] {
 }
 
 /**
- * The paired team-stat rows, in report order. The extended rows are all derived
- * from turnovers, so they only exist once turnovers are recorded — without them
- * "clean" holds and breaks would be indistinguishable from plain ones.
+ * The paired team-stat rows, in report order, modelled on a broadcast game
+ * summary: a few large figures, each followed by the small rows that qualify it.
  *
- * Passes sit directly after Turnovers, the figure they are the counterpart of, with
- * the per-possession average under them. They are the rows that can be a real
- * number on one side and a dash on the other: a game following a single team counts
- * only that team's (see `passesFor`).
+ * Holds are counted out of the points the team received, which every game knows.
+ * Breaks are counted out of break chances — how often the team got the disc back
+ * on defence — which only exists once turnovers are recorded; without them the
+ * row is the plain count, because the same "2/8" read out of D-points would look
+ * identical to "2/8" out of chances while meaning something else. The clean
+ * counts sit under the figure they are a part of, and need turnovers too.
+ *
+ * Passes can be a real number on one side and a dash on the other: a game
+ * following a single team counts only that team's (see `passesFor`).
  */
 export function teamStatRows(state: GameState, t: TFunc): StatRow[] {
   const A = teamStats(state, 'A');
   const B = teamStats(state, 'B');
   const tracking = turnoversTracked(state.config);
   const passing = passesTracked(state.config);
-  const clock = (s: number | null) => (s === null ? '—' : formatClock(s));
   const count = (n: number | null) => (n === null ? '—' : n);
   // One decimal, because the whole use of an average is the gap between 4.4 and
   // 4.6 that a rounded figure closes.
   const rate = (n: number | null) => (n === null ? '—' : n.toFixed(1));
+  const pct = (made: number, of: number) => (of === 0 ? '—' : `${Math.round((made / of) * 100)}%`);
   const row = (label: string, a: string | number, b: string | number): StatRow => ({
     label,
     a: String(a),
     b: String(b),
   });
+  const sub = (label: string, a: string | number, b: string | number): StatRow => ({
+    ...row(label, a, b),
+    sub: true,
+  });
+  const fraction = (label: string, a: [number, number], b: [number, number]): StatRow => ({
+    label,
+    a: `${a[0]}/${a[1]}`,
+    b: `${b[0]}/${b[1]}`,
+    aPct: pct(a[0], a[1]),
+    bPct: pct(b[0], b[1]),
+  });
   return [
-    row(t('statOLineHolds'), A.oLineHolds, B.oLineHolds),
-    ...(tracking ? [row(t('statCleanHold'), A.cleanHolds, B.cleanHolds)] : []),
-    ...(tracking ? [row(t('statBreakChances'), A.breakChances, B.breakChances)] : []),
+    fraction(t('statHolds'), [A.oLineHolds, A.oPoints], [B.oLineHolds, B.oPoints]),
+    ...(tracking ? [sub(t('statClean'), A.cleanHolds, B.cleanHolds)] : []),
+    tracking
+      ? fraction(t('statBreaks'), [A.breaks, A.breakChances], [B.breaks, B.breakChances])
+      : row(t('statBreaks'), A.breaks, B.breaks),
+    ...(tracking ? [sub(t('statClean'), A.cleanBreaks, B.cleanBreaks)] : []),
     ...(tracking ? [row(t('statTurnovers'), A.turnovers, B.turnovers)] : []),
     ...(passing
       ? [
           row(t('statPasses'), count(passesFor(state, 'A')), count(passesFor(state, 'B'))),
-          row(
+          sub(
             t('statPassesPerPossession'),
             rate(passAverageFor(state, 'A')),
             rate(passAverageFor(state, 'B')),
           ),
         ]
       : []),
-    row(t('statBreaks'), A.breaks, B.breaks),
-    ...(tracking ? [row(t('statCleanBreaks'), A.cleanBreaks, B.cleanBreaks)] : []),
-    row(t('statAvgHold'), clock(A.avgHoldSeconds), clock(B.avgHoldSeconds)),
-    row(t('statAvgBreak'), clock(A.avgBreakSeconds), clock(B.avgBreakSeconds)),
     row(t('statTimeouts'), A.timeoutsUsed, B.timeoutsUsed),
   ];
 }
@@ -341,7 +369,6 @@ export function reportCardModel(state: GameState, t: TFunc, lang: Lang): ReportC
       color: teams[id].color,
       score: String(state.scores[id]),
     })),
-    statHeader: [teams.A.name, teams.B.name],
     statRows: teamStatRows(state, t),
     ledger: ledgerModel(state, t),
     playerTitle: t('playerStatsTitle'),

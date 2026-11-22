@@ -3,6 +3,7 @@ import { defaultConfig } from '../state/gameReducer';
 import {
   BEACH_TEMPLATE,
   GRASS_TEMPLATE,
+  applyTemplate,
   deleteTemplate,
   extractTemplateSettings,
   loadSavedTemplates,
@@ -48,7 +49,7 @@ describe('predefined templates', () => {
 });
 
 describe('extractTemplateSettings', () => {
-  it('carries only the rule fields, never teams, coin toss, players or the statistics settings', () => {
+  it('carries the rules and what the game records, never teams, coin toss, players or the followed team', () => {
     const cfg = {
       ...defaultConfig,
       teams: { A: { name: 'Foxes', color: '#fff' }, B: { name: 'Wolves', color: '#000' } },
@@ -59,9 +60,13 @@ describe('extractTemplateSettings', () => {
       trackTurnovers: true,
       trackedTeam: 'A' as const,
       trackTurnoverPlayers: true,
-      // Tracking settings never travel — but the line SIZE does: how many take the
-      // field is a fact about grass against beach, not about what this game records.
-      lines: { ...defaultConfig.lines, enabled: true, genderCheck: 'fixed' as const },
+      // Whether lines are tracked travels; a team's predefined lines never do.
+      lines: {
+        ...defaultConfig.lines,
+        enabled: true,
+        genderCheck: 'fixed' as const,
+        saved: [{ id: 'l1', name: 'O1', playerKeys: ['7 alex'] }],
+      },
       lineSize: 5,
       players: { A: [{ id: '1', number: '7', name: 'Alex' }], B: [] },
       fieldNumber: '3',
@@ -84,15 +89,80 @@ describe('extractTemplateSettings', () => {
       halfCap: cfg.halfCap,
       timeouts: cfg.timeouts,
       waterBreaks: cfg.waterBreaks,
+      stats: {
+        statsMode: 'players',
+        trackTurnovers: true,
+        trackGoalPlayers: cfg.trackGoalPlayers,
+        trackTurnoverPlayers: true,
+        trackPasses: cfg.trackPasses,
+        linesEnabled: true,
+      },
     });
     expect(settings).not.toHaveProperty('teams');
     expect(settings).not.toHaveProperty('startingOffense');
     expect(settings).not.toHaveProperty('startingSide');
     expect(settings).not.toHaveProperty('startingRatio');
-    expect(settings).not.toHaveProperty('statsMode');
     expect(settings).not.toHaveProperty('trackedTeam');
-    expect(settings).not.toHaveProperty('trackTurnoverPlayers');
+    expect(settings).not.toHaveProperty('lines');
     expect(settings).not.toHaveProperty('players');
+  });
+});
+
+describe('applyTemplate', () => {
+  const tracking = {
+    ...defaultConfig,
+    statsMode: 'players' as const,
+    trackedTeam: 'B' as const,
+    trackTurnovers: true,
+    trackPasses: true,
+    lines: { ...defaultConfig.lines, enabled: true },
+  };
+
+  it('leaves the statistics alone for a built-in template, which has none', () => {
+    const next = applyTemplate(tracking, BEACH_TEMPLATE);
+
+    expect(next.targetScore).toBe(BEACH_TEMPLATE.targetScore);
+    expect(next).toMatchObject({
+      statsMode: 'players',
+      trackedTeam: 'B',
+      trackTurnovers: true,
+      trackPasses: true,
+      lines: { enabled: true },
+    });
+  });
+
+  it('applies the statistics a saved template carries, but keeps the followed team and lines', () => {
+    const saved = extractTemplateSettings({
+      ...defaultConfig,
+      statsMode: 'teams',
+      trackTurnovers: true,
+      trackPasses: false,
+      lines: { ...defaultConfig.lines, enabled: false },
+    });
+    const withLines = {
+      ...tracking,
+      lines: { ...tracking.lines, saved: [{ id: 'l1', name: 'O1', playerKeys: ['7 alex'] }] },
+    };
+    const next = applyTemplate(withLines, saved);
+
+    expect(next).toMatchObject({
+      statsMode: 'teams',
+      trackTurnovers: true,
+      trackPasses: false,
+      trackedTeam: 'B',
+      lines: { enabled: false, saved: [{ id: 'l1', name: 'O1', playerKeys: ['7 alex'] }] },
+    });
+  });
+
+  it('gives a template saved before half-time could be switched off its half', () => {
+    const { halfTimeEnabled: _omitted, ...old } = extractTemplateSettings(defaultConfig);
+    void _omitted;
+    const next = applyTemplate(
+      { ...defaultConfig, halfTimeEnabled: false },
+      old as Parameters<typeof applyTemplate>[1],
+    );
+
+    expect(next.halfTimeEnabled).toBe(true);
   });
 });
 

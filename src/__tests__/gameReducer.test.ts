@@ -178,7 +178,7 @@ describe('undo', () => {
       { type: 'GOAL', team: 'B' },
       { type: 'PULL_THROWN' },
     );
-    // Team A did not score last: undo on A does nothing.
+    // TEAM A did not score last: undo on A does nothing.
     const afterWrongUndo = gameReducer(s, { type: 'UNDO_GOAL', team: 'A' });
     expect(afterWrongUndo.scores).toEqual({ A: 1, B: 1 });
     // Undo on B (last scorer) works.
@@ -3205,10 +3205,8 @@ describe('PointRecord.aliveSeconds', () => {
     expect(s.points[0].aliveSeconds).toBe(16);
   });
 
-  // The invariant that keeps the possession ledger and the average hold/break
-  // times from telling different stories about the same point: possessionTeam is
-  // never null while the status is 'live', so every live tick is credited to
-  // exactly one team and to this counter alike.
+  // possessionTeam is never null while the status is 'live', so every live tick
+  // is credited to exactly one team and to this counter alike.
   it('equals the two teams’ possession seconds added, where those are recorded', () => {
     let s = live(cfg({ statsMode: 'teams', trackTurnovers: true }));
     s = ticks(s, 12);
@@ -3369,12 +3367,12 @@ describe('editing the field and the teams mid-game', () => {
 
   it('renames, recolours and moves the field without touching the game', () => {
     const before = run(live(), { type: 'GOAL', team: 'A' });
-    const s = gameReducer(before, edit('  Ravens ', 'Foxes'));
+    const s = gameReducer(before, edit('  RAVENS ', 'FOXES'));
 
     expect(s.config.fieldNumber).toBe('4');
     expect(s.config.teams).toEqual({
-      A: { name: 'Ravens', color: '#ff0000' },
-      B: { name: 'Foxes', color: '#0000ff' },
+      A: { name: 'RAVENS', color: '#ff0000' },
+      B: { name: 'FOXES', color: '#0000ff' },
     });
     // A correction, not an event: nothing logged, score and clock untouched.
     expect(s.log).toBe(before.log);
@@ -3386,22 +3384,22 @@ describe('editing the field and the teams mid-game', () => {
     let s = live(cfg({ targetScore: 1 }));
     s = gameReducer(s, { type: 'GOAL', team: 'A' });
     expect(s.status).toBe('finished');
-    expect(gameReducer(s, edit('Ravens', 'Foxes')).config.teams.A.name).toBe('Ravens');
+    expect(gameReducer(s, edit('RAVENS', 'FOXES')).config.teams.A.name).toBe('RAVENS');
   });
 
   it('refuses an empty name or the same name twice, as the setup screen does', () => {
     const before = live();
-    expect(canEditGameInfo(teams(' ', 'Foxes')).reason).toBe('teamNameRequired');
-    expect(canEditGameInfo(teams('Ravens', ' ravens ')).reason).toBe('duplicateTeamNames');
-    expect(gameReducer(before, edit('', 'Foxes'))).toBe(before);
-    expect(gameReducer(before, edit('Ravens', 'RAVENS'))).toBe(before);
+    expect(canEditGameInfo(teams(' ', 'FOXES')).reason).toBe('teamNameRequired');
+    expect(canEditGameInfo(teams('RAVENS', ' ravens ')).reason).toBe('duplicateTeamNames');
+    expect(gameReducer(before, edit('', 'FOXES'))).toBe(before);
+    expect(gameReducer(before, edit('RAVENS', 'RAVENS'))).toBe(before);
   });
 
   it('survives undoing a goal — a rename is not part of the snapshot', () => {
     let s = run(live(), { type: 'GOAL', team: 'A' });
-    s = gameReducer(s, edit('Ravens', 'Foxes'));
+    s = gameReducer(s, edit('RAVENS', 'FOXES'));
     s = gameReducer(s, { type: 'UNDO_GOAL', team: 'A' });
-    expect(s.config.teams.A.name).toBe('Ravens');
+    expect(s.config.teams.A.name).toBe('RAVENS');
   });
 
   it('loads a picked roster, keeping the outgoing players named on what they did', () => {
@@ -3415,7 +3413,7 @@ describe('editing the field and the teams mid-game', () => {
 
     s = gameReducer(
       s,
-      edit('Ravens', 'Team 2', {
+      edit('RAVENS', 'Team 2', {
         load: { A: { players: [{ id: 'stored', number: '12', name: 'Kim' }], lines: [] } },
       }),
     );
@@ -3447,7 +3445,7 @@ describe('editing the field and the teams mid-game', () => {
 
     s = gameReducer(
       s,
-      edit('Ravens', 'Foxes', {
+      edit('RAVENS', 'FOXES', {
         load: { A: { players: [{ id: 'x', number: '2', name: 'Two' }], lines: saved } },
       }),
     );
@@ -3468,7 +3466,7 @@ describe('editing the field and the teams mid-game', () => {
     let s = gameReducer(live(config), { type: 'SET_LINE', playerIds: ['p1'] });
     s = gameReducer(
       s,
-      edit('Ravens', 'Foxes', {
+      edit('RAVENS', 'FOXES', {
         load: { B: { players: [{ id: 'y', number: '3', name: 'Tres' }], lines: [] } },
       }),
     );

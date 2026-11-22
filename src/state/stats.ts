@@ -5,38 +5,13 @@ import type { GameState, LogEntry, LogType, PlayerInfo, PointRecord, TeamId } fr
 export interface TeamStats {
   score: number;
   oLineHolds: number; // points won while on offense
+  oPoints: number; // finished points this team started on offense — what holds are out of
   cleanHolds: number; // oLineHolds with zero turnovers all point
   breakChances: number; // times this team (as D-line) gained the disc — see teamStats
   turnovers: number; // this team's own turnovers, lifetime, net of undo
   breaks: number; // points won while on defense
   cleanBreaks: number; // breaks forced and converted with no turnover of their own
-  /** Mean live-disc time of the points this team won on offence / on defence — see `pointPlaySeconds`. */
-  avgHoldSeconds: number | null;
-  avgBreakSeconds: number | null;
   timeoutsUsed: number;
-}
-
-function avg(nums: number[]): number | null {
-  if (nums.length === 0) return null;
-  return Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
-}
-
-/**
- * How long a point is worth in the average hold and break times: the seconds the
- * disc was actually live, so a timeout, a call or a stoppage adds nothing to a
- * team's average. Deliberately *not* what the point clock, the pace bar and the
- * log's per-goal duration read — those answer "how long have we been standing
- * here", which is elapsed time and includes every one of those; this answers "how
- * long does this team need with the disc".
- *
- * TECH DEBT: the fallback to `durationSeconds` is for points recorded before
- * `aliveSeconds` existed — every game already in the match-history archive. It
- * keeps those reports showing the number they showed on the day, at the cost of
- * the archive spanning two definitions. Safe to drop (leaving those games with a
- * "—") once the archive has turned over.
- */
-function pointPlaySeconds(point: PointRecord): number {
-  return point.aliveSeconds ?? point.durationSeconds;
 }
 
 /**
@@ -52,13 +27,12 @@ export function teamStats(state: GameState, team: TeamId): TeamStats {
   return {
     score: state.scores[team],
     oLineHolds: holds.length,
+    oPoints: state.points.filter((p) => p.offense === team).length,
     cleanHolds: holds.filter((p) => p.turnovers === 0).length,
     breakChances: breakChances(state, team),
     turnovers: state.turnoversCommitted[team],
     breaks: breaks.length,
     cleanBreaks: breaks.filter((p) => p.turnovers === 1).length,
-    avgHoldSeconds: avg(holds.map(pointPlaySeconds)),
-    avgBreakSeconds: avg(breaks.map(pointPlaySeconds)),
     timeoutsUsed: t.half1 + t.half2,
   };
 }
@@ -69,7 +43,8 @@ export function teamStats(state: GameState, team: TeamId): TeamStats {
  * the 2nd is the defense giving it right back, the 3rd is the offense again,
  * and so on — regardless of who eventually scores. Each odd-numbered one hands
  * the disc to the defense (the team that pulled), i.e. a break chance. That
- * count is ceil(turnovers / 2), independent of the point's outcome.
+ * count is ceil(turnovers / 2), independent of the point's outcome — except
+ * that a break scored on a point with no turnover recorded still counts one.
  *
  * Includes the point still in progress (via `pointTurnovers`/`pullingTeam`)
  * so a break chance earned right before a mid-point END_GAME isn't lost —
@@ -83,9 +58,12 @@ export function teamStats(state: GameState, team: TeamId): TeamStats {
  */
 function breakChances(state: GameState, team: TeamId): number {
   const other: TeamId = team === 'A' ? 'B' : 'A';
+  // A break the team scored was a chance taken, even with no turnover recorded on
+  // that point — a Callahan, or a Turn tap that never happened — so it counts at
+  // least one; otherwise the report would show more breaks than chances.
   const fromFinishedPoints = state.points
     .filter((p) => p.offense === other) // team was pulling (defense) that point
-    .reduce((sum, p) => sum + Math.ceil(p.turnovers / 2), 0);
+    .reduce((sum, p) => sum + Math.max(Math.ceil(p.turnovers / 2), p.scoredBy === team ? 1 : 0), 0);
   const fromCurrentPoint =
     state.status !== 'finished' && state.pullingTeam === team
       ? Math.ceil(state.pointTurnovers / 2)
@@ -540,56 +518,89 @@ export function reportLogEntries(log: LogEntry[]): LogEntry[] {
 export interface LogRow {
   /** The game clock, `mm:ss`. */
   clock: string;
-  /** The event, with its team appended where it has one. */
+  /** The score once a goal counted ("2-1", team A first); empty for anything else. */
+  score: string;
+  /** The event, with "(break)" for a break and its team appended where it has one. */
   event: string;
   /** Everything else the entry carries, already concatenated in render order. */
   detail: string;
 }
 
+/** A goal written before `LogEntry.score` existed carried the score as its detail. */
+const LEGACY_GOAL_DETAIL = /^(\d+)-(\d+)( \(break\))?$/;
+
 /**
- * A log entry as the three columns of a row. Shared by the table (GameLogTable),
+ * A goal entry's score and whether it was a break, or null for any other entry.
+ *
+ * TECH DEBT: the `detail` branch reads goals logged before the score was a field
+ * of its own — the session save of a game in progress across the deploy, and
+ * every game already in the match-history archive. Safe to drop once the archive
+ * has turned over (those goals would then show no score and no "(break)").
+ */
+export function goalScore(e: LogEntry): { score: string; isBreak: boolean } | null {
+  if (e.type !== 'goal') return null;
+  if (e.score) return { score: `${e.score.A}-${e.score.B}`, isBreak: e.isBreak === true };
+  const legacy = e.detail ? LEGACY_GOAL_DETAIL.exec(e.detail) : null;
+  if (legacy) return { score: `${legacy[1]}-${legacy[2]}`, isBreak: legacy[3] !== undefined };
+  return null;
+}
+
+/** The event label: the entry's name, "(break)" for a break, then its team. */
+function eventLabel(state: GameState, e: LogEntry, t: TFunc): string {
+  const goal = goalScore(e);
+  const name = `${t(`event_${e.type}` as never)}${goal?.isBreak ? ` ${t('logBreak')}` : ''}`;
+  return `${name}${e.team ? ` — ${state.config.teams[e.team].name}` : ''}`;
+}
+
+/**
+ * Everything after the event, in render order, with no leading separator. A
+ * goal's own `detail` is skipped when it is the legacy score string, which now
+ * has a column of its own; a stoppage's is skipped because `stoppageDetail`
+ * renders it (the injured player, if any).
+ */
+function detailParts(state: GameState, e: LogEntry, t: TFunc): string {
+  const own = e.stoppageKind || (e.type === 'goal' && goalScore(e)) ? '' : (e.detail ?? '');
+  const joined =
+    own +
+    goalPlayersDetail(state, e, t) +
+    pointDurationDetail(e, t) +
+    turnoverPlayersDetail(state, e, t) +
+    callDetail(e, t) +
+    stoppageDetail(e, t) +
+    pauseDetail(e, t) +
+    latePullDetail(e, t);
+  return joined.replace(/^ — /, '');
+}
+
+/**
+ * A log entry as the four columns of a row. Shared by the table (GameLogTable),
  * which renders the pieces as siblings, and by the shared image's game summary,
  * which paints them into measured columns — so an entry can never say one thing
  * on screen and another in the picture. The plain-text archive builds its own
- * single line out of the same helpers (`logTextLines` below), the difference
+ * single line out of the same pieces (`logTextLines` below), the difference
  * being punctuation rather than content.
  */
 export function logRow(state: GameState, e: LogEntry, t: TFunc): LogRow {
   return {
     clock: formatClock(e.gameSeconds),
-    event: `${t(`event_${e.type}` as never)}${e.team ? ` — ${state.config.teams[e.team].name}` : ''}`,
-    // stoppageDetail renders e.detail itself (the injured player, if any), so
-    // it's left out here to avoid printing it twice.
-    detail:
-      (e.stoppageKind ? '' : (e.detail ?? '')) +
-      goalPlayersDetail(state, e, t) +
-      pointDurationDetail(e, t) +
-      turnoverPlayersDetail(state, e, t) +
-      callDetail(e, t) +
-      stoppageDetail(e, t) +
-      pauseDetail(e, t) +
-      latePullDetail(e, t),
+    score: goalScore(e)?.score ?? '',
+    event: eventLabel(state, e, t),
+    detail: detailParts(state, e, t),
   };
 }
 
 /**
- * The log as plain text, one indented `[mm:ss] Event — Team (detail)` line per
- * entry. Shared by the report's copy button (which passes the filtered entries)
- * and the full-log dialog's (which passes all of them), so the two can't drift
- * into printing an event differently.
+ * The log as plain text, one indented `[mm:ss] Event — Team (2-1) — detail` line
+ * per entry. Shared by the report's copy button (which passes the filtered
+ * entries) and the full-log dialog's (which passes all of them), so the two can't
+ * drift into printing an event differently — and built from `logRow`, so neither
+ * can drift from the table.
  */
 export function logTextLines(state: GameState, entries: LogEntry[], t: TFunc): string[] {
   return entries.map((e) => {
-    const team = e.team ? ` — ${state.config.teams[e.team].name}` : '';
-    // stoppageDetail renders e.detail itself (the injured player, if any), so
-    // it's left out here to avoid printing it twice.
-    const detail = e.detail && !e.stoppageKind ? ` (${e.detail})` : '';
-    const players =
-      goalPlayersDetail(state, e, t) +
-      pointDurationDetail(e, t) +
-      turnoverPlayersDetail(state, e, t);
-    const call =
-      callDetail(e, t) || stoppageDetail(e, t) || pauseDetail(e, t) || latePullDetail(e, t);
-    return `  [${formatClock(e.gameSeconds)}] ${t(`event_${e.type}` as never)}${team}${detail}${players}${call ? ` — ${call}` : ''}`;
+    const row = logRow(state, e, t);
+    const score = row.score ? ` (${row.score})` : '';
+    const detail = row.detail ? ` — ${row.detail}` : '';
+    return `  [${row.clock}] ${row.event}${score}${detail}`;
   });
 }

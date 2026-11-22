@@ -408,10 +408,10 @@ describe('the log dialog', () => {
     mount(s);
 
     fireEvent.click(screen.getAllByLabelText('Fix this entry')[0]);
-    fireEvent.click(screen.getByRole('button', { name: 'Team B' }));
+    fireEvent.click(screen.getByRole('button', { name: 'TEAM B' }));
 
     const row = screen.getAllByRole('row')[1];
-    expect(within(row).getByText('Travel — Team B')).toBeInTheDocument();
+    expect(within(row).getByText('Travel — TEAM B')).toBeInTheDocument();
   });
 
   it('removes the row when the bin is tapped', () => {

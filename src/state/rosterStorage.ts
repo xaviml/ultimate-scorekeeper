@@ -1,3 +1,4 @@
+import { teamNameCase } from './teamName';
 import type { SavedLine, SavedTeam } from './types';
 
 const STORAGE_KEY = 'ultimate-scorekeeper:saved-teams';
@@ -5,7 +6,11 @@ const STORAGE_KEY = 'ultimate-scorekeeper:saved-teams';
 export function loadSavedTeams(): SavedTeam[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as SavedTeam[]) : [];
+    // Teams stored before names were cased come back cased; the store already
+    // matches names case-insensitively, so this cannot split one team into two.
+    return raw
+      ? (JSON.parse(raw) as SavedTeam[]).map((team) => ({ ...team, name: teamNameCase(team.name) }))
+      : [];
   } catch {
     return [];
   }
@@ -27,7 +32,7 @@ const normalize = (name: string) => name.trim().toLowerCase();
  * (including `[]`, which is how the last line is deleted) replaces it.
  */
 export function saveTeam(team: SavedTeam): void {
-  const name = team.name.trim();
+  const name = teamNameCase(team.name.trim());
   if (!name) return;
   try {
     const all = loadSavedTeams();
@@ -66,7 +71,7 @@ export function saveTeamLines(name: string, lines: SavedLine[]): void {
  * name typed on the setup screen. Nothing happens when `from` isn't stored.
  */
 export function renameTeam(from: string, to: string): void {
-  const target = to.trim();
+  const target = teamNameCase(to.trim());
   if (!target || normalize(from) === normalize(target)) return;
   try {
     const all = loadSavedTeams();

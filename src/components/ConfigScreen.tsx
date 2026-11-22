@@ -8,6 +8,7 @@ import { deleteTeam, loadSavedTeams, saveTeam, saveTeamLines } from '../state/ro
 import {
   BEACH_TEMPLATE,
   GRASS_TEMPLATE,
+  applyTemplate,
   deleteTemplate,
   extractTemplateSettings,
   loadSavedTemplates,
@@ -284,19 +285,13 @@ export default function ConfigScreen() {
     // of them is stale — drop the drafts rather than let them mask the new value.
     setNumberDrafts({});
     setScoresDraft(null);
-    if (key === 'predefined:grass') setCfg((c) => ({ ...c, ...PREDEFINED_TEMPLATES.grass }));
-    else if (key === 'predefined:beach') setCfg((c) => ({ ...c, ...PREDEFINED_TEMPLATES.beach }));
+    if (key === 'predefined:grass') setCfg((c) => applyTemplate(c, PREDEFINED_TEMPLATES.grass));
+    else if (key === 'predefined:beach')
+      setCfg((c) => applyTemplate(c, PREDEFINED_TEMPLATES.beach));
     else if (key.startsWith('custom:')) {
       const name = key.slice('custom:'.length);
       const template = savedTemplates.find((t) => t.name === name);
-      // A template saved before half-time could be switched off never carries the
-      // field, and every one of those games had a half.
-      if (template)
-        setCfg((c) => ({
-          ...c,
-          ...template.settings,
-          halfTimeEnabled: template.settings.halfTimeEnabled ?? true,
-        }));
+      if (template) setCfg((c) => applyTemplate(c, template.settings));
     }
   };
   const selectedCustomName = selectedTemplateKey.startsWith('custom:')
@@ -1240,6 +1235,8 @@ export default function ConfigScreen() {
 
       {showSaveTemplate && (
         <SaveTemplateDialog
+          savedNames={savedTemplates.map((template) => template.name)}
+          currentName={selectedCustomName}
           onClose={() => setShowSaveTemplate(false)}
           onSave={(name) => {
             saveTemplate({ name, settings: extractTemplateSettings(cfg) });

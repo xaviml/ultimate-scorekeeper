@@ -62,7 +62,7 @@ describe('the secondary clock while the disc is live', () => {
 
     const box = clockBox();
     expect(box).toHaveAttribute('data-live-clock', 'possession');
-    expect(within(box).getByText('Team B')).toBeInTheDocument();
+    expect(within(box).getByText('TEAM B')).toBeInTheDocument();
     expect(within(box).getByText('01:10')).toBeInTheDocument();
     // The point's own clock is the other reading, not this one.
     expect(screen.queryByText('01:40')).toBeNull();
@@ -73,7 +73,7 @@ describe('the secondary clock while the disc is live', () => {
     mount(liveGame({ possessionTeam: 'A', possessionSeconds: { A: 25, B: 70 } }));
 
     const box = clockBox();
-    expect(within(box).getByText('Team A')).toBeInTheDocument();
+    expect(within(box).getByText('TEAM A')).toBeInTheDocument();
     expect(within(box).getByText('00:25')).toBeInTheDocument();
   });
 
@@ -86,7 +86,7 @@ describe('the secondary clock while the disc is live', () => {
 
     fireEvent.click(toggle() as HTMLElement);
     expect(clockBox()).toHaveAttribute('data-live-clock', 'possession');
-    expect(within(clockBox()).getByText('Team B')).toBeInTheDocument();
+    expect(within(clockBox()).getByText('TEAM B')).toBeInTheDocument();
     expect(within(clockBox()).getByText('01:10')).toBeInTheDocument();
   });
 

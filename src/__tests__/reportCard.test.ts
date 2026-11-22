@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { en } from '../i18n/en';
 import type { TFunc } from '../i18n/useT';
 import { createInitialState, defaultConfig } from '../state/gameReducer';
-import { reportCardModel, teamStatRows } from '../state/reportCard';
+import { reportCardModel, teamStatRows, type StatRow } from '../state/reportCard';
 import type { GameState, LogEntry, PointRecord } from '../state/types';
 
 /** Same shape as the real translator, without standing up the provider. */
@@ -49,37 +49,101 @@ beforeEach(() => {
 });
 
 describe('teamStatRows', () => {
-  it('drops the turnover-derived rows when activity tracking is off', () => {
-    const state = baseState();
-    state.config.statsMode = 'none';
-    const labels = teamStatRows(state, t).map((r) => r.label);
+  const layout = (rows: { label: string; sub?: boolean }[]) =>
+    rows.map((r) => (r.sub ? `  ${r.label}` : r.label));
+  const find = (label: string) => (rows: StatRow[]) => rows.find((r) => r.label === label)!;
 
-    expect(labels).toContain('O-line holds');
-    expect(labels).toContain('Break points');
-    expect(labels).not.toContain('Clean holds');
-    expect(labels).not.toContain('Break chances');
-    expect(labels).not.toContain('Turnovers');
-    expect(labels).not.toContain('Clean breaks');
-  });
-
-  it('formats the average times as a clock, and an absent average as a dash', () => {
+  it('puts each qualifying row under the figure it qualifies', () => {
     const state = baseState();
     state.config.statsMode = 'teams';
     state.config.trackTurnovers = true;
-    state.points = [point({ scoredBy: 'A', offense: 'A', isBreak: false, durationSeconds: 95 })];
+    state.config.trackPasses = true;
 
+    expect(layout(teamStatRows(state, t))).toEqual([
+      'Holds',
+      '  Clean',
+      'Breaks',
+      '  Clean',
+      'Turnovers',
+      'Passes',
+      '  Per possession',
+      'Timeouts',
+    ]);
+  });
+
+  it('drops the turnover-derived rows when turnovers are not recorded', () => {
+    const state = baseState();
+    state.config.statsMode = 'none';
+
+    expect(layout(teamStatRows(state, t))).toEqual(['Holds', 'Breaks', 'Timeouts']);
+  });
+
+  it('counts holds out of the points received, with the percentage', () => {
+    const state = baseState();
+    state.points = [
+      point({ scoredBy: 'A', offense: 'A' }),
+      point({ scoredBy: 'B', offense: 'A', isBreak: true, turnovers: 1 }),
+      point({ scoredBy: 'B', offense: 'B' }),
+      point({ scoredBy: 'A', offense: 'A' }),
+    ];
+
+    expect(find('Holds')(teamStatRows(state, t))).toEqual({
+      label: 'Holds',
+      a: '2/3',
+      b: '1/1',
+      aPct: '67%',
+      bPct: '100%',
+    });
+  });
+
+  it('dashes the percentage of a team that has received no point yet', () => {
+    const state = baseState();
+    state.points = [point({ scoredBy: 'A', offense: 'A' })];
+    const holds = find('Holds')(teamStatRows(state, t));
+
+    expect(holds.b).toBe('0/0');
+    expect(holds.bPct).toBe('—');
+  });
+
+  it('counts breaks out of break chances, with the clean ones under them', () => {
+    const state = baseState();
+    state.config.statsMode = 'teams';
+    state.config.trackTurnovers = true;
+    state.points = [
+      // B pulls; A turns it over, B scores at once: one chance, converted cleanly.
+      point({ scoredBy: 'B', offense: 'A', isBreak: true, turnovers: 1 }),
+      // B pulls; A turns it over, B turns it back, A turns it over again, B scores:
+      // two chances, one converted, not clean.
+      point({ scoredBy: 'B', offense: 'A', isBreak: true, turnovers: 3 }),
+      // B pulls; A turns it over once, B gives it back, A scores: one chance missed.
+      point({ scoredBy: 'A', offense: 'A', turnovers: 2 }),
+    ];
     const rows = teamStatRows(state, t);
-    expect(rows.find((r) => r.label === 'Avg. hold time')).toEqual({
-      label: 'Avg. hold time',
-      a: '01:35',
-      b: '—',
-    });
-    // Neither side ever broke, so both averages are empty.
-    expect(rows.find((r) => r.label === 'Avg. break time')).toEqual({
-      label: 'Avg. break time',
-      a: '—',
-      b: '—',
-    });
+    const at = rows.findIndex((r) => r.label === 'Breaks');
+
+    expect(rows[at]).toEqual({ label: 'Breaks', a: '0/0', b: '2/4', aPct: '—', bPct: '50%' });
+    expect(rows[at + 1]).toEqual({ label: 'Clean', a: '0', b: '1', sub: true });
+  });
+
+  it('counts a break with no turnover recorded as a chance taken', () => {
+    // A Callahan, or a Turn tap that never happened: the break is real, so the
+    // row must not read more breaks than chances.
+    const state = baseState();
+    state.config.statsMode = 'teams';
+    state.config.trackTurnovers = true;
+    state.points = [point({ scoredBy: 'B', offense: 'A', isBreak: true, turnovers: 0 })];
+    const breaks = find('Breaks')(teamStatRows(state, t));
+
+    expect(breaks.b).toBe('1/1');
+    expect(breaks.bPct).toBe('100%');
+  });
+
+  it('shows breaks as a plain count, with no percentage, when turnovers are not recorded', () => {
+    const state = baseState();
+    state.config.statsMode = 'none';
+    state.points = [point({ scoredBy: 'B', offense: 'A', isBreak: true })];
+
+    expect(find('Breaks')(teamStatRows(state, t))).toEqual({ label: 'Breaks', a: '0', b: '1' });
   });
 });
 
@@ -97,7 +161,6 @@ describe('reportCardModel', () => {
       { name: 'Foxes', color: '#ff0000', score: '15' },
       { name: 'Wolves', color: '#0000ff', score: '12' },
     ]);
-    expect(model.statHeader).toEqual(['Foxes', 'Wolves']);
   });
 
   it('has no heading over the meta line — the score speaks for itself in a chat', () => {
@@ -259,7 +322,7 @@ describe('reportCardModel', () => {
     };
     state.log = [
       entry({ type: 'gameStart' }),
-      entry({ type: 'goal', team: 'A', gameSeconds: 65 }),
+      entry({ type: 'goal', team: 'A', gameSeconds: 65, score: { A: 1, B: 0 }, isBreak: true }),
       // Filtered out on the card exactly as on the screen: a tracked game records
       // these by the dozen and they bury the shape of the game.
       entry({ type: 'turnover', team: 'B' }),
@@ -270,9 +333,9 @@ describe('reportCardModel', () => {
     const history = reportCardModel(state, t, 'en').history;
     expect(history?.title).toBe('Game summary');
     expect(history?.rows).toEqual([
-      { clock: '00:00', event: 'Game start', detail: '' },
-      { clock: '01:05', event: 'Goal — Foxes', detail: '' },
-      { clock: '00:00', event: 'Event', detail: 'wind picked up' },
+      { clock: '00:00', score: '', event: 'Game start', detail: '' },
+      { clock: '01:05', score: '1-0', event: 'Goal (break) — Foxes', detail: '' },
+      { clock: '00:00', score: '', event: 'Event', detail: 'wind picked up' },
     ]);
   });
 

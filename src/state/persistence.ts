@@ -1,3 +1,4 @@
+import { withTeamNameCase } from './teamName';
 import { createInitialState } from './gameReducer';
 import type { GameConfig, GameState } from './types';
 
@@ -95,7 +96,9 @@ export function reviveGameState(stored: GameState): GameState {
   return {
     ...fresh,
     ...stored,
-    config: { ...fresh.config, ...migrateStoredConfig(stored.config) },
+    // A game stored before team names were cased comes back cased, so a reload
+    // or an archived report reads the same as a game started today.
+    config: withTeamNameCase({ ...fresh.config, ...migrateStoredConfig(stored.config) }),
   };
 }
 

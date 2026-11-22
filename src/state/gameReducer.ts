@@ -1,3 +1,4 @@
+import { teamNameCase, withTeamNameCase } from './teamName';
 import type {
   Action,
   GameConfig,
@@ -21,8 +22,8 @@ export const defaultConfig: GameConfig = {
   division: 'mixed',
   fieldNumber: '1',
   teams: {
-    A: { name: 'Team A', color: '#d94141' },
-    B: { name: 'Team B', color: '#2f6fd9' },
+    A: { name: 'TEAM A', color: '#d94141' },
+    B: { name: 'TEAM B', color: '#2f6fd9' },
   },
   mixedRule: 'A',
   startingOffense: 'A',
@@ -179,6 +180,8 @@ function log(
     | 'stoppageKind'
     | 'stoppagePlayers'
     | 'pointSeconds'
+    | 'score'
+    | 'isBreak'
   >,
 ): GameState {
   return {
@@ -277,7 +280,7 @@ export function createInitialState(config: GameConfig = defaultConfig): GameStat
   return {
     id: uid(),
     phase: 'config',
-    config,
+    config: withTeamNameCase(config),
     status: 'notStarted',
     statusBeforePause: null,
     statusBeforeTimeout: null,
@@ -1565,8 +1568,10 @@ export function gameReducer(state: GameState, action: Action): GameState {
         // 'finished' by hand; this sidesteps it rather than guarding against it.
         passRuns: [],
       };
-      s = log(s, 'goal', team, `${s.scores.A}-${s.scores.B}${isBreak ? ' (break)' : ''}`, {
+      s = log(s, 'goal', team, undefined, {
         pointSeconds,
+        score: { ...s.scores },
+        isBreak,
       });
 
       // End cap by time (Options B and C): the target is the leading score now that the
@@ -2303,7 +2308,10 @@ export function gameReducer(state: GameState, action: Action): GameState {
     // colour reads it from config when it is drawn, so the log and the report follow.
     case 'EDIT_GAME_INFO': {
       if (state.phase !== 'game' || !canEditGameInfo(action.teams).ok) return state;
-      const trim = (team: GameConfig['teams'][TeamId]) => ({ ...team, name: team.name.trim() });
+      const trim = (team: GameConfig['teams'][TeamId]) => ({
+        ...team,
+        name: teamNameCase(team.name.trim()),
+      });
       let next: GameState = {
         ...state,
         config: {
