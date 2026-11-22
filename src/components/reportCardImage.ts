@@ -57,17 +57,18 @@ const NAME_MAX = 280;
 // Point by point. Nothing here widens the card: the heading and the strip are laid
 // out to fit, and every other line wraps rather than ellipsising — the image is the
 // one place a point is read in full, so no part of its story may be cut off.
-/** The column the point number sits in; everything else in a row starts after it. */
-const POINT_INDENT = 40;
 const POINT_PAD = 9;
 const POINT_HEAD_H = 26;
 const SUMMARY_LINE_H = 18;
 const TIMELINE_LINE_H = 18;
-/** The timeline's clock column, between the indent and the colour dot. */
+/** The timeline's clock column, before the colour dot. Markers share it. */
 const TIMELINE_CLOCK_W = 42;
 const MARKER_H = 26;
 const LINES_HEAD_H = 20;
 const LINES_ROW_H = 26;
+/** The closing credit and the app's address, centred under the last panel. */
+const FOOTER_CREDIT_H = 20;
+const FOOTER_URL_H = 22;
 
 /** The Tailwind palette, duplicated because a canvas can't read a utility class. Keep in step with tailwind.config.js. */
 const C = {
@@ -190,13 +191,11 @@ const timelineFont = (goal?: boolean) => board(12, goal ? 600 : 500);
  * paints from the same layout, which is what keeps the two passes from disagreeing.
  */
 function layoutPoints(ctx: Ctx, model: CardPointsModel, innerWidth: number): PointsLayout {
-  const textLeft = POINT_INDENT + TIMELINE_CLOCK_W + 14;
+  const textLeft = TIMELINE_CLOCK_W + 14;
   const rows: PointsLayout['rows'] = model.rows.map((row) => {
     if (row.kind === 'marker') return { kind: 'marker' as const, height: MARKER_H };
     ctx.font = summaryFont();
-    const summary = row.summary.length
-      ? packSegments(ctx, row.summary, innerWidth - POINT_INDENT)
-      : [];
+    const summary = row.summary.length ? packSegments(ctx, row.summary, innerWidth) : [];
     const timeline = row.timeline.map((line) => {
       ctx.font = timelineFont(line.goal);
       return { line, texts: wrapText(ctx, line.text, innerWidth - textLeft) };
@@ -332,31 +331,24 @@ function drawPoints(
       const midY = y + MARKER_H / 2;
       ctx.font = clock(13, 600);
       ctx.fillStyle = C.chalkDim;
-      ctx.textAlign = 'right';
-      ctx.fillText(row.clock, left + POINT_INDENT - 8, midY);
+      ctx.textAlign = 'left';
+      ctx.fillText(row.clock, left, midY);
       ctx.font = board(12, 600);
       ctx.fillStyle = C.chalkMid;
-      ctx.textAlign = 'left';
       withTracking(ctx, '1px');
-      ctx.fillText(
-        fitText(ctx, row.text.toUpperCase(), right - left - POINT_INDENT),
-        left + POINT_INDENT,
-        midY,
-      );
+      // In the timeline's text column, so a marker lines up with the points around it.
+      const textX = left + TIMELINE_CLOCK_W + 14;
+      ctx.fillText(fitText(ctx, row.text.toUpperCase(), right - textX), textX, midY);
       withTracking(ctx, '0px');
       y += MARKER_H;
       return;
     }
     const point = item as PointLayout;
-    const x0 = left + POINT_INDENT;
+    const x0 = left;
     let pY = y + POINT_PAD;
 
-    // Heading: number, scorer's dot and the score, the outcome tag, the time on the right.
+    // Heading: scorer's dot and the score, the outcome tag, the time on the right.
     const headY = pY + POINT_HEAD_H / 2;
-    ctx.font = clock(14, 600);
-    ctx.fillStyle = C.chalkDim;
-    ctx.textAlign = 'right';
-    ctx.fillText(row.number, x0 - 10, headY);
     let hx = x0;
     if (row.scoredBy) {
       ctx.beginPath();
@@ -504,6 +496,9 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
     statsH +
     (hasPlayers ? GAP + playersH : 0) +
     (points ? GAP + pointsH : 0) +
+    GAP +
+    FOOTER_CREDIT_H +
+    FOOTER_URL_H +
     PAD;
 
   canvas.width = width * SCALE;
@@ -737,7 +732,19 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
     withTracking(ctx, '0px');
     pY += SECTION_TITLE_H + 10;
     drawPoints(ctx, model.points, points, left, right, pY);
+    y += pointsH + GAP;
   }
+
+  // Footer — where the app lives, so whoever receives the image can find it.
+  const centreX = PAD + panelWidth / 2;
+  ctx.textAlign = 'center';
+  ctx.font = board(12, 500);
+  ctx.fillStyle = C.chalkDim;
+  ctx.fillText(fitText(ctx, model.footer.credit, panelWidth), centreX, y + FOOTER_CREDIT_H / 2);
+  y += FOOTER_CREDIT_H;
+  ctx.font = board(14, 600);
+  ctx.fillStyle = C.signal;
+  ctx.fillText(fitText(ctx, model.footer.url, panelWidth), centreX, y + FOOTER_URL_H / 2);
 
   return canvas;
 }

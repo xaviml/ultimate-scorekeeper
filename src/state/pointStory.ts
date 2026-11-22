@@ -481,6 +481,11 @@ export interface TimelineLine {
 
 export interface PointRowModel {
   kind: 'point';
+  /**
+   * The point's 1-based position, as an identity only — it keys the row and remembers
+   * which rows are open, and is never printed: the score already says which point it
+   * is, and the point in progress is labelled by its outcome tag alone.
+   */
   number: string;
   offense: TeamId;
   scoredBy: TeamId | null;
@@ -758,19 +763,21 @@ export function pointsTextLines(state: GameState, model: PointsModel): string[] 
     for (const r of model.lines.rows) out.push(`    ${r.name}: ${r.o} / ${r.d}`);
     out.push('');
   }
-  for (const row of model.rows) {
+  model.rows.forEach((row, i) => {
+    // A blank line between blocks, so each point reads as a paragraph of its own.
+    if (i > 0) out.push('');
     if (row.kind === 'marker') {
       out.push(`  [${row.clock}] ${row.text}`);
-      continue;
+      return;
     }
     const who = row.scoredBy ? ` ${state.config.teams[row.scoredBy].name}` : '';
     const time = [row.duration, row.inPlay ? `(${row.inPlay})` : ''].filter(Boolean).join(' ');
-    const head = [`#${row.number}`, row.score, `${row.outcome}${who}`, time].filter(Boolean);
+    const head = [row.score, `${row.outcome}${who}`, time].filter(Boolean);
     out.push(`  ${head.join(' · ')}`);
     if (row.summary.length) out.push(`      ${row.summary.join(' · ')}`);
     for (const line of row.timeline) {
       out.push(`      ${line.clock ? `[${line.clock}] ` : ''}${line.text}`);
     }
-  }
+  });
   return out;
 }

@@ -109,7 +109,15 @@ export interface ReportCardModel {
    * every row rather than truncating, so a long game makes a tall card.
    */
   points: CardPointsModel | null;
+  /** The closing credit and the app's address, the same two lines the copied text ends on. */
+  footer: { credit: string; url: string };
 }
+
+/**
+ * Where the app lives. Both shared copies end on it — the copied text and the image —
+ * under the same `reportFooterCredit` line, so whoever receives one can find the app.
+ */
+export const APP_URL = 'https://xaviml.github.io/ultimate-scorekeeper/';
 
 /** Dates are the one thing on the card that isn't a dictionary string, so the language has to be resolved to a locale. */
 const LOCALES: Record<Lang, string> = { en: 'en-GB', es: 'es-ES', ca: 'ca-ES' };
@@ -290,6 +298,7 @@ export function reportCardModel(state: GameState, t: TFunc, lang: Lang): ReportC
   const columns = groups ? groups.flatMap((g) => g.columns) : playerStatColumns('scoring');
 
   return {
+    footer: { credit: t('reportFooterCredit'), url: APP_URL },
     meta: metaSegments(state, t, lang),
     teams: (['A', 'B'] as TeamId[]).map((id) => ({
       name: teams[id].name,

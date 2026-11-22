@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { en } from '../i18n/en';
 import type { TFunc } from '../i18n/useT';
 import { createInitialState, defaultConfig } from '../state/gameReducer';
-import { reportCardModel, teamStatRows, type StatRow } from '../state/reportCard';
+import { APP_URL, reportCardModel, teamStatRows, type StatRow } from '../state/reportCard';
 import type { GameState, LogEntry, PointRecord } from '../state/types';
 
 /** Same shape as the real translator, without standing up the provider. */
@@ -188,6 +188,13 @@ describe('reportCardModel', () => {
     // "Final score" is still a string in the dictionary (the copied text uses it);
     // it is the picture that labels nothing, the meta line being the whole header.
     expect(JSON.stringify(reportCardModel(state, t, 'en'))).not.toContain('Final score');
+  });
+
+  // Same two lines the copied text ends on, so a shared image points back at the app.
+  it('ends on the credit line and the app link', () => {
+    const { footer } = reportCardModel(baseState(), t, 'en');
+    expect(footer).toEqual({ credit: en.reportFooterCredit, url: APP_URL });
+    expect(footer.url).toBe('https://xaviml.github.io/ultimate-scorekeeper/');
   });
 
   it('puts the field, date and the clock times of the game in the meta line', () => {

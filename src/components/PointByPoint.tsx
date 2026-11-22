@@ -63,7 +63,9 @@ export function PointByPoint({
               data-marker
               className="flex items-center gap-2 py-2 border-t border-line first:border-t-0 text-xs text-chalk/60"
             >
-              <span className="font-clock w-10 shrink-0 text-right">{row.clock}</span>
+              {/* Laid out like a timeline line (clock, dot slot, text), so the columns match. */}
+              <span className="font-clock w-9 shrink-0">{row.clock}</span>
+              <span className="w-2 shrink-0" />
               <span className="font-board uppercase tracking-wide">{row.text}</span>
             </li>
           ) : (
@@ -109,9 +111,6 @@ function PointRow({
         onClick={onToggle}
       >
         <span className="flex items-center gap-2 w-full">
-          <span className="font-clock text-xs text-chalk/50 w-6 shrink-0 text-right">
-            {row.number}
-          </span>
           {row.scoredBy && (
             <span
               className="w-2.5 h-2.5 rounded-full shrink-0"
@@ -147,13 +146,13 @@ function PointRow({
         </span>
         {row.track && <Track segments={row.track} teams={teams} scale={trackScale} />}
         {row.summary.length > 0 && (
-          <span className="pl-8 text-xs text-chalk/60" data-summary>
+          <span className="text-xs text-chalk/60" data-summary>
             {row.summary.join(' · ')}
           </span>
         )}
       </button>
       {open && (
-        <ol className="pl-8 pb-3 space-y-1" data-timeline>
+        <ol className="pb-3 space-y-1" data-timeline>
           {row.timeline.map((line, i) => (
             <li
               key={i}
@@ -226,63 +225,60 @@ function Track({
     </text>
   );
   return (
-    // Measured inside the indent: the outer span's width would include it.
-    <span className="pl-8 block w-full" aria-hidden="true">
-      <span ref={ref} className="block w-full">
-        <svg
-          width={width}
-          height={TRACK_HEIGHT}
-          viewBox={`0 0 ${width} ${TRACK_HEIGHT}`}
-          className="block overflow-visible"
-          data-track
-        >
-          {pieces.map((p, i) => (
-            <g
-              key={i}
-              data-segment={p.state}
-              data-team={p.team}
-              data-seconds={p.seconds ?? ''}
-              data-passes={p.passes ?? ''}
-            >
-              {p.dashed ? (
-                <rect
-                  x={p.x0 + 0.75}
-                  y={mid - TRACK_STROKE / 2 + 0.75}
-                  width={Math.max(0, p.x1 - p.x0 - 1.5)}
-                  height={TRACK_STROKE - 1.5}
-                  rx={1.5}
-                  fill="none"
-                  stroke={teams[p.team].color}
-                  strokeWidth={1.5}
-                  strokeDasharray="3 2"
-                />
-              ) : (
-                <rect
-                  x={p.x0}
-                  y={mid - TRACK_STROKE / 2}
-                  width={p.x1 - p.x0}
-                  height={TRACK_STROKE}
-                  rx={1.5}
-                  fill={teams[p.team].color}
-                />
-              )}
-              {p.time && label(p.time)}
-              {p.passLabel && label(p.passLabel)}
-            </g>
-          ))}
-          {last?.state === 'goal' && (
-            <circle
-              cx={last.x1}
-              cy={mid}
-              r={4.5}
-              className="fill-chalk"
-              stroke={teams[last.team].color}
-              strokeWidth={2}
-              data-disc
-            />
-          )}
-        </svg>
-      </span>
+    <span ref={ref} className="block w-full" aria-hidden="true">
+      <svg
+        width={width}
+        height={TRACK_HEIGHT}
+        viewBox={`0 0 ${width} ${TRACK_HEIGHT}`}
+        className="block overflow-visible"
+        data-track
+      >
+        {pieces.map((p, i) => (
+          <g
+            key={i}
+            data-segment={p.state}
+            data-team={p.team}
+            data-seconds={p.seconds ?? ''}
+            data-passes={p.passes ?? ''}
+          >
+            {p.dashed ? (
+              <rect
+                x={p.x0 + 0.75}
+                y={mid - TRACK_STROKE / 2 + 0.75}
+                width={Math.max(0, p.x1 - p.x0 - 1.5)}
+                height={TRACK_STROKE - 1.5}
+                rx={1.5}
+                fill="none"
+                stroke={teams[p.team].color}
+                strokeWidth={1.5}
+                strokeDasharray="3 2"
+              />
+            ) : (
+              <rect
+                x={p.x0}
+                y={mid - TRACK_STROKE / 2}
+                width={p.x1 - p.x0}
+                height={TRACK_STROKE}
+                rx={1.5}
+                fill={teams[p.team].color}
+              />
+            )}
+            {p.time && label(p.time)}
+            {p.passLabel && label(p.passLabel)}
+          </g>
+        ))}
+        {last?.state === 'goal' && (
+          <circle
+            cx={last.x1}
+            cy={mid}
+            r={4.5}
+            className="fill-chalk"
+            stroke={teams[last.team].color}
+            strokeWidth={2}
+            data-disc
+          />
+        )}
+      </svg>
     </span>
   );
 }

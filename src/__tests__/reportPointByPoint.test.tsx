@@ -202,11 +202,15 @@ describe('report screen — point by point', () => {
     await screen.findByText('Copied!');
     const report = writeText.mock.calls[0][0] as string;
     expect(report).toContain('Point by point');
-    expect(report).toContain('#1 · 0-1 · Break TEAM B · 1m 0s (48s in play)');
+    expect(report).toContain('  0-1 · Break TEAM B · 1m 0s (48s in play)');
+    expect(report).not.toMatch(/#\d+ · /);
     expect(report).toContain('      1 turn · Timeout · Foul · Travel');
     expect(report).toContain('      [00:30] TEAM A · 20s — Turnover — turn: #7 Alex');
     expect(report).toContain('  [01:11] Half-time');
     expect(report).not.toContain('Possession correction');
+    // Every block — a marker or a point — is set apart from the one before by a blank line.
+    expect(report).toMatch(/\] Game start\n\n {2}0-1 · Break/);
+    expect(report).toMatch(/\n\n {2}\[01:11\] Half-time\n\n {2}0-2 · Hold/);
 
     fireEvent.click(within(section()).getByRole('button', { name: 'Full log' }));
     fireEvent.click(screen.getByRole('button', { name: 'Copy log' }));

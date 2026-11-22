@@ -6,7 +6,7 @@ import { useGame, useGameDispatch } from '../state/gameHooks';
 import { turnoverPlayersTracked } from '../state/gameReducer';
 import { lineTrackingEnabled } from '../state/lines';
 import { copyText } from '../state/clipboard';
-import { playerStatsTeams, reportCardModel, teamStatRows } from '../state/reportCard';
+import { APP_URL, playerStatsTeams, reportCardModel, teamStatRows } from '../state/reportCard';
 import { pointsModel, pointsTextLines } from '../state/pointStory';
 import { formatClock, playerStatLines, sortPlayerStatLines, teamStats } from '../state/stats';
 import type { PlayerStatView } from '../state/stats';
@@ -16,9 +16,6 @@ import { PlayerStatsTable } from './PlayerStatsTable';
 import { PointByPoint } from './PointByPoint';
 import { playerStatColumns, statCellText } from './playerStatColumns';
 import { contrastText, pillClass, primaryButton, secondaryButtonOnPitch, sectionTitle } from './ui';
-
-/** Plugged into the report footer so a shared copy points back at the app. */
-const APP_URL = 'https://xaviml.github.io/ultimate-scorekeeper/';
 
 const VIEW_KEY = {
   scoring: 'viewScoring',
