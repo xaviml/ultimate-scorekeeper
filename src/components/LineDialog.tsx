@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import { canSetLine, ratioForPoint } from '../state/gameReducer';
@@ -9,12 +9,15 @@ import {
   resolveSavedLine,
   savedLineFrom,
 } from '../state/lines';
+import { lineRotation } from '../state/rotation';
 import { saveTeamLines } from '../state/rosterStorage';
+import { loadLineRestSort, savePlayerSort, saveLineRestSort } from '../state/uiPreferences';
+import { usePlayerSort } from '../hooks/usePlayerSort';
 import { uid } from '../state/uid';
 import type { SavedLine, TeamId } from '../state/types';
 import { LineComposition } from './LineComposition';
 import { Modal } from './Modal';
-import { PlayerMultiPicker, PlayerSortToggle } from './PlayerPicker';
+import { LineSheet, type LineSheetOrder } from './LineSheet';
 import { PlayerRosterEditor } from './PlayerRosterEditor';
 import { inputClass, pillClass, primaryButton, secondaryButton } from './ui';
 
@@ -100,6 +103,20 @@ export function LineDialog({ team, onClose }: { team: TeamId; onClose: () => voi
   const expected = expectedSplit(state.config, ratioFor(key));
   const issues = issuesFor(key);
 
+  /**
+   * What the sheet shows beside each player. Picking the next line, the point being
+   * played is part of the picture — whoever is on now is not rested for the next one —
+   * so it rides along as the strip's last, unfinished slot.
+   */
+  const rotation = lineRotation(state, team, t, { inProgress: editingNext });
+  /**
+   * Which column the point being picked makes the one to read: Hold when we receive,
+   * Brk when we pull. The next point's side is unknown until this one is scored.
+   */
+  const side = editingNext ? null : state.offenseTeam === team ? 'O' : 'D';
+
+  const order = useLineSheetOrder();
+
   const switchMode = (next: 'current' | 'next') => {
     setMode(next);
     setArmed(false);
@@ -177,7 +194,7 @@ export function LineDialog({ team, onClose }: { team: TeamId; onClose: () => voi
     <Modal
       title={t('lineDialogTitle', { team: state.config.teams[team].name })}
       onClose={onClose}
-      headerAction={<PlayerSortToggle />}
+      headerAction={<LineSortToggle />}
     >
       {canNext && (
         <div className="grid grid-cols-2 gap-2">
@@ -221,6 +238,7 @@ export function LineDialog({ team, onClose }: { team: TeamId; onClose: () => voi
                 onClick={() => loadSaved(saved)}
               >
                 {saved.name}
+                <SavedLineRecord record={rotation.savedLines.get(saved.name)} />
               </button>
             ))}
           </div>
@@ -232,14 +250,16 @@ export function LineDialog({ team, onClose }: { team: TeamId; onClose: () => voi
       {roster.length === 0 ? (
         <p className="text-sm text-chalk/50">{t('lineNoRoster')}</p>
       ) : (
-        <PlayerMultiPicker
+        // Grouped by marking whatever `genderCheck` says: the markings are a fact
+        // about the squad, and a volunteer picking a line reads them off the roster
+        // whether or not this game is checking the split.
+        <LineSheet
           players={roster}
           selected={selected}
+          rotation={rotation}
+          order={order}
+          side={side}
           showGender={state.config.lines.genderCheck !== 'none'}
-          // Grouped whatever `genderCheck` says: the markings are a fact about the
-          // squad, and a volunteer picking a line reads them off the roster whether or
-          // not this game is checking the split.
-          groupByGender
           onToggle={toggle}
         />
       )}
@@ -296,5 +316,73 @@ export function LineDialog({ team, onClose }: { team: TeamId; onClose: () => voi
         </button>
       </div>
     </Modal>
+  );
+}
+
+/**
+ * A predefined line's record so far — points won out of points it played — on its
+ * button, since a coach choosing between lines is weighing exactly that. Nothing
+ * until it has played a point.
+ */
+function SavedLineRecord({ record }: { record?: { won: number; played: number } }) {
+  const { t } = useT();
+  if (!record || record.played === 0) return null;
+  return (
+    <span className="ml-1.5 font-clock text-xs opacity-70" title={t('lineSavedRecord', record)}>
+      {record.won}/{record.played}
+    </span>
+  );
+}
+
+/**
+ * The sheet's order: the device's player order (by number or by name, shared with
+ * every picker) or, in this dialog only, most rested first. Rest is a separate
+ * per-device flag laid over the shared order — see `loadLineRestSort`.
+ */
+const restListeners = new Set<() => void>();
+function useLineSheetOrder(): LineSheetOrder {
+  const sort = usePlayerSort();
+  const rest = useSyncExternalStore(
+    (l) => {
+      restListeners.add(l);
+      return () => restListeners.delete(l);
+    },
+    loadLineRestSort,
+    loadLineRestSort,
+  );
+  return rest ? 'rest' : sort;
+}
+
+/** # 1–9 → A–Z → Rested → # 1–9, in the dialog's header. */
+function LineSortToggle() {
+  const { t } = useT();
+  const order = useLineSheetOrder();
+  const next: LineSheetOrder = order === 'number' ? 'name' : order === 'name' ? 'rest' : 'number';
+  const apply = () => {
+    if (next === 'rest') saveLineRestSort(true);
+    else {
+      saveLineRestSort(false);
+      savePlayerSort(next);
+    }
+    restListeners.forEach((l) => l());
+  };
+  return (
+    <button
+      type="button"
+      className="rounded-md border border-line px-2 py-1 text-[11px] font-board text-chalk/70"
+      data-line-order={order}
+      aria-label={t('playerSortAria', {
+        order: t(
+          next === 'name'
+            ? 'playerSortName'
+            : next === 'rest'
+              ? 'playerSortRest'
+              : 'playerSortNumber',
+        ),
+      })}
+      onClick={apply}
+    >
+      {order === 'number' ? '# 1–9' : order === 'name' ? 'A–Z' : t('lineSortRest')}
+    </button>
   );
 }

@@ -208,6 +208,22 @@ export const en = {
 
   // The line dialog, reached from the Roster button and from the between-points prompt.
   lineDialogTitle: 'Line — {team}',
+  lineColPoints: 'Pts',
+  lineColPointsFull: 'Points played',
+  lineColLast: 'Last',
+  lineColLastFull:
+    'The last 6 points: a bar is a point played (taller is longer), a dot is a point sat out',
+  lineColHold: 'Hold',
+  lineColHoldFull: 'Offence points held, out of offence points played',
+  lineColBreak: 'Brk',
+  lineColBreakFull: 'Breaks scored, out of defence points played',
+  lineColTurns: 'TO',
+  lineColTurnsFull: 'Turnovers this player lost the disc on',
+  lineColDefenses: 'D',
+  lineColDefensesFull: 'Turnovers this player forced',
+  lineSortRest: 'Rested',
+  playerSortRest: 'most rested first',
+  lineSavedRecord: '{won} of {played} points won',
   lineModeCurrent: 'This point',
   lineModeNext: 'Next point',
   lineCountOf: '{count} of {size}',
@@ -1095,6 +1111,8 @@ export const en = {
     'The size and the split are checked, and the check never refuses — an off-spec line warns in amber and saves on a second tap. Outside professional play a team cannot always field the ratio, so the warning is a note rather than a veto. Unmarked players are counted but never faulted: three unmarked of seven makes the split unknown, not wrong.',
   statsGuideLineModes:
     'The dialog holds two drafts at once, this point and the next, and saves whichever you touched. Registering the next line while the current point is still running is how you keep up when points run long.',
+  statsGuideLineSheet:
+    "Each player's row shows what helps pick the next line: Pts is points played; the strip is the last six points, newest on the right, an amber bar for a point played (taller for a longer point) and a grey dot for a point sat out; Hold is offence points held out of those played, and Brk breaks out of defence points played. The one that matters for the point being picked is highlighted. TO and D (turnovers lost and forced) appear once turnovers are attributed to players. A predefined line shows its record, points won out of points played, on its button. The order button in the corner cycles shirt number, name and Rested, which puts whoever has sat out longest first.",
   statsGuideLineSub:
     'An injury asks who is changing, because it is the one stoppage that routinely changes a line mid-point — including for the other team, which WFDF gives a substitution of its own. Both halves of a swap stay on the point: a player who was replaced still played it, and still counts in every figure.',
   statsGuideLineName:

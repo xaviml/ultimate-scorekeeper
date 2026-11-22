@@ -101,3 +101,51 @@ export function subscribePlayerSort(listener: () => void): () => void {
   playerSortListeners.add(listener);
   return () => playerSortListeners.delete(listener);
 }
+
+/*
+ * Whether the line dialog lists the roster most rested first rather than in the
+ * device's player order. Only the line sheet has rest to sort by, so it is its own
+ * flag rather than a third `PlayerSort` every other picker would have to ignore.
+ * Off by default; only that dialog reads it, so it needs no subscription.
+ */
+const LINE_REST_SORT_KEY = 'ultimate-scorekeeper:line-rest-sort';
+
+export function loadLineRestSort(): boolean {
+  try {
+    return localStorage.getItem(LINE_REST_SORT_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export function saveLineRestSort(on: boolean): void {
+  try {
+    localStorage.setItem(LINE_REST_SORT_KEY, String(on));
+  } catch {
+    /* storage unavailable — the order just won't survive a reload */
+  }
+}
+
+/**
+ * The language the volunteer picked, per device. Null means "never chose" — the
+ * app then follows the device language (`detectLang`) as it always did, so a
+ * phone that changes its own language keeps being followed until someone picks.
+ */
+const LANG_KEY = 'ultimate-scorekeeper:lang';
+
+export function loadLang(): 'en' | 'es' | 'ca' | null {
+  try {
+    const v = localStorage.getItem(LANG_KEY);
+    return v === 'en' || v === 'es' || v === 'ca' ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveLang(lang: 'en' | 'es' | 'ca'): void {
+  try {
+    localStorage.setItem(LANG_KEY, lang);
+  } catch {
+    /* storage unavailable — the choice just won't outlive the tab */
+  }
+}

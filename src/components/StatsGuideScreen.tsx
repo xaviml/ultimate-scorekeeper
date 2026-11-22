@@ -157,6 +157,7 @@ export default function StatsGuideScreen({ onBack }: { onBack: () => void }) {
         <ul className="space-y-2">
           <Bullet body={t('statsGuideLineCheck')} />
           <Bullet body={t('statsGuideLineModes')} />
+          <Bullet body={t('statsGuideLineSheet')} />
           <Bullet body={t('statsGuideLineSub')} />
           <Bullet body={t('statsGuideLineName')} />
           <Bullet body={t('statsGuideLineNarrow')} />

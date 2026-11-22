@@ -55,9 +55,8 @@ function PlayerChip({
 }
 
 /**
- * The cells every picker lays out: a grid of equal columns — two on a phone —
- * rather than a wrapping row of chips, so a player sits in the same place every time
- * the dialog opens instead of moving with the length of the names before them.
+ * The chips every picker lays out, wrapping. The line dialog is the one exception: it
+ * reads the roster rather than searching it, so it lays out a sheet (`LineSheet`).
  */
 const GRID = 'flex flex-wrap gap-2';
 

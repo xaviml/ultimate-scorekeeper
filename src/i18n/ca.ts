@@ -203,6 +203,22 @@ export const ca: typeof en = {
   genderToggle: '{name} — gènere: {value}',
 
   lineDialogTitle: 'Línia — {team}',
+  lineColPoints: 'Pts',
+  lineColPointsFull: 'Punts jugats',
+  lineColLast: 'Últ.',
+  lineColLastFull:
+    'Els últims 6 punts: una barra és un punt jugat (més alta, més llarg), un punt és un punt a la banqueta',
+  lineColHold: 'Hold',
+  lineColHoldFull: "Punts d'atac guanyats, sobre punts d'atac jugats",
+  lineColBreak: 'Brk',
+  lineColBreakFull: 'Breaks marcats, sobre punts de defensa jugats',
+  lineColTurns: 'TO',
+  lineColTurnsFull: "Pèrdues d'aquest jugador",
+  lineColDefenses: 'D',
+  lineColDefensesFull: 'Pèrdues que ha forçat aquest jugador',
+  lineSortRest: 'Descans',
+  playerSortRest: 'més descansats primer',
+  lineSavedRecord: '{won} de {played} punts guanyats',
   lineModeCurrent: 'Aquest punt',
   lineModeNext: 'Punt següent',
   lineCountOf: '{count} de {size}',
@@ -1020,6 +1036,8 @@ export const ca: typeof en = {
     "La mida i el repartiment es comproven, i la comprovació mai no rebutja: una línia fora de norma avisa en ambre i es desa al segon toc. Fora del joc professional un equip no sempre pot treure el ràtio, així que l'avís és una nota, no un veto. Els jugadors sense marca es compten però mai no són un error: tres sense marcar de set fan el repartiment desconegut, no incorrecte.",
   statsGuideLineModes:
     'El diàleg guarda dos esborranys alhora, aquest punt i el següent, i aplica el que hagis tocat. Registrar la línia següent mentre el punt en curs encara és viu és la manera de no quedar-te enrere quan els punts s\u2019allarguen.',
+  statsGuideLineSheet:
+    'La fila de cada jugador mostra el que ajuda a triar la línia següent: Pts són els punts jugats; la tira són els últims sis punts, el més recent a la dreta, una barra ambre per punt jugat (més alta si el punt va ser més llarg) i un punt gris per cada punt a la banqueta; Hold són els punts d\u2019atac guanyats sobre els jugats, i Brk els breaks sobre els punts de defensa jugats. Es ressalta el que importa per al punt que s\u2019està triant. TO i D (pèrdues comeses i forçades) apareixen quan s\u2019atribueixen pèrdues a jugadors. Una línia predefinida mostra el seu balanç, punts guanyats sobre jugats, al seu botó. El botó d\u2019ordre de la cantonada alterna dorsal, nom i Descans, que posa primer qui porta més punts sense jugar.',
   statsGuideLineSub:
     'Una lesió pregunta qui canvia, perquè és l\u2019única aturada que canvia una línia a mitja jugada de manera habitual — també per a l\u2019altre equip, a qui WFDF concedeix un canvi propi. Les dues meitats d\u2019un canvi es queden al punt: qui va ser substituït va jugar aquell punt i continua comptant a totes les xifres.',
   statsGuideLineName:

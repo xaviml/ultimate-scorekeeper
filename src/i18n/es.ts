@@ -203,6 +203,22 @@ export const es: typeof en = {
   genderToggle: '{name} — género: {value}',
 
   lineDialogTitle: 'Línea — {team}',
+  lineColPoints: 'Pts',
+  lineColPointsFull: 'Puntos jugados',
+  lineColLast: 'Últ.',
+  lineColLastFull:
+    'Los últimos 6 puntos: una barra es un punto jugado (más alta, más largo), un punto es un punto en el banquillo',
+  lineColHold: 'Hold',
+  lineColHoldFull: 'Puntos de ataque ganados, sobre puntos de ataque jugados',
+  lineColBreak: 'Brk',
+  lineColBreakFull: 'Breaks marcados, sobre puntos de defensa jugados',
+  lineColTurns: 'TO',
+  lineColTurnsFull: 'Pérdidas de este jugador',
+  lineColDefenses: 'D',
+  lineColDefensesFull: 'Pérdidas que ha forzado este jugador',
+  lineSortRest: 'Descanso',
+  playerSortRest: 'más descansados primero',
+  lineSavedRecord: '{won} de {played} puntos ganados',
   lineModeCurrent: 'Este punto',
   lineModeNext: 'Punto siguiente',
   lineCountOf: '{count} de {size}',
@@ -1022,6 +1038,8 @@ export const es: typeof en = {
     'El tamaño y el reparto se comprueban, y la comprobación nunca rechaza: una línea fuera de norma avisa en ámbar y se guarda al segundo toque. Fuera del juego profesional un equipo no siempre puede sacar el ratio, así que el aviso es una nota, no un veto. Los jugadores sin marca se cuentan pero nunca son un fallo: tres sin marcar de siete hacen el reparto desconocido, no incorrecto.',
   statsGuideLineModes:
     'El diálogo guarda dos borradores a la vez, este punto y el siguiente, y aplica el que hayas tocado. Registrar la siguiente línea mientras el punto en curso sigue vivo es la forma de no quedarte atrás cuando los puntos se alargan.',
+  statsGuideLineSheet:
+    'La fila de cada jugador muestra lo que ayuda a elegir la siguiente línea: Pts son los puntos jugados; la tira son los últimos seis puntos, el más reciente a la derecha, una barra ámbar por punto jugado (más alta si el punto fue más largo) y un punto gris por cada punto en el banquillo; Hold son los puntos de ataque ganados sobre los jugados, y Brk los breaks sobre los puntos de defensa jugados. Se resalta el que importa para el punto que se está eligiendo. TO y D (pérdidas cometidas y forzadas) aparecen cuando se atribuyen pérdidas a jugadores. Una línea predefinida muestra su balance, puntos ganados sobre jugados, en su botón. El botón de orden de la esquina alterna dorsal, nombre y Descanso, que pone primero a quien lleva más puntos sin jugar.',
   statsGuideLineSub:
     'Una lesión pregunta quién cambia, porque es la única parada que cambia una línea a mitad de punto de forma habitual — también para el otro equipo, al que WFDF concede un cambio propio. Las dos mitades de un cambio se quedan en el punto: quien fue sustituido jugó ese punto y sigue contando en todas las cifras.',
   statsGuideLineName:

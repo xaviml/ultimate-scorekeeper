@@ -577,3 +577,108 @@ describe('the header menu', () => {
     expect(stored.config.players.A.find((p) => p.id === 'p5')?.gender).toBe('male');
   });
 });
+
+/**
+ * The line dialog's roster is a sheet of what a coach weighs while picking: points
+ * played, the last points as a strip, holds and breaks, and turns/Ds when named.
+ */
+describe('the line sheet', () => {
+  const played = (ids: string[], scoredBy: 'A' | 'B', offense: 'A' | 'B', lineName?: string) => ({
+    scoredBy,
+    offense,
+    isBreak: scoredBy !== offense,
+    durationSeconds: 60,
+    half: 1 as const,
+    turnovers: 0,
+    line: ids.map((playerId) => ({ playerId })),
+    ...(lineName ? { lineName } : {}),
+  });
+  const rowOf = (id: string) => document.querySelector(`[data-line-row="${id}"]`) as HTMLElement;
+  const cell = (id: string, col: string) => rowOf(id).querySelector(`[data-${col}]`) as HTMLElement;
+  const order = () =>
+    [...document.querySelectorAll('[data-line-row]')].map((el) => el.getAttribute('data-line-row'));
+
+  beforeEach(() => localStorage.clear());
+
+  function midGame() {
+    return lineGame({
+      points: [played(['p1', 'p3'], 'A', 'A', 'O1'), played(['p1', 'p4'], 'B', 'B')],
+      scores: { A: 1, B: 1 },
+      offenseTeam: 'A',
+    });
+  }
+
+  it('shows points played, the strip, holds and breaks', () => {
+    openViaPrompt(midGame());
+    expect(cell('p1', 'points').textContent).toBe('2');
+    expect(cell('p1', 'strip').getAttribute('data-strip')).toBe('....PP');
+    expect(cell('p3', 'strip').getAttribute('data-strip')).toBe('....P-');
+    expect(cell('p1', 'holds').textContent).toBe('1/1');
+    expect(cell('p1', 'breaks').textContent).toBe('0/1');
+    expect(cell('p5', 'holds').textContent).toBe('—');
+    // No turnover players asked about or named: no Turns or Ds columns.
+    expect(cell('p1', 'turns')).toBeNull();
+  });
+
+  it('is what the menu’s Line row opens too', () => {
+    const state = midGame();
+    state.status = 'live';
+    state.pointLine = [{ playerId: 'p2' }];
+    state.line = ['p2'];
+    mount(state);
+    openLineFromMenu();
+    expect(cell('p1', 'points').textContent).toBe('2');
+  });
+
+  it('cycles number → name → most rested first from the header', () => {
+    openViaPrompt(midGame());
+    const toggle = () => document.querySelector('[data-line-order]') as HTMLElement;
+    expect(toggle().getAttribute('data-line-order')).toBe('number');
+    tap(toggle());
+    expect(toggle().getAttribute('data-line-order')).toBe('name');
+    tap(toggle());
+    expect(toggle().getAttribute('data-line-order')).toBe('rest');
+    // Within each marking: p2 never played, p1 just did; p4 rested 0, p3 rested 1.
+    expect(order()).toEqual(['p2', 'p1', 'p3', 'p4', 'p5']);
+    tap(toggle());
+    expect(toggle().getAttribute('data-line-order')).toBe('number');
+  });
+
+  it('shows each predefined line’s record on its button', () => {
+    const saved: SavedLine = { id: 'l1', name: 'O1', playerKeys: [] };
+    const state = midGame();
+    state.config = { ...state.config, lines: { ...state.config.lines, saved: [saved] } };
+    openViaPrompt(state);
+    expect(screen.getByRole('button', { name: /load.*O1/i }).textContent).toBe('O11/1');
+  });
+
+  it('adds the point being played to the strip while the next line is picked', () => {
+    const state = midGame();
+    state.status = 'live';
+    state.pointLine = [{ playerId: 'p2' }];
+    state.line = ['p2'];
+    mount(state);
+    openLineFromMenu();
+    tap(screen.getByRole('button', { name: /next point/i }));
+    expect(cell('p2', 'strip').getAttribute('data-strip')).toBe('...--*');
+    expect(cell('p1', 'strip').getAttribute('data-strip')).toBe('...PP-');
+  });
+
+  it('adds Turns and Ds once a turnover is attributed', () => {
+    const state = midGame();
+    state.log = [
+      {
+        id: 1,
+        wallClock: '',
+        atMs: 0,
+        gameSeconds: 0,
+        type: 'turnover',
+        team: 'A',
+        turnoverId: 'p1',
+      },
+    ];
+    openViaPrompt(state);
+    expect(cell('p1', 'turns').textContent).toBe('1');
+    expect(cell('p1', 'defenses').textContent).toBe('0');
+  });
+});
