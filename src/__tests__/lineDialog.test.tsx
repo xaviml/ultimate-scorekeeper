@@ -141,6 +141,39 @@ describe('the between-points prompt', () => {
     expect(screen.queryByRole('button', { name: /register line/i })).toBeNull();
   });
 
+  // A volunteer who missed the gap can still catch up once the disc is in play.
+  it('stays up after the pull while nothing has been registered', () => {
+    mount(lineGame({ status: 'live', pointStartSeconds: 0 }));
+    expect(screen.getByRole('button', { name: /register line/i })).toBeTruthy();
+  });
+
+  it('goes away after the pull once a line has been registered', () => {
+    mount(lineGame({ status: 'live', pointStartSeconds: 0, pointLine: [{ playerId: 'p1' }] }));
+    expect(screen.queryByRole('button', { name: /register line/i })).toBeNull();
+  });
+
+  // A late first registration is the point's line, not seven substitutions.
+  it('registers a late line mid-point without marking anyone as a sub', () => {
+    mount(lineGame({ status: 'live', pointStartSeconds: 0 }));
+    tap(screen.getByRole('button', { name: /register line/i }));
+    tap(chip(/One/));
+    tap(chip(/Two/));
+    tap(chip(/Three/));
+    tap(saveButton());
+
+    const stored = JSON.parse(
+      sessionStorage.getItem('ultimate-scorekeeper:game-state')!,
+    ) as GameState;
+    expect(stored.line).toEqual(['p1', 'p2', 'p3']);
+    expect(stored.pointLine.every((p) => p.sub === undefined)).toBe(true);
+    expect(screen.queryByRole('button', { name: /register line/i })).toBeNull();
+  });
+
+  it('never appears once the game is finished', () => {
+    mount(lineGame({ status: 'finished' }));
+    expect(screen.queryByRole('button', { name: /register line/i })).toBeNull();
+  });
+
   it('never appears in player mode', () => {
     const state = lineGame();
     state.config = {

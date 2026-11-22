@@ -11,6 +11,7 @@ import {
   canUndoPass,
   canUndoTurnover,
   capChipVisible,
+  canSetLine,
   capTargetOptions,
   pendingCapOutcomes,
   effectiveHalfTarget,
@@ -32,7 +33,7 @@ import {
   turnoverPlayersTracked,
   turnoversTracked,
 } from '../state/gameReducer';
-import { lineTeam, lineTrackingEnabled } from '../state/lines';
+import { lineTeam } from '../state/lines';
 import { formatClock } from '../state/stats';
 import { handOverBackGuard, useBackGuard } from '../hooks/useBackGuard';
 import { useLongPress } from '../hooks/useLongPress';
@@ -505,25 +506,22 @@ function StoppageResolutionRow() {
   );
 }
 
-/** The statuses that are a gap between points — including the one before point one. */
-const LINE_PROMPT_STATUSES: GameState['status'][] = ['notStarted', 'awaitingStart', 'awaitingPull'];
-
 /**
  * Whether to nudge for who is on for this point.
  *
  * Shown before the first pull as well as between points: the first point's line is
  * decided in the same gap as every other one, while the teams line up, and asking
- * then is what stops point one being the one nobody registered. Shown only when
+ * then is what stops point one being the one nobody registered. It stays up after
+ * the pull too, for as long as nothing has been registered — a volunteer who missed
+ * the gap can still catch up mid-point, and a late first registration is recorded as
+ * the point's line rather than as substitutions (see `SET_LINE`). Shown only when
  * nothing has been registered yet: nothing carries over between points, so the
  * empty `pointLine` is precisely the state that needs asking about, and it
- * disappears the moment it has been answered.
+ * disappears the moment it has been answered. Gated on `canSetLine`, so it is
+ * offered exactly where the line can be set — every status but a finished game.
  */
 function linePromptVisible(state: GameState): boolean {
-  return (
-    lineTrackingEnabled(state.config) &&
-    LINE_PROMPT_STATUSES.includes(state.status) &&
-    state.pointLine.length === 0
-  );
+  return canSetLine(state).ok && state.pointLine.length === 0;
 }
 
 const PROMPT_BUTTON =
