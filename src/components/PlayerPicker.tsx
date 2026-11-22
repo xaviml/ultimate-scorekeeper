@@ -9,11 +9,14 @@ function PlayerChip({
   player,
   active,
   showGender,
+  numberSlot,
   onSelect,
 }: {
   player: PlayerInfo;
   active: boolean;
   showGender?: boolean;
+  /** Reserve the number's column even when this player has none — see `GRID`. */
+  numberSlot: boolean;
   onSelect: (id: string | null) => void;
 }) {
   const { t } = useT();
@@ -22,7 +25,7 @@ function PlayerChip({
       type="button"
       aria-pressed={active}
       aria-label={playerLabel(player)}
-      className={`inline-flex items-center gap-1.5 max-w-full rounded-full border px-3 py-1.5 text-sm leading-tight active:scale-95 ${
+      className={`flex w-full min-w-0 items-center gap-1 rounded-full border px-2 py-1.5 text-sm leading-tight active:scale-95 ${
         active ? 'bg-signal text-pitch border-signal' : 'bg-pitch border-line text-chalk'
       }`}
       onClick={() => onSelect(active ? null : player.id)}
@@ -32,11 +35,14 @@ function PlayerChip({
           is left of the cell and ellipsises rather than wrapping it taller than its
           neighbours. Centred rather than baseline-aligned, so a name sits at the same
           height in a cell with no number as in one with. */}
-      {player.number && (
+      {/* A fixed column, right-aligned in tabular figures, so the digits line up down
+          the grid and every name starts at the same x — kept empty for a player with
+          no number, as long as someone in the list has one. */}
+      {numberSlot && (
         <span
-          className={`relative top-px font-clock font-semibold shrink-0 ${active ? '' : 'text-signal'}`}
+          className={`relative top-px min-w-[1.55rem] shrink-0 text-right font-clock font-semibold tabular-nums ${active ? '' : 'text-signal'}`}
         >
-          #{player.number}
+          {player.number && `#${player.number}`}
         </span>
       )}
       {player.name && <span className="truncate min-w-0">{player.name}</span>}
@@ -55,10 +61,14 @@ function PlayerChip({
 }
 
 /**
- * The chips every picker lays out, wrapping. The line dialog is the one exception: it
- * reads the roster rather than searching it, so it lays out a sheet (`LineSheet`).
+ * The chips every picker lays out: three equal columns, so a player sits in the same
+ * place every time and the numbers line up down each column (see `PlayerChip`'s
+ * number slot). The line dialog is the one exception: it reads the roster rather than
+ * searching it, so it lays out a sheet (`LineSheet`).
  */
-const GRID = 'flex flex-wrap gap-2';
+const GRID = 'grid grid-cols-3 gap-1.5';
+
+const anyNumber = (players: PlayerInfo[]) => players.some((p) => p.number);
 
 /**
  * The device's player order, as a two-way switch for a dialog's header. One switch
@@ -105,10 +115,17 @@ export function PlayerPicker({
 }) {
   const sort = usePlayerSort();
   if (players.length === 0) return null;
+  const slot = anyNumber(players);
   return (
     <div className={GRID}>
       {sortPlayers(players, sort).map((p) => (
-        <PlayerChip key={p.id} player={p} active={selected === p.id} onSelect={onSelect} />
+        <PlayerChip
+          key={p.id}
+          player={p}
+          active={selected === p.id}
+          numberSlot={slot}
+          onSelect={onSelect}
+        />
       ))}
     </div>
   );
@@ -145,6 +162,9 @@ export function PlayerMultiPicker({
   const { t } = useT();
   const sort = usePlayerSort();
   if (players.length === 0) return null;
+  // One slot decision for the whole picker, across groups, so the columns of names
+  // line up from the FMP rows to the MMP ones.
+  const slot = anyNumber(players);
 
   const chip = (p: PlayerInfo, marking?: boolean) => (
     <PlayerChip
@@ -152,6 +172,7 @@ export function PlayerMultiPicker({
       player={p}
       active={selected.includes(p.id)}
       showGender={marking}
+      numberSlot={slot}
       onSelect={() => onToggle(p.id)}
     />
   );
