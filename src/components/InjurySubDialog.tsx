@@ -4,7 +4,7 @@ import { benchPlayers, lineComposition, replacementsFor, subIssues } from '../st
 import { playerLabel } from '../state/stats';
 import type { GameConfig, PlayerInfo } from '../state/types';
 import { Modal } from './Modal';
-import { PlayerMultiPicker } from './PlayerPicker';
+import { PlayerMultiPicker, PlayerSortToggle } from './PlayerPicker';
 import { primaryButton, secondaryButton } from './ui';
 
 /**
@@ -112,7 +112,7 @@ export function InjurySubDialog({
   }
 
   return (
-    <Modal title={title} onClose={onSkip}>
+    <Modal title={title} onClose={onSkip} headerAction={<PlayerSortToggle />}>
       <p className="text-xs text-chalk/50">
         {going.length > 0
           ? t('injurySubHint', { players: names })

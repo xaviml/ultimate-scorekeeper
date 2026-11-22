@@ -3,7 +3,7 @@ import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import type { PlayerInfo, TeamId } from '../state/types';
 import { Modal } from './Modal';
-import { PlayerMultiPicker, PlayerPicker } from './PlayerPicker';
+import { PlayerMultiPicker, PlayerPicker, PlayerSortToggle } from './PlayerPicker';
 import { PlayerRosterEditor } from './PlayerRosterEditor';
 import { primaryButton, secondaryButton } from './ui';
 
@@ -79,7 +79,7 @@ export function PlayerSelectDialog({
   const { t } = useT();
 
   return (
-    <Modal title={title} onClose={onCancel}>
+    <Modal title={title} onClose={onCancel} headerAction={<PlayerSortToggle />}>
       {hint && <p className="text-xs text-chalk/50">{hint}</p>}
 
       {sections.map((section, i) => {

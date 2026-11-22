@@ -31,83 +31,76 @@ function mount(state: GameState) {
   );
 }
 
-/** AssistGoalDialog has no Cancel/close button — dismissing it is a backdrop press. */
-function dismissAssistDialog(container: HTMLElement) {
-  const backdrop = container.querySelector('.fixed') as HTMLElement;
-  fireEvent.pointerDown(backdrop);
-  fireEvent.click(backdrop);
-}
+/** The dashboard's "Scorer 1-0" prompt — the question is asked there, not over the score. */
+const prompt = () => screen.queryByText(/^Scorer \d+-\d+$/);
 
 beforeEach(() => sessionStorage.clear());
 
 describe('the goal sign and gender-ratio sign, with player tracking on', () => {
-  it('holds the goal sign/message back until the scorer/assist dialog closes, but scores and starts the pull clock right away', () => {
-    const { container } = mount(liveGame());
+  // Nothing covers the dashboard after a goal any more: the volunteer has to read out
+  // the score and the next ratio before they can find out who scored, so both go out
+  // at once and the question waits on a prompt beside the pull controls.
+  it('signs and announces the goal at once, and asks who scored from a prompt rather than a dialog', () => {
+    mount(liveGame());
 
     tap(screen.getByLabelText('TEAM A: 0'));
 
-    // Score and pull-clock advance immediately — nothing about that is deferred.
     expect(screen.getByLabelText('TEAM A: 1')).toBeInTheDocument();
     expect(screen.getByText('Pull thrown')).toBeInTheDocument();
-
-    // The scorer/assist dialog is up, and the goal sign/call-out are not shown yet.
-    expect(screen.getByText(/Who scored/i)).toBeInTheDocument();
-    expect(screen.queryByRole('img', { name: 'Goal' })).toBeNull();
-    expect(screen.queryByText('"TEAM A 1, TEAM B 0!"')).toBeNull();
-
-    dismissAssistDialog(container);
-
-    // Dialog closed: the goal sign and its call-out now show.
-    expect(screen.queryByText(/Who scored/i)).toBeNull();
     expect(screen.getByRole('img', { name: 'Goal' })).toBeInTheDocument();
     expect(screen.getByText('"TEAM A 1, TEAM B 0!"')).toBeInTheDocument();
+
+    expect(prompt()).toBeInTheDocument();
+    expect(screen.queryByText('Who threw it?')).toBeNull();
   });
 
-  it('shows the goal sign immediately when player tracking is off', () => {
+  it('reveals the gender ratio on its usual delay, without waiting for the scorer', () => {
+    vi.useFakeTimers();
+    try {
+      const state = liveGame();
+      state.config.division = 'mixed';
+      state.config.mixedRule = 'A';
+      mount(state);
+
+      tap(screen.getByLabelText('TEAM A: 0'));
+      act(() => {
+        vi.advanceTimersByTime(3500);
+      });
+
+      expect(screen.getByRole('img', { name: /ratio/i })).toBeInTheDocument();
+      expect(prompt()).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // The prompt outlives the pull: finding out who scored is often slower than the
+  // next point getting going.
+  it('keeps the prompt up through the next point until it is answered', () => {
+    mount(liveGame());
+
+    tap(screen.getByLabelText('TEAM A: 0'));
+    fireEvent.click(screen.getByText('Pull thrown'));
+    expect(prompt()).toBeInTheDocument();
+
+    fireEvent.click(prompt()!);
+    fireEvent.click(screen.getByRole('button', { name: "Don't know" }));
+    fireEvent.click(screen.getByRole('button', { name: "Don't know" }));
+    expect(prompt()).toBeNull();
+  });
+
+  it('asks nothing when player tracking is off', () => {
     const state = liveGame();
     state.config.statsMode = 'none';
     mount(state);
 
     tap(screen.getByLabelText('TEAM A: 0'));
 
-    expect(screen.queryByText(/Who scored/i)).toBeNull();
+    expect(prompt()).toBeNull();
     expect(screen.getByRole('img', { name: 'Goal' })).toBeInTheDocument();
   });
 
-  it('defers the gender-ratio auto-reveal until after the dialog closes', () => {
-    vi.useFakeTimers();
-    try {
-      const state = liveGame();
-      state.config.division = 'mixed';
-      state.config.mixedRule = 'A';
-      const { container } = mount(state);
-
-      tap(screen.getByLabelText('TEAM A: 0'));
-
-      expect(screen.getByText(/Who scored/i)).toBeInTheDocument();
-
-      // 3s pass with the dialog still open: the ratio must not auto-reveal yet.
-      act(() => {
-        vi.advanceTimersByTime(3500);
-      });
-      expect(screen.queryByRole('img', { name: /ratio/i })).toBeNull();
-
-      act(() => {
-        dismissAssistDialog(container);
-      });
-
-      act(() => {
-        vi.advanceTimersByTime(3500);
-      });
-      expect(screen.getByRole('img', { name: /ratio/i })).toBeInTheDocument();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  // The coach who tracks lines and turns but does not want a dialog after every
-  // goal. Nothing is held back then — there is no dialog to wait for.
-  it('scores without asking, and signs the goal at once, when the game does not ask who scored', () => {
+  it('asks nothing when the game does not ask who scored', () => {
     const state = liveGame();
     state.config = { ...state.config, trackGoalPlayers: false };
     mount(state);
@@ -115,7 +108,6 @@ describe('the goal sign and gender-ratio sign, with player tracking on', () => {
     tap(screen.getByLabelText('TEAM A: 0'));
 
     expect(screen.getByLabelText('TEAM A: 1')).toBeInTheDocument();
-    expect(screen.queryByText(/Who scored/i)).toBeNull();
-    expect(screen.getByRole('img', { name: 'Goal' })).toBeInTheDocument();
+    expect(prompt()).toBeNull();
   });
 });

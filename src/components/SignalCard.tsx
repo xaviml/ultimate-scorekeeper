@@ -26,12 +26,8 @@ export function SignalCard() {
   const state = useGame();
   const { t } = useT();
 
-  // Held back the same way the auto-reveal itself is (see GOAL in the reducer): while
-  // the scorer/assist dialog is still up, `pendingGoalAssist` hasn't been released into
-  // `assist` yet, and the fallback jumping in early would fight that dialog for
-  // attention just as much as an un-deferred reveal would.
   const fallback =
-    !occurrence?.signal && state.status === 'awaitingPull' && state.pendingGoalAssist === null
+    !occurrence?.signal && state.status === 'awaitingPull'
       ? ratioSignalArt(state.nextRatio ?? state.ratio)
       : null;
   const signal = occurrence?.signal ?? fallback;

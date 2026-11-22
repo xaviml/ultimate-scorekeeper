@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { I18nProvider } from '../i18n';
 import { GameProvider } from '../state/GameContext';
@@ -36,40 +36,60 @@ function mountApp() {
   );
 }
 
-/** AssistGoalDialog has no Cancel/close button — dismissing it is a real backdrop
- * press, same as the Modal backdrop-dismissal tests in dialogs.test.tsx. */
-function dismissAssistDialog(container: HTMLElement) {
-  const backdrop = container.querySelector('.fixed') as HTMLElement;
-  fireEvent.pointerDown(backdrop);
-  fireEvent.click(backdrop);
+/** The dashboard's "Scorer 1-0" prompt, or null once it has been answered or skipped. */
+const prompt = () => screen.queryByText(/^Scorer \d+-\d+$/);
+
+/** Answers the prompt with "Don't know" on both steps — resolved, nobody named. */
+function skipPrompt() {
+  fireEvent.click(prompt()!);
+  fireEvent.click(screen.getByRole('button', { name: "Don't know" }));
+  fireEvent.click(screen.getByRole('button', { name: "Don't know" }));
 }
 
 beforeEach(() => sessionStorage.clear());
 
-describe('the pull prompt survives a mid-game reload', () => {
-  it('does not re-ask who scored for a point that was already resolved', () => {
+describe('the who-scored prompt survives a mid-game reload', () => {
+  it('has no way to dismiss it unanswered', () => {
+    sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(midGameState()));
+    mountApp();
+    expect(screen.queryByRole('button', { name: /skip/i })).toBeNull();
+  });
+
+  it('does not ask again about a point that was already resolved', () => {
     sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(midGameState()));
 
-    const first = mountApp();
-    // The dialog covers the pull controls until the volunteer answers it.
-    expect(screen.getByText(/Who scored/i)).toBeInTheDocument();
-    dismissAssistDialog(first.container);
-    expect(screen.queryByText(/Who scored/i)).toBeNull();
+    mountApp();
+    // A prompt beside the pull controls, not a dialog over them.
+    expect(prompt()).toBeInTheDocument();
     expect(screen.getByText('Pull thrown')).toBeInTheDocument();
-    first.unmount();
+    skipPrompt();
+    expect(prompt()).toBeNull();
+    cleanup();
 
     // Reload: same game state, fresh components.
     mountApp();
+    expect(prompt()).toBeNull();
+  });
 
-    expect(screen.queryByText(/Who scored/i)).toBeNull();
-    expect(screen.getByText('Pull thrown')).toBeInTheDocument();
+  it('keeps asking when the dialog is closed without an answer', () => {
+    sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(midGameState()));
+    const { container } = mountApp();
+
+    fireEvent.click(prompt()!);
+    expect(screen.getByText('Who threw it?')).toBeInTheDocument();
+    const backdrop = container.querySelector('.fixed') as HTMLElement;
+    fireEvent.pointerDown(backdrop);
+    fireEvent.click(backdrop);
+
+    expect(screen.queryByText('Who threw it?')).toBeNull();
+    expect(prompt()).toBeInTheDocument();
   });
 
   it('still asks for a point scored after the reload', () => {
     sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(midGameState()));
-    const first = mountApp();
-    dismissAssistDialog(first.container);
-    first.unmount();
+    mountApp();
+    skipPrompt();
+    cleanup();
 
     const next = midGameState();
     next.scores = { A: 1, B: 1 };
@@ -80,14 +100,14 @@ describe('the pull prompt survives a mid-game reload', () => {
     sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(next));
 
     mountApp();
-    expect(screen.getByText(/Who scored/i)).toBeInTheDocument();
+    expect(prompt()).toBeInTheDocument();
   });
 
   it('forgets the counter when a new game starts', () => {
     sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(midGameState()));
-    const first = mountApp();
-    dismissAssistDialog(first.container);
-    first.unmount();
+    mountApp();
+    skipPrompt();
+    cleanup();
 
     // A fresh game: no points yet, so a stale counter must not suppress the next prompt.
     const fresh = midGameState();

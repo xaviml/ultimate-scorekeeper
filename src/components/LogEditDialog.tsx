@@ -8,7 +8,7 @@ import {
   playerTrackingFor,
 } from '../state/gameReducer';
 import type { CallResolution, LogEdit, LogEntry, TeamId } from '../state/types';
-import { CallahanToggle } from './CallahanToggle';
+import { GoalPlayersDialog } from './AssistGoalDialog';
 import { InjuryAttributionDialog } from './InjuryAttributionDialog';
 import { Modal } from './Modal';
 import { NoteDialog } from './NoteDialog';
@@ -72,6 +72,12 @@ export function LogEditDialog({ entry, onClose }: { entry: LogEntry; onClose: ()
   }
 }
 
+/**
+ * The same two-step dialog the dashboard's "Scorer" prompt opens, prefilled with what
+ * was recorded. Not narrowed to the point's line, unlike the prompt: a correction may
+ * be about a point several ago, and narrowing here would hide the very player being
+ * named (see `LogEditDialog`'s note in CLAUDE.md).
+ */
 function GoalPlayersEdit({
   entry,
   apply,
@@ -83,49 +89,21 @@ function GoalPlayersEdit({
 }) {
   const state = useGame();
   const { t } = useT();
-  const [scorerId, setScorerId] = useState<string | null>(entry.scorerId ?? null);
-  const [assistId, setAssistId] = useState<string | null>(entry.assistId ?? null);
-  const [callahan, setCallahan] = useState(entry.callahan ?? false);
   // Guaranteed by logEditKind: a goal row only offers this when its team is tracked.
   const team = entry.team as TeamId;
 
   return (
-    <PlayerSelectDialog
-      title={t('assistDialogTitle', { team: state.config.teams[team].name })}
+    <GoalPlayersDialog
+      team={team}
+      players={state.config.players[team]}
+      initial={{
+        scorerId: entry.scorerId ?? null,
+        assistId: entry.assistId ?? null,
+        callahan: entry.callahan ?? false,
+      }}
       hint={t('logEditHint')}
-      sections={[
-        {
-          team,
-          label: t('whoScored'),
-          selected: scorerId,
-          onSelect: setScorerId,
-          exclude: assistId,
-        },
-        // Same as AssistGoalDialog: a Callahan has answered this question, so the
-        // picker goes away rather than sitting there inert.
-        ...(callahan
-          ? []
-          : [
-              {
-                team,
-                label: t('whoAssisted'),
-                selected: assistId,
-                onSelect: setAssistId,
-                exclude: scorerId,
-              } as const,
-            ]),
-      ]}
-      extra={
-        <CallahanToggle
-          checked={callahan}
-          onChange={(on) => {
-            setCallahan(on);
-            if (on) setAssistId(null);
-          }}
-        />
-      }
-      onCancel={onClose}
-      onSave={() =>
+      onClose={onClose}
+      onSubmit={({ scorerId, assistId, callahan }) =>
         apply({
           kind: 'goalPlayers',
           scorerId: scorerId ?? undefined,

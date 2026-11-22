@@ -58,7 +58,7 @@ const dialog = () => document.querySelector('div.fixed') as HTMLElement;
 /** Every player chip the open dialog offers, by name. */
 const offered = () =>
   [...dialog().querySelectorAll('button')]
-    .map((b) => b.textContent ?? '')
+    .map((b) => b.getAttribute('aria-label') ?? b.textContent ?? '')
     .filter((txt) => /^#\d/.test(txt))
     .map((txt) => txt.replace(/\s*(MMP|FMP)\s*$/, '').trim());
 
@@ -126,6 +126,12 @@ describe('the scorer and assist pickers', () => {
    * A goal has been scored, so GOAL has already moved the live line on to the next
    * point — which is exactly why the dialog reads the finished point's own line.
    */
+  /** Mounts the dashboard after the goal and opens the dialog from its prompt. */
+  function mountAndAsk(state: GameState) {
+    mount(state);
+    tap(screen.getByRole('button', { name: /scorer 1-0/i }));
+  }
+
   function afterGoal(line: PointRecord['line'], next: string[] = ['p3', 'p4']): GameState {
     return lineGame({
       status: 'awaitingPull',
@@ -138,15 +144,15 @@ describe('the scorer and assist pickers', () => {
   }
 
   it('offer the players from the point that was scored, not the next line', () => {
-    mount(afterGoal([{ playerId: 'p1' }, { playerId: 'p2' }]));
+    mountAndAsk(afterGoal([{ playerId: 'p1' }, { playerId: 'p2' }]));
     expect(screen.getByText(/who scored/i)).toBeTruthy();
-    expect(offered()).toEqual(['#1 On1', '#2 On2', '#1 On1', '#2 On2']); // scorer + assist rows
+    expect(offered()).toEqual(['#1 On1', '#2 On2']); // the assist step; the scorer step is next
   });
 
   // An injured player who was replaced was not on the field when the goal was scored,
   // so they cannot have scored or assisted it.
   it('drop a player the point substituted off', () => {
-    mount(
+    mountAndAsk(
       afterGoal([{ playerId: 'p1', off: true }, { playerId: 'p2' }, { playerId: 'p4', sub: true }]),
     );
     expect(offered()).not.toContain('#1 On1');
@@ -154,12 +160,12 @@ describe('the scorer and assist pickers', () => {
   });
 
   it('include a player who was substituted into that point', () => {
-    mount(afterGoal([{ playerId: 'p1' }, { playerId: 'p2' }, { playerId: 'p4', sub: true }]));
+    mountAndAsk(afterGoal([{ playerId: 'p1' }, { playerId: 'p2' }, { playerId: 'p4', sub: true }]));
     expect(offered()).toContain('#4 Bench4');
   });
 
   it('offer the whole roster when that point had no line', () => {
-    mount(afterGoal(undefined));
+    mountAndAsk(afterGoal(undefined));
     expect(offered()).toContain('#3 Bench3');
   });
 });

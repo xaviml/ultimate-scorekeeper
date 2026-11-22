@@ -16,6 +16,7 @@ import { CallDialog } from '../components/CallDialog';
 import { StoppageDialog } from '../components/StoppageDialog';
 import { TravelTeamDialog } from '../components/TravelTeamDialog';
 import { TurnoverDialog } from '../components/TurnoverDialog';
+import type { GameState } from '../state/types';
 
 function renderWithProviders(ui: ReactNode) {
   return render(
@@ -230,8 +231,8 @@ describe('dialogs render through the shared Modal', () => {
     renderWithProviders(<StoppageDialog onClose={onClose} />);
     fireEvent.click(screen.getByText('Injury'));
 
-    tap(screen.getByText('#7 Alex'));
-    tap(screen.getByText('#3 Sam'));
+    tap(screen.getByRole('button', { name: '#7 Alex' }));
+    tap(screen.getByRole('button', { name: '#3 Sam' }));
     fireEvent.click(screen.getByText('Save'));
 
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -352,7 +353,7 @@ describe('dialogs render through the shared Modal', () => {
     fireEvent.click(screen.getByText('Injury'));
 
     // Only the tracked team's roster is offered as named players.
-    tap(screen.getByText('#7 Alex'));
+    tap(screen.getByRole('button', { name: '#7 Alex' }));
 
     // The other team is a plain checkbox, no roster.
     fireEvent.click(screen.getByLabelText(/Also mark TEAM B as injured/));
@@ -391,48 +392,87 @@ describe('dialogs render through the shared Modal', () => {
     expect(findLabel(/TEAM B — who forced it/)).toBeInTheDocument();
   });
 
-  it('AssistGoalDialog hides scorer/assist titles when the roster is empty', () => {
-    renderWithProviders(<AssistGoalDialog team="A" onCancel={noop} onSave={noop} />);
-    expect(screen.queryByText('Scorer')).toBeNull();
-    expect(screen.queryByText('Assist')).toBeNull();
-  });
-
-  it('AssistGoalDialog shows scorer/assist pickers once a player exists, with no separate "no assist" option', () => {
-    const state = createInitialState();
-    state.phase = 'game';
-    state.config.players.A = [{ id: 'p1', number: '7', name: 'Alex' }];
-    sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
-
-    renderWithProviders(<AssistGoalDialog team="A" onCancel={noop} onSave={noop} />);
-
-    expect(screen.getByText('Scorer')).toBeInTheDocument();
-    expect(screen.getByText('Assist')).toBeInTheDocument();
-    expect(screen.queryByText('No assist')).toBeNull();
-    expect(screen.getAllByText('#7 Alex')).toHaveLength(2);
-  });
-
-  // The Callahan tick is the answer to "who assisted?", not a fact beside it, so
-  // the picker goes away rather than sitting there inert with a stale pick in it.
-  it('AssistGoalDialog swaps the assist picker for the Callahan tick', () => {
-    const state = createInitialState();
-    state.phase = 'game';
-    state.config.players.A = [
+  /** A game whose last point was a goal by team A, with a roster to name it from. */
+  function goalScored(
+    players = [
       { id: 'p1', number: '7', name: 'Alex' },
       { id: 'p2', number: '9', name: 'Sam' },
+    ],
+  ) {
+    const state = createInitialState();
+    state.phase = 'game';
+    state.status = 'awaitingPull';
+    state.config.players.A = players;
+    state.scores = { A: 1, B: 0 };
+    state.points = [
+      { scoredBy: 'A', offense: 'A', isBreak: false, durationSeconds: 30, half: 1, turnovers: 0 },
     ];
+    state.log = [
+      { id: 1, wallClock: '10:00:00', atMs: 0, gameSeconds: 30, type: 'goal', team: 'A' },
+    ];
+    state.nextLogId = 2;
     sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
+  }
+  const storedGoal = () =>
+    (JSON.parse(sessionStorage.getItem('ultimate-scorekeeper:game-state')!) as GameState).log[0];
 
-    renderWithProviders(<AssistGoalDialog team="A" onCancel={noop} onSave={noop} />);
-    expect(screen.getByText('Assist')).toBeInTheDocument();
+  it('AssistGoalDialog asks for the assist first, then the scorer, and saves on the second tap', () => {
+    goalScored();
+    const onSaved = vi.fn();
+    renderWithProviders(<AssistGoalDialog team="A" onClose={noop} onSaved={onSaved} />);
 
-    fireEvent.click(screen.getByLabelText('Callahan — no assist'));
-    expect(screen.queryByText('Assist')).toBeNull();
-    expect(screen.getByText('Scorer')).toBeInTheDocument();
+    expect(screen.getByText('Who threw it?')).toBeInTheDocument();
+    tap(screen.getByRole('button', { name: '#7 Alex' }));
+
+    // The scorer step: the assist is summarised above it and is not offered again.
+    expect(screen.getByText('Who caught it?')).toBeInTheDocument();
+    expect(screen.getByText(/Assist: #7 Alex/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '#7 Alex' })).toBeNull();
+    tap(screen.getByRole('button', { name: '#9 Sam' }));
+
+    expect(onSaved).toHaveBeenCalled();
+    expect(storedGoal()).toMatchObject({ assistId: 'p1', scorerId: 'p2' });
   });
 
-  it('AssistGoalDialog offers the Callahan tick even with no roster to pick from', () => {
-    renderWithProviders(<AssistGoalDialog team="A" onCancel={noop} onSave={noop} />);
-    expect(screen.getByLabelText('Callahan — no assist')).toBeInTheDocument();
+  it('AssistGoalDialog records a Callahan in place of the assist', () => {
+    goalScored();
+    renderWithProviders(<AssistGoalDialog team="A" onClose={noop} onSaved={noop} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Callahan' }));
+    expect(screen.getByText(/Callahan →/)).toBeInTheDocument();
+    tap(screen.getByRole('button', { name: '#9 Sam' }));
+
+    expect(storedGoal()).toMatchObject({ scorerId: 'p2', callahan: true });
+    expect(storedGoal().assistId).toBeUndefined();
+  });
+
+  it("AssistGoalDialog takes Don't know on either step, and both resolve the prompt", () => {
+    goalScored();
+    const onSaved = vi.fn();
+    renderWithProviders(<AssistGoalDialog team="A" onClose={noop} onSaved={onSaved} />);
+
+    fireEvent.click(screen.getByRole('button', { name: "Don't know" }));
+    expect(screen.getByText(/Assist: unknown/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: "Don't know" }));
+
+    expect(onSaved).toHaveBeenCalled();
+    expect(storedGoal().scorerId).toBeUndefined();
+  });
+
+  it('AssistGoalDialog goes back to the assist from the scorer step', () => {
+    goalScored();
+    renderWithProviders(<AssistGoalDialog team="A" onClose={noop} onSaved={noop} />);
+
+    tap(screen.getByRole('button', { name: '#7 Alex' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+    expect(screen.getByText('Who threw it?')).toBeInTheDocument();
+  });
+
+  it("AssistGoalDialog still offers Callahan and Don't know with no roster to pick from", () => {
+    goalScored([]);
+    renderWithProviders(<AssistGoalDialog team="A" onClose={noop} onSaved={noop} />);
+    expect(screen.getByRole('button', { name: 'Callahan' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: "Don't know" })).toBeInTheDocument();
   });
 
   it('CallDialog routes the seven calls and travel back to its caller', () => {

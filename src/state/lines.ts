@@ -207,14 +207,37 @@ export interface GenderGroup {
  * numbers, and the handful without would otherwise sit at the top where nobody is
  * looking for them.
  */
-export function genderGroups(players: PlayerInfo[]): GenderGroup[] {
+export function genderGroups(
+  players: PlayerInfo[],
+  sort: 'number' | 'name' = 'number',
+): GenderGroup[] {
   const order: (Gender | null)[] = ['female', 'male', null];
   return order
     .map((gender) => ({
       gender,
-      players: players.filter((p) => (p.gender ?? null) === gender).sort(byNumber),
+      players: sortPlayers(
+        players.filter((p) => (p.gender ?? null) === gender),
+        sort,
+      ),
     }))
     .filter((group) => group.players.length > 0);
+}
+
+/**
+ * A roster in the order the pickers lay it out: by shirt number (numerically, the
+ * unnumbered after by name) or by name (the unnamed after by number). Returns a
+ * new array.
+ */
+export function sortPlayers(players: PlayerInfo[], sort: 'number' | 'name'): PlayerInfo[] {
+  return [...players].sort(sort === 'name' ? byName : byNumber);
+}
+
+function byName(a: PlayerInfo, b: PlayerInfo): number {
+  const an = a.name.trim();
+  const bn = b.name.trim();
+  if (an && bn) return an.localeCompare(bn) || byNumber(a, b);
+  if (!an !== !bn) return an ? -1 : 1;
+  return byNumber(a, b);
 }
 
 function byNumber(a: PlayerInfo, b: PlayerInfo): number {

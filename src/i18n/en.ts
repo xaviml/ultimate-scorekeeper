@@ -216,7 +216,6 @@ export const en = {
   lineIssueSize: 'That is {count} on the field, not {size}.',
   lineIssueRatio: 'That breaks the split this point asks for ({female} FMP / {male} MMP).',
   lineNoRoster: 'Add players to the roster first — the line is picked from it.',
-  linePromptTitle: 'Who is on for this point?',
   linePromptBtn: 'Register line',
   lineNextPending: 'Next point: {count} registered',
   btnLineSaveAnyway: 'Save anyway',
@@ -264,10 +263,17 @@ export const en = {
   rosterImportReplace: 'Replace the current roster ({count})',
   rosterImportApply: 'Import {count}',
   assistDialogTitle: 'Who scored for {team}?',
-  whoScored: 'Scorer',
-  whoAssisted: 'Assist',
   callahan: 'Callahan',
-  callahanToggle: 'Callahan — no assist',
+  goalPromptBtn: 'Scorer {score}',
+  goalStepAssist: 'Who threw it?',
+  goalStepScorer: 'Who caught it?',
+  goalDontKnow: "Don't know",
+  goalChangeAssist: 'Change',
+  goalSummaryAssist: 'Assist: {name}',
+  goalSummaryNoAssist: 'Assist: unknown',
+  playerSortAria: 'Sort players by {order}',
+  playerSortName: 'name',
+  playerSortNumber: 'number',
   stoppageDialogTitle: 'What stopped play?',
   stoppageDialogHint:
     'Injury and technical stoppages keep the game clock running at first. SOTG stops it. Either way, the pull, timeout and call clocks wait until play resumes.',
@@ -1010,7 +1016,7 @@ export const en = {
     'Turnovers, who scored, who turned it over and who played each point are four independent switches, each offered only where the detail above can answer it. Turn one off and everything derived from it disappears — including from the report, which never shows a column it has no data for.',
   statsGuideModelCost: 'Choose by what you can keep up with',
   statsGuideModelCostBody:
-    'Every switch costs taps while the disc is live. Turnovers is one tap each. "Ask who turned it over" adds a dialog to every one of them, which is a lot in a fast point. "Ask who scored" is one dialog per goal, in the gap where you have time anyway. Lines is one registration per point, between points. Whatever you skip in the moment can still be filled in afterwards from the log.',
+    'Every switch costs taps while the disc is live. Turnovers is one tap each. "Ask who turned it over" adds a dialog to every one of them, which is a lot in a fast point. "Ask who scored" is one button per goal, answered whenever you have a moment. Lines is one registration per point, between points. Whatever you skip in the moment can still be filled in afterwards from the log.',
 
   statsGuideStep1Title: 'Choose what this game records',
   statsGuideStep1Body:
@@ -1032,7 +1038,7 @@ export const en = {
     'Also nested under Turnovers, and off by default. It adds a Pass button beside Turn: one tap per completed pass. It never asks who threw it. Following a single team, only that team\u2019s passes are counted and the button is dead while the other side has the disc — which is why the report shows them a figure and the other team a dash.',
   statsGuideStep1Goals: 'Ask who scored',
   statsGuideStep1GoalsBody:
-    'On, each goal opens a picker for the scorer and the assist. The goal signal is held back until you are done, so the dialog never covers the thing you are meant to be announcing.',
+    'On, each goal leaves a "Scorer" button above the clocks. Tap it once you have found out who it was — the call-out, the ratio and the pull clock carry on as normal in the meantime. "Don\u2019t know" on both questions records the goal without names.',
   statsGuideStep1Lines: 'Track who plays each point',
   statsGuideStep1LinesBody:
     'Records the line that takes the field for each point. It also asks how many players a line is — that follows the format, sevens on grass and fives on beach — and whether to check the gender split: against the ratio the game is played to, against a fixed split, or not at all.',
@@ -1072,9 +1078,9 @@ export const en = {
 
   statsGuideGoalTitle: 'Who scored',
   statsGuideGoalBody:
-    'Tap the panel as usual and the picker opens straight after, listing only the players registered on the point that has just finished — anyone a substitution took off is left out, since they cannot have gone on to score it. Save with nobody picked and the goal still counts; it just goes down unattributed.',
+    'After a goal, a "Scorer" button with the new score appears above the clocks and stays there through the next point until you answer it. Tap it and the app asks two things, one at a time: who threw it, then who caught it — the order the sideline usually tells you. Each answer is one tap and moves on by itself. Only the players registered on the point that has just finished are listed; anyone a substitution took off is left out, since they cannot have gone on to score it. "Don\'t know" on either step still records the goal, unattributed. The button at the top right of the dialog switches the players between shirt-number and name order.',
   statsGuideGoalCallahan:
-    'The Callahan toggle replaces the assist picker rather than disabling it: the question has been answered, and by the rules the answer is "nobody". That is also how the report tells "nobody threw it" apart from "nobody typed it".',
+    'Callahan sits next to "Don\'t know" on the first step: by the rules a Callahan has no assist, and the report counts it that way rather than as an assist nobody wrote down.',
 
   statsGuideTurnTitle: 'Who turned it over',
   statsGuideTurnBody:
@@ -1208,7 +1214,7 @@ export const en = {
     'The Roster section of the setup screen, with players and predefined lines',
   statsGuideFigDashboardAlt:
     'The dashboard mid-point, with the possession bar and the live statistics',
-  statsGuideFigGoalAlt: 'The dialog asking who scored and who assisted',
+  statsGuideFigGoalAlt: 'The dialog asking who threw the goal',
   statsGuideFigTurnoverAlt: 'The dialog asking who lost the disc and who forced the turnover',
   statsGuideFigLineAlt: 'The line dialog, with the roster grouped by marking',
   statsGuideFigLiveTeamAlt: 'The live statistics showing the team figures',

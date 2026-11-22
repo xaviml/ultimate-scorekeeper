@@ -69,3 +69,35 @@ export const saveSoundEnabled = (on: boolean) => saveFlag(SOUND_KEY, on);
 /** Whether Turn and Pass vibrate on a tap. */
 export const loadVibrationEnabled = () => loadFlag(VIBRATION_KEY);
 export const saveVibrationEnabled = (on: boolean) => saveFlag(VIBRATION_KEY, on);
+
+/*
+ * How the player pickers order a roster: by shirt number (a team sheet) or by name.
+ * A habit of whoever holds the phone rather than a rule of the game, so it lives
+ * here with the other per-device preferences. Every picker on screen follows a
+ * change at once, which is why it carries a subscription (see `usePlayerSort`).
+ */
+export type PlayerSort = 'number' | 'name';
+const PLAYER_SORT_KEY = 'ultimate-scorekeeper:player-sort';
+const playerSortListeners = new Set<() => void>();
+
+export function loadPlayerSort(): PlayerSort {
+  try {
+    return localStorage.getItem(PLAYER_SORT_KEY) === 'name' ? 'name' : 'number';
+  } catch {
+    return 'number';
+  }
+}
+
+export function savePlayerSort(sort: PlayerSort): void {
+  try {
+    localStorage.setItem(PLAYER_SORT_KEY, sort);
+  } catch {
+    /* storage unavailable — the order just won't survive a reload */
+  }
+  playerSortListeners.forEach((listener) => listener());
+}
+
+export function subscribePlayerSort(listener: () => void): () => void {
+  playerSortListeners.add(listener);
+  return () => playerSortListeners.delete(listener);
+}

@@ -5,7 +5,7 @@ import { uid } from '../state/uid';
 import type { PlayerInfo, SavedLine } from '../state/types';
 import { LineComposition } from './LineComposition';
 import { Modal } from './Modal';
-import { PlayerMultiPicker } from './PlayerPicker';
+import { PlayerMultiPicker, PlayerSortToggle } from './PlayerPicker';
 import { inputClass, fieldLabel, primaryButton, secondaryButton } from './ui';
 
 /**
@@ -61,7 +61,11 @@ export function SavedLineDialog({
   };
 
   return (
-    <Modal title={t(line ? 'lineEditTitle' : 'lineAddTitle')} onClose={onCancel}>
+    <Modal
+      title={t(line ? 'lineEditTitle' : 'lineAddTitle')}
+      onClose={onCancel}
+      headerAction={<PlayerSortToggle />}
+    >
       <div>
         <label className={fieldLabel} htmlFor="saved-line-name">
           {t('lineSaveNamePrompt')}

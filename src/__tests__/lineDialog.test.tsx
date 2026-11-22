@@ -257,7 +257,7 @@ describe('the roster is grouped by marking', () => {
   /** The chips of the open dialog, in the order they are rendered. */
   const chips = () =>
     [...(document.querySelector('div.fixed') as HTMLElement).querySelectorAll('button')]
-      .map((b) => b.textContent ?? '')
+      .map((b) => b.getAttribute('aria-label') ?? b.textContent ?? '')
       .filter((txt) => /^#\d/.test(txt));
 
   it('lists FMP, then MMP, then the unmarked, each under its own label', () => {

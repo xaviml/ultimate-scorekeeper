@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '../i18n';
-import { PlayerMultiPicker, PlayerPicker } from '../components/PlayerPicker';
+import { PlayerMultiPicker, PlayerPicker, PlayerSortToggle } from '../components/PlayerPicker';
 import { PlayerRosterEditor } from '../components/PlayerRosterEditor';
 import type { PlayerInfo } from '../state/types';
 import { hold, tap } from './gestures';
@@ -38,20 +38,20 @@ afterEach(() => vi.useRealTimers());
 describe('PlayerPicker', () => {
   it('selects the player on a tap', () => {
     const onSelect = renderPicker();
-    tap(screen.getByText('#7 Alex'));
+    tap(screen.getByRole('button', { name: '#7 Alex' }));
     expect(onSelect).toHaveBeenCalledWith('p1');
   });
 
   it('clears the selection when the active chip is tapped again', () => {
     const onSelect = renderPicker('p1');
-    tap(screen.getByText('#7 Alex'));
+    tap(screen.getByRole('button', { name: '#7 Alex' }));
     expect(onSelect).toHaveBeenCalledWith(null);
   });
 
   // Regression: a hesitant press used to delete the player from the roster mid-game.
   it('treats a slow press as a tap, not as a removal', () => {
     const onSelect = renderPicker();
-    hold(screen.getByText('#7 Alex'), 1000);
+    hold(screen.getByRole('button', { name: '#7 Alex' }), 1000);
     expect(onSelect).toHaveBeenCalledWith('p1');
     // And the chip is announced as the player, not as a "Remove" action.
     expect(screen.getByRole('button', { name: '#7 Alex' })).toBeTruthy();
@@ -62,19 +62,19 @@ describe('PlayerMultiPicker', () => {
   it('toggles a chip by id regardless of which others are already selected', () => {
     const { onToggle } = renderMultiPicker(['p2']);
 
-    tap(screen.getByText('#7 Alex'));
+    tap(screen.getByRole('button', { name: '#7 Alex' }));
     expect(onToggle).toHaveBeenCalledWith('p1');
 
     // Tapping an already-selected chip still reports just that one id, so the
     // caller (not the chip) decides it means "remove", leaving the other intact.
-    tap(screen.getByText('#9 Sam'));
+    tap(screen.getByRole('button', { name: '#9 Sam' }));
     expect(onToggle).toHaveBeenCalledWith('p2');
     expect(onToggle).toHaveBeenCalledTimes(2);
   });
 
   it('toggles on a slow press rather than removing anyone', () => {
     const { onToggle } = renderMultiPicker(['p1']);
-    hold(screen.getByText('#7 Alex'), 1000);
+    hold(screen.getByRole('button', { name: '#7 Alex' }), 1000);
     expect(onToggle).toHaveBeenCalledWith('p1');
   });
 });
@@ -116,5 +116,43 @@ describe('PlayerRosterEditor removal', () => {
 
     expect(onRemove).toHaveBeenCalledWith('p2');
     expect(onRemove).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the order the pickers lay a roster out in', () => {
+  const roster: PlayerInfo[] = [
+    { id: 'a', number: '12', name: 'Marc' },
+    { id: 'b', number: '', name: 'Zoe' },
+    { id: 'c', number: '3', name: 'Laia' },
+    { id: 'd', number: '21', name: '' },
+    { id: 'e', number: '7', name: 'Anna' },
+  ];
+  const order = () =>
+    screen.getAllByRole('button', { pressed: false }).map((b) => b.getAttribute('aria-label'));
+
+  beforeEach(() => localStorage.clear());
+
+  function renderWithToggle() {
+    render(
+      <I18nProvider>
+        <PlayerSortToggle />
+        <PlayerPicker players={roster} selected={null} onSelect={() => {}} />
+      </I18nProvider>,
+    );
+  }
+
+  // Numerically, not as text (3 before 12), and the unnumbered after the numbered.
+  it('defaults to shirt number, like a team sheet', () => {
+    renderWithToggle();
+    expect(order()).toEqual(['#3 Laia', '#7 Anna', '#12 Marc', '#21', 'Zoe']);
+  });
+
+  it('switches every picker to names from the header toggle, and remembers it on this device', () => {
+    renderWithToggle();
+    fireEvent.click(screen.getByRole('button', { name: 'Sort players by name' }));
+
+    // The unnamed go last, by number.
+    expect(order()).toEqual(['#7 Anna', '#3 Laia', '#12 Marc', 'Zoe', '#21']);
+    expect(localStorage.getItem('ultimate-scorekeeper:player-sort')).toBe('name');
   });
 });

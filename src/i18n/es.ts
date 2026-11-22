@@ -211,7 +211,6 @@ export const es: typeof en = {
   lineIssueSize: 'Son {count} en campo, no {size}.',
   lineIssueRatio: 'Eso rompe la proporción que pide este punto ({female} FMP / {male} MMP).',
   lineNoRoster: 'Añade jugadores al roster primero — la línea se elige de ahí.',
-  linePromptTitle: '¿Quién juega este punto?',
   linePromptBtn: 'Registrar línea',
   lineNextPending: 'Punto siguiente: {count} registrados',
   btnLineSaveAnyway: 'Guardar igualmente',
@@ -259,10 +258,17 @@ export const es: typeof en = {
   rosterImportReplace: 'Sustituir el roster actual ({count})',
   rosterImportApply: 'Importar {count}',
   assistDialogTitle: '¿Quién anotó por {team}?',
-  whoScored: 'Anotador',
-  whoAssisted: 'Asistencia',
   callahan: 'Callahan',
-  callahanToggle: 'Callahan — sin asistencia',
+  goalPromptBtn: 'Anotador {score}',
+  goalStepAssist: '¿Quién la lanzó?',
+  goalStepScorer: '¿Quién la cogió?',
+  goalDontKnow: 'No lo sé',
+  goalChangeAssist: 'Cambiar',
+  goalSummaryAssist: 'Asistencia: {name}',
+  goalSummaryNoAssist: 'Asistencia: desconocida',
+  playerSortAria: 'Ordenar jugadores por {order}',
+  playerSortName: 'nombre',
+  playerSortNumber: 'dorsal',
   stoppageDialogTitle: '¿Qué ha parado el juego?',
   stoppageDialogHint:
     'Las paradas por lesión o técnicas no detienen el reloj de partido de entrada. El SOTG sí. En ambos casos, el reloj del pull, del tiempo muerto y de la llamada esperan a que el juego se reanude.',
@@ -937,7 +943,7 @@ export const es: typeof en = {
     'Pérdidas, quién marcó, quién perdió el disco y quién juega cada punto son cuatro interruptores independientes, ofrecidos solo donde el detalle de arriba puede responderlos. Apaga uno y desaparece todo lo derivado de él, también en el informe, que nunca muestra una columna de la que no tiene datos.',
   statsGuideModelCost: 'Elige según lo que puedas seguir',
   statsGuideModelCostBody:
-    'Cada interruptor cuesta toques con el disco en juego. Pérdidas es un toque por pérdida. «Preguntar quién perdió el disco» añade un diálogo a cada una, que es mucho en un punto rápido. «Preguntar quién marcó» es un diálogo por gol, en el hueco en el que de todos modos tienes tiempo. Las líneas son un registro por punto, entre puntos. Lo que te saltes sobre la marcha siempre se puede completar después desde el registro.',
+    'Cada interruptor cuesta toques con el disco en juego. Pérdidas es un toque por pérdida. «Preguntar quién perdió el disco» añade un diálogo a cada una, que es mucho en un punto rápido. «Preguntar quién marcó» es un botón por gol, que respondes cuando tengas un momento. Las líneas son un registro por punto, entre puntos. Lo que te saltes sobre la marcha siempre se puede completar después desde el registro.',
 
   statsGuideStep1Title: 'Elige qué registra este partido',
   statsGuideStep1Body:
@@ -959,7 +965,7 @@ export const es: typeof en = {
     'También anidado bajo Pérdidas, y desactivado por defecto. Añade un botón Pass junto a Turn: un toque por pase completado. Nunca pregunta quién lo lanzó. La insignia cuenta la posesión en curso, en el color de ese equipo, así que vuelve a empezar en cada pérdida. Si se sigue un solo equipo, solo se cuentan los suyos y el botón queda inactivo mientras el disco lo tiene el otro — por eso el informe les muestra una cifra y al otro equipo un guion.',
   statsGuideStep1Goals: 'Preguntar quién marcó',
   statsGuideStep1GoalsBody:
-    'Activado, cada gol abre un selector para el anotador y la asistencia. La señal de gol se retiene hasta que terminas, así que el diálogo nunca tapa justo lo que tienes que anunciar.',
+    'Activado, cada gol deja un botón «Anotador» encima de los relojes. Tócalo cuando sepas quién fue — mientras tanto el anuncio, el ratio y el reloj de pull siguen como siempre. «No lo sé» en las dos preguntas registra el gol sin nombres.',
   statsGuideStep1Lines: 'Registrar quién juega cada punto',
   statsGuideStep1LinesBody:
     'Registra la línea que salta al campo en cada punto. También pregunta de cuántos jugadores es una línea — eso lo marca el formato, siete en hierba y cinco en playa — y si comprobar el reparto de género: contra el ratio del partido, contra un reparto fijo, o no comprobarlo.',
@@ -999,9 +1005,9 @@ export const es: typeof en = {
 
   statsGuideGoalTitle: 'Quién marcó',
   statsGuideGoalBody:
-    'Toca el panel como siempre y el selector se abre justo después, con solo los jugadores registrados en el punto que acaba de terminar — quien salió por un cambio queda fuera, porque no pudo marcarlo. Guarda sin elegir a nadie y el gol cuenta igual; simplemente queda sin atribuir.',
+    'Después de un gol aparece encima de los relojes un botón «Anotador» con el nuevo marcador, y se queda durante el punto siguiente hasta que lo respondas. Al tocarlo la app pregunta dos cosas, de una en una: quién la lanzó y quién la cogió — el orden en que suele contarlo la banda. Cada respuesta es un toque y pasa sola a la siguiente. Solo aparecen los jugadores registrados en el punto que acaba de terminar; quien salió por un cambio queda fuera, porque no pudo marcarlo. «No lo sé» en cualquiera de los dos pasos registra igualmente el gol, sin atribuir. El botón de arriba a la derecha del diálogo ordena a los jugadores por dorsal o por nombre.',
   statsGuideGoalCallahan:
-    'El interruptor de Callahan sustituye al selector de asistencia en vez de desactivarlo: la pregunta ya está respondida, y por reglamento la respuesta es «nadie». Es también como el informe distingue «nadie la lanzó» de «nadie lo apuntó».',
+    'Callahan está junto a «No lo sé» en el primer paso: por reglamento un Callahan no tiene asistencia, y el informe lo cuenta así en vez de como una asistencia que nadie apuntó.',
 
   statsGuideTurnTitle: 'Quién perdió el disco',
   statsGuideTurnBody:
@@ -1137,7 +1143,7 @@ export const es: typeof en = {
     'La sección Roster de la pantalla de configuración, con jugadores y líneas predefinidas',
   statsGuideFigDashboardAlt:
     'La pantalla de juego a mitad de punto, con la barra de posesión y las estadísticas en vivo',
-  statsGuideFigGoalAlt: 'El diálogo que pregunta quién marcó y quién asistió',
+  statsGuideFigGoalAlt: 'El diálogo que pregunta quién lanzó el gol',
   statsGuideFigTurnoverAlt:
     'El diálogo que pregunta quién perdió el disco y quién forzó la pérdida',
   statsGuideFigLineAlt: 'El diálogo de línea, con el roster agrupado por marca',

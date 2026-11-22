@@ -325,7 +325,6 @@ export function createInitialState(config: GameConfig = defaultConfig): GameStat
     history: [],
     nextLogId: 1,
     assist: 'welcome',
-    pendingGoalAssist: null,
     ratioSignalId: 0,
     line: [],
     pointLine: [],
@@ -1675,16 +1674,6 @@ export function gameReducer(state: GameState, action: Action): GameState {
                   : announceHalf
                     ? 'halfAt'
                     : 'goalScored';
-      // When this goal is about to be asked about, the scorer/assist picker is
-      // popping up over it — hold the sign/message back so it doesn't fight the
-      // dialog for the volunteer's attention, and release it (REVEAL_GOAL_ASSIST)
-      // once the dialog closes instead. It follows `goalPlayersTracked`, exactly the
-      // condition GameScreen opens the dialog on: a goal by a team with no roster
-      // never opens it, and neither does a game that has turned the question off, so
-      // nothing needs holding back in either case. The gender-ratio auto-reveal
-      // piggybacks on this for free: it only arms off `assist === 'goalScored'`, so
-      // it naturally waits too.
-      const trackingPlayers = goalPlayersTracked(s.config, team);
       s = {
         ...s,
         status: reachHalf ? s.status : 'awaitingPull',
@@ -1705,8 +1694,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         lineName: s.nextLine ? s.nextLine.name : null,
         nextLine: null,
         secondary: reachHalf ? null : { kind: 'pull', seconds: 0, total: 75 },
-        assist: trackingPlayers ? s.assist : goalAssist,
-        pendingGoalAssist: trackingPlayers ? goalAssist : null,
+        assist: goalAssist,
         halfAnnounced: s.halfAnnounced || announceHalf || halfCapResolved,
         gameAnnounced: s.gameAnnounced || announceGame || capResolved,
         // Consumed whichever break actually happens: half-time swallows a water
@@ -1809,14 +1797,8 @@ export function gameReducer(state: GameState, action: Action): GameState {
         lineName: prev.lineName,
         secondary: null,
         assist: 'undoDone',
-        pendingGoalAssist: null,
       };
     }
-
-    case 'REVEAL_GOAL_ASSIST':
-      return state.pendingGoalAssist !== null
-        ? { ...state, assist: state.pendingGoalAssist, pendingGoalAssist: null }
-        : state;
 
     case 'REVEAL_NEXT_RATIO':
       return state.nextRatio ? { ...state, assist: 'nextRatio' } : state;

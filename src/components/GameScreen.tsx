@@ -509,40 +509,85 @@ function StoppageResolutionRow() {
 const LINE_PROMPT_STATUSES: GameState['status'][] = ['notStarted', 'awaitingStart', 'awaitingPull'];
 
 /**
- * The between-points nudge to say who is on for this point.
- *
- * It shares `StoppageResolutionRow`'s slot above the clocks rather than the action
- * row's reserved one, because that slot is occupied by "Pull thrown" — and, before
- * the game starts, by "Start game" — in exactly the statuses this prompt is needed
- * in. Only one row can be there at a time, and an open stoppage is the more urgent
- * of the two, so this yields to it.
+ * Whether to nudge for who is on for this point.
  *
  * Shown before the first pull as well as between points: the first point's line is
  * decided in the same gap as every other one, while the teams line up, and asking
- * then is what stops point one being the one nobody registered.
- *
- * Shown only when nothing has been registered yet: nothing carries over between
- * points, so the empty `pointLine` is precisely the state that needs asking about,
- * and it disappears the moment it has been answered.
+ * then is what stops point one being the one nobody registered. Shown only when
+ * nothing has been registered yet: nothing carries over between points, so the
+ * empty `pointLine` is precisely the state that needs asking about, and it
+ * disappears the moment it has been answered.
  */
-function LinePromptRow({ onOpen }: { onOpen: () => void }) {
+function linePromptVisible(state: GameState): boolean {
+  return (
+    lineTrackingEnabled(state.config) &&
+    LINE_PROMPT_STATUSES.includes(state.status) &&
+    state.pointLine.length === 0
+  );
+}
+
+const PROMPT_BUTTON =
+  'rounded-lg bg-signal/20 border border-signal text-signal px-2 py-2 lscape:px-1 lscape:py-1 text-xs sm:text-sm lscape:text-[9px] font-board uppercase tracking-wide active:scale-95';
+
+/**
+ * The dashboard's to-do row: things the volunteer should answer, but when it suits
+ * them rather than when the app decides — who is on for this point, and who scored
+ * the last one.
+ *
+ * It shares `StoppageResolutionRow`'s slot above the clocks rather than the action
+ * row's reserved one, because that slot is occupied by "Pull thrown" — and, before
+ * the game starts, by "Start game" — in exactly the statuses these prompts are
+ * needed in. An open stoppage is more urgent than either, so the row yields to it.
+ *
+ * Both can be due at once — between points, the goal just scored and the line for
+ * the next one — and then they sit side by side as two half-width buttons, so the
+ * row costs the score panels the same height whether one is due or two.
+ *
+ * The goal prompt replaced a dialog that opened by itself the moment a goal was
+ * scored, which covered the call-out and the next ratio exactly while they had to
+ * be read out. It stays up for the whole of the next point, until answered, because
+ * the volunteer finding out who scored is often slower than the pull. There is no
+ * way to dismiss it unanswered: "Don't know" on both steps is the deliberate way to
+ * leave a goal unattributed, and a dismiss button beside it was mostly a way to lose
+ * one by accident.
+ */
+function PromptRow({
+  goal,
+  onOpenLine,
+  onOpenGoal,
+}: {
+  /** The team that scored the point still waiting for its players, or null. */
+  goal: TeamId | null;
+  onOpenLine: () => void;
+  onOpenGoal: () => void;
+}) {
   const state = useGame();
   const { t } = useT();
-  if (!lineTrackingEnabled(state.config)) return null;
-  if (!LINE_PROMPT_STATUSES.includes(state.status) || state.pointLine.length > 0) return null;
   if (state.pendingStoppage && !state.pendingStoppage.clockStopped) return null;
+  const line = linePromptVisible(state);
+  if (!line && goal === null) return null;
 
   return (
-    <div className="space-y-1 lscape:space-y-0.5">
-      <p className="text-[10px] lscape:text-[8px] uppercase tracking-widest text-signal">
-        {t('linePromptTitle')}
-      </p>
-      <button
-        className="w-full rounded-lg bg-signal/20 border border-signal text-signal px-2 py-2 lscape:px-1 lscape:py-1 text-xs sm:text-sm lscape:text-[9px] font-board uppercase tracking-wide active:scale-95"
-        onClick={onOpen}
-      >
-        {t('linePromptBtn')}
-      </button>
+    <div className={`grid gap-2 lscape:gap-1 ${line && goal !== null ? 'grid-cols-2' : ''}`}>
+      {line && (
+        <button className={PROMPT_BUTTON} onClick={onOpenLine} data-prompt="line">
+          {t('linePromptBtn')}
+        </button>
+      )}
+      {goal !== null && (
+        <button className={PROMPT_BUTTON} onClick={onOpenGoal} data-prompt="goal">
+          <span className="flex items-center justify-center gap-1.5">
+            <span
+              aria-hidden
+              className="inline-block w-2 h-2 rounded-full shrink-0"
+              style={{ backgroundColor: state.config.teams[goal].color }}
+            />
+            <span className="truncate">
+              {t('goalPromptBtn', { score: `${state.scores.A}-${state.scores.B}` })}
+            </span>
+          </span>
+        </button>
+      )}
     </div>
   );
 }
@@ -1015,14 +1060,14 @@ export default function GameScreen() {
       ? state.status
       : null;
 
-  // Post-goal assist dialog: pops up once per new point once the scoring team is
-  // player-tracked (Player stats always, Team stats only when it was the tracked
-  // team's goal), tracked by how many points have already been resolved (skipped
-  // or saved).
+  // The "Scorer" prompt (see PromptRow): due once per new point whose scoring team
+  // is asked about (`goalPlayersTracked`), tracked by how many points have already
+  // been answered ("Don't know" included). Closing the dialog without an answer
+  // resolves nothing, so the prompt stays up.
   //
-  // Persisted alongside the game state: that state now survives a reload, so a
-  // counter that reset to 0 on mount would make an already-answered point look
-  // unresolved and re-open this dialog on top of the pull controls.
+  // Persisted alongside the game state: that state survives a reload, so a counter
+  // that reset to 0 on mount would make an already-answered point look unresolved
+  // and bring its prompt back.
   const [dismissedUpTo, setDismissedUpTo] = useState(
     () => Number(sessionStorage.getItem(ASSIST_DISMISSED_KEY)) || 0,
   );
@@ -1037,12 +1082,17 @@ export default function GameScreen() {
   const pendingAssistPoint =
     state.points.length > dismissedUpTo &&
     lastPoint &&
-    goalPlayersTracked(state.config, lastPoint.scoredBy)
+    goalPlayersTracked(state.config, lastPoint.scoredBy) &&
+    // Attributed some other way already — from the log editor, say.
+    !lastPoint.scorerId &&
+    !lastPoint.assistId &&
+    !lastPoint.callahan
       ? lastPoint
       : null;
+  const [showGoalDialog, setShowGoalDialog] = useState(false);
   const resolveAssistDialog = () => {
     setDismissedUpTo(state.points.length);
-    dispatch({ type: 'REVEAL_GOAL_ASSIST' });
+    setShowGoalDialog(false);
   };
 
   const openEndGameConfirm = () => {
@@ -1596,8 +1646,12 @@ export default function GameScreen() {
             at once anyway, since an open stoppage means playHalted. */}
         <StoppageResolutionRow />
 
-        {/* The same slot, when it is free: between points, asking who is on. */}
-        <LinePromptRow onOpen={() => setShowLine(true)} />
+        {/* The same slot, when it is free: who is on for this point, who scored the last. */}
+        <PromptRow
+          goal={pendingAssistPoint?.scoredBy ?? null}
+          onOpenLine={() => setShowLine(true)}
+          onOpenGoal={() => setShowGoalDialog(true)}
+        />
 
         {/* Clocks and action buttons stack in portrait; landscape has the height to
             spare but not the width, so they share one row instead — clocks first,
@@ -1875,11 +1929,11 @@ export default function GameScreen() {
       {turnoverTeam && (
         <TurnoverDialog attacking={turnoverTeam} onClose={() => setTurnoverTeam(null)} />
       )}
-      {pendingAssistPoint && (
+      {pendingAssistPoint && showGoalDialog && (
         <AssistGoalDialog
           team={pendingAssistPoint.scoredBy}
-          onCancel={resolveAssistDialog}
-          onSave={resolveAssistDialog}
+          onClose={() => setShowGoalDialog(false)}
+          onSaved={resolveAssistDialog}
         />
       )}
       {showEndGameConfirm && (

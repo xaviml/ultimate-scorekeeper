@@ -414,6 +414,56 @@ describe('the log dialog', () => {
     expect(within(row).getByText('Travel — TEAM B')).toBeInTheDocument();
   });
 
+  // The pencil on a goal reopens the very dialog the dashboard's prompt does — two
+  // steps, assist first — with what was recorded highlighted on each step.
+  it('fixes a goal through the same two-step dialog the prompt opens, prefilled', () => {
+    let s = run(live(), { type: 'GOAL', team: 'A' });
+    s = gameReducer(s, { type: 'SET_GOAL_PLAYERS', team: 'A', scorerId: 'a1', assistId: 'a2' });
+    mount(s);
+
+    const goalRow = screen
+      .getAllByRole('row')
+      .find((r) => /Goal — TEAM A/.test(r.textContent ?? ''))!;
+    fireEvent.click(within(goalRow).getByLabelText('Fix this entry'));
+
+    expect(screen.getByText('Who threw it?')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '#9 Sam' })).toHaveAttribute('aria-pressed', 'true');
+
+    // Confirming the recorded assist moves on; the recorded scorer is highlighted there.
+    fireEvent.click(screen.getByRole('button', { name: '#9 Sam' }));
+    expect(screen.getByText('Who caught it?')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '#7 Alex' })).toHaveAttribute('aria-pressed', 'true');
+
+    // Swap them round: go back, name Alex as the assist, and Sam as the scorer.
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+    fireEvent.click(screen.getByRole('button', { name: '#7 Alex' }));
+    fireEvent.click(screen.getByRole('button', { name: '#9 Sam' }));
+
+    const stored = JSON.parse(
+      sessionStorage.getItem('ultimate-scorekeeper:game-state')!,
+    ) as GameState;
+    expect(find(stored, 'goal')).toMatchObject({ scorerId: 'a2', assistId: 'a1' });
+  });
+
+  it('can turn a recorded goal into a Callahan from the log', () => {
+    let s = run(live(), { type: 'GOAL', team: 'A' });
+    s = gameReducer(s, { type: 'SET_GOAL_PLAYERS', team: 'A', scorerId: 'a1', assistId: 'a2' });
+    mount(s);
+
+    const goalRow = screen
+      .getAllByRole('row')
+      .find((r) => /Goal — TEAM A/.test(r.textContent ?? ''))!;
+    fireEvent.click(within(goalRow).getByLabelText('Fix this entry'));
+    fireEvent.click(screen.getByRole('button', { name: 'Callahan' }));
+    fireEvent.click(screen.getByRole('button', { name: '#7 Alex' }));
+
+    const stored = JSON.parse(
+      sessionStorage.getItem('ultimate-scorekeeper:game-state')!,
+    ) as GameState;
+    expect(find(stored, 'goal')).toMatchObject({ scorerId: 'a1', callahan: true });
+    expect(find(stored, 'goal').assistId).toBeUndefined();
+  });
+
   it('removes the row when the bin is tapped', () => {
     const s = run(live(), { type: 'NOTE', text: 'wind picked up' });
     mount(s);

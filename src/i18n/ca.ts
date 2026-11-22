@@ -211,7 +211,6 @@ export const ca: typeof en = {
   lineIssueSize: 'Són {count} al camp, no {size}.',
   lineIssueRatio: 'Això trenca la proporció que demana aquest punt ({female} FMP / {male} MMP).',
   lineNoRoster: "Afegeix jugadors al roster primer — la línia es tria d'aquí.",
-  linePromptTitle: 'Qui juga aquest punt?',
   linePromptBtn: 'Registrar línia',
   lineNextPending: 'Punt següent: {count} registrats',
   btnLineSaveAnyway: 'Desar igualment',
@@ -258,10 +257,17 @@ export const ca: typeof en = {
   rosterImportReplace: 'Substituir el roster actual ({count})',
   rosterImportApply: 'Importar {count}',
   assistDialogTitle: 'Qui ha anotat per {team}?',
-  whoScored: 'Anotador',
-  whoAssisted: 'Assistència',
   callahan: 'Callahan',
-  callahanToggle: 'Callahan — sense assistència',
+  goalPromptBtn: 'Anotador {score}',
+  goalStepAssist: "Qui l'ha llançat?",
+  goalStepScorer: "Qui l'ha agafat?",
+  goalDontKnow: 'No ho sé',
+  goalChangeAssist: 'Canviar',
+  goalSummaryAssist: 'Assistència: {name}',
+  goalSummaryNoAssist: 'Assistència: desconeguda',
+  playerSortAria: 'Ordenar jugadors per {order}',
+  playerSortName: 'nom',
+  playerSortNumber: 'dorsal',
   stoppageDialogTitle: 'Què ha aturat el joc?',
   stoppageDialogHint:
     'Les aturades per lesió o tècniques no aturen el rellotge de partit de bon principi. El SOTG sí. En tots dos casos, el rellotge del pull, del temps mort i del call esperen que el joc es reprengui.',
@@ -935,7 +941,7 @@ export const ca: typeof en = {
     "Pèrdues, qui va marcar, qui va perdre el disc i qui juga cada punt són quatre interruptors independents, oferts només allà on el detall de dalt els pot respondre. Apaga'n un i desapareix tot el que se'n deriva, també a l'informe, que mai no mostra una columna de la qual no té dades.",
   statsGuideModelCost: 'Tria segons el que puguis seguir',
   statsGuideModelCostBody:
-    'Cada interruptor costa tocs amb el disc en joc. Pèrdues és un toc per pèrdua. «Preguntar qui ha perdut el disc» afegeix un diàleg a cadascuna, que és molt en un punt ràpid. «Preguntar qui ha marcat» és un diàleg per gol, al buit on de totes maneres tens temps. Les línies són un registre per punt, entre punts. El que et saltis sobre la marxa sempre es pot completar després des del registre.',
+    'Cada interruptor costa tocs amb el disc en joc. Pèrdues és un toc per pèrdua. «Preguntar qui ha perdut el disc» afegeix un diàleg a cadascuna, que és molt en un punt ràpid. «Preguntar qui ha marcat» és un botó per gol, que respons quan tinguis un moment. Les línies són un registre per punt, entre punts. El que et saltis sobre la marxa sempre es pot completar després des del registre.',
 
   statsGuideStep1Title: 'Tria què registra aquest partit',
   statsGuideStep1Body:
@@ -957,7 +963,7 @@ export const ca: typeof en = {
     "També imbricat sota Pèrdues, i desactivat per defecte. Afegeix un botó Pass al costat de Turn: un toc per passada completada. Mai pregunta qui l'ha llançada. La insígnia compta la possessió en curs, en el color d'aquell equip, així que torna a començar a cada pèrdua. Si se segueix un sol equip, només es compten les seves i el botó queda inactiu mentre el disc el té l'altre — per això l'informe els mostra una xifra i a l'altre equip un guionet.",
   statsGuideStep1Goals: 'Preguntar qui ha marcat',
   statsGuideStep1GoalsBody:
-    'Activat, cada gol obre un selector per a l\u2019anotador i l\u2019assistència. El senyal de gol es reté fins que acabes, així que el diàleg mai no tapa justament allò que has d\u2019anunciar.',
+    "Activat, cada gol deixa un botó «Anotador» sobre els rellotges. Toca'l quan sàpigues qui ha estat — mentrestant l'anunci, el ràtio i el rellotge de pull continuen com sempre. «No ho sé» a les dues preguntes registra el gol sense noms.",
   statsGuideStep1Lines: 'Registrar qui juga cada punt',
   statsGuideStep1LinesBody:
     'Registra la línia que salta al camp a cada punt. També pregunta de quants jugadors és una línia — això ho marca el format, set a herba i cinc a platja — i si cal comprovar el repartiment de gènere: contra el ràtio del partit, contra un repartiment fix, o no comprovar-lo.',
@@ -997,9 +1003,9 @@ export const ca: typeof en = {
 
   statsGuideGoalTitle: 'Qui ha marcat',
   statsGuideGoalBody:
-    'Toca el panell com sempre i el selector s\u2019obre just després, amb només els jugadors registrats al punt que acaba de terminar — qui va sortir per un canvi queda fora, perquè no el podia marcar. Desa sense triar ningú i el gol compta igualment; simplement queda sense atribuir.',
+    "Després d'un gol apareix sobre els rellotges un botó «Anotador» amb el nou marcador, i s'hi queda durant el punt següent fins que el responguis. En tocar-lo l'app pregunta dues coses, d'una en una: qui l'ha llançat i qui l'ha agafat — l'ordre en què ho sol explicar la banda. Cada resposta és un toc i passa sola a la següent. Només hi surten els jugadors registrats al punt que acaba d'acabar; qui va sortir per un canvi queda fora, perquè no el podia marcar. «No ho sé» en qualsevol dels dos passos registra igualment el gol, sense atribuir. El botó de dalt a la dreta del diàleg ordena els jugadors per dorsal o per nom.",
   statsGuideGoalCallahan:
-    "L'interruptor de Callahan substitueix el selector d'assistència en comptes de desactivar-lo: la pregunta ja està resposta, i per reglament la resposta és «ningú». És també com l'informe distingeix «ningú no la va llançar» de «ningú no ho va apuntar».",
+    "Callahan és al costat de «No ho sé» al primer pas: per reglament un Callahan no té assistència, i l'informe el compta així en comptes de com una assistència que ningú no ha apuntat.",
 
   statsGuideTurnTitle: 'Qui ha perdut el disc',
   statsGuideTurnBody:
@@ -1136,7 +1142,7 @@ export const ca: typeof en = {
     'La secció Roster de la pantalla de configuració, amb jugadors i línies predefinides',
   statsGuideFigDashboardAlt:
     'La pantalla de joc a mitja jugada, amb la barra de possessió i les estadístiques en directe',
-  statsGuideFigGoalAlt: 'El diàleg que pregunta qui ha marcat i qui ha assistit',
+  statsGuideFigGoalAlt: 'El diàleg que pregunta qui ha llançat el gol',
   statsGuideFigTurnoverAlt:
     'El diàleg que pregunta qui ha perdut el disc i qui ha forçat la pèrdua',
   statsGuideFigLineAlt: 'El diàleg de línia, amb el roster agrupat per marca',

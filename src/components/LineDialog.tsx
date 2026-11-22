@@ -14,7 +14,7 @@ import { uid } from '../state/uid';
 import type { SavedLine, TeamId } from '../state/types';
 import { LineComposition } from './LineComposition';
 import { Modal } from './Modal';
-import { PlayerMultiPicker } from './PlayerPicker';
+import { PlayerMultiPicker, PlayerSortToggle } from './PlayerPicker';
 import { PlayerRosterEditor } from './PlayerRosterEditor';
 import { inputClass, pillClass, primaryButton, secondaryButton } from './ui';
 
@@ -174,7 +174,11 @@ export function LineDialog({ team, onClose }: { team: TeamId; onClose: () => voi
   };
 
   return (
-    <Modal title={t('lineDialogTitle', { team: state.config.teams[team].name })} onClose={onClose}>
+    <Modal
+      title={t('lineDialogTitle', { team: state.config.teams[team].name })}
+      onClose={onClose}
+      headerAction={<PlayerSortToggle />}
+    >
       {canNext && (
         <div className="grid grid-cols-2 gap-2">
           <button

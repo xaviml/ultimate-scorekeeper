@@ -2705,20 +2705,13 @@ describe('stats modes', () => {
     expect(playerTrackingFor(player, 'B')).toBe(true);
   });
 
-  it('holds the goal message back for the scorer/assist dialog only when the scoring team is player-tracked', () => {
+  // The scorer question is a prompt on the dashboard now, not a dialog over it, so
+  // nothing about the goal waits for it: the call-out goes out at once either way.
+  it('announces a goal at once, whether or not the scoring team is asked who scored', () => {
     const base = live(cfg({ statsMode: 'players', trackTurnovers: true, trackedTeam: 'A' }));
-    const beforeAssist = base.assist;
 
-    // Tracked team scores: the dialog is about to open over this goal, so the
-    // sign/message waits in pendingGoalAssist for REVEAL_GOAL_ASSIST instead.
-    const trackedScores = gameReducer(base, { type: 'GOAL', team: 'A' });
-    expect(trackedScores.assist).toBe(beforeAssist);
-    expect(trackedScores.pendingGoalAssist).toBe('goalScored');
-
-    // Untracked team scores: no dialog ever opens for it, so nothing to hold back.
-    const untrackedScores = gameReducer(base, { type: 'GOAL', team: 'B' });
-    expect(untrackedScores.assist).toBe('goalScored');
-    expect(untrackedScores.pendingGoalAssist).toBeNull();
+    expect(gameReducer(base, { type: 'GOAL', team: 'A' }).assist).toBe('goalScored');
+    expect(gameReducer(base, { type: 'GOAL', team: 'B' }).assist).toBe('goalScored');
   });
 
   it('an injury can name a specific player and, independently, a whole other team with no player', () => {
