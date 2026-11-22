@@ -612,10 +612,7 @@ export const ca: typeof en = {
   statPassesPerPossession: 'Per possessió',
   statBreaks: 'Breaks',
   statTimeouts: 'Temps morts',
-  // El gràfic de possessió, reutilitzat del buit d'estadístiques en directe.
-  possessionTitle: 'Possessió per punt',
-  possessionLegend:
-    "{top} sobre la línia, {bottom} a sota. L'alçada de la columna és el que va durar el punt —la més alta és el punt més llarg del partit— repartida entre els equips segons la seva part de possessió; el costat ple va marcar el punt, i el puntet ambre assenyala qui el va començar en atac, així que puntet i marcador en costats oposats és un break.",
+  statPossessionsScored: 'Possessions amb gol',
   playerStatsTitle: 'Estadístiques de jugadors',
   filterAllTeams: 'Tots',
   colPlayer: 'Jugador',
@@ -647,7 +644,25 @@ export const ca: typeof en = {
   colDefensesFull:
     "Pèrdues forçades per aquest jugador: blocatges i marcatges que han esgotat l'stall",
   reportFooterCredit: 'Aquest partit es va registrar amb:',
-  historyTitle: 'Resum del partit',
+  // "Point by point" in the report — see state/pointStory.ts.
+  pointsTitle: 'Punt a punt',
+  pointsColLine: 'Línia',
+  pointsColOHeld: 'Holds (O)',
+  pointsColDBroken: 'Breaks (D)',
+  pointHold: 'Hold',
+  pointBreak: 'Break',
+  pointNotFinished: 'Sense acabar',
+  pointInPlay: '{d} en joc',
+  pointTurns: '{n} pèrdues',
+  pointTurnsOne: '1 pèrdua',
+  pointNoTurns: 'Sense pèrdues',
+  pointPasses: '{n} passades',
+  pointPassesOne: '1 passada',
+  pointTeamPasses: '{passes} de {team}',
+  pointLineName: 'Línia {name}',
+  pointPull: 'Pull per a {team}',
+  pointOpen: 'en possessió',
+  pointFlagSotg: 'SOTG',
   btnFullLog: 'Registre complet',
   fullLogTitle: 'Registre complet del partit',
   copyLog: 'Copiar registre',
@@ -913,7 +928,7 @@ export const ca: typeof en = {
   guideStep10Body:
     "L'aplicació acaba el partit sola quan un equip arriba a l'objectiu. Si l'has d'aturar abans, prem la ✕ del cantó superior esquerre, al costat del número de camp, i confirma.",
   guideStep10Report:
-    'Llavors apareix l\'informe: el marcador final, unes quantes estadístiques de cada equip i l\'historial complet del partit. "Compartir" envia una foto del marcador, les estadístiques i el resum del partit directament a un xat. "Copiar al porta-retalls" ho converteix tot, historial inclòs, en text pla que pots enganxar en un missatge o en un full de càlcul; fes-ho abans de sortir de la pantalla. "Nou partit" et torna a la configuració per al següent.',
+    'Llavors apareix l\'informe: el marcador final, unes quantes estadístiques de cada equip i el partit punt a punt. "Compartir" envia una foto del marcador, les estadístiques i cada punt directament a un xat. "Copiar al porta-retalls" ho converteix tot en text pla que pots enganxar en un missatge o en un full de càlcul; fes-ho abans de sortir de la pantalla. "Nou partit" et torna a la configuració per al següent.',
 
   guideCheatTitle: 'Resum ràpid',
   guideCheatTap: "Tocar el panell d'un equip",
@@ -1078,6 +1093,9 @@ export const ca: typeof en = {
   statsGuideStatTurnovers: 'Pèrdues',
   statsGuideStatTurnoversBody:
     'Les pròpies d\u2019aquest equip, en tot el partit, descomptant el que s\u2019hagi desfet.',
+  statsGuideStatPossessionsScored: 'Possessions amb gol',
+  statsGuideStatPossessionsScoredBody:
+    'Quantes possessions de l\u2019equip van acabar en gol, de totes les vegades que va tenir el disc, amb el percentatge al costat. Un punt que ningú no va perdre és una possessió i un gol.',
   statsGuideStatPasses: 'Passades',
   statsGuideStatPassesBody:
     "Totes les passades registrades, en tot el partit, descomptant el que s'hagi desfet. Si se segueix un sol equip, l'altre mostra un guionet — ningú comptava les seves passades, que no és el mateix que no haver-ne fet cap.",
@@ -1094,9 +1112,9 @@ export const ca: typeof en = {
   statsGuideStatTimeoutsBody:
     'Les dues parts sumades. Una pausa d\u2019hidratació no en costa cap, així que mai no apareix aquí.',
 
-  statsGuideLedgerTitle: 'Possessió per punt',
-  statsGuideLedgerBody:
-    'Tot el partit en una franja: una columna per punt, la seva alçada és el que va durar el punt (la més alta és el punt més llarg) repartida entre els equips segons la seva part del temps de possessió, el costat ple és qui va anotar, i el punt ambre qui va començar atacant. Punt i ple en costats oposats és un break.',
+  statsGuidePointsTitle: 'Punt a punt',
+  statsGuidePointsBody:
+    'Cada punt del partit, en ordre. La seva capçalera porta el marcador després del punt, si va ser hold o break (el cercle és l\u2019equip que va marcar) i el que va durar — amb el temps en què el disc va estar realment en joc al costat quan un temps mort, una decisió o una interrupció el van aturar. A sota, el punt com una pista: un segment per possessió del color de l\u2019equip que tenia el disc, tan llarg com el temps en joc que el va tenir, amb el temps a sobre i les passades completades a sota quan es comptaven. Un buit entre segments és una pèrdua i el disc al final és el gol, així que una pista partida en molts trossos és un punt mogut, i totes les pistes fan servir la mateixa escala perquè els punts llargs es vegin llargs. Toca un punt per llegir-lo en ordre: el que va passar abans del pull, el pull, cada pèrdua amb qui va perdre el disc i qui va fer la D, les decisions i interrupcions, i el gol. Amb línies predefinides, la taula de dalt diu com li va anar a cada línia: punts en O mantinguts i punts en D convertits en break.',
 
   statsGuideStep6Title: 'L\u2019informe — estadístiques de jugador',
   statsGuideStep6Body:
@@ -1120,13 +1138,13 @@ export const ca: typeof en = {
   statsGuideStep7Title: 'Endur-te els números',
   statsGuideShare: 'Compartir',
   statsGuideShareBody:
-    "El marcador, les xifres d'equip, la taula de jugadors i el resum del partit, dibuixats com a imatge per a un xat d'equip. La imatge porta les columnes de totes les vistes alhora, agrupades sota Joc, Anotació i Possessió — una imatge no es pot tocar per canviar de vista, que és el motiu que la pantalla les separi en vistes.",
+    "El marcador, les xifres d'equip, la taula de jugadors i cada punt del partit, dibuixats com a imatge per a un xat d'equip. La imatge mostra cada punt obert, amb tota la seva història, i porta les columnes de totes les vistes alhora, agrupades sota Joc, Anotació i Possessió — una imatge no es pot tocar, que és el motiu que la pantalla plegui els punts i separi les columnes en vistes.",
   statsGuideCopy: 'Copiar al porta-retalls',
   statsGuideCopyBody:
     "L'arxiu: tot en text pla per a un full de càlcul o un correu, amb les columnes de totes les vistes disponibles en una línia per jugador i les línies predefinides en què va aparèixer cadascú. Fes-ho abans de sortir de la pantalla.",
   statsGuideFullLog: 'Registre complet',
   statsGuideFullLogBody:
-    'El resum del partit deixa fora les pèrdues i les decisions — en un partit amb seguiment arriben per dotzenes i enterren la forma del partit. Tot és a un toc darrere de «Registre complet», amb el seu propi botó de copiar.',
+    'Punt a punt explica cada punt en ordre. El registre complet és cada entrada tal com es va anotar, correccions incloses, a un toc darrere de «Registre complet», amb el seu propi botó de copiar.',
   statsGuideHistory: 'Historial de partits',
   statsGuideHistoryBody:
     "Un partit que va acabar per marcador s'arxiva sol, i obrir-lo des de l'Historial et dóna aquest mateix informe, exactament com era aquell dia — es desa el partit sencer, no un resum. Se'n conserven els últims 50, en aquest dispositiu.",
@@ -1149,6 +1167,9 @@ export const ca: typeof en = {
   statsGuideDefPassesDo: 'Passades registrades per a aquest equip, en tot el partit',
   statsGuideDefPassesAvg: 'Per possessió',
   statsGuideDefPassesAvgDo: 'Passades dividides per les vegades que aquell equip va tenir el disc',
+  statsGuideDefPossessionsScored: 'Possessions amb gol',
+  statsGuideDefPossessionsScoredDo:
+    'Gols dividits per les vegades que aquell equip va tenir el disc',
   statsGuideDefD: 'D (Possessió)',
   statsGuideDefDDo:
     'Pèrdues que va forçar aquest jugador — blocatges, i marques que van exhaurir el compte',
@@ -1168,7 +1189,7 @@ export const ca: typeof en = {
   statsGuideFigLivePossessionAlt: 'Les estadístiques en directe mostrant la possessió per punt',
   statsGuideFigLivePaceAlt: 'Les estadístiques en directe mostrant el ritme del punt actual',
   statsGuideFigReportTeamAlt: 'La taula de xifres d\u2019equip de l\u2019informe',
-  statsGuideFigReportLedgerAlt: 'El gràfic de possessió per punt de l\u2019informe',
+  statsGuideFigReportPointsAlt: 'La llista punt a punt de l\u2019informe, amb un punt obert',
   statsGuideFigReportPlayersAlt:
     'La taula d\u2019estadístiques de jugador de l\u2019informe, en la vista Joc',
 

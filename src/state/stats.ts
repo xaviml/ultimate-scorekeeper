@@ -1,6 +1,6 @@
 import type { TFunc } from '../i18n/useT';
 import { lineTeam } from './lines';
-import type { GameState, LogEntry, LogType, PlayerInfo, PointRecord, TeamId } from './types';
+import type { GameState, LogEntry, PlayerInfo, PointRecord, TeamId } from './types';
 
 export interface TeamStats {
   score: number;
@@ -88,21 +88,6 @@ export function possessionTopShare(point: PointRecord, topTeam: TeamId): number 
   const possessions = point.turnovers + 1;
   const offenseShare = Math.ceil(possessions / 2) / possessions;
   return point.offense === topTeam ? offenseShare : 1 - offenseShare;
-}
-
-/**
- * The two teams' tracked possession seconds for a point, added — the real time
- * the point took as far as the possession clock saw it (halted play is credited
- * to neither team, so this can trail `durationSeconds`). Drives the *report's*
- * ledger, where a column's height is that duration so points compare by length,
- * rather than the live slot's fixed-height ratio bar. Null on a legacy point
- * that tracked nothing, matching `possessionTopShare`; 0 for a goal tapped in
- * before a second accrued.
- */
-export function possessionTotalSeconds(point: PointRecord): number | null {
-  const seconds = point.possessionSeconds;
-  if (!seconds) return null;
-  return seconds.A + seconds.B;
 }
 
 export interface PlayerStatLine {
@@ -490,30 +475,6 @@ export function formatClock(totalSeconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-/**
- * What the report's history leaves out. A turnover and a call are the two things
- * a tracked game records by the dozen, and read back afterwards they bury the
- * shape of the game — the goals, the breaks, the caps — in noise. They are not
- * lost: the full log is one tap away from the same panel (see FullLogDialog),
- * which is also what the report's own copy button deliberately does not carry.
- *
- * Stoppages and SOTG stay: they are neither a call nor routine, and how often
- * play stopped is part of what happened. `undoTurnover` goes with the turnovers
- * it corrects — on its own it would say a possession was fixed that the reader
- * never saw recorded.
- */
-const REPORT_HIDDEN_LOG_TYPES: readonly LogType[] = [
-  'turnover',
-  'undoTurnover',
-  'call',
-  'callResolved',
-  'travel',
-];
-
-export function reportLogEntries(log: LogEntry[]): LogEntry[] {
-  return log.filter((e) => !REPORT_HIDDEN_LOG_TYPES.includes(e.type));
-}
-
 /** One log entry split into the three columns every surface renders it in. */
 export interface LogRow {
   /** The game clock, `mm:ss`. */
@@ -574,10 +535,10 @@ function detailParts(state: GameState, e: LogEntry, t: TFunc): string {
 
 /**
  * A log entry as the four columns of a row. Shared by the table (GameLogTable),
- * which renders the pieces as siblings, and by the shared image's game summary,
- * which paints them into measured columns — so an entry can never say one thing
- * on screen and another in the picture. The plain-text archive builds its own
- * single line out of the same pieces (`logTextLines` below), the difference
+ * which renders the pieces as siblings, and by "Point by point" (pointStory.ts),
+ * which tells an event as its event and detail — so an entry can never say one
+ * thing in the log and another in a point's story. The plain-text log builds its
+ * own single line out of the same pieces (`logTextLines` below), the difference
  * being punctuation rather than content.
  */
 export function logRow(state: GameState, e: LogEntry, t: TFunc): LogRow {
@@ -591,10 +552,8 @@ export function logRow(state: GameState, e: LogEntry, t: TFunc): LogRow {
 
 /**
  * The log as plain text, one indented `[mm:ss] Event — Team (2-1) — detail` line
- * per entry. Shared by the report's copy button (which passes the filtered
- * entries) and the full-log dialog's (which passes all of them), so the two can't
- * drift into printing an event differently — and built from `logRow`, so neither
- * can drift from the table.
+ * per entry, for the full-log dialog's copy button — built from `logRow`, so it
+ * cannot drift from the table.
  */
 export function logTextLines(state: GameState, entries: LogEntry[], t: TFunc): string[] {
   return entries.map((e) => {

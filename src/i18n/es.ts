@@ -616,10 +616,7 @@ export const es: typeof en = {
   statPassesPerPossession: 'Por posesión',
   statBreaks: 'Breaks',
   statTimeouts: 'Tiempos muertos',
-  // El gráfico de posesión, reutilizado del hueco de estadísticas en directo.
-  possessionTitle: 'Posesión por punto',
-  possessionLegend:
-    '{top} sobre la línea, {bottom} debajo. La altura de la columna es lo que duró el punto —la más alta es el punto más largo del partido— repartida entre los equipos según su parte de posesión; el lado relleno marcó el punto, y el puntito ámbar señala quién lo empezó en ataque, así que punto y marcador en lados opuestos es un break.',
+  statPossessionsScored: 'Posesiones con gol',
   playerStatsTitle: 'Estadísticas de jugadores',
   filterAllTeams: 'Todos',
   colPlayer: 'Jugador',
@@ -650,7 +647,25 @@ export const es: typeof en = {
   colDefenses: 'D',
   colDefensesFull: 'Pérdidas forzadas por este jugador: bloqueos y marcas que agotaron el stall',
   reportFooterCredit: 'Este partido se registró con:',
-  historyTitle: 'Resumen del partido',
+  // "Point by point" in the report — see state/pointStory.ts.
+  pointsTitle: 'Punto a punto',
+  pointsColLine: 'Línea',
+  pointsColOHeld: 'Holds (O)',
+  pointsColDBroken: 'Breaks (D)',
+  pointHold: 'Hold',
+  pointBreak: 'Break',
+  pointNotFinished: 'Sin terminar',
+  pointInPlay: '{d} en juego',
+  pointTurns: '{n} pérdidas',
+  pointTurnsOne: '1 pérdida',
+  pointNoTurns: 'Sin pérdidas',
+  pointPasses: '{n} pases',
+  pointPassesOne: '1 pase',
+  pointTeamPasses: '{passes} de {team}',
+  pointLineName: 'Línea {name}',
+  pointPull: 'Pull para {team}',
+  pointOpen: 'en posesión',
+  pointFlagSotg: 'SOTG',
   btnFullLog: 'Registro completo',
   fullLogTitle: 'Registro completo del partido',
   copyLog: 'Copiar registro',
@@ -915,7 +930,7 @@ export const es: typeof en = {
   guideStep10Body:
     'La aplicación termina el partido sola cuando un equipo llega al objetivo. Si tienes que pararlo antes, pulsa la ✕ de la esquina superior izquierda, al lado del número de campo, y confirma.',
   guideStep10Report:
-    'Entonces aparece el informe: el marcador final, unas cuantas estadísticas de cada equipo y el historial completo del partido. "Compartir" manda una foto del marcador, las estadísticas y el resumen del partido directamente a un chat. "Copiar al portapapeles" lo convierte todo, historial incluido, en texto plano que puedes pegar en un mensaje o en una hoja de cálculo; hazlo antes de salir de la pantalla. "Nuevo partido" te devuelve a la configuración para el siguiente.',
+    'Entonces aparece el informe: el marcador final, unas cuantas estadísticas de cada equipo y el partido punto a punto. "Compartir" manda una foto del marcador, las estadísticas y cada punto directamente a un chat. "Copiar al portapapeles" lo convierte todo en texto plano que puedes pegar en un mensaje o en una hoja de cálculo; hazlo antes de salir de la pantalla. "Nuevo partido" te devuelve a la configuración para el siguiente.',
 
   guideCheatTitle: 'Resumen rápido',
   guideCheatTap: 'Tocar el panel de un equipo',
@@ -1080,6 +1095,9 @@ export const es: typeof en = {
   statsGuideStatTurnovers: 'Pérdidas',
   statsGuideStatTurnoversBody:
     'Las propias de este equipo, en todo el partido, descontando lo deshecho.',
+  statsGuideStatPossessionsScored: 'Posesiones con gol',
+  statsGuideStatPossessionsScoredBody:
+    'Cuántas posesiones del equipo acabaron en gol, de todas las veces que tuvo el disco, con el porcentaje al lado. Un punto que nadie perdió es una posesión y un gol.',
   statsGuideStatPasses: 'Pases',
   statsGuideStatPassesBody:
     'Todos los pases registrados, en todo el partido, descontando lo deshecho. Si se sigue un solo equipo, el otro muestra un guion — nadie contaba sus pases, que no es lo mismo que no haber dado ninguno.',
@@ -1096,9 +1114,9 @@ export const es: typeof en = {
   statsGuideStatTimeoutsBody:
     'Las dos partes sumadas. Una pausa de hidratación no cuesta ninguno, así que nunca aparece aquí.',
 
-  statsGuideLedgerTitle: 'Posesión por punto',
-  statsGuideLedgerBody:
-    'Todo el partido en una franja: una columna por punto, su altura es lo que duró el punto (la más alta es el punto más largo) repartida entre los equipos según su parte del tiempo de posesión, el lado relleno es quien anotó, y el punto ámbar quien empezó atacando. Punto y relleno en lados opuestos es un break.',
+  statsGuidePointsTitle: 'Punto a punto',
+  statsGuidePointsBody:
+    'Cada punto del partido, en orden. Su cabecera lleva el marcador tras el punto, si fue hold o break (el círculo es el equipo que marcó) y lo que duró — con el tiempo en que el disco estuvo realmente en juego al lado cuando un tiempo muerto, una decisión o una interrupción lo pararon. Debajo, el punto como una pista: un segmento por posesión del color del equipo que tenía el disco, tan largo como el tiempo en juego que lo tuvo, con el tiempo encima y los pases completados debajo cuando se contaban. Un hueco entre segmentos es una pérdida y el disco al final es el gol, así que una pista partida en muchos trozos es un punto movido, y todas las pistas usan la misma escala para que los puntos largos se vean largos. Toca un punto para leerlo en orden: lo que pasó antes del pull, el pull, cada pérdida con quién perdió el disco y quién hizo la D, las decisiones e interrupciones, y el gol. Con líneas predefinidas, la tabla de arriba dice cómo le fue a cada línea: puntos en O mantenidos y puntos en D convertidos en break.',
 
   statsGuideStep6Title: 'El informe — estadísticas de jugador',
   statsGuideStep6Body:
@@ -1122,13 +1140,13 @@ export const es: typeof en = {
   statsGuideStep7Title: 'Llevarte los números',
   statsGuideShare: 'Compartir',
   statsGuideShareBody:
-    'El marcador, las cifras de equipo, la tabla de jugadores y el resumen del partido, dibujados como imagen para un chat de equipo. La imagen lleva las columnas de todas las vistas a la vez, agrupadas bajo Juego, Anotación y Posesión — una imagen no se puede tocar para cambiar de vista, que es por lo que la pantalla las separa en vistas.',
+    'El marcador, las cifras de equipo, la tabla de jugadores y cada punto del partido, dibujados como imagen para un chat de equipo. La imagen muestra cada punto abierto, con toda su historia, y lleva las columnas de todas las vistas a la vez, agrupadas bajo Juego, Anotación y Posesión — una imagen no se puede tocar, que es por lo que la pantalla pliega los puntos y separa las columnas en vistas.',
   statsGuideCopy: 'Copiar al portapapeles',
   statsGuideCopyBody:
     'El archivo: todo en texto plano para una hoja de cálculo o un correo, con las columnas de todas las vistas disponibles en una línea por jugador y las líneas predefinidas en las que apareció cada uno. Hazlo antes de salir de la pantalla.',
   statsGuideFullLog: 'Registro completo',
   statsGuideFullLogBody:
-    'El resumen del partido deja fuera las pérdidas y las decisiones — en un partido con seguimiento llegan por docenas y entierran la forma del partido. Todo está a un toque detrás de «Registro completo», con su propio botón de copiar.',
+    'Punto a punto cuenta cada punto en orden. El registro completo es cada entrada tal como se anotó, correcciones incluidas, a un toque detrás de «Registro completo», con su propio botón de copiar.',
   statsGuideHistory: 'Historial de partidos',
   statsGuideHistoryBody:
     'Un partido que terminó por marcador se archiva solo, y abrirlo desde el Historial te da este mismo informe, exactamente como estaba ese día — se guarda el partido entero, no un resumen. Se conservan los últimos 50, en este dispositivo.',
@@ -1150,6 +1168,8 @@ export const es: typeof en = {
   statsGuideDefPassesDo: 'Pases registrados para este equipo, en todo el partido',
   statsGuideDefPassesAvg: 'Por posesión',
   statsGuideDefPassesAvgDo: 'Pases divididos por las veces que ese equipo tuvo el disco',
+  statsGuideDefPossessionsScored: 'Posesiones con gol',
+  statsGuideDefPossessionsScoredDo: 'Goles divididos por las veces que ese equipo tuvo el disco',
   statsGuideDefD: 'D (Posesión)',
   statsGuideDefDDo: 'Pérdidas que forzó este jugador — bloqueos, y marcas que agotaron el conteo',
   statsGuideDefOD: 'O / D (Juego)',
@@ -1169,7 +1189,7 @@ export const es: typeof en = {
   statsGuideFigLivePossessionAlt: 'Las estadísticas en vivo mostrando la posesión por punto',
   statsGuideFigLivePaceAlt: 'Las estadísticas en vivo mostrando el ritmo del punto actual',
   statsGuideFigReportTeamAlt: 'La tabla de cifras de equipo del informe',
-  statsGuideFigReportLedgerAlt: 'El gráfico de posesión por punto del informe',
+  statsGuideFigReportPointsAlt: 'La lista punto a punto del informe, con un punto abierto',
   statsGuideFigReportPlayersAlt:
     'La tabla de estadísticas de jugador del informe, en la vista Juego',
 

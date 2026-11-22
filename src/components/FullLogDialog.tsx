@@ -7,10 +7,10 @@ import { GameLogTable } from './GameLogTable';
 import { Modal } from './Modal';
 
 /**
- * Everything the game recorded, opened from the report's history panel — which
- * itself shows the game's shape rather than its every event (see
- * `reportLogEntries`). This is where the turnovers and the calls the report
- * leaves out are still readable, in the same table the in-game log dialog uses.
+ * Everything the game recorded, opened from the report's "Point by point" — which
+ * tells each point with the corrections already applied (see state/pointStory.ts).
+ * This is the record itself, entry for entry and corrections included, in the same
+ * table the in-game log dialog uses.
  *
  * Read-only, unlike that dialog: editing the log is fixing a mis-tap in a game
  * still being played, and this door is reached from the report.

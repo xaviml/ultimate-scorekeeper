@@ -65,10 +65,29 @@ describe('teamStatRows', () => {
       'Breaks',
       '  Clean',
       'Turnovers',
+      'Possessions scored',
       'Passes',
       '  Per possession',
       'Timeouts',
     ]);
+  });
+
+  // Every possession a team had, over every point the game recorded turnovers for: a
+  // clean hold is one possession and one goal, and a point turned over twice gives
+  // the receiving team two possessions and the other team one.
+  it('counts possessions scored out of every possession the team had', () => {
+    const state = baseState();
+    state.config.statsMode = 'teams';
+    state.config.trackTurnovers = true;
+    state.points = [
+      point({ scoredBy: 'A', offense: 'A', turnovers: 0 }),
+      point({ scoredBy: 'A', offense: 'B', isBreak: true, turnovers: 1 }),
+      point({ scoredBy: 'B', offense: 'B', turnovers: 2 }),
+    ];
+    const row = find('Possessions scored')(teamStatRows(state, t));
+    // A: 1 (point 1) + 1 (point 2, after B lost it) + 1 (point 3, between B's two) = 3, scored 2.
+    // B: 0 + 1 + 2 = 3, scored 1.
+    expect([row.a, row.aPct, row.b, row.bPct]).toEqual(['2/3', '67%', '1/3', '33%']);
   });
 
   it('drops the turnover-derived rows when turnovers are not recorded', () => {
@@ -283,66 +302,45 @@ describe('reportCardModel', () => {
     expect(reportCardModel(state, t, 'en').playerRows).toEqual([]);
   });
 
-  it('builds the possession ledger with running scores, and none when nothing was tracked', () => {
+  it('carries point by point with every point opened, and the markers between them', () => {
     const state = baseState();
     state.config.statsMode = 'teams';
     state.config.trackTurnovers = true;
-    state.config.startingSide = 'A';
-    state.points = [
-      point({ scoredBy: 'A', possessionSeconds: { A: 30, B: 10 } }),
-      point({ scoredBy: 'B', possessionSeconds: { A: 5, B: 15 } }),
-      point({ scoredBy: 'A' }), // recorded before possession was timed — drawn flat
-    ];
-
-    const ledger = reportCardModel(state, t, 'en').ledger;
-    expect(ledger?.title).toBe('Possession by point');
-    // All three points opened with A on offence (the point() factory default),
-    // so the amber offence dot sits top on every column — making the second
-    // one, scored by B, read as the break it was.
-    // Point one (40 tracked seconds) is the longest, so its column fills the
-    // strip; point two (20s) is half as tall; the legacy point draws flat.
-    expect(ledger?.columns).toEqual([
-      { topShare: 0.75, heightFrac: 1, topScored: true, topOffense: true, score: '1' },
-      { topShare: 0.25, heightFrac: 0.5, topScored: false, topOffense: true, score: '1' },
-      { topShare: null, heightFrac: 1, topScored: true, topOffense: true, score: '2' },
-    ]);
-
-    // statsMode 'none' never tracked possession, so there is no strip to draw.
-    const untracked = baseState();
-    untracked.config.statsMode = 'none';
-    untracked.points = [point()];
-    expect(reportCardModel(untracked, t, 'en').ledger).toBeNull();
-  });
-
-  it("carries the game summary — the report's history, not the whole log", () => {
-    const state = baseState();
     state.config.teams = {
-      A: { name: 'Foxes', color: '#ff0000' },
-      B: { name: 'Wolves', color: '#0000ff' },
+      A: { name: 'FOXES', color: '#ff0000' },
+      B: { name: 'WOLVES', color: '#0000ff' },
     };
+    state.points = [
+      point({ scoredBy: 'A', offense: 'B', isBreak: true, turnovers: 1, durationSeconds: 50 }),
+    ];
     state.log = [
       entry({ type: 'gameStart' }),
-      entry({ type: 'goal', team: 'A', gameSeconds: 65, score: { A: 1, B: 0 }, isBreak: true }),
-      // Filtered out on the card exactly as on the screen: a tracked game records
-      // these by the dozen and they bury the shape of the game.
-      entry({ type: 'turnover', team: 'B' }),
-      entry({ type: 'call', team: 'B', callKind: 'foul' }),
-      entry({ type: 'note', detail: 'wind picked up' }),
+      entry({ type: 'turnover', team: 'B', gameSeconds: 30 }),
+      entry({
+        type: 'goal',
+        team: 'A',
+        gameSeconds: 60,
+        pointSeconds: 50,
+        score: { A: 1, B: 0 },
+        isBreak: true,
+      }),
+      entry({ type: 'gameEnd', gameSeconds: 61 }),
     ];
 
-    const history = reportCardModel(state, t, 'en').history;
-    expect(history?.title).toBe('Game summary');
-    expect(history?.rows).toEqual([
-      { clock: '00:00', score: '', event: 'Game start', detail: '' },
-      { clock: '01:05', score: '1-0', event: 'Goal (break) — Foxes', detail: '' },
-      { clock: '00:00', score: '', event: 'Event', detail: 'wind picked up' },
+    const points = reportCardModel(state, t, 'en').points;
+    expect(points?.title).toBe('Point by point');
+    expect(points?.colors).toEqual({ A: '#ff0000', B: '#0000ff' });
+    expect(points?.rows.map((r) => r.kind)).toEqual(['marker', 'point', 'marker']);
+    const row = points?.rows[1];
+    expect(row?.kind === 'point' && row.timeline.map((l) => l.text)).toEqual([
+      'Pull to WOLVES',
+      'WOLVES · 20s — Turnover',
+      'FOXES · 30s — Goal (break)',
     ]);
   });
 
-  it('has no summary at all when nothing survived the filter', () => {
-    const state = baseState();
-    state.log = [entry({ type: 'turnover', team: 'A' })];
-    expect(reportCardModel(state, t, 'en').history).toBeNull();
+  it('has no point-by-point section before anything was logged', () => {
+    expect(reportCardModel(baseState(), t, 'en').points).toBeNull();
   });
 });
 

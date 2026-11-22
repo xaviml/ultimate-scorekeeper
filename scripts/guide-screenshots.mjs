@@ -27,8 +27,10 @@ const BASE = process.env.GUIDE_BASE_URL ?? 'http://localhost:5173';
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'guide');
 const VIEWPORT = { width: 390, height: 844 };
 
-const TEAM_A = 'Reds';
-const TEAM_B = 'Blues';
+// In capitals because that is how a team name is stored, and so how every label the
+// script finds a control by spells it.
+const TEAM_A = 'REDS';
+const TEAM_B = 'BLUES';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -211,15 +213,15 @@ async function main() {
   await page.getByRole('button', { name: 'Menu' }).click();
   await page.getByRole('button', { name: 'End game' }).click();
   await page.getByRole('button', { name: 'End game' }).click();
-  await page.waitForSelector('text=Game summary');
+  await page.waitForSelector('text=Point by point');
   await sleep(300);
 
   // The report's top element is the back-to-the-game button rather than a heading:
   // it is a layer over the game now, not the end of the line, so nothing up there
   // says "Final report" any more.
   const report = page.getByRole('button', { name: /Back to the game/ });
-  const history = page.locator('section').nth(2);
-  const reportClip = await span(page, report, history);
+  const points = page.locator('section').nth(2);
+  const reportClip = await span(page, report, points);
   await shot('report.png', {
     fullPage: true,
     clip: { ...reportClip, height: Math.min(reportClip.height, 1100) },

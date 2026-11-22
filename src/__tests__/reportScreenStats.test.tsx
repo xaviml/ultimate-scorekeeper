@@ -200,6 +200,7 @@ describe('report screen — team stats table', () => {
       'Breaks',
       '  Clean',
       'Turnovers',
+      'Possessions scored',
       'Passes',
       '  Per possession',
       'Timeouts',
@@ -326,7 +327,11 @@ describe('report screen — player stats table', () => {
 
     expect(playerTable().getByText('Alex')).toBeInTheDocument();
     expect(playerTable().getByText('Jo')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
+    // Scoped: "Point by point" has an "All" filter of its own.
+    const playerSection = within(
+      screen.getByText('Player stats').closest('section') as HTMLElement,
+    );
+    expect(playerSection.getByRole('button', { name: 'All' })).toBeInTheDocument();
 
     const alexRow = playerTable().getByText('Alex').closest('tr') as HTMLElement;
     expect(alexRow.querySelector('span')).not.toBeNull();

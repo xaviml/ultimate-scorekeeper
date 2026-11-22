@@ -8,11 +8,11 @@
  * the layout testable without a canvas: this file is pure and covered by unit
  * tests, the canvas file is mechanical.
  *
- * The card carries the game summary — the report's own filtered history, goals
- * and caps and stoppages, minus the turnovers and the calls (see
- * `reportLogEntries`). What it still leaves out is the *full* log: that arrives by
- * the dozen in a tracked game and is pages long as a picture, and it stays where
- * it always was, in the copied plain text and the full-log dialog.
+ * The card carries everything the report screen shows, and shows it opened up:
+ * the screen folds each point of "Point by point" to its heading and lets the
+ * reader tap it open, whereas an image in a chat cannot be tapped, so every point
+ * is painted with its whole timeline (see `pointsModel`). What it leaves out is the
+ * full log, which is the copied text's and the full-log dialog's.
  */
 import type { Lang, TFunc } from '../i18n/useT';
 import {
@@ -25,16 +25,9 @@ import {
 } from './gameReducer';
 import { playerStatColumns, statCellText } from '../components/playerStatColumns';
 import { lineTrackingEnabled } from './lines';
-import {
-  formatClock,
-  logRow,
-  playerStatLines,
-  possessionTopShare,
-  possessionTotalSeconds,
-  reportLogEntries,
-  sortPlayerStatLines,
-  teamStats,
-} from './stats';
+import { pointStories, pointsModel, possessionsScored } from './pointStory';
+import type { PointsModel } from './pointStory';
+import { formatClock, playerStatLines, sortPlayerStatLines, teamStats } from './stats';
 import type { GameConfig, GameState, TeamId } from './types';
 
 export interface StatRow {
@@ -71,42 +64,9 @@ export interface CardPlayerRow {
   values: string[];
 }
 
-export interface CardLedgerColumn {
-  /** Top team's share of the point's tracked possession, or null when none was recorded (drawn flat). */
-  topShare: number | null;
-  /**
-   * The point's possession time as a fraction of the longest point's, so the
-   * report's strip compares points by length. 1 for the longest, a sliver
-   * (1e-3) for a tracked point that timed none, unused for a flat column.
-   */
-  heightFrac: number;
-  /** Whether the top team scored the point — the filled side of the column. */
-  topScored: boolean;
-  /** Whether the top team started the point on offence — the side the amber dot sits on. */
-  topOffense: boolean;
-  /** The scoring team's running score after this point, riding its bar. */
-  score: string;
-}
-
-export interface CardLedgerModel {
-  title: string;
-  topColor: string;
-  bottomColor: string;
-  columns: CardLedgerColumn[];
-}
-
-/** One row of the game summary, in the four columns the on-screen table uses. */
-export interface CardHistoryRow {
-  clock: string;
-  /** The score once a goal counted; empty for anything else. */
-  score: string;
-  event: string;
-  detail: string;
-}
-
-export interface CardHistoryModel {
-  title: string;
-  rows: CardHistoryRow[];
+/** "Point by point", with the team colours its dots and blocks are painted in. */
+export interface CardPointsModel extends PointsModel {
+  colors: Record<TeamId, string>;
 }
 
 export interface ReportCardModel {
@@ -120,13 +80,6 @@ export interface ReportCardModel {
   meta: string[];
   teams: { name: string; color: string; score: string }[];
   statRows: StatRow[];
-  /**
-   * The possession ledger, or null when no point tracked possession. Unlike the
-   * game log this earns its place on the image: it is one glance wide per point,
-   * and the card grows wider rather than dropping columns — shared full, never
-   * truncated (see drawReportCard).
-   */
-  ledger: CardLedgerModel | null;
   playerTitle: string;
   /**
    * The player column, then one heading per numeric column. Always at least two
@@ -151,14 +104,11 @@ export interface ReportCardModel {
   playerAccent: number | null;
   playerRows: CardPlayerRow[];
   /**
-   * The game summary — the report's history panel, entry for entry, or null when
-   * nothing survived the filter (a game with no goals recorded at all). It is the
-   * report's own `reportLogEntries`, not the whole log, so what the picture says
-   * happened is exactly what the screen said happened; the drawer paints every
-   * row rather than truncating, and the card simply grows taller, the same
-   * bargain the ledger strikes with width.
+   * "Point by point" — every point with its timeline, the markers between them and
+   * the results by line — or null before anything has been logged. The drawer paints
+   * every row rather than truncating, so a long game makes a tall card.
    */
-  history: CardHistoryModel | null;
+  points: CardPointsModel | null;
 }
 
 /** Dates are the one thing on the card that isn't a dictionary string, so the language has to be resolved to a locale. */
@@ -192,6 +142,9 @@ export function teamStatRows(state: GameState, t: TFunc): StatRow[] {
   const B = teamStats(state, 'B');
   const tracking = turnoversTracked(state.config);
   const passing = passesTracked(state.config);
+  const stories = pointStories(state);
+  const aScored = possessionsScored(state, 'A', stories);
+  const bScored = possessionsScored(state, 'B', stories);
   const count = (n: number | null) => (n === null ? '—' : n);
   // One decimal, because the whole use of an average is the gap between 4.4 and
   // 4.6 that a rounded figure closes.
@@ -221,6 +174,18 @@ export function teamStatRows(state: GameState, t: TFunc): StatRow[] {
       : row(t('statBreaks'), A.breaks, B.breaks),
     ...(tracking ? [sub(t('statClean'), A.cleanBreaks, B.cleanBreaks)] : []),
     ...(tracking ? [row(t('statTurnovers'), A.turnovers, B.turnovers)] : []),
+    // Out of every possession the team had, so a point nobody turned over counts as
+    // one possession and one score — see `possessionsScored`. Turnover-derived like
+    // the rows above it: without them there is no count of possessions at all.
+    ...(aScored && bScored
+      ? [
+          fraction(
+            t('statPossessionsScored'),
+            [aScored.scored, aScored.possessions],
+            [bScored.scored, bScored.possessions],
+          ),
+        ]
+      : []),
     ...(passing
       ? [
           row(t('statPasses'), count(passesFor(state, 'A')), count(passesFor(state, 'B'))),
@@ -235,49 +200,10 @@ export function teamStatRows(state: GameState, t: TFunc): StatRow[] {
   ];
 }
 
-/**
- * The card's possession ledger, mirroring the on-screen report PossessionLedger:
- * the board's fixed left team (startingSide) on top, one column per point, its
- * height the point's possession time against the longest point's, the scorer's
- * running score as its label. Null when no point tracked possession — a strip of
- * flat columns says nothing the score boxes don't.
- */
-function ledgerModel(state: GameState, t: TFunc): CardLedgerModel | null {
-  if (!turnoversTracked(state.config)) return null;
-  // Any point recorded with tracking on carries the pair — a zero-second point
-  // included, since possessionTopShare gives that one a share too.
-  if (!state.points.some((p) => p.possessionSeconds !== undefined)) return null;
-  const top: TeamId = state.config.startingSide;
-  const bottom: TeamId = top === 'A' ? 'B' : 'A';
-  const scores: Record<TeamId, number> = { A: 0, B: 0 };
-  const maxTotal = Math.max(1, ...state.points.map((p) => possessionTotalSeconds(p) ?? 0));
-  return {
-    title: t('possessionTitle'),
-    topColor: state.config.teams[top].color,
-    bottomColor: state.config.teams[bottom].color,
-    columns: state.points.map((p) => {
-      scores[p.scoredBy] += 1;
-      const total = possessionTotalSeconds(p);
-      return {
-        topShare: possessionTopShare(p, top),
-        heightFrac: total === null ? 1 : Math.max(total / maxTotal, 1e-3),
-        topScored: p.scoredBy === top,
-        topOffense: p.offense === top,
-        score: String(scores[p.scoredBy]),
-      };
-    }),
-  };
-}
-
-/**
- * The report's history as card rows. Built through `logRow`, the same splitter the
- * on-screen table renders, so a row cannot read one way in the panel and another
- * in the picture.
- */
-function historyModel(state: GameState, t: TFunc): CardHistoryModel | null {
-  const entries = reportLogEntries(state.log);
-  if (entries.length === 0) return null;
-  return { title: t('historyTitle'), rows: entries.map((e) => logRow(state, e, t)) };
+function cardPoints(state: GameState, t: TFunc): CardPointsModel | null {
+  const model = pointsModel(state, t);
+  if (model.rows.length === 0) return null;
+  return { ...model, colors: { A: state.config.teams.A.color, B: state.config.teams.B.color } };
 }
 
 function formatDate(atMs: number, lang: Lang): string {
@@ -370,7 +296,6 @@ export function reportCardModel(state: GameState, t: TFunc, lang: Lang): ReportC
       score: String(state.scores[id]),
     })),
     statRows: teamStatRows(state, t),
-    ledger: ledgerModel(state, t),
     playerTitle: t('playerStatsTitle'),
     playerHeader: [t('colPlayer'), ...columns.map((c) => t(c.key))],
     playerGroups: groups?.map((g) => ({ label: g.label, span: g.columns.length })) ?? null,
@@ -388,6 +313,6 @@ export function reportCardModel(state: GameState, t: TFunc, lang: Lang): ReportC
       unassigned: p.unassigned === true,
       values: columns.map((c) => statCellText(c, p)),
     })),
-    history: historyModel(state, t),
+    points: cardPoints(state, t),
   };
 }

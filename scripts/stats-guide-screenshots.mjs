@@ -126,8 +126,11 @@ async function main() {
   // The dialogs have no role of their own (see Modal) — the panel is the only child
   // of the fixed backdrop, which is stable enough to scope every picker click to.
   const modal = page.locator('div.z-30 > div');
-  /** Clicks a player chip inside whatever dialog is open, by its "#7 Ada" label. */
-  const pick = (label) => modal.getByText(label, { exact: false }).first().click();
+  /**
+   * Clicks a player chip inside whatever dialog is open, by its "#7 Ada" label — the
+   * chip's accessible name, since its number and name are separate elements inside it.
+   */
+  const pick = (label) => modal.getByLabel(label, { exact: true }).first().click();
 
   await page.goto(BASE);
   await page.waitForSelector('text=Game setup');
@@ -230,10 +233,10 @@ async function main() {
 
   // --- Into the game ------------------------------------------------------
   await page.getByRole('button', { name: 'Start game' }).click();
-  await page.waitForSelector(`button[aria-label^="${TEAM_A}:"]`);
+  await page.waitForSelector(`button[aria-label^="${TEAM_A.toUpperCase()}:"]`);
 
-  const panelA = page.locator(`button[aria-label^="${TEAM_A}:"]`);
-  const panelB = page.locator(`button[aria-label^="${TEAM_B}:"]`);
+  const panelA = page.locator(`button[aria-label^="${TEAM_A.toUpperCase()}:"]`);
+  const panelB = page.locator(`button[aria-label^="${TEAM_B.toUpperCase()}:"]`);
   const pullBtn = page.getByRole('button', { name: 'Pull thrown' });
   const turnBtn = page.getByRole('button', { name: 'Turnover — hold to undo' });
 
@@ -292,15 +295,24 @@ async function main() {
   };
 
   /** Scores for `panel` and answers the scorer/assist dialog. */
+  /**
+   * Scores for `panel`, then answers who scored from the prompt the goal leaves above
+   * the clocks — assist first, then scorer, one tap each, which is also what saves it.
+   * A missing name is answered "Don't know", so the prompt never lingers into the next
+   * point and the next goal's prompt is always the one on screen.
+   */
   const goal = async (panel, scorer, assist, capture) => {
     await panel.click();
-    await sleep(400);
-    const dialog = page.getByText('Who scored for', { exact: false });
-    if (await dialog.count()) {
+    await sleep(600);
+    const prompt = page.getByRole('button', { name: /^Scorer / });
+    if (await prompt.count()) {
+      await prompt.first().click();
+      await sleep(300);
       if (capture) await shot(capture, { clip: { x: 0, y: 0, ...VIEWPORT } });
-      if (scorer) await pick(scorer);
-      if (assist) await pick(assist);
-      await modal.getByRole('button', { name: 'Save', exact: true }).click();
+      const dontKnow = () => modal.getByRole('button', { name: "Don't know" }).first().click();
+      await (assist ? pick(assist) : dontKnow());
+      await sleep(200);
+      await (scorer ? pick(scorer) : dontKnow());
     }
     await sleep(600);
   };
@@ -350,13 +362,13 @@ async function main() {
   await passes(4);
   await goal(panelA, '#7 Ada', '#3 Emma', 'stats-goal.png');
 
-  // A handful of points with different shapes, so the ledger has holds, breaks and
-  // a long point in it rather than one repeated column.
+  // A handful of points with different shapes, so point by point has holds, breaks
+  // and a long, messy point in it rather than one repeated row.
   await point({ line: LINE_D, seconds: 9, turns: 0, panel: panelB });
   await point({
     line: LINE_O,
     seconds: 14,
-    turns: 1,
+    turns: 2,
     panel: panelA,
     scorer: '#5 Lia',
     assist: '#1 Nia',
@@ -458,24 +470,30 @@ async function main() {
   await page.getByRole('button', { name: 'Menu' }).click();
   await page.getByRole('button', { name: 'End game' }).click();
   await page.getByRole('button', { name: 'End game' }).click();
-  await page.waitForSelector('text=Game summary');
+  await page.waitForSelector('text=Point by point');
   await sleep(400);
 
   // --- The report ---------------------------------------------------------
-  // Sections, in order: the score, the team figures, the possession ledger, the
-  // player table, the game summary.
+  // Sections, in order: the score, the team figures, the player table, point by point.
   const reportSections = page.locator('section');
   const scoreBox = reportSections.nth(0);
   const teamTable = reportSections.nth(1);
-  const ledger = reportSections.nth(2);
-  const players = reportSections.nth(3);
+  const players = reportSections.nth(2);
+  const points = reportSections.nth(3);
 
   await page.evaluate(() => window.scrollTo(0, 0));
   await sleep(200);
   const teamClip = await span(page, scoreBox, teamTable);
   await shot('stats-report-team.png', { fullPage: true, clip: teamClip });
 
-  await shot('stats-report-ledger.png', { fullPage: true, clip: await around(page, ledger, 4) });
+  // Point by point, cropped to its first few points with the messiest one opened —
+  // three turns, so its strip is the longest and its timeline has the most to say.
+  await points.locator('[data-point-row="4"] > button').click();
+  await sleep(300);
+  await shot('stats-report-points.png', {
+    fullPage: true,
+    clip: await span(page, points, points.locator('[data-point-row="5"]'), 4),
+  });
 
   // Playing is the view the whole line-tracking half of this guide is about, and
   // the one a reader will not have seen anywhere else.

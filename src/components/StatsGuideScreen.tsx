@@ -206,15 +206,19 @@ export default function StatsGuideScreen({ onBack }: { onBack: () => void }) {
             body={t('statsGuideStatCleanBreaksBody')}
           />
           <Bullet label={t('statsGuideStatTurnovers')} body={t('statsGuideStatTurnoversBody')} />
+          <Bullet
+            label={t('statsGuideStatPossessionsScored')}
+            body={t('statsGuideStatPossessionsScoredBody')}
+          />
           <Bullet label={t('statsGuideStatPasses')} body={t('statsGuideStatPassesBody')} />
           <Bullet label={t('statsGuideStatPassesAvg')} body={t('statsGuideStatPassesAvgBody')} />
           <Bullet label={t('statsGuideStatTimeouts')} body={t('statsGuideStatTimeoutsBody')} />
         </ul>
       </Card>
 
-      <Card title={t('statsGuideLedgerTitle')}>
-        <Figure file="stats-report-ledger.png" alt={t('statsGuideFigReportLedgerAlt')} wide />
-        <Para k="statsGuideLedgerBody" />
+      <Card title={t('statsGuidePointsTitle')}>
+        <Figure file="stats-report-points.png" alt={t('statsGuideFigReportPointsAlt')} />
+        <Para k="statsGuidePointsBody" />
       </Card>
 
       <Card step={6} title={t('statsGuideStep6Title')}>
@@ -248,6 +252,7 @@ export default function StatsGuideScreen({ onBack }: { onBack: () => void }) {
             ['statsGuideDefBreakCh', 'statsGuideDefBreakChDo'],
             ['statsGuideDefPasses', 'statsGuideDefPassesDo'],
             ['statsGuideDefPassesAvg', 'statsGuideDefPassesAvgDo'],
+            ['statsGuideDefPossessionsScored', 'statsGuideDefPossessionsScoredDo'],
             ['statsGuideDefTurn', 'statsGuideDefTurnDo'],
             ['statsGuideDefD', 'statsGuideDefDDo'],
             ['statsGuideDefOD', 'statsGuideDefODDo'],

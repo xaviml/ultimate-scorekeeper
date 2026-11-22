@@ -3,13 +3,12 @@ import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import { canDeleteLogEntry, logEditKind } from '../state/gameReducer';
 import { logRow } from '../state/stats';
-import type { LogEntry } from '../state/types';
 import { BinIcon, PencilIcon } from './icons';
 import { LogEditDialog } from './LogEditDialog';
 
 /**
- * The event history table, shared by the in-game log dialog and the end-of-game
- * report. The dialog shows newest-first (the volunteer wants the last event); the
+ * The event history table, shared by the in-game log dialog and the report's
+ * full-log dialog. The dialog shows newest-first (the volunteer wants the last event); the
  * report reads chronologically.
  *
  * Only the game clock is shown, not the time of day: a volunteer looking for an
@@ -19,27 +18,20 @@ import { LogEditDialog } from './LogEditDialog';
  * `editable` adds the actions column, and belongs to the in-game dialog only — the
  * report is a record of a finished game, and "delete the newest entry" has nothing
  * left to mean once the final whistle has gone.
- *
- * `entries` narrows what is listed to a subset of the log — the report's history
- * leaves the turnovers and the calls out (see `reportLogEntries`). It is still
- * `state.log` that the rows are rendered from, so an entry looks the same
- * wherever it appears.
+
  */
 export function GameLogTable({
   order = 'asc',
   editable = false,
-  entries: source,
 }: {
   order?: 'asc' | 'desc';
   editable?: boolean;
-  entries?: LogEntry[];
 }) {
   const state = useGame();
   const dispatch = useGameDispatch();
   const { t } = useT();
   const [editing, setEditing] = useState<number | null>(null);
-  const listed = source ?? state.log;
-  const entries = order === 'desc' ? [...listed].reverse() : listed;
+  const entries = order === 'desc' ? [...state.log].reverse() : state.log;
   const editingEntry = state.log.find((e) => e.id === editing);
 
   return (

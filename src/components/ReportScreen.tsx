@@ -3,25 +3,18 @@ import { handOverBackGuard, useBackGuard } from '../hooks/useBackGuard';
 import { useReportImage } from '../hooks/useReportImage';
 import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
-import { turnoverPlayersTracked, turnoversTracked } from '../state/gameReducer';
+import { turnoverPlayersTracked } from '../state/gameReducer';
 import { lineTrackingEnabled } from '../state/lines';
 import { copyText } from '../state/clipboard';
 import { playerStatsTeams, reportCardModel, teamStatRows } from '../state/reportCard';
-import {
-  formatClock,
-  logTextLines,
-  playerStatLines,
-  sortPlayerStatLines,
-  reportLogEntries,
-  teamStats,
-} from '../state/stats';
+import { pointsModel, pointsTextLines } from '../state/pointStory';
+import { formatClock, playerStatLines, sortPlayerStatLines, teamStats } from '../state/stats';
 import type { PlayerStatView } from '../state/stats';
 import type { TeamId } from '../state/types';
 import { FullLogDialog } from './FullLogDialog';
-import { GameLogTable } from './GameLogTable';
 import { PlayerStatsTable } from './PlayerStatsTable';
+import { PointByPoint } from './PointByPoint';
 import { playerStatColumns, statCellText } from './playerStatColumns';
-import { PossessionLedger } from './PossessionLedger';
 import { contrastText, pillClass, primaryButton, secondaryButtonOnPitch, sectionTitle } from './ui';
 
 /** Plugged into the report footer so a shared copy points back at the app. */
@@ -105,9 +98,6 @@ export default function ReportScreen({
   // Shared with the image so the two can never drift — see state/reportCard.ts.
   const statRows = teamStatRows(state, t);
 
-  // The possession ledger is turnover-derived, which is a narrower question than
-  // whether this game tracks anything.
-  const trackingOn = turnoversTracked(state.config);
   const playerStatTeams = playerStatsTeams(state.config);
   // A game following one team has player detail for that side only; following both
   // gets a filter to page through them on a small screen.
@@ -125,9 +115,9 @@ export default function ReportScreen({
   const availableViews = (['scoring', 'playing', 'possession'] as const).filter((v) =>
     v === 'playing' ? showPlayingView : v === 'possession' ? showPossessionView : true,
   );
-  // What the history panel lists and what the copy button writes are the same
-  // entries on purpose: what you read is what you take away.
-  const visibleLog = reportLogEntries(state.log);
+  // Point by point, as the screen, the copied text and the image all tell it — one
+  // model, so what you read is what you take away (see state/pointStory.ts).
+  const points = useMemo(() => pointsModel(state, t), [state, t]);
   // Possession drops the aggregate row: it has no figure to state there (see
   // `playerStatLines`), and a "not recorded" line of zeroes would read as a claim.
   const visiblePlayerLines = sortPlayerStatLines(
@@ -186,11 +176,10 @@ export default function ReportScreen({
       lines.push('');
     }
 
-    // The history as the report shows it, turnovers and calls left out. The full
-    // log has its own copy button inside the dialog that shows it (FullLogDialog)
-    // — this text is the game's story, not its every event.
-    lines.push(t('historyTitle'));
-    lines.push(...logTextLines(state, visibleLog, t));
+    // Every point, opened up the way the image paints it. The full log, corrections
+    // and all, has its own copy button inside the dialog that shows it (FullLogDialog).
+    lines.push(points.title);
+    lines.push(...pointsTextLines(state, points));
 
     lines.push('');
     lines.push(t('reportFooterCredit'));
@@ -204,18 +193,6 @@ export default function ReportScreen({
     setCopyState(ok ? 'copied' : 'failed');
     setTimeout(() => setCopyState('idle'), 2000);
   };
-
-  // The possession ledger, reused from the live-stats slot. Only worth drawing
-  // once at least one point actually tracked possession — a game that never
-  // recorded turnovers (or one restored from before this was tracked) has nothing
-  // but flat columns to show. The board's fixed left team stays on top, the same
-  // orientation the volunteer watched all game.
-  const ledgerTop: TeamId = state.config.startingSide;
-  const ledgerBottom: TeamId = ledgerTop === 'A' ? 'B' : 'A';
-  // Any point recorded with tracking on carries possessionSeconds — a
-  // zero-second point included, which the ledger gives a possession-counted
-  // bar rather than a flat column (see possessionTopShare).
-  const showLedger = trackingOn && state.points.some((p) => p.possessionSeconds !== undefined);
 
   return (
     <div className="min-h-dvh bg-pitch text-chalk p-4 pb-10 max-w-2xl mx-auto space-y-4">
@@ -342,23 +319,6 @@ export default function ReportScreen({
         </table>
       </section>
 
-      {showLedger && (
-        <section className="rounded-xl bg-panel border border-line p-4">
-          <h2 className={`${sectionTitle} mb-3`}>{t('possessionTitle')}</h2>
-          {/* The ledger scrolls horizontally on its own past the panel's width. */}
-          <PossessionLedger
-            points={state.points}
-            topTeam={ledgerTop}
-            colors={{ A: state.config.teams.A.color, B: state.config.teams.B.color }}
-            chartHeight={100}
-            absolute
-          />
-          <p className="text-xs text-chalk/50 mt-2">
-            {t('possessionLegend', { top: nameOf(ledgerTop), bottom: nameOf(ledgerBottom) })}
-          </p>
-        </section>
-      )}
-
       {playerLines.length > 0 && (
         <section className="rounded-xl bg-panel border border-line p-4 overflow-x-auto">
           <h2 className={`${sectionTitle} mb-2`}>{t('playerStatsTitle')}</h2>
@@ -406,11 +366,12 @@ export default function ReportScreen({
         </section>
       )}
 
-      {/* The history, minus the turnovers and the calls — see reportLogEntries.
-          Everything is still one tap away, which is what the button is for. */}
-      <section className="rounded-xl bg-panel border border-line p-4 overflow-x-auto">
+      {/* Point by point — the game told one point at a time, folded here and painted
+          opened up on the image. The log itself, entry for entry, is behind the
+          button, which is what keeps the corrections out of the story. */}
+      <section className="rounded-xl bg-panel border border-line p-4" data-points-section>
         <div className="flex items-center justify-between gap-2 mb-2">
-          <h2 className={sectionTitle}>{t('historyTitle')}</h2>
+          <h2 className={sectionTitle}>{points.title}</h2>
           <button
             className="rounded-lg bg-pitch border border-line px-2 py-1.5 text-[11px] font-board uppercase tracking-wide text-chalk active:scale-95 shrink-0"
             onClick={() => setShowFullLog(true)}
@@ -418,7 +379,7 @@ export default function ReportScreen({
             {t('btnFullLog')}
           </button>
         </div>
-        <GameLogTable entries={visibleLog} />
+        <PointByPoint model={points} teams={state.config.teams} />
       </section>
 
       {showFullLog && <FullLogDialog onClose={() => setShowFullLog(false)} />}

@@ -87,8 +87,8 @@ export const en = {
   halfScoreInvalid: 'Half-time score must be lower than the target score',
   language: 'Language',
   // The archive of finished games, reached from the setup screen's menu. It is
-  // "Match History" because `historyTitle` is already the report's panel of what
-  // happened *inside* one game — this one lists the matches themselves.
+  // "Match History" rather than "History" because it lists the matches themselves,
+  // not what happened inside one (that is the report's "Point by point").
   pastGamesTitle: 'Match History',
   pastGamesEmpty:
     'No games saved yet. A game is saved here automatically as soon as its final point is scored.',
@@ -665,10 +665,7 @@ export const en = {
   statPassesPerPossession: 'Per possession',
   statBreaks: 'Breaks',
   statTimeouts: 'Timeouts',
-  // The possession ledger, reused from the live-stats slot (see PossessionLedger).
-  possessionTitle: 'Possession by point',
-  possessionLegend:
-    "{top} above the line, {bottom} below. A column's height is how long the point took to play — the tallest is the longest point of the game — split between the teams by their share of possession; the filled side scored the point, and the small amber dot marks who started it on offence, so dot and score on opposite sides is a break.",
+  statPossessionsScored: 'Possessions scored',
   playerStatsTitle: 'Player stats',
   filterAllTeams: 'All',
   colPlayer: 'Player',
@@ -699,14 +696,27 @@ export const en = {
   colDefenses: 'D',
   colDefensesFull: 'Turnovers this player forced — blocks, and marks that ran the stall out',
   reportFooterCredit: 'This game was tracked with:',
-  // The panel of what happened inside one game — the goals, the caps, the
-  // stoppages. "Summary" rather than "history" because the report's copy of it
-  // leaves the turnovers and the calls out (see reportLogEntries), and because it
-  // now rides the shared image, where it is read as the story of the game rather
-  // than as a log. The full thing is `fullLogTitle`, one tap away.
-  historyTitle: 'Game summary',
-  // The report's history leaves out the turnovers and the calls; this opens the
-  // rest of it, with its own copy button (see FullLogDialog).
+  // "Point by point" in the report — see state/pointStory.ts.
+  pointsTitle: 'Point by point',
+  pointsColLine: 'Line',
+  pointsColOHeld: 'O held',
+  pointsColDBroken: 'D broken',
+  pointHold: 'Hold',
+  pointBreak: 'Break',
+  pointNotFinished: 'Not finished',
+  pointInPlay: '{d} in play',
+  pointTurns: '{n} turns',
+  pointTurnsOne: '1 turn',
+  pointNoTurns: 'No turns',
+  pointPasses: '{n} passes',
+  pointPassesOne: '1 pass',
+  pointTeamPasses: '{passes} by {team}',
+  pointLineName: 'Line {name}',
+  pointPull: 'Pull to {team}',
+  pointOpen: 'in possession',
+  pointFlagSotg: 'SOTG',
+  // Opens every log entry as it was recorded, with its own copy button (see
+  // FullLogDialog) — point by point tells the game, this is the record.
   btnFullLog: 'Full log',
   fullLogTitle: 'Full game log',
   copyLog: 'Copy log',
@@ -983,7 +993,7 @@ export const en = {
   guideStep10Body:
     'The app ends the game on its own when a team reaches the target. If you have to stop earlier, press the ✕ in the top-left corner, next to the field number, and confirm.',
   guideStep10Report:
-    'You then get the report: the final score, a few statistics for each team and the full history of the game. "Share" sends a picture of the score, the statistics and the summary of the game straight to a chat. "Copy to clipboard" turns everything, log included, into plain text you can paste into a message or a spreadsheet — do that before you leave the screen. "New game" takes you back to setup for the next match.',
+    'You then get the report: the final score, a few statistics for each team and the game point by point. "Share" sends a picture of the score, the statistics and every point straight to a chat. "Copy to clipboard" turns all of it into plain text you can paste into a message or a spreadsheet — do that before you leave the screen. "New game" takes you back to setup for the next match.',
 
   guideCheatTitle: 'Quick reference',
   guideCheatTap: 'Tap a team panel',
@@ -1152,6 +1162,9 @@ export const en = {
     'The small row under Holds: of the holds, the ones where the disc never changed hands at all — zero turnovers by anybody, from the pull to the end zone.',
   statsGuideStatTurnovers: 'Turnovers',
   statsGuideStatTurnoversBody: 'This team\u2019s own, all game, net of anything undone.',
+  statsGuideStatPossessionsScored: 'Possessions scored',
+  statsGuideStatPossessionsScoredBody:
+    'How many of the team\u2019s possessions ended in a goal, out of all the times it had the disc, with the percentage beside it. A point nobody turned over is one possession and one goal.',
   statsGuideStatPasses: 'Passes',
   statsGuideStatPassesBody:
     'Every pass tapped in, all game, net of anything undone. Following a single team, the other team shows a dash — nobody was counting their passes, which is a different thing from their having thrown none.',
@@ -1168,9 +1181,9 @@ export const en = {
   statsGuideStatTimeoutsBody:
     'Both halves added together. A water break costs neither team one, so it never appears here.',
 
-  statsGuideLedgerTitle: 'Possession by point',
-  statsGuideLedgerBody:
-    'The whole run of the game in one strip: a column per point, its height how long the point took (the tallest is the longest point) split between the teams by their share of the possession time, the filled side whoever scored it, and the small amber dot whoever started it on offence. Dot and fill on opposite sides is a break.',
+  statsGuidePointsTitle: 'Point by point',
+  statsGuidePointsBody:
+    'Every point of the game in order. Its heading has the score after it, whether it was a hold or a break (the dot is the team that scored) and how long it took — with the time the disc was actually in play beside it when a timeout, a call or a stoppage held it up. Underneath, the point as a track: one segment per possession in the colour of the team that had the disc, as long as they held it in play, with the time above it and the completed passes below when they were counted. A gap between segments is a turnover and the disc at the end is the goal, so a track broken into many pieces is a scrappy point, and every track is drawn to the same scale so long points look long. Tap a point to read it in order: anything before the pull, the pull, each turnover with who lost it and who got the D, the calls and stoppages, and the goal. With predefined lines the table at the top says how each line did: O points held and D points broken.',
 
   statsGuideStep6Title: 'The report — player stats',
   statsGuideStep6Body:
@@ -1194,13 +1207,13 @@ export const en = {
   statsGuideStep7Title: 'Taking the numbers away',
   statsGuideShare: 'Share',
   statsGuideShareBody:
-    'The score, the team figures, the player table and the game summary, drawn as a picture for a team chat. The image carries every view\u2019s columns at once, grouped under Playing, Scoring and Possession headings — a picture cannot be tapped through, which is why the screen splits them into views at all.',
+    'The score, the team figures, the player table and every point of the game, drawn as a picture for a team chat. The picture shows each point opened up, with its whole story, and carries every view\u2019s columns at once, grouped under Playing, Scoring and Possession headings — a picture cannot be tapped, which is why the screen folds the points and splits the columns into views.',
   statsGuideCopy: 'Copy to clipboard',
   statsGuideCopyBody:
     'The archive: everything as plain text for a spreadsheet or an email, with every available view\u2019s columns on one line per player and the predefined lines each of them appeared in. Do it before you leave the screen.',
   statsGuideFullLog: 'Full log',
   statsGuideFullLogBody:
-    'The game summary leaves the turnovers and the calls out — in a tracked game they arrive by the dozen and bury the shape of the game. All of it is one tap away behind "Full log", with a copy button of its own.',
+    'Point by point tells each point in order. The full log is every entry exactly as it was recorded, corrections included, one tap away behind "Full log", with a copy button of its own.',
   statsGuideHistory: 'Match History',
   statsGuideHistoryBody:
     'A game the scoreline finished is filed automatically, and opening it from Match History gives you this same report, exactly as it was on the day — the whole game is stored, not a summary of it. The last 50 are kept, on this device.',
@@ -1222,6 +1235,8 @@ export const en = {
   statsGuideDefPassesDo: 'Passes tapped in for this team, all game',
   statsGuideDefPassesAvg: 'Per possession',
   statsGuideDefPassesAvgDo: 'Passes divided by the times that team held the disc',
+  statsGuideDefPossessionsScored: 'Possessions scored',
+  statsGuideDefPossessionsScoredDo: 'Goals divided by the times that team had the disc',
   statsGuideDefD: 'D (Possession)',
   statsGuideDefDDo: 'Turnovers this player forced — blocks, and marks that ran the stall out',
   statsGuideDefOD: 'O / D (Playing)',
@@ -1239,7 +1254,7 @@ export const en = {
   statsGuideFigLivePossessionAlt: 'The live statistics showing possession by point',
   statsGuideFigLivePaceAlt: 'The live statistics showing the pace of the current point',
   statsGuideFigReportTeamAlt: 'The report\u2019s team figures table',
-  statsGuideFigReportLedgerAlt: 'The report\u2019s possession-by-point chart',
+  statsGuideFigReportPointsAlt: 'The report\u2019s point-by-point list, with one point opened',
   statsGuideFigReportPlayersAlt: 'The report\u2019s player stats table, on the Playing view',
 
   guideFigSetupAlt: 'The top of the setup screen: template, division and team names',
