@@ -513,9 +513,10 @@ export interface PendingLine {
  * per-team total: the total is a sum away, but the individual possessions cannot
  * be recovered from one.
  *
- * A team the game does not follow still gets its runs, all of them at 0 passes —
- * they are a true record of who held the disc, and `passesFor` returning null is
- * what stops those zeroes being read as a figure about them.
+ * A team the game does not follow still gets its runs, at 0 passes unless the
+ * volunteer chose to tap theirs too — they are a true record of who held the disc,
+ * and `passesFor` returning null (no pass ever recorded for that team) is what
+ * stops those zeroes being read as a figure about them.
  */
 export interface PassRun {
   team: TeamId;
@@ -693,8 +694,8 @@ export interface GameState {
    * GoalSnapshot: UNDO_GOAL rewinds the goal, not the passes already thrown
    * earlier in the point it puts you back into.
    *
-   * A team this game does not follow is left at 0 and rendered as "—" rather than
-   * as a real zero — see `passTeam` and `teamStats`.
+   * A team this game does not follow is rendered as "—" rather than as a real
+   * zero for as long as this stays at 0 for them — see `passesFor`.
    */
   passesCompleted: Record<TeamId, number>;
   /**

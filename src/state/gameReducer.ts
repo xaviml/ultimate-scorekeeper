@@ -388,34 +388,36 @@ export function canUndoTurnover(state: GameState): { ok: boolean; reason?: strin
 /**
  * Which team a pass tapped right now would be credited to, or null if none would.
  *
- * It is simply whoever holds the disc — with one narrowing: a game following a
- * single team (`trackedTeam`) counts only that team's passes, so the button is
- * dead while the other side has it. That is what lets the report show the followed
- * team a real number and the other one a dash, rather than a total that is honest
- * for one team and a silent undercount for the other. With no team followed
- * (`teams` mode, or `players` mode watching both) either side counts.
+ * It is simply whoever holds the disc — in every game, a game following a single
+ * team (`trackedTeam`) included. Counting the other side there is optional rather
+ * than refused: a coach who only cares about their own team just doesn't tap while
+ * the other side has it, and `passesFor` keeps the report reading as if they had
+ * never been counted until a pass actually lands on them.
  */
 export function passTeam(state: GameState): TeamId | null {
   if (!passesTracked(state.config)) return null;
-  const holder = state.possessionTeam;
-  if (holder === null) return null;
-  const followed = state.config.trackedTeam;
-  if (followed !== null && followed !== holder) return null;
-  return holder;
+  return state.possessionTeam;
 }
 
 /**
  * This team's lifetime pass count, or null when this game counts no passes for
- * them — either passes are off entirely, or a single team is followed and it is
- * not this one. Null and 0 say opposite things and both consumers need the
- * distinction: 0 is "we were counting and they completed none", null is "nobody
- * was counting this side", which renders as "—".
+ * them. Null and 0 say opposite things and both consumers need the distinction: 0
+ * is "we were counting and they completed none", null is "nobody was counting this
+ * side", which renders as "—".
  *
- * It lives here rather than in `teamStats` so the live stats grid and the report's
- * Passes row read one rule and cannot drift — the same reason `teamStatRows` is
- * shared with the on-screen table. (`stats.ts` cannot own it: `gameReducer` already
- * imports from `stats`, and reaching back the other way for the gate would make the
- * first import cycle in `src/state`.)
+ * Null means either passes are off entirely, or a single team is followed, this is
+ * the other one, and not a single pass has been recorded for them. The Pass button
+ * counts whoever has the disc in every game, so for the unfollowed side counting is
+ * the volunteer's choice, and the only evidence of that choice is a pass on the
+ * board: none and the report reads exactly as a one-team game always has (a dash,
+ * no average, no passes on their possessions); one and they get every pass figure
+ * a both-teams game gives them. The followed team always has a figure, 0 included.
+ *
+ * It lives here rather than in `teamStats` so the live stats grid, the report's
+ * Passes row and "Point by point" read one rule and cannot drift — the same reason
+ * `teamStatRows` is shared with the on-screen table. (`stats.ts` cannot own it:
+ * `gameReducer` already imports from `stats`, and reaching back the other way for
+ * the gate would make the first import cycle in `src/state`.)
  *
  * Unlike `breakChances` this is the plain lifetime counter rather than something
  * re-derived from `points`, so the point in progress is already in it and there is
@@ -424,8 +426,9 @@ export function passTeam(state: GameState): TeamId | null {
 export function passesFor(state: GameState, team: TeamId): number | null {
   if (!passesTracked(state.config)) return null;
   const followed = state.config.trackedTeam;
-  if (followed !== null && followed !== team) return null;
-  return state.passesCompleted[team];
+  const passes = state.passesCompleted[team];
+  if (followed !== null && followed !== team && passes === 0) return null;
+  return passes;
 }
 
 /**
@@ -495,8 +498,7 @@ function addPass(runs: PassRun[], team: TeamId, delta: 1 | -1): PassRun[] {
 export function canPass(state: GameState): { ok: boolean; reason?: string } {
   const base = canTurnover(state);
   if (!base.ok) return base;
-  if (!passesTracked(state.config)) return { ok: false, reason: 'passesNotTracked' };
-  if (passTeam(state) === null) return { ok: false, reason: 'passesOtherTeam' };
+  if (passTeam(state) === null) return { ok: false, reason: 'passesNotTracked' };
   return { ok: true };
 }
 

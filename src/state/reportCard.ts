@@ -135,7 +135,8 @@ export function playerStatsTeams(config: GameConfig): TeamId[] {
  * counts sit under the figure they are a part of, and need turnovers too.
  *
  * Passes can be a real number on one side and a dash on the other: a game
- * following a single team counts only that team's (see `passesFor`).
+ * following a single team shows the other side a dash until a pass is recorded
+ * for them (see `passesFor`).
  */
 export function teamStatRows(state: GameState, t: TFunc): StatRow[] {
   const A = teamStats(state, 'A');

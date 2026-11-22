@@ -148,7 +148,7 @@ export const en = {
     'Off, Turn just registers the turnover. On, it asks who lost the disc and who forced it — accurate, but a lot of taps in a fast point.',
   trackPassesLabel: 'Passes',
   trackPassesHint:
-    'Adds a Pass button next to Turn: one tap per completed pass, hold to take the last one back. It never asks who threw it. The badge counts the possession in progress and is painted in that team\u2019s colour, so it starts again at every turnover. Following one team, it only counts theirs.',
+    'Adds a Pass button next to Turn: one tap per completed pass, hold to take the last one back. It never asks who threw it. The badge counts the possession in progress and is painted in that team\u2019s colour, so it starts again at every turnover. Following one team, the other team\u2019s passes are optional: the report only shows them once you record one.',
 
   // Line tracking. Only offered where a single roster is followed —
   // see lineTrackingEnabled. MMP/FMP are the WFDF terms and stay English in every
@@ -656,7 +656,7 @@ export const en = {
   statClean: 'Clean',
   statTurnovers: 'Turnovers',
   // The one team row that can be a number on one side and "—" on the other: a
-  // game following a single team counts only that team's passes.
+  // game following a single team shows the other side "—" until one of theirs is recorded.
   statPasses: 'Passes',
   // Directly under the total. "per possession" rather than "per turn" because
   // possession is this app's word for a stretch of holding the disc — Turn is the
@@ -1061,7 +1061,7 @@ export const en = {
     'Nested under Turnovers, and off by default. On, every Turn tap opens a dialog asking who lost the disc and who forced it. Off, the tap registers the turnover and gives the screen straight back — the count, the possession bar and every team figure still work exactly the same.',
   statsGuideStep1Passes: 'Passes',
   statsGuideStep1PassesBody:
-    'Also nested under Turnovers, and off by default. It adds a Pass button beside Turn: one tap per completed pass. It never asks who threw it. Following a single team, only that team\u2019s passes are counted and the button is dead while the other side has the disc — which is why the report shows them a figure and the other team a dash.',
+    'Also nested under Turnovers, and off by default. It adds a Pass button beside Turn: one tap per completed pass. It never asks who threw it. Following a single team, the button still counts whoever has the disc, so the other team\u2019s passes are yours to record or skip. Skip them and the report shows that team a dash; record even one and they get the same pass figures as your team.',
   statsGuideStep1Goals: 'Ask who scored',
   statsGuideStep1GoalsBody:
     'On, each goal leaves a "Scorer" button above the clocks. Tap it once you have found out who it was — the call-out, the ratio and the pull clock carry on as normal in the meantime. "Don\u2019t know" on both questions records the goal without names.',
@@ -1167,7 +1167,7 @@ export const en = {
     'How many of the team\u2019s possessions ended in a goal, out of all the times it had the disc, with the percentage beside it. A point nobody turned over is one possession and one goal.',
   statsGuideStatPasses: 'Passes',
   statsGuideStatPassesBody:
-    'Every pass tapped in, all game, net of anything undone. Following a single team, the other team shows a dash — nobody was counting their passes, which is a different thing from their having thrown none.',
+    'Every pass tapped in, all game, net of anything undone. Following a single team, the other team shows a dash until a pass is recorded for them — nobody was counting their passes, which is a different thing from their having thrown none.',
   statsGuideStatPassesAvg: 'Per possession',
   statsGuideStatPassesAvgBody:
     'The small row under Passes: the passes divided by the number of times that team held the disc. A point nobody turned over is a single possession, so a clean point averages over the whole point. Dashed for a team whose passes nobody counted.',

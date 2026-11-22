@@ -1272,12 +1272,11 @@ export default function GameScreen() {
   // possession does not move. The long-press takes the last one back.
   //
   // Both explain themselves exactly as Turn does, because they share every refusal
-  // Turn has — the game not started, the pull not thrown, a call pending. The one
-  // reason that greys the button out instead is `passesOtherTeam` (see passDead
-  // below); it only buzzes, so every reason that reaches the hint has an
-  // `assist_blocked_*` string already written for Turn.
+  // Turn has — the game not started, the pull not thrown, a call pending — so every
+  // reason that reaches the hint has an `assist_blocked_*` string already written
+  // for Turn.
   const tryPass = () => {
-    if (recordBusy || passDead) return haptic('refused');
+    if (recordBusy) return haptic('refused');
     const check = canPass(state);
     if (!check.ok) {
       haptic('refused');
@@ -1290,7 +1289,7 @@ export default function GameScreen() {
   };
 
   const tryUndoPass = () => {
-    if (recordBusy || passDead) return haptic('refused');
+    if (recordBusy) return haptic('refused');
     const check = canUndoPass(state);
     if (!check.ok) {
       haptic('refused');
@@ -1374,15 +1373,6 @@ export default function GameScreen() {
   // dialog) became two menu rows — see GameMenuDialog.
   const showTurnBtn = turnoversTracked(state.config);
   const showPassBtn = passesTracked(state.config);
-  // The one refusal Pass greys out for instead of explaining: in a game following a
-  // single team, the other side is holding the disc. It is not a mistake the
-  // volunteer made and it is true for half of every game, so a hint would fire
-  // dozens of times a point saying something the possession rule above the row is
-  // already showing. Every *other* refusal — the game not started, the pull not
-  // thrown, a call pending — is one Turn explains on tap, and Pass now explains it
-  // the same way: two buttons side by side, one dead and one not, for reasons the
-  // volunteer cannot tell apart, is worse than either rule on its own.
-  const passDead = canPass(state).reason === 'passesOtherTeam';
   // The possession the Pass badge counts, and whose colour it takes.
   const passRun = currentPassRun(state);
   // The team whose lines are recorded, or null when line tracking is off — which is
@@ -1827,10 +1817,9 @@ export default function GameScreen() {
                   // changes nothing else on screen, so the badge is the only thing
                   // that confirms the tap landed.
                   //
-                  // In a game following one team it simply disappears while the other
-                  // side has the disc — their run is real but its count is 0, since
-                  // nobody is counting them — which is the same thing the greyed
-                  // button is already saying.
+                  // In a game following one team the button stays live while the
+                  // other side has the disc: counting theirs is optional, and the
+                  // badge in their colour is what says whose passes a tap would add.
                   badge={passRun?.passes ?? 0}
                   badgeColor={passRun ? state.config.teams[passRun.team].color : undefined}
                   // Top of the right-hand column, above Turn. Done with `order`
@@ -1844,7 +1833,7 @@ export default function GameScreen() {
                   flash={passFlash}
                   onClick={tryPass}
                   onHold={tryUndoPass}
-                  dimmed={recordBusy || passDead}
+                  dimmed={recordBusy}
                 />
               )}
             </div>

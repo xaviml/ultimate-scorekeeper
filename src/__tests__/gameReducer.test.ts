@@ -1524,7 +1524,7 @@ describe('undoing a turnover', () => {
  */
 describe('passes', () => {
   const bothTeams = cfg({ statsMode: 'teams', trackTurnovers: true, trackPasses: true });
-  /** A followed team: only their passes are counted (see passTeam). */
+  /** A followed team: the other side's passes are optional (see passesFor). */
   const followA = cfg({
     statsMode: 'players',
     trackTurnovers: true,
@@ -1583,22 +1583,39 @@ describe('passes', () => {
     expect(gameReducer(s, { type: 'PASS' })).toBe(s);
   });
 
-  it('counts only the followed team, and is refused while the other side has it', () => {
+  it('counts whoever has the disc, the unfollowed team included', () => {
     const s = live(followA); // A received the pull, and A is the followed team
     expect(canPass(s).ok).toBe(true);
     expect(passTeam(s)).toBe('A');
 
     const afterTurn = gameReducer(gameReducer(s, { type: 'PASS' }), { type: 'TURNOVER' });
-    expect(passTeam(afterTurn)).toBeNull();
-    expect(canPass(afterTurn).reason).toBe('passesOtherTeam');
-    expect(gameReducer(afterTurn, { type: 'PASS' })).toBe(afterTurn);
+    expect(passTeam(afterTurn)).toBe('B');
+    expect(canPass(afterTurn).ok).toBe(true);
+    const passed = gameReducer(afterTurn, { type: 'PASS' });
+    expect(passed.passRuns).toEqual([
+      { team: 'A', passes: 1 },
+      { team: 'B', passes: 1 },
+    ]);
+    expect(passed.passesCompleted).toEqual({ A: 1, B: 1 });
   });
 
-  it('reports the unfollowed team as null rather than zero', () => {
-    const s = gameReducer(live(followA), { type: 'PASS' });
+  it('reports the unfollowed team as null until a pass is recorded for them', () => {
+    let s = gameReducer(live(followA), { type: 'PASS' });
     expect(passesFor(s, 'A')).toBe(1);
     // Not 0: nobody was counting B, which is a different claim from "B threw none".
     expect(passesFor(s, 'B')).toBeNull();
+    expect(passAverageFor(s, 'B')).toBeNull();
+
+    // One pass for B and they get every figure a both-teams game gives them.
+    s = run(s, { type: 'TURNOVER' }, { type: 'PASS' }, { type: 'PASS' });
+    expect(passesFor(s, 'B')).toBe(2);
+    expect(passAverageFor(s, 'B')).toBe(2);
+    // Taking it back puts them back to a dash.
+    s = run(s, { type: 'UNDO_PASS' }, { type: 'UNDO_PASS' });
+    expect(passesFor(s, 'B')).toBeNull();
+
+    // The followed team always has a figure, 0 included.
+    expect(passesFor(live(followA), 'A')).toBe(0);
     // And with passes off entirely, neither team has a figure.
     expect(passesFor(live(cfg({ statsMode: 'teams', trackTurnovers: true })), 'A')).toBeNull();
   });

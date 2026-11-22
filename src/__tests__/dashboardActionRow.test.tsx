@@ -557,24 +557,14 @@ describe('the pass button', () => {
     expect(badge()).toHaveTextContent('99+');
   });
 
-  // Greys out rather than explaining itself: the refusal is "the other team has
-  // the disc", which is not a mistake and would flash dozens of times a point.
-  it('goes dead while the other team holds the disc, in a game following one', () => {
-    // liveGame gives B the disc. Following B, the button is live.
-    const followingB = passing();
-    followingB.config = { ...followingB.config, trackedTeam: 'B' };
-    mount(followingB);
-    expect(passButton()).not.toHaveAttribute('aria-disabled');
-    cleanup();
-
-    // Following A, with B holding it, there is nothing this tap could count.
+  // Following one team, the other side's passes are optional rather than refused:
+  // the button stays live whoever has the disc.
+  it('stays live while the other team holds the disc, in a game following one', () => {
+    // liveGame gives B the disc; following A, B is the other team.
     const followingA = passing();
     followingA.config = { ...followingA.config, trackedTeam: 'A' };
     mount(followingA);
-    expect(passButton()).toHaveAttribute('aria-disabled', 'true');
-    // And the badge simply disappears — B's run is real, but its count is 0
-    // because nobody is counting them, which is what the greyed button says too.
-    expect(badge()).toBeNull();
+    expect(passButton()).not.toHaveAttribute('aria-disabled');
   });
 
   it('stays live for either team when the game follows both', () => {

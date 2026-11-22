@@ -31,7 +31,7 @@
  * shared image and the copied text — so none of them can tell a point differently.
  */
 import type { TFunc } from '../i18n/useT';
-import { passesTracked, turnoversTracked } from './gameReducer';
+import { passesFor, passesTracked, turnoversTracked } from './gameReducer';
 import { lineTeam } from './lines';
 import {
   formatClock,
@@ -40,7 +40,7 @@ import {
   logRow,
   turnoverPlayersDetail,
 } from './stats';
-import type { GameConfig, GameState, LogEntry, LogType, PointRecord, TeamId } from './types';
+import type { GameState, LogEntry, LogType, PointRecord, TeamId } from './types';
 
 const other = (t: TeamId): TeamId => (t === 'A' ? 'B' : 'A');
 
@@ -121,11 +121,6 @@ const SKIPPED_TYPES: readonly LogType[] = [
 /** Entries that can only be logged with the disc live — never before a pull. */
 const LIVE_ONLY_TYPES: readonly LogType[] = ['turnover', 'call', 'callResolved', 'travel'];
 
-/** Whether this game counted `team`'s passes — `passesFor`'s rule, without needing the live state. */
-function passesCountedFor(config: GameConfig, team: TeamId): boolean {
-  return passesTracked(config) && (config.trackedTeam === null || config.trackedTeam === team);
-}
-
 interface Bucket {
   entries: LogEntry[];
   goal: LogEntry | null;
@@ -171,7 +166,7 @@ function bucketLog(log: LogEntry[]): { closed: Bucket[]; open: Bucket } {
  * for attribution only when they match the recorded count one for one.
  */
 function possessionsOf(
-  config: GameConfig,
+  counts: Record<TeamId, boolean>,
   offense: TeamId,
   turnovers: number,
   runs: { team: TeamId; passes: number }[] | undefined,
@@ -187,7 +182,7 @@ function possessionsOf(
     list.push({
       team: holder,
       seconds: null,
-      passes: counted && passesCountedFor(config, holder) ? counted[k].passes : null,
+      passes: counted && counts[holder] ? counted[k].passes : null,
       end: k < turnovers ? 'turn' : scoredBy === null ? 'open' : 'goal',
       ...(attributed && k < turnovers ? { turnover: attributed[k] } : {}),
     });
@@ -276,6 +271,12 @@ export function pointStories(state: GameState): StoryItem[] {
   const { closed, open } = bucketLog(state.log);
   const aligned = closed.length === state.points.length;
   const tracking = turnoversTracked(config);
+  // Whose passes this game counted — `passesFor`'s rule, so a followed game shows
+  // the other side's passes only once one was actually recorded for them.
+  const counts: Record<TeamId, boolean> = {
+    A: passesFor(state, 'A') !== null,
+    B: passesFor(state, 'B') !== null,
+  };
   const items: StoryItem[] = [];
   const score: Record<TeamId, number> = { A: 0, B: 0 };
 
@@ -300,7 +301,7 @@ export function pointStories(state: GameState): StoryItem[] {
     const startSeconds =
       goal && goal.pointSeconds !== undefined ? goal.gameSeconds - goal.pointSeconds : null;
     const possessions = recorded
-      ? possessionsOf(config, p.offense, p.turnovers, p.passRuns, parts.turns, p.scoredBy)
+      ? possessionsOf(counts, p.offense, p.turnovers, p.passRuns, parts.turns, p.scoredBy)
       : null;
     if (possessions)
       timePossessions(possessions, startSeconds, goal?.gameSeconds ?? null, bucket?.entries ?? []);
@@ -340,7 +341,7 @@ export function pointStories(state: GameState): StoryItem[] {
   const start = state.pointStartSeconds as number;
   const live = tracking
     ? possessionsOf(
-        config,
+        counts,
         state.offenseTeam,
         state.pointTurnovers,
         passesTracked(config) ? state.passRuns : undefined,
@@ -650,12 +651,16 @@ function pointRow(state: GameState, story: PointStory, t: TFunc): PointRowModel 
   if (story.turnovers !== null) summary.push(turnsText(story.turnovers, t));
   if (possessions && possessions.some((p) => p.passes !== null)) {
     const total = possessions.reduce((n, p) => n + (p.passes ?? 0), 0);
+    // Named after the followed team only while theirs are the only passes counted;
+    // once the other side has any, the total is both teams' as in any other game.
+    const followed = config.trackedTeam;
+    const onlyFollowed = followed !== null && passesFor(state, other(followed)) === null;
     summary.push(
-      config.trackedTeam === null
+      followed === null || !onlyFollowed
         ? passesText(total, t)
         : t('pointTeamPasses', {
             passes: passesText(total, t),
-            team: config.teams[config.trackedTeam].name,
+            team: config.teams[followed].name,
           }),
     );
   }

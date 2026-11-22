@@ -144,7 +144,7 @@ export const es: typeof en = {
     'Desactivado, Turn solo registra la pérdida. Activado, pregunta quién perdió el disco y quién lo forzó — más detalle, pero muchos toques en un punto rápido.',
   trackPassesLabel: 'Pases',
   trackPassesHint:
-    'Añade un botón Pass junto a Turn: un toque por pase completado, mantén pulsado para deshacer el último. Nunca pregunta quién lo lanzó. Si se sigue un solo equipo, solo cuenta los suyos.',
+    'Añade un botón Pass junto a Turn: un toque por pase completado, mantén pulsado para deshacer el último. Nunca pregunta quién lo lanzó. Si se sigue un solo equipo, los pases del otro son opcionales: el informe solo los muestra cuando registras alguno.',
 
   // Seguimiento de líneas. Solo en modo Estadísticas de equipo, donde se sigue un
   // único roster (ver lineTrackingEnabled). MMP/FMP son los términos de la WFDF y
@@ -993,7 +993,7 @@ export const es: typeof en = {
     'Anidado bajo Pérdidas, y desactivado por defecto. Activado, cada toque en Turn abre un diálogo que pregunta quién perdió el disco y quién lo forzó. Desactivado, el toque registra la pérdida y te devuelve la pantalla — el contador, la barra de posesión y todas las cifras de equipo siguen funcionando igual.',
   statsGuideStep1Passes: 'Pases',
   statsGuideStep1PassesBody:
-    'También anidado bajo Pérdidas, y desactivado por defecto. Añade un botón Pass junto a Turn: un toque por pase completado. Nunca pregunta quién lo lanzó. La insignia cuenta la posesión en curso, en el color de ese equipo, así que vuelve a empezar en cada pérdida. Si se sigue un solo equipo, solo se cuentan los suyos y el botón queda inactivo mientras el disco lo tiene el otro — por eso el informe les muestra una cifra y al otro equipo un guion.',
+    'También anidado bajo Pérdidas, y desactivado por defecto. Añade un botón Pass junto a Turn: un toque por pase completado. Nunca pregunta quién lo lanzó. La insignia cuenta la posesión en curso, en el color de ese equipo, así que vuelve a empezar en cada pérdida. Si se sigue un solo equipo, el botón sigue contando para quien tenga el disco, así que registrar los pases del otro equipo es opcional. Si no los registras, el informe le muestra un guion; si registras aunque sea uno, tiene las mismas cifras de pases que tu equipo.',
   statsGuideStep1Goals: 'Preguntar quién marcó',
   statsGuideStep1GoalsBody:
     'Activado, cada gol deja un botón «Anotador» encima de los relojes. Tócalo cuando sepas quién fue — mientras tanto el anuncio, el ratio y el reloj de pull siguen como siempre. «No lo sé» en las dos preguntas registra el gol sin nombres.',
@@ -1100,7 +1100,7 @@ export const es: typeof en = {
     'Cuántas posesiones del equipo acabaron en gol, de todas las veces que tuvo el disco, con el porcentaje al lado. Un punto que nadie perdió es una posesión y un gol.',
   statsGuideStatPasses: 'Pases',
   statsGuideStatPassesBody:
-    'Todos los pases registrados, en todo el partido, descontando lo deshecho. Si se sigue un solo equipo, el otro muestra un guion — nadie contaba sus pases, que no es lo mismo que no haber dado ninguno.',
+    'Todos los pases registrados, en todo el partido, descontando lo deshecho. Si se sigue un solo equipo, el otro muestra un guion hasta que se le registra algún pase — nadie contaba sus pases, que no es lo mismo que no haber dado ninguno.',
   statsGuideStatPassesAvg: 'Por posesión',
   statsGuideStatPassesAvgBody:
     'La fila pequeña bajo Pases: los pases divididos por las veces que ese equipo tuvo el disco. Un punto que nadie perdió es una sola posesión, así que un punto limpio promedia sobre el punto entero. Con guion para un equipo cuyos pases nadie contaba.',

@@ -110,18 +110,17 @@ describe('Turn and Pass feedback', () => {
     expect(stored().pointTurnovers).toBe(0);
   });
 
-  // The other team having the disc is true for half of every game, so it buzzes
-  // without the hint that would otherwise fire on every one of their passes.
-  it('buzzes a greyed Pass while the other team has the disc, without a hint', () => {
+  // Following one team, the other side's passes are optional rather than refused:
+  // the button stays live and counts whoever has the disc.
+  it("counts the other team's pass when following one team", () => {
     const state = liveGame();
     state.config = { ...state.config, trackedTeam: 'A' };
     mount(state);
-    expect(pass()).toHaveAttribute('aria-disabled', 'true');
+    expect(pass()).not.toHaveAttribute('aria-disabled', 'true');
 
     tap(pass());
-    expect(haptic).toHaveBeenLastCalledWith('refused');
-    expect(screen.queryByRole('tooltip')).toBeNull();
-    expect(stored().passRuns).toEqual([{ team: 'B', passes: 0 }]);
+    expect(haptic).toHaveBeenLastCalledWith('tap');
+    expect(stored().passRuns).toEqual([{ team: 'B', passes: 1 }]);
   });
 });
 

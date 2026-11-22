@@ -131,6 +131,39 @@ describe('pointStories', () => {
     ]);
   });
 
+  // Following one team, the other side's passes are optional: once any is recorded
+  // they are told like a both-teams game, and the total stops naming one team.
+  it("shows the unfollowed team's passes once any were recorded for them", () => {
+    const state = tracked();
+    state.config.trackPasses = true;
+    state.config.trackedTeam = 'A';
+    state.passesCompleted = { A: 11, B: 3 };
+    state.points = [
+      point({
+        scoredBy: 'A',
+        offense: 'A',
+        turnovers: 2,
+        passRuns: [
+          { team: 'A', passes: 4 },
+          { team: 'B', passes: 3 },
+          { team: 'A', passes: 7 },
+        ],
+      }),
+    ];
+    state.log = [
+      entry('turnover', { team: 'A', gameSeconds: 10 }),
+      entry('turnover', { team: 'B', gameSeconds: 20 }),
+      entry('goal', { team: 'A', gameSeconds: 40, pointSeconds: 40 }),
+    ];
+    const [row] = rows(state);
+    expect(row.track?.map((w) => [w.team, w.passes])).toEqual([
+      ['A', 4],
+      ['B', 3],
+      ['A', 7],
+    ]);
+    expect(row.summary).toEqual(['2 turns', '14 passes']);
+  });
+
   it('tells the point in progress as unfinished, its last possession still open', () => {
     const state = tracked();
     state.phase = 'game';

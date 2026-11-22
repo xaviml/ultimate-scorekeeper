@@ -144,7 +144,7 @@ export const ca: typeof en = {
     "Desactivat, Turn només registra la pèrdua. Activat, pregunta qui ha perdut el disc i qui l'ha forçat — més detall, però molts tocs en un punt ràpid.",
   trackPassesLabel: 'Passades',
   trackPassesHint:
-    "Afegeix un botó Pass al costat de Turn: un toc per passada completada, mantén premut per desfer l'última. Mai pregunta qui l'ha llançat. Si se segueix un sol equip, només compta les seves.",
+    "Afegeix un botó Pass al costat de Turn: un toc per passada completada, mantén premut per desfer l'última. Mai pregunta qui l'ha llançat. Si se segueix un sol equip, les passades de l'altre són opcionals: l'informe només les mostra quan en registres alguna.",
 
   // Seguiment de línies. Només en mode Estadístiques d'equip, on se segueix un sol
   // roster (vegeu lineTrackingEnabled). MMP/FMP són els termes de la WFDF i es
@@ -991,7 +991,7 @@ export const ca: typeof en = {
     'Imbricat sota Pèrdues, i desactivat per defecte. Activat, cada toc a Turn obre un diàleg que pregunta qui ha perdut el disc i qui l\u2019ha forçat. Desactivat, el toc registra la pèrdua i et torna la pantalla — el comptador, la barra de possessió i totes les xifres d\u2019equip continuen funcionant igual.',
   statsGuideStep1Passes: 'Passades',
   statsGuideStep1PassesBody:
-    "També imbricat sota Pèrdues, i desactivat per defecte. Afegeix un botó Pass al costat de Turn: un toc per passada completada. Mai pregunta qui l'ha llançada. La insígnia compta la possessió en curs, en el color d'aquell equip, així que torna a començar a cada pèrdua. Si se segueix un sol equip, només es compten les seves i el botó queda inactiu mentre el disc el té l'altre — per això l'informe els mostra una xifra i a l'altre equip un guionet.",
+    "També imbricat sota Pèrdues, i desactivat per defecte. Afegeix un botó Pass al costat de Turn: un toc per passada completada. Mai pregunta qui l'ha llançada. La insígnia compta la possessió en curs, en el color d'aquell equip, així que torna a començar a cada pèrdua. Si se segueix un sol equip, el botó continua comptant per a qui tingui el disc, així que registrar les passades de l'altre equip és opcional. Si no les registres, l'informe li mostra un guionet; si en registres encara que sigui una, té les mateixes xifres de passades que el teu equip.",
   statsGuideStep1Goals: 'Preguntar qui ha marcat',
   statsGuideStep1GoalsBody:
     "Activat, cada gol deixa un botó «Anotador» sobre els rellotges. Toca'l quan sàpigues qui ha estat — mentrestant l'anunci, el ràtio i el rellotge de pull continuen com sempre. «No ho sé» a les dues preguntes registra el gol sense noms.",
@@ -1098,7 +1098,7 @@ export const ca: typeof en = {
     'Quantes possessions de l\u2019equip van acabar en gol, de totes les vegades que va tenir el disc, amb el percentatge al costat. Un punt que ningú no va perdre és una possessió i un gol.',
   statsGuideStatPasses: 'Passades',
   statsGuideStatPassesBody:
-    "Totes les passades registrades, en tot el partit, descomptant el que s'hagi desfet. Si se segueix un sol equip, l'altre mostra un guionet — ningú comptava les seves passades, que no és el mateix que no haver-ne fet cap.",
+    "Totes les passades registrades, en tot el partit, descomptant el que s'hagi desfet. Si se segueix un sol equip, l'altre mostra un guionet fins que se li registra alguna passada — ningú comptava les seves passades, que no és el mateix que no haver-ne fet cap.",
   statsGuideStatPassesAvg: 'Per possessió',
   statsGuideStatPassesAvgBody:
     'La fila petita sota Passades: les passades dividides per les vegades que aquell equip va tenir el disc. Un punt que ningú no va perdre és una sola possessió, així que un punt net fa la mitjana sobre el punt sencer. Amb guionet per a un equip les passades del qual ningú comptava.',
