@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '../i18n';
 import { PlayerMultiPicker, PlayerPicker, PlayerSortToggle } from '../components/PlayerPicker';
+import { gridColumns } from '../state/lines';
 import { PlayerRosterEditor } from '../components/PlayerRosterEditor';
 import type { PlayerInfo } from '../state/types';
 import { hold, tap } from './gestures';
@@ -154,5 +155,59 @@ describe('the order the pickers lay a roster out in', () => {
     // The unnamed go last, by number.
     expect(order()).toEqual(['#7 Anna', '#3 Laia', '#12 Marc', 'Zoe', '#21']);
     expect(localStorage.getItem('ultimate-scorekeeper:player-sort')).toBe('name');
+  });
+});
+
+/**
+ * As many columns as the list needs: a line of seven reads as one column of whole
+ * names, and only a full squad is split three ways.
+ */
+describe('grid columns', () => {
+  it('uses 1 column below 8 players, 2 up to 15, 3 from 16', () => {
+    expect([1, 7, 8, 15, 16, 25].map(gridColumns)).toEqual([1, 1, 2, 2, 3, 3]);
+  });
+
+  const team = (n: number): PlayerInfo[] =>
+    Array.from({ length: n }, (_, i) => ({ id: `p${i}`, number: String(i + 1), name: `P${i}` }));
+  const gridOf = (container: HTMLElement) => container.querySelector('.grid') as HTMLElement;
+
+  it('lays a picker out by its own count', () => {
+    const { container, unmount } = render(
+      <I18nProvider>
+        <PlayerPicker players={team(7)} selected={null} onSelect={() => {}} />
+      </I18nProvider>,
+    );
+    expect(gridOf(container).className).toContain('grid-cols-1');
+    unmount();
+    const big = render(
+      <I18nProvider>
+        <PlayerPicker players={team(16)} selected={null} onSelect={() => {}} />
+      </I18nProvider>,
+    );
+    expect(gridOf(big.container).className).toContain('grid-cols-3');
+  });
+
+  // The goal dialog's scorer step drops the assist: 8 offered as 7 must keep 2 columns.
+  it('sizes on layoutCount when one is given', () => {
+    const { container } = render(
+      <I18nProvider>
+        <PlayerPicker players={team(7)} layoutCount={8} selected={null} onSelect={() => {}} />
+      </I18nProvider>,
+    );
+    expect(gridOf(container).className).toContain('grid-cols-2');
+  });
+
+  it('counts every group together in a grouped multi-picker', () => {
+    const players = team(9).map(
+      (p, i) => ({ ...p, gender: i < 4 ? 'female' : 'male' }) as PlayerInfo,
+    );
+    const { container } = render(
+      <I18nProvider>
+        <PlayerMultiPicker players={players} selected={[]} groupByGender onToggle={() => {}} />
+      </I18nProvider>,
+    );
+    const grids = [...container.querySelectorAll('.grid')];
+    expect(grids).toHaveLength(2);
+    grids.forEach((g) => expect(g.className).toContain('grid-cols-2'));
   });
 });

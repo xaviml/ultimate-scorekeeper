@@ -127,6 +127,7 @@ export function GoalPlayersDialog({
           </p>
           <PlayerPicker
             players={players.filter((p) => p.id !== assistId)}
+            layoutCount={players.length}
             selected={initialScorer}
             onSelect={(id) => submit(id ?? initialScorer)}
           />

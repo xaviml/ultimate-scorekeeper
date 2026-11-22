@@ -228,6 +228,14 @@ export function genderGroups(
  * unnumbered after by name) or by name (the unnamed after by number). Returns a
  * new array.
  */
+/**
+ * How many columns a player picker lays its chips out in: one for a line of seven,
+ * two up to fifteen, three for a full squad (see `PlayerPicker`).
+ */
+export function gridColumns(count: number): 1 | 2 | 3 {
+  return count < 8 ? 1 : count < 16 ? 2 : 3;
+}
+
 export function sortPlayers(players: PlayerInfo[], sort: 'number' | 'name'): PlayerInfo[] {
   return [...players].sort(sort === 'name' ? byName : byNumber);
 }

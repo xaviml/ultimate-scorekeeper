@@ -1,6 +1,6 @@
 import { useT } from '../i18n/useT';
 import { usePlayerSort } from '../hooks/usePlayerSort';
-import { genderGroups, sortPlayers } from '../state/lines';
+import { genderGroups, gridColumns, sortPlayers } from '../state/lines';
 import { playerLabel } from '../state/stats';
 import type { PlayerInfo } from '../state/types';
 import { savePlayerSort } from '../state/uiPreferences';
@@ -15,7 +15,7 @@ function PlayerChip({
   player: PlayerInfo;
   active: boolean;
   showGender?: boolean;
-  /** Reserve the number's column even when this player has none — see `GRID`. */
+  /** Reserve the number's column even when this player has none — see `anyNumber`. */
   numberSlot: boolean;
   onSelect: (id: string | null) => void;
 }) {
@@ -61,12 +61,16 @@ function PlayerChip({
 }
 
 /**
- * The chips every picker lays out: three equal columns, so a player sits in the same
- * place every time and the numbers line up down each column (see `PlayerChip`'s
- * number slot). The line dialog is the one exception: it reads the roster rather than
- * searching it, so it lays out a sheet (`LineSheet`).
+ * The chips every picker lays out: a grid of equal columns, so a player sits in the
+ * same place every time and the numbers line up down each column (see `PlayerChip`'s
+ * number slot). As many columns as the list needs and no more — one for a line of
+ * seven (the usual goal, narrowed to the point's line), two up to fifteen, three for
+ * a full squad — so a short list gets whole names rather than ellipses. The line
+ * dialog is the one exception: it reads the roster rather than searching it, so it
+ * lays out a sheet (`LineSheet`).
  */
-const GRID = 'grid grid-cols-3 gap-1.5';
+const COLUMN_CLASS = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3' } as const;
+const grid = (count: number) => `grid ${COLUMN_CLASS[gridColumns(count)]} gap-1.5`;
 
 const anyNumber = (players: PlayerInfo[]) => players.some((p) => p.number);
 
@@ -107,17 +111,24 @@ export function PlayerSortToggle() {
 export function PlayerPicker({
   players,
   selected,
+  layoutCount,
   onSelect,
 }: {
   players: PlayerInfo[];
   selected: string | null;
+  /**
+   * The count the columns are chosen for, when it should not be `players.length` —
+   * the goal dialog's second step leaves the assist out, and sizes on the first
+   * step's list so the grid does not change shape between the two taps.
+   */
+  layoutCount?: number;
   onSelect: (id: string | null) => void;
 }) {
   const sort = usePlayerSort();
   if (players.length === 0) return null;
   const slot = anyNumber(players);
   return (
-    <div className={GRID}>
+    <div className={grid(layoutCount ?? players.length)}>
       {sortPlayers(players, sort).map((p) => (
         <PlayerChip
           key={p.id}
@@ -184,7 +195,7 @@ export function PlayerMultiPicker({
   // say it.
   if (!groups || groups.length < 2) {
     const row = groups?.[0].players ?? sortPlayers(players, sort);
-    return <div className={GRID}>{row.map((p) => chip(p, showGender))}</div>;
+    return <div className={grid(players.length)}>{row.map((p) => chip(p, showGender))}</div>;
   }
 
   return (
@@ -199,7 +210,7 @@ export function PlayerMultiPicker({
               ? t('genderUnmarked')
               : t(group.gender === 'male' ? 'genderMmp' : 'genderFmp')}
           </p>
-          <div className={GRID}>{group.players.map((p) => chip(p))}</div>
+          <div className={grid(players.length)}>{group.players.map((p) => chip(p))}</div>
         </div>
       ))}
     </div>
