@@ -308,6 +308,7 @@ export const es: typeof en = {
   whoDefended: '{team} — ¿quién la forzó? (bloqueo, buena defensa)',
   btnSave: 'Guardar',
   assistedBy: 'asistencia: {name}',
+  assistLabel: 'Asistencia',
   turnoverBy: 'pérdida: {name}',
   defenseBy: 'D: {name}',
 

@@ -307,6 +307,7 @@ export const ca: typeof en = {
   whoDefended: "{team} — qui l'ha forçat? (bloqueig, bona defensa)",
   btnSave: 'Desar',
   assistedBy: 'assistència: {name}',
+  assistLabel: 'Assistència',
   turnoverBy: 'pèrdua: {name}',
   defenseBy: 'D: {name}',
 

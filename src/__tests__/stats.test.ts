@@ -209,7 +209,7 @@ describe('playerStatLines', () => {
     expect(lines.find((l) => l.playerId === 'a1')).toMatchObject({ label: 'Alex', goals: 1 });
 
     const goal = s.log.find((e) => e.type === 'goal' && e.team === 'A')!;
-    expect(goalPlayersDetail(s, goal, t)).toBe(' — Alex, assist: Sam');
+    expect(goalPlayersDetail(s, goal, t)).toBe(' — Goal: Alex - Assist: Sam');
   });
 
   describe('the unassigned aggregate', () => {

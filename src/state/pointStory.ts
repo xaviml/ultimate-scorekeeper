@@ -36,7 +36,7 @@ import { lineTeam } from './lines';
 import {
   formatClock,
   formatSeconds,
-  goalPlayersDetail,
+  goalPlayersLine,
   logRow,
   turnoverPlayersDetail,
 } from './stats';
@@ -611,11 +611,13 @@ function timelineOf(state: GameState, story: PointStory, t: TFunc): TimelineLine
   const last = possessions[possessions.length - 1];
   if (goal && story.scoredBy) {
     const goalText = `${t('event_goal')}${story.isBreak ? ` ${t('logBreak')}` : ''}`;
+    const players = goalPlayersLine(state, goal, t, goalText);
+    const named = players.startsWith(`${goalText}: `);
     const head = last ? possessionHead(state, last, t) : config.teams[story.scoredBy].name;
     lines.push({
       clock: formatClock(goal.gameSeconds),
       team: story.scoredBy,
-      text: `${head} — ${goalText}${goalPlayersDetail(state, goal, t)}`,
+      text: `${head} — ${named ? players : players ? `${goalText} — ${players}` : goalText}`,
       goal: true,
     });
   } else if (last && last.end === 'open') {
@@ -669,7 +671,7 @@ function pointRow(state: GameState, story: PointStory, t: TFunc): PointRowModel 
           }),
     );
   }
-  const scorers = story.goal ? goalPlayersDetail(state, story.goal, t).replace(/^ — /, '') : '';
+  const scorers = story.goal ? goalPlayersLine(state, story.goal, t) : '';
   if (scorers) summary.push(scorers);
   if (story.lineName) summary.push(t('pointLineName', { name: story.lineName }));
   summary.push(...flagsOf(story, t));

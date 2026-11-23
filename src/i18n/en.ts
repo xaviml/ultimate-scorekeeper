@@ -313,6 +313,7 @@ export const en = {
   whoDefended: '{team} — who forced it? (block, good defense)',
   btnSave: 'Save',
   assistedBy: 'assist: {name}',
+  assistLabel: 'Assist',
   turnoverBy: 'turn: {name}',
   defenseBy: 'D: {name}',
 

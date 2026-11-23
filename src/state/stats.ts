@@ -361,7 +361,7 @@ export function playerLabel(player?: PlayerInfo): string {
 }
 
 /**
- * Scorer/assist suffix for a goal log entry, e.g. " — #7 Alex, assist: #9 Sam".
+ * Scorer/assist suffix for a goal log entry, e.g. " — Goal: #7 Alex - Assist: #9 Sam".
  * Returns '' for non-goals and for goals with no attribution, so it can be
  * dropped straight into JSX or concatenated into the plain-text report.
  *
@@ -371,14 +371,28 @@ export function playerLabel(player?: PlayerInfo): string {
  * stands on its own, so a Callahan with nobody named still says so.
  */
 export function goalPlayersDetail(state: GameState, e: LogEntry, t: TFunc): string {
+  const line = goalPlayersLine(state, e, t);
+  return line ? ` — ${line}` : '';
+}
+
+/**
+ * The goal's players as one line for "Point by point": "Goal: #7 Alex - Assist: #9 Sam".
+ * Same data and Callahan rule as `goalPlayersDetail`, laid out as labelled pairs.
+ */
+export function goalPlayersLine(
+  state: GameState,
+  e: LogEntry,
+  t: TFunc,
+  label: string = t('event_goal'),
+): string {
   if (e.type !== 'goal' || !e.team || (!e.scorerId && !e.assistId && !e.callahan)) return '';
   const scorer = playerLabel(findGamePlayer(state, e.team, e.scorerId));
   const assist = playerLabel(findGamePlayer(state, e.team, e.assistId));
   const parts: string[] = [];
-  if (scorer) parts.push(scorer);
+  if (scorer) parts.push(`${label}: ${scorer}`);
   if (e.callahan) parts.push(t('callahan'));
-  else if (assist) parts.push(t('assistedBy', { name: assist }));
-  return parts.length ? ` — ${parts.join(', ')}` : '';
+  else if (assist) parts.push(`${t('assistLabel')}: ${assist}`);
+  return parts.join(' - ');
 }
 
 /**
