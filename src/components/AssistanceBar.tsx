@@ -1,9 +1,12 @@
+import { useLayoutEffect, useRef } from 'react';
 import { useT } from '../i18n/useT';
+import { NowIcon, SayIcon } from './icons';
 import { useAssist, useGame } from '../state/gameHooks';
 import {
   assistVars,
   halfSideKeyFor,
   pendingKindKey,
+  ratioPhrase,
   type AssistVars,
 } from '../state/assistOccurrence';
 import { capTargetOptions, isUniversePoint } from '../state/gameReducer';
@@ -136,22 +139,8 @@ function statusKey(state: GameState): string {
   }
 }
 
-function SpeechIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="w-5 h-5 lscape:w-3.5 lscape:h-3.5 shrink-0"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M21 12a7 7 0 01-7 7H8l-5 3 1.6-4.2A7 7 0 0110 5h4a7 7 0 017 7z" />
-    </svg>
-  );
-}
+/** The smallest size a long message steps down to; see the fitting in AssistanceBar. */
+const FIT_MIN_PX = 11;
 
 /**
  * The bottom bar, in two flavours:
@@ -188,32 +177,80 @@ export function AssistanceBar() {
 
   const vars = source.vars;
   const genderLabel = vars.gender
-    ? `${t(vars.gender === 'male' ? 'ratioMale' : 'ratioFemale')}${
-        vars.genderPosition ? ` (${vars.genderPosition})` : ''
-      }`
+    ? ratioPhrase(
+        vars.gender === 'male' ? 'male' : 'female',
+        vars.genderPosition ?? null,
+        t as never,
+      )
     : '';
   // What the open question is about, and which end the second-half pull comes from.
   // Both arrive as i18n keys — assistOccurrence has no `t` — and are translated here.
   const kind = source.kindKey ? t(source.kindKey as never) : '';
   const halfSide = t(source.halfSideKey as never);
   const key = source.key;
+  const text = t(key as never, { ...vars, gender: genderLabel, kind, halfSide } as never);
+
+  // The bar is one fixed height whatever it says, because it sits under the score
+  // panels and anything taller pushed the whole board up mid-game — so the words
+  // fit the bar, not the other way round. Each message starts at its normal size and
+  // steps down a pixel at a time until it fits, never below FIT_MIN_PX. The height
+  // was measured against every `now_*`/`say_*` message in all three languages at
+  // 360 px: four lines of the 12 px step, which most messages never need to reach.
+  const box = useRef<HTMLDivElement>(null);
+  const line = useRef<HTMLParagraphElement>(null);
+  useLayoutEffect(() => {
+    const fit = () => {
+      const p = line.current;
+      const b = box.current;
+      if (!p || !b) return;
+      p.style.fontSize = '';
+      const room = b.clientHeight - parseFloat(getComputedStyle(b).paddingTop) * 2;
+      let px = parseFloat(getComputedStyle(p).fontSize);
+      while (p.scrollHeight > room && px > FIT_MIN_PX) {
+        px -= 1;
+        p.style.fontSize = `${px}px`;
+      }
+    };
+    fit();
+    // Turning the phone changes the width, and with it how many lines a message takes.
+    if (typeof ResizeObserver === 'undefined' || !box.current) return;
+    const observer = new ResizeObserver(fit);
+    observer.observe(box.current);
+    return () => observer.disconnect();
+  }, [text, say]);
 
   return (
     <div
+      ref={box}
       aria-live="assertive"
-      className={`flex items-center gap-3 lscape:gap-2 border-t-2 px-3 py-2 lscape:px-2 lscape:py-1 min-h-[3.5rem] lscape:min-h-[2rem] shrink-0 ${
-        say ? 'bg-call/10 border-call text-call' : 'bg-signal/10 border-signal text-chalk'
+      data-assistance-bar
+      className={`flex items-center gap-3 lscape:gap-2 overflow-hidden border-t bg-panel px-3 py-2 lscape:px-2 lscape:py-1 h-[82px] lscape:h-11 shrink-0 ${
+        say ? 'border-call text-call' : 'border-line text-chalk'
       }`}
     >
-      {say && <SpeechIcon />}
+      {/* The tag says which of the two this is before a word is read: the words to
+          shout, or what to do now. */}
+      <span
+        aria-hidden="true"
+        className={`shrink-0 flex items-center justify-center w-8 h-8 lscape:w-5 lscape:h-5 rounded-md text-panel ${
+          say ? 'bg-call' : 'bg-signal'
+        }`}
+      >
+        {say ? (
+          <SayIcon size="w-5 h-5 lscape:w-3.5 lscape:h-3.5" />
+        ) : (
+          <NowIcon size="w-5 h-5 lscape:w-3.5 lscape:h-3.5" />
+        )}
+      </span>
       <p
+        ref={line}
         className={`leading-snug ${
           say
             ? 'font-board font-semibold text-base sm:text-lg lscape:text-xs'
             : 'text-sm sm:text-base lscape:text-xs'
         }`}
       >
-        {t(key as never, { ...vars, gender: genderLabel, kind, halfSide } as never)}
+        {text}
       </p>
     </div>
   );

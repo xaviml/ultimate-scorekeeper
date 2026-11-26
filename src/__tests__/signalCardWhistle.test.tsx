@@ -44,7 +44,9 @@ describe('the whistle signal card', () => {
     mountWith(awaitingPull(seconds as number));
 
     expect(signalImage().getAttribute('src')).toContain(`signals/whistle${blasts}.png`);
-    expect(screen.getByText(caption as string)).toBeInTheDocument();
+    // The picture carries the count; the words are only its accessible name.
+    expect(screen.getByAltText(caption as string)).toBeInTheDocument();
+    expect(screen.queryByText(caption as string)).toBeNull();
   });
 
   it('shows the triple-whistle art for a timeout restart, not the pull countdown one', () => {

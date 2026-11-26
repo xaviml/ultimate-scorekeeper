@@ -8,10 +8,13 @@ export function TeamColorPicker({
   label,
   color,
   onChange,
+  className = 'block h-[42px] w-14 rounded border border-line',
 }: {
   label: string;
   color: string;
   onChange: (color: string) => void;
+  /** The swatch's size and shape; the setup screen's Teams card draws a larger tile. */
+  className?: string;
 }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
@@ -21,7 +24,7 @@ export function TeamColorPicker({
       <button
         type="button"
         aria-label={label}
-        className="block h-[42px] w-14 rounded-lg border border-line"
+        className={className}
         style={{ backgroundColor: color }}
         onClick={() => setOpen(true)}
       />

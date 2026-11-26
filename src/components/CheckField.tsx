@@ -59,14 +59,18 @@ export function CheckField({
         <span className={labelHidden ? 'sr-only' : 'text-sm'}>{label}</span>
       </label>
       {hint && (
-        <p className={`text-xs text-chalk/50 ${variant === 'switch' ? 'pl-14' : 'pl-9'}`}>{hint}</p>
+        <p
+          className={`text-xs leading-snug text-chalk/50 ${variant === 'switch' ? 'pl-14' : 'pl-9'}`}
+        >
+          {hint}
+        </p>
       )}
     </div>
   );
 }
 
 const focusRing =
-  'peer-focus-visible:ring-2 peer-focus-visible:ring-signal/70 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-pitch';
+  'peer-focus-visible:ring-2 peer-focus-visible:ring-accent/70 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-pitch';
 
 /**
  * The tick is always in the DOM and revealed by scale rather than mounted: a path
@@ -77,7 +81,7 @@ function CheckBox() {
   return (
     <span
       aria-hidden
-      className={`shrink-0 w-6 h-6 rounded-md border-2 border-line bg-pitch flex items-center justify-center transition-colors peer-checked:bg-signal peer-checked:border-signal peer-checked:[&>svg]:scale-100 ${focusRing}`}
+      className={`shrink-0 w-6 h-6 rounded-md border-2 border-line bg-panel flex items-center justify-center transition-colors peer-checked:bg-accent peer-checked:border-accent peer-checked:[&>svg]:scale-100 ${focusRing}`}
     >
       <svg
         viewBox="0 0 24 24"
@@ -85,10 +89,10 @@ function CheckBox() {
         fill="none"
         stroke="currentColor"
         strokeWidth="3.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        strokeLinecap="square"
+        strokeLinejoin="miter"
       >
-        <path d="M5 13l4 4L19 7" />
+        <path d="M5.5 12.5l4 4 9-9" />
       </svg>
     </span>
   );
@@ -99,9 +103,11 @@ function SwitchTrack() {
   return (
     <span
       aria-hidden
-      className={`shrink-0 w-11 h-6 rounded-full border-2 border-line bg-pitch px-[2px] flex items-center transition-colors peer-checked:bg-signal peer-checked:border-signal peer-checked:[&>span]:translate-x-[18px] peer-checked:[&>span]:bg-pitch ${focusRing}`}
+      className={`shrink-0 w-11 h-6 rounded-md border-2 border-line bg-pitch px-[2px] flex items-center transition-colors peer-checked:bg-accent peer-checked:border-accent peer-checked:[&>span]:translate-x-[18px] peer-checked:[&>span]:bg-panel peer-checked:[&>span]:shadow-none ${focusRing}`}
     >
-      <span className="w-4 h-4 rounded-full bg-chalk/50 transition-transform duration-150" />
+      {/* Off: a white knob resting on a sunken track, rather than a grey knob that
+          read as the control being disabled. */}
+      <span className="w-4 h-4 rounded-sm bg-panel shadow-[0_0_0_1px_rgb(var(--c-hairline))] transition-transform duration-150" />
     </span>
   );
 }

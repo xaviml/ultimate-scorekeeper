@@ -27,7 +27,7 @@ import { playerStatColumns, statCellText } from '../components/playerStatColumns
 import { lineTrackingEnabled } from './lines';
 import { pointStories, pointsModel, possessionsScored } from './pointStory';
 import type { PointsModel } from './pointStory';
-import { formatClock, playerStatLines, sortPlayerStatLines, teamStats } from './stats';
+import { playerStatLines, sortPlayerStatLines, teamStats } from './stats';
 import type { GameConfig, GameState, TeamId } from './types';
 
 export interface StatRow {
@@ -71,14 +71,19 @@ export interface CardPointsModel extends PointsModel {
 
 export interface ReportCardModel {
   /**
-   * Field, date and clock times as separate segments; the drawer packs them onto
-   * as many lines as fit. There is deliberately no heading of any kind above them
-   * — an image landing in a chat needs no label saying where you are, and the
-   * score speaks for itself. (The screen has none either any more: it is a layer
-   * over a game that may still be resumed, so nothing on it calls the score final.)
+   * The line over the score — field, when it started, how long it ran — as
+   * separate segments, the same ones the report screen shows (`reportMeta`); the
+   * drawer packs them onto as many lines as fit. There is deliberately no heading
+   * of any kind above it — an image landing in a chat needs no label saying where
+   * you are, and the score speaks for itself. (The screen has none either: it is a
+   * layer over a game that may still be resumed, so nothing on it calls the score
+   * final.)
    */
   meta: string[];
-  teams: { name: string; color: string; score: string }[];
+  /** `result` dims the loser's box, only once the scoreline finished the game (`gameLoser`). */
+  teams: { name: string; color: string; score: string; result: 'win' | 'loss' | null }[];
+  /** The heading over the team figures, which also carry each team's name over its column. */
+  teamsTitle: string;
   statRows: StatRow[];
   playerTitle: string;
   /**
@@ -119,8 +124,12 @@ export interface ReportCardModel {
  */
 export const APP_URL = 'https://xaviml.github.io/ultimate-scorekeeper/';
 
-/** Dates are the one thing on the card that isn't a dictionary string, so the language has to be resolved to a locale. */
-const LOCALES: Record<Lang, string> = { en: 'en-GB', es: 'es-ES', ca: 'ca-ES' };
+/**
+ * Dates are the one thing on screen that isn't a dictionary string, so the language
+ * has to be resolved to a locale — `en` alone means en-US ("Nov 26"), and the app
+ * writes dates the en-GB way ("26 Nov"). Every date the app shows goes through this.
+ */
+export const LOCALES: Record<Lang, string> = { en: 'en-GB', es: 'es-ES', ca: 'ca-ES' };
 
 /**
  * Which rosters the player table draws from — the followed team, both, or neither
@@ -215,45 +224,53 @@ function cardPoints(state: GameState, t: TFunc): CardPointsModel | null {
   return { ...model, colors: { A: state.config.teams.A.color, B: state.config.teams.B.color } };
 }
 
-function formatDate(atMs: number, lang: Lang): string {
-  try {
-    return new Date(atMs).toLocaleDateString(LOCALES[lang], {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-  } catch {
-    return new Date(atMs).toDateString();
-  }
-}
-
 /**
- * Field, date and the wall-clock span of the game. These live in the copied text
- * but never on the report screen, and they are exactly what a shared image needs
- * to still make sense a week later — so the card is where they come back.
+ * Field, date and start time, and how long the game ran — the line over the score
+ * on the report screen and on the shared image alike, so the two read the same and
+ * an image opened weeks later still says when it was played (hence the year). The
+ * duration is start to end on the wall clock, or the game clock so far for a game
+ * not yet left. A field left blank is left out rather than printed empty.
  */
-function metaSegments(state: GameState, t: TFunc, lang: Lang): string[] {
+export function reportMeta(state: GameState, t: TFunc, lang: Lang): string[] {
   const segments: string[] = [];
   const field = state.config.fieldNumber.trim();
   if (field) segments.push(t('field', { n: field }));
 
   const start = state.log.find((e) => e.type === 'gameStart');
   const end = [...state.log].reverse().find((e) => e.type === 'gameEnd');
-  if (start) {
-    segments.push(formatDate(start.atMs, lang));
-    segments.push(t('reportStarted', { time: start.wallClock }));
-  }
-  if (end) segments.push(t('reportFinished', { time: end.wallClock }));
-  if (start && end) {
+  if (!start) return segments;
+  try {
     segments.push(
-      t('reportDuration', { duration: formatClock(Math.round((end.atMs - start.atMs) / 1000)) }),
+      new Intl.DateTimeFormat(LOCALES[lang], {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+      }).format(start.atMs),
     );
+  } catch {
+    segments.push(new Date(start.atMs).toDateString());
   }
+  const seconds = end ? Math.round((end.atMs - start.atMs) / 1000) : state.gameSeconds;
+  segments.push(`${Math.max(1, Math.round(seconds / 60))} ${t('unitMin')}`);
   return segments;
+}
+
+/**
+ * The team that lost, or null while there is nothing to point at: only a game the
+ * scoreline finished has a winner — one left early, or read mid-game, may yet be
+ * played on.
+ */
+export function gameLoser(state: GameState): TeamId | null {
+  if (state.status !== 'finished' || state.scores.A === state.scores.B) return null;
+  return state.scores.A < state.scores.B ? 'A' : 'B';
 }
 
 export function reportCardModel(state: GameState, t: TFunc, lang: Lang): ReportCardModel {
   const teams = state.config.teams;
+  const loser = gameLoser(state);
   // A dot per row only when both rosters are listed and a name alone wouldn't say
   // which side it is.
   const showTeamColors = playerStatsTeams(state.config).length > 1;
@@ -299,12 +316,14 @@ export function reportCardModel(state: GameState, t: TFunc, lang: Lang): ReportC
 
   return {
     footer: { credit: t('reportFooterCredit'), url: APP_URL },
-    meta: metaSegments(state, t, lang),
+    meta: reportMeta(state, t, lang),
     teams: (['A', 'B'] as TeamId[]).map((id) => ({
       name: teams[id].name,
       color: teams[id].color,
       score: String(state.scores[id]),
+      result: loser === null ? null : loser === id ? 'loss' : 'win',
     })),
+    teamsTitle: t('reportTeamsTitle'),
     statRows: teamStatRows(state, t),
     playerTitle: t('playerStatsTitle'),
     playerHeader: [t('colPlayer'), ...columns.map((c) => t(c.key))],

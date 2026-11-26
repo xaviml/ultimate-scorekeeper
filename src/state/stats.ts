@@ -396,6 +396,23 @@ export function goalPlayersLine(
 }
 
 /**
+ * The goal as the sideline says it, for a point's one-line summary: "#3 Dani → #9 Eli",
+ * thrower first. The arrow needs both ends, so when only one half was named ("Don't
+ * know" on the other) it falls back to the labelled form, "Goal: #9 Eli" or
+ * "Assist: #3 Dani" — an arrow pointing at nothing read as something missing. A
+ * Callahan has no thrower and says so after the scorer. The point's opened timeline
+ * keeps the labelled form throughout (`goalPlayersLine`).
+ */
+export function goalPassLine(state: GameState, e: LogEntry, t: TFunc): string {
+  if (e.type !== 'goal' || !e.team || (!e.scorerId && !e.assistId && !e.callahan)) return '';
+  const scorer = playerLabel(findGamePlayer(state, e.team, e.scorerId));
+  const assist = playerLabel(findGamePlayer(state, e.team, e.assistId));
+  if (e.callahan) return scorer ? `${scorer} (${t('callahan')})` : t('callahan');
+  if (scorer && assist) return `${assist} → ${scorer}`;
+  return goalPlayersLine(state, e, t);
+}
+
+/**
  * Player suffix for a turnover log entry, e.g. " — turn: #7 Alex, D: #3 Sam".
  * The entry's team is the side that lost the disc, so the defender is looked up
  * in the other roster. Either half is optional (both are skippable in the dialog).

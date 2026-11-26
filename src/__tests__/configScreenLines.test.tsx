@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { I18nProvider } from '../i18n';
 import { GameProvider } from '../state/GameContext';
 import ConfigScreen from '../components/ConfigScreen';
+import { choices, choose, chosen, openRoster, rosterSheet, track } from './configFields';
 
 function renderConfigScreen() {
   return render(
@@ -14,11 +15,6 @@ function renderConfigScreen() {
   );
 }
 
-/** Labels sit above their input as plain sibling text, not an associated <label for>. */
-function fieldSelect(labelText: string): HTMLSelectElement {
-  const label = screen.getByText(labelText);
-  return label.parentElement!.querySelector('select') as HTMLSelectElement;
-}
 function fieldInput(labelText: string): HTMLInputElement {
   const label = screen.getByText(labelText);
   return label.parentElement!.querySelector('input') as HTMLInputElement;
@@ -26,13 +22,14 @@ function fieldInput(labelText: string): HTMLInputElement {
 
 /** Line tracking lives inside the Statistics section, below the turnover-players option. */
 const statsSection = () => screen.getByText('Statistics').closest('section') as HTMLElement;
-const rosterSection = () => screen.getByText('Roster').closest('section') as HTMLElement;
 
 /** Player detail narrowed to one team is the only place line tracking exists. */
 function intoTeamMode() {
   renderConfigScreen();
-  fireEvent.change(fieldSelect('Track'), { target: { value: 'players' } });
-  fireEvent.change(fieldSelect('Players of'), { target: { value: 'A' } });
+  // Named, because a roster belongs to a team and only shows once there is one.
+  fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'FOXES' } });
+  track('players');
+  choose('Players of', 'A');
 }
 
 /** Ticks the line-tracking checkbox in the Statistics section. */
@@ -55,18 +52,18 @@ describe('the line-tracking option', () => {
     renderConfigScreen();
     expect(lineToggle()).toBeNull();
 
-    fireEvent.change(fieldSelect('Track'), { target: { value: 'teams' } });
+    track('teams');
     expect(lineToggle()).toBeNull();
 
     // Player detail, but following both teams — two lines a point is nobody's job.
-    fireEvent.change(fieldSelect('Track'), { target: { value: 'players' } });
+    track('players');
     expect(lineToggle()).toBeNull();
 
-    fireEvent.change(fieldSelect('Players of'), { target: { value: 'A' } });
+    choose('Players of', 'A');
     expect(lineToggle()).not.toBeNull();
 
     // ...and moving back to both teams retires it again.
-    fireEvent.change(fieldSelect('Players of'), { target: { value: 'both' } });
+    choose('Players of', 'both');
     expect(lineToggle()).toBeNull();
   });
 
@@ -91,9 +88,9 @@ describe('the line-tracking option', () => {
   it('carries no team selector', () => {
     intoTeamMode();
     enableLines();
-    const selects = [...statsSection().querySelectorAll('select')];
+    const choices = [...statsSection().querySelectorAll('select, [role="radiogroup"]')];
     // Track, Players of, and the gender check — nothing else.
-    expect(selects).toHaveLength(3);
+    expect(choices).toHaveLength(3);
   });
 
   it('asks for the line size, defaulting to grass sevens', () => {
@@ -111,7 +108,7 @@ describe('the gender check', () => {
   it('defaults to following the game ratio under mixed Rule A', () => {
     intoTeamMode();
     enableLines();
-    expect(fieldSelect('Check the gender split').value).toBe('gameRatio');
+    expect(chosen('Check the gender split')).toBe('gameRatio');
     // No fixed-split field until the fixed option is picked.
     expect(screen.queryByText('FMP on the field')).toBeNull();
   });
@@ -119,39 +116,38 @@ describe('the gender check', () => {
   // Outside mixed Rule A there is no ratio to default to.
   it('defaults to not checking at all outside mixed Rule A', () => {
     intoTeamMode();
-    fireEvent.change(fieldSelect('Division'), { target: { value: 'open' } });
+    choose('Division', 'open');
     enableLines();
-    expect(fieldSelect('Check the gender split').value).toBe('none');
+    expect(chosen('Check the gender split')).toBe('none');
   });
 
   it('asks for a fixed split when one is chosen, and spells it out', () => {
     intoTeamMode();
     enableLines();
-    fireEvent.change(fieldSelect('Check the gender split'), { target: { value: 'fixed' } });
+    choose('Check the gender split', 'fixed');
     fireEvent.change(fieldInput('FMP on the field'), { target: { value: '1' } });
     expect(within(statsSection()).getByText('1 FMP / 6 MMP')).toBeTruthy();
   });
 
-  // Rule B leaves the ratio to the end zone and never computes one, so there would be
+  // Without ABBA the app never computes a ratio, so there would be
   // nothing for a line to be checked against.
-  it('offers to follow the game ratio only under mixed Rule A', () => {
+  it('offers to follow the game ratio only with ABBA on', () => {
     intoTeamMode();
     enableLines();
-    const options = () =>
-      Array.from(fieldSelect('Check the gender split').options).map((o) => o.value);
+    const options = () => choices('Check the gender split');
     expect(options()).toContain('gameRatio');
 
-    fireEvent.change(fieldSelect('Mixed gender-ratio rule'), { target: { value: 'B' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Announce the gender ratio (ABBA)' }));
     expect(options()).not.toContain('gameRatio');
 
-    fireEvent.change(fieldSelect('Division'), { target: { value: 'open' } });
+    choose('Division', 'open');
     expect(options()).not.toContain('gameRatio');
   });
 });
 
 describe('the roster markings', () => {
   function addPlayer(name: string) {
-    const roster = rosterSection();
+    const roster = rosterSheet();
     fireEvent.change(within(roster).getByPlaceholderText('Name'), { target: { value: name } });
     fireEvent.click(within(roster).getByRole('button', { name: 'Add' }));
   }
@@ -161,7 +157,7 @@ describe('the roster markings', () => {
   // where something might.
   it('offers the MMP/FMP toggle whether or not line tracking is on', () => {
     intoTeamMode();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
+    openRoster();
     addPlayer('Alex');
     expect(screen.getByRole('button', { name: 'Alex — gender: Not set' })).toBeTruthy();
 
@@ -169,26 +165,25 @@ describe('the roster markings', () => {
     expect(screen.getByRole('button', { name: 'Alex — gender: Not set' })).toBeTruthy();
   });
 
-  it('offers it for both rosters when both are followed, where lines never apply', () => {
+  it('offers it on both rosters, where lines never apply', () => {
     renderConfigScreen();
-    fireEvent.change(fieldSelect('Track'), { target: { value: 'players' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
-    const roster = rosterSection();
-    const nameFields = within(roster).getAllByPlaceholderText('Name');
-    fireEvent.change(nameFields[0], { target: { value: 'Alex' } });
-    fireEvent.change(nameFields[1], { target: { value: 'Jo' } });
-    within(roster)
-      .getAllByRole('button', { name: 'Add' })
-      .forEach((b) => fireEvent.click(b));
-
-    expect(screen.getByRole('button', { name: 'Alex — gender: Not set' })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'FOXES' } });
+    fireEvent.change(screen.getByLabelText('Team 2'), { target: { value: 'WOLVES' } });
+    track('players');
+    openRoster('A');
+    addPlayer('Alex');
+    openRoster('B');
+    addPlayer('Jo');
     expect(screen.getByRole('button', { name: 'Jo — gender: Not set' })).toBeTruthy();
+
+    openRoster('A');
+    expect(screen.getByRole('button', { name: 'Alex — gender: Not set' })).toBeTruthy();
   });
 
   // unset → MMP → FMP → unset. Unset is a real answer: most rosters arrive unmarked.
   it('cycles a player through both markings and back', () => {
     intoTeamMode();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
+    openRoster();
     addPlayer('Alex');
 
     fireEvent.click(screen.getByRole('button', { name: 'Alex — gender: Not set' }));
@@ -208,7 +203,7 @@ describe('the roster markings', () => {
     );
     intoTeamMode();
     fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'RAVENS' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
+    openRoster();
     addPlayer('Alex');
     fireEvent.click(screen.getByRole('button', { name: 'Alex — gender: Not set' }));
 
@@ -247,17 +242,20 @@ describe('predefined lines on the config screen', () => {
   const storedLines = () =>
     JSON.parse(localStorage.getItem('ultimate-scorekeeper:saved-teams')!)[0].lines;
 
-  /** The open line dialog — the roster editor behind it lists the same names. */
-  const dialog = () => document.querySelector('.fixed') as HTMLElement;
+  /** The open line dialog: the topmost one, over the roster sheet it was opened from. */
+  const dialog = () => {
+    const layers = document.querySelectorAll('.fixed');
+    return layers[layers.length - 1] as HTMLElement;
+  };
 
   // Lines are made of the roster, and the two are filled in at the same moment.
-  it('lives in the Roster section, not with the stats settings', () => {
+  it("lives in the followed team's roster sheet, not with the stats settings", () => {
     saveTeamWithLine();
     intoTeamMode();
     enableLines();
     loadRavens();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
-    expect(within(rosterSection()).getByRole('button', { name: 'Edit O1' })).toBeTruthy();
+    openRoster();
+    expect(within(rosterSheet()).getByRole('button', { name: 'Edit O1' })).toBeTruthy();
     expect(within(statsSection()).queryByRole('button', { name: 'Edit O1' })).toBeNull();
   });
 
@@ -266,7 +264,7 @@ describe('predefined lines on the config screen', () => {
     intoTeamMode();
     enableLines();
     loadRavens();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
+    openRoster();
     // One of the two players, named and listed.
     expect(screen.getByRole('button', { name: 'Edit O1' }).textContent).toContain('#7 Alex');
   });
@@ -276,7 +274,7 @@ describe('predefined lines on the config screen', () => {
     intoTeamMode();
     enableLines();
     loadRavens();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
+    openRoster();
 
     fireEvent.click(screen.getByRole('button', { name: 'Add a line' }));
     fireEvent.change(screen.getByLabelText('Name this line'), { target: { value: 'D1' } });
@@ -294,7 +292,7 @@ describe('predefined lines on the config screen', () => {
     intoTeamMode();
     enableLines();
     loadRavens();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
+    openRoster();
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit O1' }));
     fireEvent.click(within(dialog()).getByRole('button', { name: /#9 Jo/ }));
@@ -311,7 +309,7 @@ describe('predefined lines on the config screen', () => {
     intoTeamMode();
     enableLines();
     loadRavens();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
+    openRoster();
     fireEvent.click(screen.getByRole('button', { name: 'Add a line' }));
 
     expect(
@@ -333,7 +331,7 @@ describe('predefined lines on the config screen', () => {
     intoTeamMode();
     enableLines();
     loadRavens();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
+    openRoster();
     fireEvent.click(screen.getByRole('button', { name: 'Delete O1' }));
 
     expect(storedLines()).toEqual([]);
@@ -348,9 +346,9 @@ describe('predefined lines on the config screen', () => {
     saveTeamWithLine();
     intoTeamMode();
     enableLines();
-    fireEvent.change(fieldSelect('Check the gender split'), { target: { value: 'fixed' } });
+    choose('Check the gender split', 'fixed');
     loadRavens();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
+    openRoster();
     fireEvent.click(screen.getByRole('button', { name: 'Edit O1' }));
 
     expect(document.querySelector('[data-line-issues~="size"]')).toBeNull();
@@ -368,7 +366,7 @@ describe('predefined lines on the config screen', () => {
     intoTeamMode();
     enableLines();
     loadRavens();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
+    openRoster();
     fireEvent.click(screen.getByRole('button', { name: 'Add a line' }));
 
     const labels = [...dialog().querySelectorAll('p')]
@@ -386,9 +384,9 @@ describe('predefined lines on the config screen', () => {
     enableLines();
     // Deliberately the setting that switches every check off — the counter is
     // arithmetic about the roster, not a rule about the line.
-    fireEvent.change(fieldSelect('Check the gender split'), { target: { value: 'none' } });
+    choose('Check the gender split', 'none');
     loadRavens();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
+    openRoster();
     fireEvent.click(screen.getByRole('button', { name: 'Edit O1' }));
 
     const counters = () =>
@@ -406,8 +404,8 @@ describe('predefined lines on the config screen', () => {
   it('says what lines are for when there are none', () => {
     intoTeamMode();
     enableLines();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
-    expect(within(rosterSection()).getByText(/Name the lines this team plays/i)).toBeTruthy();
+    openRoster();
+    expect(within(rosterSheet()).getByText(/Name the lines this team plays/i)).toBeTruthy();
   });
 
   // The tracked team is which roster the lines belong to, so moving it has to swap
@@ -417,10 +415,10 @@ describe('predefined lines on the config screen', () => {
     intoTeamMode();
     enableLines();
     loadRavens();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
+    openRoster();
     expect(screen.getByRole('button', { name: 'Edit O1' })).toBeTruthy();
 
-    fireEvent.change(fieldSelect('Players of'), { target: { value: 'B' } });
+    choose('Players of', 'B');
     expect(screen.queryByRole('button', { name: 'Edit O1' })).toBeNull();
   });
 });

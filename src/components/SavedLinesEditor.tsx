@@ -5,6 +5,7 @@ import { playerLabel } from '../state/stats';
 import type { PlayerInfo, SavedLine } from '../state/types';
 import { SavedLineDialog } from './SavedLineDialog';
 import { fieldLabel, secondaryButton } from './ui';
+import { CrossIcon } from './icons';
 
 /**
  * The tracked team's predefined lines, listed and edited before the game.
@@ -53,7 +54,7 @@ export function SavedLinesEditor({
             return (
               <li
                 key={l.id}
-                className="flex items-center gap-2 rounded-lg bg-pitch border border-line px-3 py-1.5 text-sm"
+                className="flex items-center gap-2 rounded bg-pitch border border-line px-3 py-1.5 text-sm"
               >
                 <button
                   type="button"
@@ -81,7 +82,7 @@ export function SavedLinesEditor({
                   aria-label={t('lineDeleteSaved', { name: l.name })}
                   onClick={() => onChange(lines.filter((x) => x.id !== l.id))}
                 >
-                  ✕
+                  <CrossIcon size="w-4 h-4" />
                 </button>
               </li>
             );

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
-import ConfigScreen from '../components/ConfigScreen';
+import App from '../App';
 import { I18nProvider } from '../i18n';
 import { GameProvider } from '../state/GameContext';
 
@@ -8,7 +8,7 @@ function renderConfigScreen() {
   return render(
     <I18nProvider>
       <GameProvider>
-        <ConfigScreen />
+        <App />
       </GameProvider>
     </I18nProvider>,
   );
@@ -26,7 +26,7 @@ describe('the setup screen header menu', () => {
     renderConfigScreen();
     openMenu();
 
-    expect(screen.getByRole('button', { name: /Match History/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Match history/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Beginner's guide/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Advanced guide/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /About/ })).toBeInTheDocument();
@@ -60,8 +60,8 @@ describe('the setup screen header menu', () => {
     fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'RAVENS' } });
 
     openMenu();
-    fireEvent.click(screen.getByRole('button', { name: /Match History/ }));
-    expect(screen.getByRole('heading', { name: 'Match History' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Match history/ }));
+    expect(screen.getByRole('heading', { name: 'Match history' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Back/ }));
     // The form was mounted underneath the whole time, so what was typed survives.

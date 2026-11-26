@@ -1,3 +1,5 @@
+import { teamOutline } from './ui';
+
 /**
  * The pace of the point in progress: a bar filling from the pull in the current
  * holder's colour, a 3px notch at each turnover in the colour of the team that
@@ -41,11 +43,11 @@ export function PointPace({
           )}
         </span>
       </div>
-      <div className="relative h-3 rounded-md bg-pitch border border-line overflow-hidden">
+      <div className="relative h-3 rounded bg-pitch border border-line overflow-hidden">
         {fillColor && (
           <div
             className="absolute inset-y-0 left-0 opacity-90"
-            style={{ width: `${fillPct}%`, backgroundColor: fillColor }}
+            style={{ width: `${fillPct}%`, backgroundColor: fillColor, ...teamOutline(fillColor) }}
           />
         )}
         {notches.map((n, i) => (

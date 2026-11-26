@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '../i18n';
 import { GameProvider } from '../state/GameContext';
@@ -46,6 +46,18 @@ function mount(state: GameState) {
 }
 
 beforeEach(() => sessionStorage.clear());
+
+/** The whole app, for anything that moves between pages (each page has an address). */
+function mountApp(state: GameState) {
+  sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
+  return render(
+    <I18nProvider>
+      <GameProvider>
+        <App />
+      </GameProvider>
+    </I18nProvider>,
+  );
+}
 
 describe('the action row', () => {
   const labelsIn = (el: HTMLElement) =>
@@ -799,11 +811,31 @@ describe('the header menu', () => {
     expect(screen.queryByLabelText('Back to setup')).toBeNull();
   });
 
-  it('offers the way out that matches the moment: back to setup before kickoff', () => {
+  it('leads with "Start new game", and has no other way out before kickoff', () => {
     mount(liveGame({ status: 'notStarted' }));
     openMenu();
-    expect(screen.getByText('Back to setup')).toBeInTheDocument();
+    const rows = Array.from(document.querySelectorAll('[role="dialog"] button, .fixed button'))
+      .map((b) => b.textContent)
+      .filter(Boolean);
+    expect(rows[0]).toBe('Start new game');
+    expect(screen.queryByText('Back to setup')).toBeNull();
     expect(screen.queryByText('End game')).toBeNull();
+  });
+
+  it('asks before starting a new game while one is being played', () => {
+    mount(liveGame());
+    openMenu();
+    fireEvent.click(screen.getByText('Start new game'));
+    expect(screen.getByRole('heading', { name: 'Leave the game?' })).toBeInTheDocument();
+  });
+
+  it('starts a new game without asking when nothing would be lost', async () => {
+    mountApp(liveGame({ status: 'notStarted' }));
+    openMenu();
+    fireEvent.click(screen.getByText('Start new game'));
+    expect(screen.queryByRole('heading', { name: 'Leave the game?' })).toBeNull();
+    await waitFor(() => expect(location.hash).toBe('#/'));
+    expect(screen.getByRole('heading', { name: 'Game setup' })).toBeInTheDocument();
   });
 
   it('offers ending the game once it is under way, still behind the confirm', () => {
@@ -836,10 +868,11 @@ describe('the header menu', () => {
     expect(screen.getByText('Coin toss results')).toBeInTheDocument();
   });
 
-  it('opens the report so far mid-game, minus the finished-game furniture, with a way back', () => {
-    mount(liveGame());
+  it('opens the report so far mid-game, minus the finished-game furniture, with a way back', async () => {
+    mountApp(liveGame());
     openMenu();
     fireEvent.click(screen.getByText('Report so far'));
+    expect(location.hash).toBe('#/report');
 
     // The report view, without the words that claim the game is over and
     // without the button that would start a new one.
@@ -847,11 +880,12 @@ describe('the header menu', () => {
     expect(screen.queryByText('Final score')).toBeNull();
     expect(screen.queryByText('New game')).toBeNull();
     // The working parts are all there.
-    expect(screen.getByText('Copy to clipboard')).toBeInTheDocument();
+    expect(screen.getByText('Copy')).toBeInTheDocument();
     expect(screen.getByText('Point by point')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText(/Back to the game/));
-    expect(screen.getByLabelText('Menu')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Back to the game/ }));
+    await waitFor(() => expect(location.hash).toBe('#/game'));
+    expect(screen.getByRole('button', { name: 'Log' })).toBeInTheDocument();
   });
 
   it('drops the report-so-far row once the game is finished, whose leave row already opens the report', () => {
@@ -863,13 +897,13 @@ describe('the header menu', () => {
     expect(within(menu).getByText('Open report')).toBeInTheDocument();
   });
 
-  it('reaches the guide, which is a screen rather than a dialog', () => {
+  // The game menu stays about the game in hand: no door to the guides, which would
+  // lead on to the rest of the app mid-game.
+  it('offers no guide', () => {
     mount(liveGame());
     openMenu();
-    fireEvent.click(screen.getByText("Beginner's guide"));
-    expect(screen.getByRole('heading', { name: "Beginner's guide" })).toBeInTheDocument();
-    // The dashboard is gone while it is up — it is an early return, not an overlay.
-    expect(screen.queryByLabelText('Menu')).toBeNull();
+    expect(screen.queryByText("Beginner's guide")).toBeNull();
+    expect(screen.queryByText('Advanced guide')).toBeNull();
   });
 });
 
@@ -880,17 +914,6 @@ describe('the header menu', () => {
  * phase boundary, and that is the thing being tested.
  */
 describe('leaving for the report, and coming back', () => {
-  const mountApp = (state: GameState) => {
-    sessionStorage.setItem('ultimate-scorekeeper:game-state', JSON.stringify(state));
-    return render(
-      <I18nProvider>
-        <GameProvider>
-          <App />
-        </GameProvider>
-      </I18nProvider>,
-    );
-  };
-
   it('leaves a game in progress on "Resume game", with no words claiming it is over', () => {
     mountApp(liveGame());
     fireEvent.click(screen.getByLabelText('Menu'));
@@ -905,7 +928,7 @@ describe('leaving for the report, and coming back', () => {
     expect(screen.queryByText('Final score')).toBeNull();
     expect(screen.getByText('New game')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText(/Back to the game/));
+    fireEvent.click(screen.getByRole('button', { name: /Back to the game/ }));
     // The clock was stopped on the way out, so the dashboard is waiting on the
     // same button any other pause leaves it on.
     expect(screen.getByText('Resume game')).toBeInTheDocument();
@@ -920,7 +943,7 @@ describe('leaving for the report, and coming back', () => {
     fireEvent.click(within(menu).getByText('Open report'));
     expect(screen.getByText('Point by point')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText(/Back to the game/));
+    fireEvent.click(screen.getByRole('button', { name: /Back to the game/ }));
     expect(screen.getByText('Open report')).toBeInTheDocument();
     expect(screen.queryByText('Resume game')).toBeNull();
   });

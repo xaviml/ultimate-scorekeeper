@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useT } from '../i18n/useT';
 import { useGame } from '../state/gameHooks';
 import { usePwaInstall } from '../hooks/usePwaInstall';
+import { CrossIcon, InstallIcon } from './icons';
 
 const DISMISSED_KEY_PREFIX = 'ultimate-scorekeeper:install-banner-dismissed:';
 
@@ -36,27 +37,27 @@ export function InstallBanner() {
 
   return (
     <div className="flex items-center gap-3 px-3 py-2 bg-panel border-b border-line text-sm">
-      <span className="text-xl shrink-0" aria-hidden="true">
-        📲
+      <span className="shrink-0 text-accent">
+        <InstallIcon size="w-6 h-6" />
       </span>
       <div className="flex-1 min-w-0">
-        <p className="font-board text-signal leading-tight">{title}</p>
+        <p className="font-board text-accent leading-tight">{title}</p>
         <p className="text-chalk/70 text-xs leading-tight truncate">{body}</p>
       </div>
       {status.kind === 'installable' && (
         <button
-          className="rounded-lg bg-signal text-pitch font-board font-bold px-3 py-1.5 shrink-0 active:scale-95"
+          className="rounded bg-accent text-pitch font-board font-bold px-3 py-1.5 shrink-0 active:scale-95"
           onClick={status.install}
         >
           {t('btnInstall')}
         </button>
       )}
       <button
-        className="text-chalk/60 px-1 shrink-0"
+        className="text-chalk/60 p-1 shrink-0"
         onClick={dismiss}
         aria-label={t('dismissBanner')}
       >
-        ✕
+        <CrossIcon size="w-5 h-5" />
       </button>
     </div>
   );

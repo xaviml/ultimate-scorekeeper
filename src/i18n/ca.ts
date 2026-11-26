@@ -8,8 +8,8 @@ export const ca: typeof en = {
   templateCustomGroup: 'Les teves plantilles',
   templateGrassName: 'Gespa',
   templateBeachName: 'Platja',
-  saveAsTemplateBtn: 'Desar com a plantilla',
-  saveTemplateTitle: 'Desar com a plantilla',
+  saveAsTemplateBtn: 'Desar plantilla',
+  saveTemplateTitle: 'Desar plantilla',
   saveTemplateHint:
     "Desa aquestes regles i els ajustos d'estadístiques per reutilitzar-los — no els equips, el resultat del llançament de moneda, els jugadors ni quin equip se segueix.",
   saveTemplateNamePlaceholder: "p. ex. Lliga d'estiu",
@@ -22,6 +22,25 @@ export const ca: typeof en = {
   btnDeleteTemplate: 'Eliminar plantilla',
   confirmDeleteTemplateTitle: 'Eliminar plantilla desada?',
   confirmDeleteTemplate: 'Eliminar "{name}"? Aquesta acció no es pot desfer.',
+  fieldTime: 'Temps',
+  fieldBreak: 'Descans',
+  fieldDuration: 'Durada',
+  unitMin: 'min',
+  unitSec: 's',
+  stepDown: 'Reduir {label}',
+  stepUp: 'Augmentar {label}',
+  endCapNoneShort: 'Sense CAP',
+  endCapCondShort: 'Condicional',
+  matchTitle: 'Partit',
+  startFix: 'Revisa {section} per començar',
+  sumPoints: '{n} pts',
+  sumCapNone: 'sense CAP',
+  sumCapCond: 'CAP +{n} si dif. >{x}',
+  sumAt: 'a {n}',
+  sumBreak: 'descans {d}',
+  sumNoBreak: 'sense descans',
+  sumOff: 'Desactivat',
+  sumAutoOff: 'Automàtiques desactivades',
   setupTitle: 'Configuració del partit',
   division: 'Divisió',
   divisionOpen: 'Open',
@@ -39,26 +58,29 @@ export const ca: typeof en = {
   confirmDeleteTeam:
     'Eliminar "{name}" i la seva plantilla desada d\'aquest dispositiu? Aquesta acció no es pot desfer.',
   btnDeleteTeam: 'Eliminar equip',
-  mixedRatioRule: 'Regla de ràtio de gènere (mixta)',
-  ruleA: 'Regla A — prescrita (alterna cada 2 punts)',
-  ruleB: "Regla B — la zona d'anotació decideix cada punt",
+  genderRatioTitle: 'Ràtio de gènere',
+  ratioAbbaLabel: 'Anunciar la ràtio de gènere (ABBA)',
+  ratioAbbaOnHint:
+    "L'aplicació anuncia la ràtio de cada punt, alternant cada dos punts, i la mostra a la pantalla del partit.",
+  ratioAbbaOffHint: "Els equips acorden la ràtio a cada punt; l'aplicació no l'anuncia.",
   coinToss: 'Resultat del sorteig',
-  coinTossHelp:
-    'Demana als capitans que llancin un disc abans del partit i registra aquí el resultat.',
+  coinTossHelp: 'Llanceu un disc amb els capitans i anoteu el resultat:',
   startingOffense: 'Equip que rep el primer pull (atac)',
   startingSide: "Equip que comença a l'esquerra",
   startingRatio: 'Ràtio de gènere inicial',
   ratioMale: 'Nois',
   ratioFemale: 'Noies',
+  ratioPosition1: 'Primer de {genderLower}',
+  ratioPosition2: 'Segon de {genderLower}',
   startingTimeEnabled: "El partit té una hora d'inici programada",
   startingTimeLabel: "Hora d'inici",
   startingTimeInPast: "L'hora d'inici ha de ser posterior a l'hora actual",
+  startsIn: 'Comença en {d}',
   winConditions: 'Condicions de victòria',
   targetScore: 'Puntuació',
   halfScore: 'Puntuació',
   timeLimit: 'Temps (minuts)',
   halfTimeLimit: 'TEMPS (Minuts)',
-  halfTimeBreak: 'descans (segons)',
   endCapLabel: 'CAP',
   endCapNone: 'Sense CAP — acabar el punt actual',
   endCapPlus: 'CAP +{n}',
@@ -73,7 +95,6 @@ export const ca: typeof en = {
   timeoutsScope: 'Assignació',
   timeoutsScopeHalf: 'Per part',
   timeoutsScopeGame: 'Per partit',
-  timeoutDuration: 'temps (segons)',
   timeoutLastFive: 'Permetre temps morts en els últims 5 minuts del partit',
   setupNoTimeoutsLastFive: 'No hi ha temps morts en els últims 5 minuts del partit.',
   waterBreakTitle: "Pauses d'hidratació",
@@ -81,15 +102,14 @@ export const ca: typeof en = {
     "Pauses d'hidratació per calor (Apèndix B4.3 de la WFDF): parades addicionals entre punts que decideixen els oficials del torneig. Mai no consumeixen els temps morts de cap equip. També en pots demanar una a mà durant el partit, amb el botó de la mà alçada.",
   waterBreakEnabled: 'Demanar les pauses automàticament',
   waterBreakScores: 'Quan el primer equip arribi a',
-  waterBreakDuration: 'Durada de la pausa (segons)',
   startGame: 'Començar partit',
-  teamsRequired: 'Introdueix o selecciona els dos equips per començar',
+  teamsRequired: 'Posa nom als dos equips per començar',
   duplicateTeamNames: 'Els noms dels equips han de ser diferents',
   halfScoreInvalid: 'El marcador de descans ha de ser menor que el marcador objectiu',
   language: 'Idioma',
   pastGamesTitle: 'Historial de partits',
   pastGamesEmpty:
-    "Encara no hi ha partits desats. Un partit es desa aquí automàticament quan s'anota el seu últim punt.",
+    'Encara no hi ha partits desats. Un partit es desa aquí quan acaba: en anotar-se el seu últim punt o en acabar-lo des del menú.',
   pastGameUnfinished: 'Sense acabar',
   deleteGameAria: 'Eliminar {match} dels partits anteriors',
   confirmDeleteGameTitle: 'Eliminar aquest partit?',
@@ -121,16 +141,14 @@ export const ca: typeof en = {
   dismissBanner: 'Descartar',
 
   statsTitle: 'Estadístiques',
+  statsEnabled: 'Registrar estadístiques',
   statsModeLabel: 'Registrar',
-  statsModeNone: 'Només el marcador',
-  statsModeNoneHint:
-    'Marcador, rellotges i ràtio. Les faltes i les aturades continuen quedant al registre, però sense dir de qui van ser.',
-  statsModeTeams: 'Per equip',
+  statsModeTeams: 'Equip',
   statsModeTeamsHint:
     'Afegeix la pregunta "quin equip?" a cada falta, travelling i aturada. No cal roster, i mai s\'anomena ningú.',
-  statsModePlayers: 'Per jugador',
+  statsModePlayers: 'Jugador',
   statsModePlayersHint:
-    'Afegeix un roster, perquè els gols, assistències, pèrdues i lesions puguin anomenar un jugador. Escriu-lo a sota.',
+    'Els gols, assistències, pèrdues i lesions poden anomenar un jugador del roster. El roster de cada equip és a Equips, a dalt.',
   trackedTeamLabel: 'Jugadors de',
   trackedTeamBoth: 'Els dos equips',
   trackTurnoversLabel: 'Pèrdues',
@@ -220,7 +238,7 @@ export const ca: typeof en = {
   playerSortRest: 'més descansats primer',
   lineSavedRecord: '{won} de {played} punts guanyats',
   lineModeCurrent: 'Aquest punt',
-  lineModeNext: 'Punt següent',
+  lineModeNext: 'Pròxim punt',
   lineCountOf: '{count} de {size}',
   lineCountPlain: '{count} a la línia',
   lineUnmarked: '{count} sense definir',
@@ -228,7 +246,7 @@ export const ca: typeof en = {
   lineIssueRatio: 'Això trenca la proporció que demana aquest punt ({female} FMP / {male} MMP).',
   lineNoRoster: "Afegeix jugadors al roster primer — la línia es tria d'aquí.",
   linePromptBtn: 'Registrar línia',
-  lineNextPending: 'Punt següent: {count} registrats',
+  lineNextPending: 'Pròxim punt: {count} registrats',
   btnLineSaveAnyway: 'Desar igualment',
   btnLineConfirmAnyway: 'Toca un altre cop per desar',
   btnSaveLine: 'Desar aquesta línia',
@@ -241,6 +259,17 @@ export const ca: typeof en = {
   playersTitle: 'Roster',
   collapseSection: 'Replegar {title}',
   expandSection: 'Desplegar {title}',
+  rosterEmpty: 'Sense jugadors',
+  rosterCount: '{n} jugadors',
+  rosterCountOne: '1 jugador',
+  rosterSplit: '{female} FMP / {male} MMP',
+  rosterUnusedHint:
+    "Aquest partit no preguntarà per aquests jugadors — per això calen estadístiques per jugador de {team}. El roster es desa amb l'equip igualment.",
+  rosterUnsavedHint:
+    "{team} encara no està desat. El seu roster es desa quan comenci el partit, o desa l'equip ara.",
+  rosterSaveTeam: 'Desar {team}',
+  rosterMissingNudge:
+    'Recomanat: afegeix el roster de {team} a Equips abans de començar. També es poden afegir jugadors durant el partit.',
   rosterHelp:
     'Pots afegir jugadors amb el partit ja en marxa — no cal omplir tot el roster abans de començar.',
   playerNumber: '#',
@@ -360,8 +389,8 @@ export const ca: typeof en = {
   slotStatsLabel: 'Estadístiques en directe',
   slotHolds: 'Holds',
   slotBreaks: 'Breaks',
-  slotBreakCh: 'Op. break',
-  slotTurns: 'Pèrdues',
+  slotBreakCh: 'Op. brk',
+  slotTurns: 'Turns',
   slotPasses: 'Passades',
   slotThisPoint: 'Aquest punt · {n} pèrdues',
   slotAvgHold: 'mitjana {time}',
@@ -372,12 +401,11 @@ export const ca: typeof en = {
   slotNext: 'Estadística següent',
 
   btnEndGame: 'Fi del partit',
-  btnBackToSetup: 'Tornar a la configuració',
   btnEndTimeout: 'Fi del temps mort',
 
   menuTitle: 'Menú',
+  menuNewGame: 'Començar un partit nou',
   menuGameSetup: 'Configuració del partit',
-  setupFieldTeams: 'Camp i equips',
   teamNameRequired: 'Els dos equips necessiten un nom',
   btnSaveChanges: 'Desar els canvis',
   setupTeamLoadNote:
@@ -388,7 +416,7 @@ export const ca: typeof en = {
   menuRoster: 'Roster',
   menuLine: 'Línia',
   btnBackToGame: 'Tornar al partit',
-  btnExitReport: "Sortir de l'informe",
+  reportPageTitle: 'Informe',
 
   setupScheduled: 'Previst',
   setupStarted: 'Començat',
@@ -423,7 +451,6 @@ export const ca: typeof en = {
   capTargetOption: 'A {n}',
   sideLeft: 'Esquerra',
   sideRight: 'Dreta',
-  target: 'Objectiu: {n}',
 
   // Calls — el diàleg darrere el botó del globus de diàleg. Tot el que hi ha dins
   // respon a una sola pregunta («què s'ha cantat?»), i per això el travel hi va i
@@ -542,7 +569,7 @@ export const ca: typeof en = {
   now_awaitingPullRatio:
     "Els equips s'estan alineant. Prem «Pull llançat» en el moment del llançament. Mantén el senyal fins que t'asseguris que les línies estan ben muntades.",
   now_awaitingPullCapRatio:
-    "Els equips s'estan alineant. Prem «Pull llançat» en el moment del llançament. Toca l'objectiu de dalt si el gol va ser abans de la botzina. Mantén el senyal fins que t'asseguris que les línies estan ben muntades.",
+    "Els equips s'alineen. Prem «Pull llançat» quan es llanci el disc. Toca l'objectiu de dalt si el gol va ser abans de la botzina. Mantén el senyal fins que les línies estiguin a punt.",
   now_timeout: 'Temps mort en curs. Acaba sol, o prem «Fi del temps mort».',
   now_toReady30: "El temps mort s'acaba — 30 segons perquè l'atac estigui llest. Un xiulet als 30.",
   now_toReady15: "15 segons perquè l'atac estigui llest. Dos xiulets quan s'esgoti el temps.",
@@ -552,7 +579,7 @@ export const ca: typeof en = {
   now_halftimeWarn:
     "Un minut per a la segona part — pull de {halfTeam} des de la {halfSide}. Un xiulet — els equips haurien d'anar-se preparant.",
   now_waterBreak:
-    "Pausa d'hidratació — els jugadors estan bevent i el rellotge del partit continua corrent. Prem «Fi de la pausa» quan tots dos equips siguin a la línia; l'app t'avisa quan es compleix el temps.",
+    "Pausa d'hidratació — el rellotge del partit continua corrent. Prem «Fi de la pausa» quan tots dos equips siguin a la línia; l'app t'avisa quan es compleix el temps.",
   now_waterBreakDue:
     "S'ha complert el temps de la pausa — envia tots dos equips a la línia i prem «Fi de la pausa».",
   now_stoppagePending:
@@ -614,6 +641,9 @@ export const ca: typeof en = {
   statBreaks: 'Breaks',
   statTimeouts: 'Temps morts',
   statPossessionsScored: 'Possessions amb gol',
+  reportTeamsTitle: 'Equips',
+  playerStatsTeamLabel: 'Equip',
+  playerStatsViewLabel: 'Dades',
   playerStatsTitle: 'Estadístiques de jugadors',
   filterAllTeams: 'Tots',
   colPlayer: 'Jugador',
@@ -664,9 +694,10 @@ export const ca: typeof en = {
   pointPull: 'Pull per a {team}',
   pointOpen: 'en possessió',
   pointFlagSotg: 'SOTG',
-  btnFullLog: 'Registre complet',
-  fullLogTitle: 'Registre complet del partit',
-  copyLog: 'Copiar registre',
+  pointsOpenAll: 'Obrir tots els punts',
+  pointsFoldAll: 'Plegar tots els punts',
+  btnFullLog: 'Logs',
+  fullLogTitle: 'Logs',
   colClock: 'Rellotge',
   colScore: 'Marcador',
   colEvent: 'Esdeveniment',
@@ -687,7 +718,7 @@ export const ca: typeof en = {
   shareImagePreparing: 'Preparant…',
   shareImageSaved: 'Imatge desada',
   shareImageFailed: "No s'ha pogut crear la imatge",
-  copyReport: 'Copiar al porta-retalls',
+  copyReport: 'Copiar',
   copied: 'Copiat!',
   copyFailed: "No s'ha pogut copiar — torna-ho a provar",
   newGame: 'Nou partit',
@@ -745,7 +776,7 @@ export const ca: typeof en = {
     "La primera pantalla descriu el partit que vas a anotar. Gairebé tot ve ja omplert: normalment només has d'escriure els noms dels dos equips.",
   guideStep1Template: 'Plantilla',
   guideStep1TemplateBody:
-    'Gespa i Platja omplen totes les regles de sota amb els valors habituals d\'aquella superfície, i deixen les estadístiques com estiguin. Si el teu torneig en fa servir unes altres, canvia els camps i prem "Desar com a plantilla" al final per reutilitzar-les el proper cop — una plantilla que desis també recorda què registra aquest partit.',
+    'Gespa i Platja omplen totes les regles de sota amb els valors habituals d\'aquella superfície, i deixen les estadístiques com estiguin. Si el teu torneig en fa servir unes altres, canvia els camps i prem "Desar plantilla" al costat del títol de la secció per reutilitzar-les el proper cop — una plantilla que desis també recorda què registra aquest partit.',
   guideStep1Division: 'Divisió',
   guideStep1DivisionBody:
     "Open, Femení o Mixta. La mixta afegeix la ràtio de gènere, que hauràs d'anunciar cada punt (pas 7).",
@@ -754,7 +785,7 @@ export const ca: typeof en = {
     'Escriu cada nom, o tria un equip que hagis desat abans. Tria un color semblant al de les samarretes de cada equip: els panells del marcador van pintats amb aquests colors tot el partit, així no has de recordar mai quina banda és quina.',
   guideStep1Players: 'Estadístiques',
   guideStep1PlayersBody:
-    'Dues preguntes. Primer, quant detall: "Només el marcador" és el valor per defecte — marcador, rellotges i ràtio, amb faltes, travellings i aturades tècniques registrades sense equip. "Per equip" ho atribueix tot a un equip, sense necessitat de roster. "Per jugador" atribueix gols, assistències, pèrdues i lesions a un jugador concret, un cop afegeixis el roster de sota, per a un equip o per a tots dos. Segon, els interruptors de sota: què registra realment aquest partit. Pèrdues afegeix el botó Turn a la pantalla de joc; la resta pregunten qui ha marcat, qui ha perdut el disc i qui ha jugat cada punt. Activa els que puguis seguir i deixa la resta apagats.',
+    'Dues preguntes. Primer, activa Estadístiques si vols alguna cosa més que el marcador — apagat, l\'app porta el marcador, els rellotges i la ràtio, i registra faltes, travellings i aturades tècniques sense equip. Encès, tria el detall: "Equip" ho atribueix tot a un equip, sense necessitat de roster; "Jugador" atribueix gols, assistències, pèrdues i lesions a un jugador concret un cop afegeixis el roster a la targeta Partit, per a un equip o per a tots dos. Segon, els interruptors de sota: què registra realment aquest partit. Pèrdues afegeix el botó Turn a la pantalla de joc; la resta pregunten qui ha marcat, qui ha perdut el disc i qui ha jugat cada punt. Activa els que puguis seguir i deixa la resta apagats.',
   guideStep1Time: "Hora d'inici prevista",
   guideStep1TimeBody:
     "Opcional. Marca-ho i l'aplicació fa el compte enrere fins a l'hora d'inici i desbloqueja el joc sola quan arriba.",
@@ -796,7 +827,7 @@ export const ca: typeof en = {
   guideStep4Body:
     "És l'única pantalla que faràs servir durant el partit. Res del que hi ha aquí es pot prémer sense voler de manera irreversible.",
   guideTour1:
-    "Número de camp, l'hora, en quina part som i el marcador al qual es juga el partit. El menú de l'esquerra conté aquesta guia, la configuració amb què es juga el partit (on encara es poden corregir el camp, els noms dels equips i els seus colors) i la sortida del partit.",
+    "Número de camp, en quina part som i l'hora. El menú de la dreta conté la configuració amb què es juga el partit (on encara es poden corregir el camp, els noms dels equips i els seus colors), l'informe fins ara i la sortida del partit.",
   guideTour2:
     "Un panell per equip, pintat amb el color de l'equip. Aquí és on sumes gols (pas 5), i el botó de temps mort de cada equip és al cantó superior exterior del seu propi panell.",
   guideTour3:
@@ -806,7 +837,7 @@ export const ca: typeof en = {
   guideTour5:
     "El rellotge del partit i, al costat, el segon rellotge: els segons des de l'últim gol entre punt i punt, o el compte enrere del temps mort o del half.",
   guideTour6:
-    'Els botons que escriuen al registre: el roster (si el registre de jugadors està activat), el registre, una aturada, un call i una pèrdua.',
+    'Els botons que escriuen al registre: el registre, una aturada i un call, i a més Turn i Pass si el partit els registra.',
   guideTour7: "La barra d'ajuda: què cantar i què fer. Mira el pas 6.",
   guideTour8:
     "El petit botó de pausa al costat del rellotge del partit. Tota la resta —un temps mort, el half, una falta— ja funciona sense aturar-lo; prem això només per als casos extraordinaris que pregunta la confirmació: una aturada de SOTG, una aturada tècnica del torneig, una aturada prolongada o mal temps. El rellotge s'atura en el moment que confirmes, i queda aturat fins que reprens.",
@@ -869,7 +900,7 @@ export const ca: typeof en = {
   guideStep7Chip:
     "La ràtio del punt que ve es mostra en una etiqueta sobre els panells del marcador. Parpelleja quan canvia: canta-la perquè els dos equips es col·loquin bé. Toca l'etiqueta per tornar a mostrar el senyal de mans.",
   guideStep7Rules:
-    "Quina regla de ràtio s'aplica es decideix a la configuració: la Regla A segueix una seqüència fixa que alterna cada dos punts, i l'aplicació la segueix per tu. La Regla B deixa que ho decideixi la zona d'anotació a cada punt, així que no hi ha res a anunciar. Si no saps quina es fa servir, pregunta-ho als capitans.",
+    "Si l'aplicació anuncia la ràtio es decideix a la configuració. Amb ABBA activat, segueix una seqüència fixa que alterna cada dos punts i te la diu cada vegada. Amb ABBA desactivat, els equips acorden la ràtio entre ells, així que no hi ha res a anunciar. Si no saps quina es fa servir, pregunta-ho als capitans.",
 
   guideStep8Title: 'Temps morts, half i CAP',
   guideStep8Timeout: 'Temps mort',
@@ -929,7 +960,7 @@ export const ca: typeof en = {
   guideStep10Body:
     "L'aplicació acaba el partit sola quan un equip arriba a l'objectiu. Si l'has d'aturar abans, prem la ✕ del cantó superior esquerre, al costat del número de camp, i confirma.",
   guideStep10Report:
-    'Llavors apareix l\'informe: el marcador final, unes quantes estadístiques de cada equip i el partit punt a punt. "Compartir" envia una foto del marcador, les estadístiques i cada punt directament a un xat. "Copiar al porta-retalls" ho converteix tot en text pla que pots enganxar en un missatge o en un full de càlcul; fes-ho abans de sortir de la pantalla. "Nou partit" et torna a la configuració per al següent.',
+    'Llavors apareix l\'informe: el marcador final, unes quantes estadístiques de cada equip i el partit punt a punt. "Compartir" envia una foto del marcador, les estadístiques i cada punt directament a un xat. "Copiar" ho converteix tot en text pla que pots enganxar en un missatge o en un full de càlcul; fes-ho abans de sortir de la pantalla. "Nou partit" et torna a la configuració per al següent.',
 
   guideCheatTitle: 'Resum ràpid',
   guideCheatTap: "Tocar el panell d'un equip",
@@ -955,6 +986,10 @@ export const ca: typeof en = {
     'Vibra en tocar Turn o Pass, sempre que la vibració del mòbil estigui activada.',
   settingsSound: 'So',
   settingsSoundHint: 'Reprodueix els xiulets.',
+  settingsTheme: 'Tema',
+  settingsThemeSystem: 'Sistema',
+  settingsThemeLight: 'Clar',
+  settingsThemeDark: 'Fosc',
   statsGuideTitle: 'Guia avançada',
   statsGuideSubtitle: 'Què registrar, com registrar-ho i què en surt al final',
   statsGuideIntro:
@@ -967,7 +1002,7 @@ export const ca: typeof en = {
     'La pantalla de configuració pregunta primer amb quant detall atribuir les coses i, per separat, quines coses registrar. Que siguin dues preguntes és el que et permet anotar gols i assistències de tot un torneig sense posar mai el botó de pèrdua a la pantalla, o seguir les línies d\u2019un equip sense que et pregunti qui ha marcat.',
   statsGuideModelDetail: 'Detall — a qui s\u2019anomena',
   statsGuideModelDetailBody:
-    "«Només marcador» no anomena ningú: una decisió o una aturada es registren sense dir de qui eren. «Per equip» afegeix la pregunta «quin equip?» a cada decisió, passes i aturada — sense necessitat de roster. «Per jugador» afegeix el roster, així que gols, assistències, pèrdues i lesions poden anomenar una persona, d'un equip o dels dos.",
+    "Amb Estadístiques apagat no s'anomena ningú: una decisió o una aturada es registren sense dir de qui eren. «Equip» afegeix la pregunta «quin equip?» a cada decisió, passes i aturada — sense necessitat de roster. «Jugador» afegeix el roster, així que gols, assistències, pèrdues i lesions poden anomenar una persona, d'un equip o dels dos.",
   statsGuideModelFeatures: 'Funcions — què es registra',
   statsGuideModelFeaturesBody:
     "Pèrdues, qui va marcar, qui va perdre el disc i qui juga cada punt són quatre interruptors independents, oferts només allà on el detall de dalt els pot respondre. Apaga'n un i desapareix tot el que se'n deriva, també a l'informe, que mai no mostra una columna de la qual no té dades.",
@@ -980,7 +1015,7 @@ export const ca: typeof en = {
     'Tot és a la secció Estadístiques de la pantalla de configuració. Abaixar el detall retira el que ja no pot respondre i ho torna si el tornes a pujar, així que no es perd res per provar-ho.',
   statsGuideStep1Detail: 'Registrar',
   statsGuideStep1DetailBody:
-    'Només marcador, Per equip o Per jugador — el detall de dalt. Tota la resta de la llista en depèn.',
+    "L'interruptor d'Estadístiques i després Equip o Jugador — el detall de dalt. Tota la resta de la llista en depèn.",
   statsGuideStep1Team: 'Jugadors de',
   statsGuideStep1TeamBody:
     'Quin roster s\u2019anomena: un equip o tots dos. Seguir un sol equip és el que fa gairebé tothom en un torneig, i és l\u2019únic ajust que permet seguir les línies — dues línies per punt és més del que ningú segueix des de la banda.',
@@ -1002,7 +1037,7 @@ export const ca: typeof en = {
 
   statsGuideStep2Title: 'Escriu el roster una vegada',
   statsGuideStep2Body:
-    'Anomenar jugadors necessita un roster, i val la pena escriure’l una vegada per torneig: es desa amb l\u2019equip, així que el partit següent comença amb ella posada. També pots afegir jugadors amb el partit en marxa — un dorsal desconegut mai no és un carreró sense sortida.',
+    'Anomenar jugadors necessita un roster, i val la pena escriure’l una vegada per torneig: es desa amb l\u2019equip, així que el partit següent comença amb ell ja posat. Obre\u2019l des de Roster, sota el nom de cada equip a Equips. També pots afegir jugadors amb el partit en marxa — un dorsal desconegut mai no és un carreró sense sortida.',
   statsGuideStep2Add: 'Dorsal i nom',
   statsGuideStep2AddBody:
     'Qualsevol dels dos per separat és una entrada vàlida, que és el que cal quan des de la banda només veus un dorsal.',
@@ -1024,9 +1059,9 @@ export const ca: typeof en = {
   statsGuideTour2:
     'Les estadístiques en directe, al buit que fa servir el botó ambre quan n\u2019hi ha. Tres pàgines, que es passen amb les fletxes dels costats — vegeu més avall.',
   statsGuideTour3:
-    'El roster i el diàleg de línia són al menú, a dalt a l\u2019esquerra, al costat de la configuració del partit i les guies.',
+    'El roster i el diàleg de línia són al menú, a dalt a la dreta, al costat de la configuració del partit.',
   statsGuideTour4:
-    'Decisió. Des de «Per equip» endavant, cada decisió, passes i aturada tècnica pregunta de quin equip era; una lesió pregunta qui s\u2019ha fet mal.',
+    'Decisió. Amb Estadístiques activat, cada decisió, passes i aturada tècnica pregunta de quin equip era; una lesió pregunta qui s’ha fet mal.',
   statsGuideTour5:
     'Turn: un toc per pèrdua, amb la insígnia comptant-les dins del punt. Mantén premut per desfer l\u2019última. Fixa\u2019t en la insígnia per saber que el toc ha entrat: quan el disc torna a un equip que ja l\u2019ha tingut en aquest punt, la barra de possessió torna a un costat on ja ha estat i res més no es mou a la pantalla.',
 
@@ -1140,15 +1175,15 @@ export const ca: typeof en = {
   statsGuideShare: 'Compartir',
   statsGuideShareBody:
     "El marcador, les xifres d'equip, la taula de jugadors i cada punt del partit, dibuixats com a imatge per a un xat d'equip. La imatge mostra cada punt obert, amb tota la seva història, i porta les columnes de totes les vistes alhora, agrupades sota Joc, Anotació i Possessió — una imatge no es pot tocar, que és el motiu que la pantalla plegui els punts i separi les columnes en vistes.",
-  statsGuideCopy: 'Copiar al porta-retalls',
+  statsGuideCopy: 'Copiar',
   statsGuideCopyBody:
     "L'arxiu: tot en text pla per a un full de càlcul o un correu, amb les columnes de totes les vistes disponibles en una línia per jugador i les línies predefinides en què va aparèixer cadascú. Fes-ho abans de sortir de la pantalla.",
-  statsGuideFullLog: 'Registre complet',
+  statsGuideFullLog: 'Logs',
   statsGuideFullLogBody:
-    'Punt a punt explica cada punt en ordre. El registre complet és cada entrada tal com es va anotar, correccions incloses, a un toc darrere de «Registre complet», amb el seu propi botó de copiar.',
+    'Punt a punt explica cada punt en ordre. Els logs són cada entrada tal com es va anotar, correccions incloses, a un toc darrere de «Logs», amb el seu propi botó de copiar.',
   statsGuideHistory: 'Historial de partits',
   statsGuideHistoryBody:
-    "Un partit que va acabar per marcador s'arxiva sol, i obrir-lo des de l'Historial et dóna aquest mateix informe, exactament com era aquell dia — es desa el partit sencer, no un resum. Se'n conserven els últims 50, en aquest dispositiu.",
+    "Un partit s'arxiva sol quan acaba —en anotar-se el seu últim punt o en acabar-lo des del menú—, i obrir-lo des de l'Historial et dóna aquest mateix informe, exactament com era aquell dia: es desa el partit sencer, no un resum. Se'n conserven els últims 50, en aquest dispositiu.",
 
   statsGuideCheatTitle: 'Què compta cada xifra',
   statsGuideDefHold: 'Hold',
@@ -1179,7 +1214,7 @@ export const ca: typeof en = {
 
   statsGuideFigSetupAlt: 'La secció Estadístiques de la pantalla de configuració, amb tot activat',
   statsGuideFigRosterAlt:
-    'La secció Roster de la pantalla de configuració, amb jugadors i línies predefinides',
+    'El roster d\u2019un equip a la pantalla de configuració, amb jugadors i línies predefinides',
   statsGuideFigDashboardAlt:
     'La pantalla de joc a mitja jugada, amb la barra de possessió i les estadístiques en directe',
   statsGuideFigGoalAlt: 'El diàleg que pregunta qui ha llançat el gol',

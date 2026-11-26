@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { I18nProvider } from '../i18n';
 import { GameProvider } from '../state/GameContext';
 import ConfigScreen from '../components/ConfigScreen';
+import { openRoster, rosterSheet } from './configFields';
 
 function renderConfigScreen() {
   return render(
@@ -14,19 +15,14 @@ function renderConfigScreen() {
   );
 }
 
-/** Labels sit above their input as plain sibling text, not an associated <label for>. */
-function fieldSelect(labelText: string): HTMLSelectElement {
-  const label = screen.getByText(labelText);
-  return label.parentElement!.querySelector('select') as HTMLSelectElement;
-}
-
-/** The importer lives in the Roster section, which only exists — and only expands — for a roster mode. */
+/** The importer opens from a team's roster sheet, which every team has whatever is tracked. */
 function openImporter(team: 'A' | 'B' = 'A') {
   renderConfigScreen();
-  fireEvent.change(fieldSelect('Track'), { target: { value: 'players' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
-  const buttons = screen.getAllByRole('button', { name: 'Import' });
-  fireEvent.click(buttons[team === 'A' ? 0 : 1]);
+  // A roster only shows once its team is named.
+  fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'FOXES' } });
+  fireEvent.change(screen.getByLabelText('Team 2'), { target: { value: 'WOLVES' } });
+  openRoster(team);
+  fireEvent.click(within(rosterSheet()).getByRole('button', { name: 'Import' }));
 }
 
 const paste = (text: string) =>
@@ -48,8 +44,8 @@ describe('roster import dialog', () => {
     expect(within(preview).getByText('Anna Smith')).toBeInTheDocument();
     expect(within(preview).getByText('Marc Puig')).toBeInTheDocument();
     expect(screen.getByText('2 players found')).toBeInTheDocument();
-    // Still only a preview — both rosters underneath are untouched.
-    expect(screen.getAllByText('No players added yet.')).toHaveLength(2);
+    // Still only a preview — the roster underneath is untouched.
+    expect(within(rosterSheet()).getByText('No players added yet.')).toBeInTheDocument();
   });
 
   it('adds the parsed players to the roster on import', () => {
@@ -67,9 +63,12 @@ describe('roster import dialog', () => {
     paste('12 Anna Smith');
     fireEvent.click(importButton());
 
-    // One roster has the player; the other still shows the empty state.
-    expect(screen.getAllByText('#12 Anna Smith')).toHaveLength(1);
-    expect(screen.getByText('No players added yet.')).toBeInTheDocument();
+    // That team's roster has the player; the other's row still reads empty.
+    expect(within(rosterSheet()).getByText('#12 Anna Smith')).toBeInTheDocument();
+    expect(document.querySelector('[data-roster-team="B"]')!.textContent).toContain('1 player');
+    expect(document.querySelector('[data-roster-team="A"]')!.textContent).toContain(
+      'No players yet',
+    );
   });
 
   it('skips players already on the roster, and says so', () => {

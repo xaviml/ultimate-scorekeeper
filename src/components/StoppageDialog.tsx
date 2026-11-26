@@ -7,7 +7,7 @@ import type { PlayerInfo, StoppageKind, TeamId } from '../state/types';
 import { InjuryAttributionDialog } from './InjuryAttributionDialog';
 import { InjurySubDialog } from './InjurySubDialog';
 import { Modal } from './Modal';
-import { contrastText, secondaryButton, teamChoiceButton } from './ui';
+import { contrastText, teamOutline, secondaryButton, teamChoiceButton } from './ui';
 
 type Step = 'kind' | 'injury' | 'injurySub' | 'technicalTeam' | 'sotgTeam';
 
@@ -190,6 +190,7 @@ export function StoppageDialog({ onClose }: { onClose: () => void }) {
               className={teamChoiceButton()}
               style={{
                 backgroundColor: state.config.teams[id].color,
+                ...teamOutline(state.config.teams[id].color),
                 color: contrastText(state.config.teams[id].color),
               }}
               onClick={() => chooseSotgTeam(id)}
@@ -216,6 +217,7 @@ export function StoppageDialog({ onClose }: { onClose: () => void }) {
               className={teamChoiceButton()}
               style={{
                 backgroundColor: state.config.teams[id].color,
+                ...teamOutline(state.config.teams[id].color),
                 color: contrastText(state.config.teams[id].color),
               }}
               onClick={() => chooseTechnicalTeam(id)}

@@ -520,7 +520,7 @@ describe('the next line', () => {
     tap(chip(/One/)); // and pick a different next line
     tap(screen.getByRole('button', { name: /this point/i }));
     // The substitution is still there.
-    expect(chip(/Three/).getAttribute('class')).toContain('bg-signal');
+    expect(chip(/Three/).getAttribute('aria-pressed')).toBe('true');
 
     commit();
     const stored = JSON.parse(

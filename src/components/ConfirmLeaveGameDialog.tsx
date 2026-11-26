@@ -1,6 +1,6 @@
 import { useT } from '../i18n/useT';
 import { Modal } from './Modal';
-import { primaryButton, secondaryButton } from './ui';
+import { dangerButton, secondaryButton } from './ui';
 
 export function ConfirmLeaveGameDialog({
   onConfirm,
@@ -17,7 +17,7 @@ export function ConfirmLeaveGameDialog({
         <button className={secondaryButton} onClick={onCancel}>
           {t('btnCancel')}
         </button>
-        <button className={primaryButton} onClick={onConfirm}>
+        <button className={dangerButton} onClick={onConfirm}>
           {t('btnLeaveGameConfirm')}
         </button>
       </div>

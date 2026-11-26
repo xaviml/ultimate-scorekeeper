@@ -25,8 +25,8 @@ function PlayerChip({
       type="button"
       aria-pressed={active}
       aria-label={playerLabel(player)}
-      className={`flex w-full min-w-0 items-center gap-1 rounded-full border px-2 py-1.5 text-sm leading-tight active:scale-95 ${
-        active ? 'bg-signal text-pitch border-signal' : 'bg-pitch border-line text-chalk'
+      className={`flex w-full min-w-0 items-center gap-1 rounded-md border px-2 py-1.5 text-sm leading-tight active:scale-95 ${
+        active ? 'bg-accent text-pitch border-accent' : 'bg-pitch border-line text-chalk'
       }`}
       onClick={() => onSelect(active ? null : player.id)}
     >
@@ -40,7 +40,7 @@ function PlayerChip({
           no number, as long as someone in the list has one. */}
       {numberSlot && (
         <span
-          className={`relative top-px min-w-[1.55rem] shrink-0 text-right font-clock font-semibold tabular-nums ${active ? '' : 'text-signal'}`}
+          className={`relative top-px min-w-[1.55rem] shrink-0 text-right font-clock font-semibold tabular-nums ${active ? '' : 'text-accent'}`}
         >
           {player.number && `#${player.number}`}
         </span>
@@ -86,7 +86,7 @@ export function PlayerSortToggle() {
   return (
     <button
       type="button"
-      className="rounded-md border border-line px-2 py-1 text-[11px] font-board text-chalk/70"
+      className="rounded border border-line px-2 py-1 text-[11px] font-board text-chalk/70"
       aria-label={t('playerSortAria', {
         order: t(next === 'name' ? 'playerSortName' : 'playerSortNumber'),
       })}

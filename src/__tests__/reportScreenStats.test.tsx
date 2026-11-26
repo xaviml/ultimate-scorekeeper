@@ -331,12 +331,12 @@ describe('report screen — player stats table', () => {
     const playerSection = within(
       screen.getByText('Player stats').closest('section') as HTMLElement,
     );
-    expect(playerSection.getByRole('button', { name: 'All' })).toBeInTheDocument();
+    expect(playerSection.getByRole('radio', { name: 'All' })).toBeInTheDocument();
 
     const alexRow = playerTable().getByText('Alex').closest('tr') as HTMLElement;
     expect(alexRow.querySelector('span')).not.toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'WOLVES' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'WOLVES' }));
     expect(playerTable().queryByText('Alex')).toBeNull();
     expect(playerTable().getByText('Jo')).toBeInTheDocument();
   });
@@ -387,7 +387,7 @@ describe('report screen — clipboard text', () => {
     state.log = [goalEntry({ team: 'A', scorerId: 'a1' })];
     renderReport(state);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Copy to clipboard' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
     await screen.findByText('Copied!');
 
     const text = writeText.mock.calls[0][0] as string;
@@ -456,7 +456,7 @@ describe('the player-stat views', () => {
     const row = screen.getByText(name).closest('tr') as HTMLElement;
     return [...row.querySelectorAll('td')].slice(1).map((c) => c.textContent ?? '');
   }
-  const viewPill = (name: RegExp) => screen.getByRole('button', { name });
+  const viewPill = (name: RegExp) => screen.getByRole('radio', { name });
 
   // With neither line tracking nor turnover-player tracking on there is one view's
   // worth of data, so pills would be tabs onto the same columns already on screen.

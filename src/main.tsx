@@ -4,15 +4,19 @@ import App from './App';
 import { GameProvider } from './state/GameContext';
 import { I18nProvider } from './i18n';
 import './index.css';
+import { applyTheme, watchSystemTheme } from './state/uiPreferences';
 
-// The history stack here (see useBackGuard) exists only to catch the phone/
-// browser back gesture, not to move between real pages — so the browser's
-// default scroll restoration on a popstate is restoring a position that has
-// nothing to do with the screen React is about to render, and can race an
-// explicit `scrollTo(0, 0)` fired from that screen's own mount effect (e.g.
-// ConfigScreen's, after "Exit report"). Manual restoration leaves every
-// scroll decision to the app.
+// Every page is a history entry (see hooks/useRoute), but some stay mounted, hidden,
+// under the page opened over them, so the browser's own scroll restoration would
+// restore positions that belong to a different page than the one React is about to
+// show. Manual restoration leaves every scroll decision to the app
+// (usePreservedScroll, and each screen's own scroll-to-top on mount).
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+
+// index.html already set the theme attribute before paint; this sets the browser
+// bar colour to match and keeps it in step with the phone's own setting.
+applyTheme();
+watchSystemTheme();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

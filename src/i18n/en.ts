@@ -7,8 +7,8 @@ export const en = {
   templateCustomGroup: 'Your templates',
   templateGrassName: 'Grass',
   templateBeachName: 'Beach',
-  saveAsTemplateBtn: 'Save as template',
-  saveTemplateTitle: 'Save as template',
+  saveAsTemplateBtn: 'Save template',
+  saveTemplateTitle: 'Save template',
   saveTemplateHint:
     'Saves these rules and the statistics settings for reuse — not the teams, coin toss results, players or which team is followed.',
   saveTemplateNamePlaceholder: 'e.g. Summer League',
@@ -21,6 +21,25 @@ export const en = {
   btnDeleteTemplate: 'Delete template',
   confirmDeleteTemplateTitle: 'Delete saved template?',
   confirmDeleteTemplate: 'Delete "{name}"? This cannot be undone.',
+  fieldTime: 'Time',
+  fieldBreak: 'Break',
+  fieldDuration: 'Duration',
+  unitMin: 'min',
+  unitSec: 's',
+  stepDown: 'Decrease {label}',
+  stepUp: 'Increase {label}',
+  endCapNoneShort: 'None',
+  endCapCondShort: 'Conditional',
+  matchTitle: 'Match',
+  startFix: 'Check {section} to start',
+  sumPoints: '{n} pts',
+  sumCapNone: 'no CAP',
+  sumCapCond: 'CAP +{n} if ahead by >{x}',
+  sumAt: 'at {n}',
+  sumBreak: '{d} break',
+  sumNoBreak: 'no break',
+  sumOff: 'Off',
+  sumAutoOff: 'Automatic off',
   setupTitle: 'Game setup',
   division: 'Division',
   divisionOpen: 'Open',
@@ -30,7 +49,7 @@ export const en = {
   teamA: 'Team 1',
   teamB: 'Team 2',
   teamName: 'Team name',
-  teamColor: 'Color',
+  teamColor: 'Colour',
   addAsNewTeam: 'Add "{name}" as a new team',
   deleteTeamAria: 'Delete saved team {name}',
   clearTeamNameAria: 'Clear {name}',
@@ -38,25 +57,29 @@ export const en = {
   confirmDeleteTeam:
     'Delete "{name}" and its saved roster from this device? This cannot be undone.',
   btnDeleteTeam: 'Delete team',
-  mixedRatioRule: 'Mixed gender-ratio rule',
-  ruleA: 'Rule A — prescribed (alternates every 2 points)',
-  ruleB: 'Rule B — end zone decides each point',
+  genderRatioTitle: 'Gender ratio',
+  ratioAbbaLabel: 'Announce the gender ratio (ABBA)',
+  ratioAbbaOnHint:
+    'The app calls the ratio for every point, alternating every two points, and shows it on the game screen.',
+  ratioAbbaOffHint: "The teams agree on the ratio each point; the app doesn't announce it.",
   coinToss: 'Coin toss results',
-  coinTossHelp: 'Ask the captains to flip a disc before the game, then record the results here.',
+  coinTossHelp: 'Flip a disc with the captains, then record the result:',
   startingOffense: 'Team receiving the first pull (offense)',
   startingSide: 'Team starting on the left side',
   startingRatio: 'Starting gender ratio',
   ratioMale: 'Men',
   ratioFemale: 'Women',
+  ratioPosition1: '{gender}, first of two',
+  ratioPosition2: '{gender}, second of two',
   startingTimeEnabled: 'Game has a scheduled starting time',
   startingTimeLabel: 'Starting time',
   startingTimeInPast: 'Starting time must be later than the current time',
+  startsIn: 'Starts in {d}',
   winConditions: 'Win conditions',
   targetScore: 'Score',
   halfScore: 'Score',
   timeLimit: 'Time (minutes)',
   halfTimeLimit: 'TIME (Minutes)',
-  halfTimeBreak: 'break (seconds)',
   endCapLabel: 'CAP',
   endCapNone: 'No CAP — finish the current point',
   endCapPlus: 'CAP +{n}',
@@ -72,7 +95,6 @@ export const en = {
   timeoutsScope: 'Allowance',
   timeoutsScopeHalf: 'Per half',
   timeoutsScopeGame: 'Per game',
-  timeoutDuration: 'time (seconds)',
   timeoutLastFive: 'Allow timeouts in the last 5 minutes of the game',
   setupNoTimeoutsLastFive: 'No timeouts in the last 5 minutes of the game.',
   waterBreakTitle: 'Water breaks',
@@ -80,18 +102,17 @@ export const en = {
     "Hot-weather hydration breaks (WFDF Appendix B4.3): extra stops between points, decided by the tournament officials. They never come out of either team's timeouts. You can also call one by hand during the game, from the raised-hand button.",
   waterBreakEnabled: 'Call water breaks automatically',
   waterBreakScores: 'When the first team reaches',
-  waterBreakDuration: 'Water break duration (seconds)',
   startGame: 'Start game',
-  teamsRequired: 'Enter or select both team names to start',
+  teamsRequired: 'Name both teams to start',
   duplicateTeamNames: 'Team names must be different',
   halfScoreInvalid: 'Half-time score must be lower than the target score',
   language: 'Language',
   // The archive of finished games, reached from the setup screen's menu. It is
-  // "Match History" rather than "History" because it lists the matches themselves,
+  // "Match history" rather than "History" because it lists the matches themselves,
   // not what happened inside one (that is the report's "Point by point").
-  pastGamesTitle: 'Match History',
+  pastGamesTitle: 'Match history',
   pastGamesEmpty:
-    'No games saved yet. A game is saved here automatically as soon as its final point is scored.',
+    'No games saved yet. A game is saved here once it ends — its final point scored, or ended from the menu.',
   pastGameUnfinished: 'Unfinished',
   deleteGameAria: 'Delete {match} from past games',
   confirmDeleteGameTitle: 'Delete this game?',
@@ -125,16 +146,14 @@ export const en = {
 
   // Statistics
   statsTitle: 'Statistics',
+  statsEnabled: 'Record statistics',
   statsModeLabel: 'Track',
-  statsModeNone: 'Score only',
-  statsModeNoneHint:
-    'Score, clocks and ratio. Calls and stoppages still go in the log, but without saying who they were for.',
-  statsModeTeams: 'By team',
+  statsModeTeams: 'Team',
   statsModeTeamsHint:
     'Adds the question "which team?" to every call, travel and stoppage. No roster needed, and nobody is ever named.',
-  statsModePlayers: 'By player',
+  statsModePlayers: 'Player',
   statsModePlayersHint:
-    'Adds a roster, so goals, assists, turnovers and injuries can name a player. Type it in below.',
+    "Goals, assists, turnovers and injuries can name a player from the roster. Each team's roster is in Teams, above.",
   trackedTeamLabel: 'Players of',
   trackedTeamBoth: 'Both teams',
   trackTurnoversLabel: 'Turnovers',
@@ -247,6 +266,17 @@ export const en = {
   playersTitle: 'Roster',
   collapseSection: 'Collapse {title}',
   expandSection: 'Expand {title}',
+  rosterEmpty: 'No players yet',
+  rosterCount: '{n} players',
+  rosterCountOne: '1 player',
+  rosterSplit: '{female} FMP / {male} MMP',
+  rosterUnusedHint:
+    "This game won't ask about these players — that needs statistics by player for {team}. The roster is kept with the team either way.",
+  rosterUnsavedHint:
+    "{team} isn't saved yet. Its roster is kept once the game starts, or save the team now.",
+  rosterSaveTeam: 'Save {team}',
+  rosterMissingNudge:
+    "Recommended: add {team}'s roster in Teams before kickoff. Players can also be added during the game.",
   rosterHelp:
     "You can add players once the game is underway — there's no need to fill in the full roster before kickoff.",
   playerNumber: '#',
@@ -377,7 +407,7 @@ export const en = {
   slotStatsLabel: 'Live statistics',
   slotHolds: 'Holds',
   slotBreaks: 'Breaks',
-  slotBreakCh: 'Break ch.',
+  slotBreakCh: 'Brk ch.',
   slotTurns: 'Turns',
   slotPasses: 'Passes',
   slotThisPoint: 'This point · {n} turns',
@@ -389,7 +419,6 @@ export const en = {
   slotNext: 'Next statistic',
 
   btnEndGame: 'End game',
-  btnBackToSetup: 'Back to setup',
   btnEndTimeout: 'End timeout',
 
   // The header menu. It holds the one way off this screen (which of the three it
@@ -397,8 +426,8 @@ export const en = {
   // from here: the setup the game is being played under, and the walkthrough,
   // which until now was reachable only before kickoff.
   menuTitle: 'Menu',
+  menuNewGame: 'Start new game',
   menuGameSetup: 'Game setup',
-  setupFieldTeams: 'Field & teams',
   teamNameRequired: 'Both teams need a name',
   btnSaveChanges: 'Save changes',
   setupTeamLoadNote:
@@ -413,7 +442,7 @@ export const en = {
   menuRoster: 'Roster',
   menuLine: 'Line',
   btnBackToGame: 'Back to the game',
-  btnExitReport: 'Exit report',
+  reportPageTitle: 'Report',
 
   // Read-only view of state.config. Most labels are shared with the setup form —
   // only the values it has to write out as sentences live here.
@@ -459,7 +488,6 @@ export const en = {
   capTargetOption: 'At {n}',
   sideLeft: 'Left',
   sideRight: 'Right',
-  target: 'Target: {n}',
 
   // Calls — the dialog behind the shout-bubble button. Everything in it is one
   // answer to one question ("what was called?"), which is why travel belongs here
@@ -587,7 +615,7 @@ export const en = {
   now_awaitingPullRatio:
     'Teams are lining up. Press "Pull thrown" the moment the disc is thrown. Hold the signal until you\'re sure the lines are set correctly.',
   now_awaitingPullCapRatio:
-    'Teams are lining up. Press "Pull thrown" the moment the disc is thrown. Tap the target above if the goal beat the horn. Hold the signal until you\'re sure the lines are set correctly.',
+    'Teams are lining up. Press "Pull thrown" when the disc is thrown. Tap the target above if the goal beat the horn. Keep signalling until the lines are set.',
   now_timeout: 'Timeout running. It ends on its own, or press "End timeout".',
   now_toReady30: 'Timeout ending — 30 seconds until the offence must be set. One whistle at 30.',
   now_toReady15: '15 seconds until the offence must be set. Two whistles when the time is up.',
@@ -597,7 +625,7 @@ export const en = {
   now_halftimeWarn:
     'One minute until the second half — {halfTeam} pulls from the {halfSide}. One whistle — teams should be getting ready.',
   now_waterBreak:
-    'Water break — the players are drinking and the game clock keeps running. Press "End water break" once both teams are back at the line; the app tells you when the time is up.',
+    'Water break — the game clock keeps running. Press "End water break" once both teams are back at the line; the app tells you when the time is up.',
   now_waterBreakDue:
     'The water break time is up — send both teams back to the line and press "End water break".',
   now_stoppagePending:
@@ -667,6 +695,9 @@ export const en = {
   statBreaks: 'Breaks',
   statTimeouts: 'Timeouts',
   statPossessionsScored: 'Possessions scored',
+  reportTeamsTitle: 'Teams',
+  playerStatsTeamLabel: 'Team',
+  playerStatsViewLabel: 'Figures',
   playerStatsTitle: 'Player stats',
   filterAllTeams: 'All',
   colPlayer: 'Player',
@@ -718,9 +749,10 @@ export const en = {
   pointFlagSotg: 'SOTG',
   // Opens every log entry as it was recorded, with its own copy button (see
   // FullLogDialog) — point by point tells the game, this is the record.
-  btnFullLog: 'Full log',
-  fullLogTitle: 'Full game log',
-  copyLog: 'Copy log',
+  pointsOpenAll: 'Open all points',
+  pointsFoldAll: 'Fold all points',
+  btnFullLog: 'Logs',
+  fullLogTitle: 'Logs',
   colClock: 'Clock',
   colScore: 'Score',
   colEvent: 'Event',
@@ -746,7 +778,7 @@ export const en = {
   shareImagePreparing: 'Preparing…',
   shareImageSaved: 'Image saved',
   shareImageFailed: "Couldn't create the image",
-  copyReport: 'Copy to clipboard',
+  copyReport: 'Copy',
   copied: 'Copied!',
   copyFailed: 'Copy failed — try again',
   newGame: 'New game',
@@ -810,7 +842,7 @@ export const en = {
     'The first screen describes the game you are about to keep. Most of it is filled in for you — usually you only have to type the two team names.',
   guideStep1Template: 'Template',
   guideStep1TemplateBody:
-    'Grass and Beach preset every rule below with the usual values for that surface, and leave the statistics settings as they are. If your tournament plays something else, change the fields and press "Save as template" at the bottom to reuse them next time — a template you save also remembers what this game records.',
+    'Grass and Beach preset every rule below with the usual values for that surface, and leave the statistics settings as they are. If your tournament plays something else, change the fields and press "Save template" beside the section title to reuse them next time — a template you save also remembers what this game records.',
   guideStep1Division: 'Division',
   guideStep1DivisionBody:
     "Open, Women's or Mixed. Mixed adds the gender ratio, which you will have to announce every point (step 7).",
@@ -819,7 +851,7 @@ export const en = {
     'Type each name, or pick a team you saved earlier. Choose a colour close to the shirts each team is wearing: the score panels are painted in those colours all game, so you never have to remember which side is which.',
   guideStep1Players: 'Statistics',
   guideStep1PlayersBody:
-    'Two questions. First, how much detail: "Score only" is the default — score, clocks and ratio, with calls, travels and technical stoppages logged with no team. "By team" attributes everything to a team, no roster needed. "By player" attributes goals, assists, turnovers and injuries to a named player, once you add the roster below, for one team or for both. Second, the switches under it: what this game actually records. Turnovers puts the Turn button on the game screen; the rest ask who scored, who lost the disc, and who played each point. Turn them on for the ones you can keep up with, and leave the rest off.',
+    'Two questions. First, switch Statistics on if you want more than the score — off, the app keeps the score, the clocks and the ratio, and logs calls, travels and technical stoppages with no team. On, pick the detail: "Team" attributes everything to a team, no roster needed; "Player" attributes goals, assists, turnovers and injuries to a named player once the roster is added in the Match card, for one team or for both. Second, the switches under it: what this game actually records. Turnovers puts the Turn button on the game screen; the rest ask who scored, who lost the disc, and who played each point. Turn them on for the ones you can keep up with, and leave the rest off.',
   guideStep1Time: 'Scheduled starting time',
   guideStep1TimeBody:
     'Optional. Tick it and the app counts down to the kickoff and unlocks play on its own when it arrives.',
@@ -861,7 +893,7 @@ export const en = {
   guideStep4Body:
     'This is the only screen you will use during the game. Nothing here can be pressed by mistake in a way you cannot take back.',
   guideTour1:
-    'Field number, the time of day, which half it is and the score the game is played to. The menu on the left holds this guide, the setup the game is being played under (where the field, the team names and their colours can still be corrected), and the way out of the game.',
+    'Field number, which half it is and the time of day. The menu on the right holds the setup the game is being played under (where the field, the team names and their colours can still be corrected), the report so far, and the way out of the game.',
   guideTour2:
     'One panel per team, painted in the team colour. This is where you add goals (step 5), and each team\u2019s timeout button sits in the top outer corner of its own panel.',
   guideTour3:
@@ -871,7 +903,7 @@ export const en = {
   guideTour5:
     'The game clock, and next to it the second clock: the seconds since the last goal between points, or the timeout or half-time countdown.',
   guideTour6:
-    'The buttons that write to the log: the roster (when player tracking is on), the log itself, a stoppage, a call and a turnover.',
+    'The buttons that write to the log: the log itself, a stoppage and a call — plus Turn and Pass when the game records them.',
   guideTour7: 'The assistance bar — what to shout and what to do. See step 6.',
   guideTour8:
     'The small pause button next to the game clock. Everything else — a timeout, half-time, a call — already runs without stopping it; only tap this for the extraordinary cases the confirmation asks about: an SOTG stoppage, a tournament technical stoppage, a prolonged stoppage, or bad weather. The clock stops the moment you confirm, and stays stopped until you resume.',
@@ -934,7 +966,7 @@ export const en = {
   guideStep7Chip:
     'The ratio for the coming point is shown as a chip above the score panels. It flashes when it changes — shout it so both teams line up correctly. Tap the chip to show the hand signal again.',
   guideStep7Rules:
-    'Which ratio rule applies is set at setup: Rule A follows a fixed sequence that alternates every two points, and the app tracks it for you. Rule B lets the end zone decide it each point, so there is nothing to announce. If you do not know which one is being used, ask the captains.',
+    'Whether the app announces the ratio is set at setup. With ABBA on, it follows a fixed sequence that alternates every two points and tells you each one. With it off, the teams agree on the ratio themselves, so there is nothing to announce. If you do not know which one is being used, ask the captains.',
 
   guideStep8Title: 'Timeouts, half-time and caps',
   guideStep8Timeout: 'Timeout',
@@ -994,7 +1026,7 @@ export const en = {
   guideStep10Body:
     'The app ends the game on its own when a team reaches the target. If you have to stop earlier, press the ✕ in the top-left corner, next to the field number, and confirm.',
   guideStep10Report:
-    'You then get the report: the final score, a few statistics for each team and the game point by point. "Share" sends a picture of the score, the statistics and every point straight to a chat. "Copy to clipboard" turns all of it into plain text you can paste into a message or a spreadsheet — do that before you leave the screen. "New game" takes you back to setup for the next match.',
+    'You then get the report: the final score, a few statistics for each team and the game point by point. "Share" sends a picture of the score, the statistics and every point straight to a chat. "Copy" turns all of it into plain text you can paste into a message or a spreadsheet — do that before you leave the screen. "New game" takes you back to setup for the next match.',
 
   guideCheatTitle: 'Quick reference',
   guideCheatTap: 'Tap a team panel',
@@ -1025,6 +1057,10 @@ export const en = {
     "Vibrates when you tap Turn or Pass, as long as your phone's vibration is on.",
   settingsSound: 'Sound',
   settingsSoundHint: 'Play the whistles.',
+  settingsTheme: 'Theme',
+  settingsThemeSystem: 'System',
+  settingsThemeLight: 'Light',
+  settingsThemeDark: 'Dark',
   statsGuideTitle: 'Advanced guide',
   statsGuideSubtitle: 'What to record, how to record it, and what comes out',
   statsGuideIntro:
@@ -1037,7 +1073,7 @@ export const en = {
     'The setup screen asks how much detail to attribute things to, and then, separately, which things to record. Keeping the two apart is what lets you take goals and assists for a whole tournament without ever putting the turnover button on the screen, or follow one team\u2019s lines without being asked who scored.',
   statsGuideModelDetail: 'Detail — who gets named',
   statsGuideModelDetailBody:
-    '"Score only" names nobody: a call or a stoppage is logged without saying whose it was. "By team" adds the question "which team?" to every call, travel and stoppage — no roster needed. "By player" adds a roster, so goals, assists, turnovers and injuries can name a person, for one team or for both.',
+    'With Statistics off, nobody is named: a call or a stoppage is logged without saying whose it was. "Team" adds the question "which team?" to every call, travel and stoppage — no roster needed. "Player" adds a roster, so goals, assists, turnovers and injuries can name a person, for one team or for both.',
   statsGuideModelFeatures: 'Features — what gets recorded',
   statsGuideModelFeaturesBody:
     'Turnovers, who scored, who turned it over and who played each point are four independent switches, each offered only where the detail above can answer it. Turn one off and everything derived from it disappears — including from the report, which never shows a column it has no data for.',
@@ -1050,7 +1086,7 @@ export const en = {
     'All of it lives in the Statistics section of the setup screen. Moving the detail retires anything it can no longer answer and restores it if you move it back, so nothing is lost by trying a setting out.',
   statsGuideStep1Detail: 'Track',
   statsGuideStep1DetailBody:
-    'Score only, By team or By player — the detail above. Everything else on this list hangs off it.',
+    'The Statistics switch, then Team or Player — the detail above. Everything else on this list hangs off it.',
   statsGuideStep1Team: 'Players of',
   statsGuideStep1TeamBody:
     'Which roster gets named: one team, or both. Following a single team is what most scorekeepers do at a tournament, and it is the only setting that allows line tracking — two lines a point is more than anyone follows from a sideline.',
@@ -1072,7 +1108,7 @@ export const en = {
 
   statsGuideStep2Title: 'Type the roster once',
   statsGuideStep2Body:
-    'Naming players needs a roster, and a roster is worth typing once per tournament: it is saved with the team, so the next game starts with it already filled in. You can also add players mid-game — an unfamiliar number on the field is never a dead end.',
+    "Naming players needs a roster, and a roster is worth typing once per tournament: it is saved with the team, so the next game starts with it already filled in. Open it from Roster, under each team's name in Teams. You can also add players mid-game — an unfamiliar number on the field is never a dead end.",
   statsGuideStep2Add: 'Number and name',
   statsGuideStep2AddBody:
     'Either half alone is a valid entry, which matters when all you can see from the sideline is a shirt number.',
@@ -1094,9 +1130,9 @@ export const en = {
   statsGuideTour2:
     'The live statistics, in the slot the amber button uses when there is one. Three pages, cycled with the chevrons either side — see below.',
   statsGuideTour3:
-    'The roster and the line dialog both live in the menu, top left, alongside the game setup and the guides.',
+    'The roster and the line dialog both live in the menu, top right, alongside the game setup.',
   statsGuideTour4:
-    'Call. From By team upwards, every call, travel and technical stoppage asks which team it was for; an injury asks who was hurt.',
+    'Call. With Statistics on, every call, travel and technical stoppage asks which team it was for; an injury asks who was hurt.',
   statsGuideTour5:
     'Turn: one tap per turnover, with the badge counting them within the point. Press and hold to take the last one back. Watch the badge to know a tap landed: when the disc goes back to a team that has already had it this point, the possession bar returns to a side it has been on before and nothing else on screen moves.',
 
@@ -1209,15 +1245,15 @@ export const en = {
   statsGuideShare: 'Share',
   statsGuideShareBody:
     'The score, the team figures, the player table and every point of the game, drawn as a picture for a team chat. The picture shows each point opened up, with its whole story, and carries every view\u2019s columns at once, grouped under Playing, Scoring and Possession headings — a picture cannot be tapped, which is why the screen folds the points and splits the columns into views.',
-  statsGuideCopy: 'Copy to clipboard',
+  statsGuideCopy: 'Copy',
   statsGuideCopyBody:
     'The archive: everything as plain text for a spreadsheet or an email, with every available view\u2019s columns on one line per player and the predefined lines each of them appeared in. Do it before you leave the screen.',
-  statsGuideFullLog: 'Full log',
+  statsGuideFullLog: 'Logs',
   statsGuideFullLogBody:
-    'Point by point tells each point in order. The full log is every entry exactly as it was recorded, corrections included, one tap away behind "Full log", with a copy button of its own.',
-  statsGuideHistory: 'Match History',
+    'Point by point tells each point in order. The logs are every entry exactly as it was recorded, corrections included, one tap away behind "Logs", with a copy button of their own.',
+  statsGuideHistory: 'Match history',
   statsGuideHistoryBody:
-    'A game the scoreline finished is filed automatically, and opening it from Match History gives you this same report, exactly as it was on the day — the whole game is stored, not a summary of it. The last 50 are kept, on this device.',
+    'A game is filed automatically once it ends — its final point scored, or ended from the menu — and opening it from Match history gives you this same report, exactly as it was on the day: the whole game is stored, not a summary of it. The last 50 are kept, on this device.',
 
   statsGuideCheatTitle: 'What each figure counts',
   statsGuideDefHold: 'Hold',
@@ -1244,8 +1280,7 @@ export const en = {
   statsGuideDefODDo: 'Points played receiving the pull / pulling',
 
   statsGuideFigSetupAlt: 'The Statistics section of the setup screen, with every switch on',
-  statsGuideFigRosterAlt:
-    'The Roster section of the setup screen, with players and predefined lines',
+  statsGuideFigRosterAlt: "A team's roster on the setup screen, with players and predefined lines",
   statsGuideFigDashboardAlt:
     'The dashboard mid-point, with the possession bar and the live statistics',
   statsGuideFigGoalAlt: 'The dialog asking who threw the goal',

@@ -15,7 +15,7 @@
 import type { PointRowModel, TimelineLine, TrackSegment } from '../state/pointStory';
 import type { CardPointsModel, ReportCardModel } from '../state/reportCard';
 import { TRACK_HEIGHT, TRACK_STROKE, layoutTrack } from './possessionTrack';
-import { contrastText } from './ui';
+import { contrastText, isPaleColor } from './ui';
 
 /** Bitmap scale — the card is laid out in these logical units and rendered at 2x for a crisp share. */
 const SCALE = 2;
@@ -67,19 +67,25 @@ const MARKER_H = 26;
 const LINES_HEAD_H = 20;
 const LINES_ROW_H = 26;
 /** The closing credit and the app's address, centred under the last panel. */
+const TEAM_HEAD_H = 30;
+const ICON = 16;
+const ICON_GAP = 9;
 const FOOTER_CREDIT_H = 20;
 const FOOTER_URL_H = 22;
 
 /** The Tailwind palette, duplicated because a canvas can't read a utility class. Keep in step with tailwind.config.js. */
 const C = {
-  pitch: '#101418',
-  panel: '#1a2129',
-  line: '#2c3641',
-  lineSoft: 'rgba(44, 54, 65, 0.75)',
-  chalk: '#e8edf2',
-  chalkMid: 'rgba(232, 237, 242, 0.75)',
-  chalkDim: 'rgba(232, 237, 242, 0.5)',
-  signal: '#ffd447',
+  pitch: '#ECEFF4',
+  panel: '#FFFFFF',
+  line: '#D3D9E3',
+  lineSoft: 'rgba(211, 217, 227, 0.75)',
+  chalk: '#101C30',
+  chalkMid: 'rgba(16, 28, 48, 0.75)',
+  chalkDim: 'rgba(16, 28, 48, 0.55)',
+  // The card's one highlight colour: breaks, the headline player column, the link.
+  signal: '#1F3A6B',
+  // A pale team colour's outline: the accent navy softened, as PALE_OUTLINE_COLOR on screen.
+  paleOutline: 'rgba(31, 58, 107, 0.55)',
 };
 
 const board = (size: number, weight = 600) =>
@@ -88,6 +94,22 @@ const clock = (size: number, weight = 600) =>
   `${weight} ${size}px "Rajdhani", ui-monospace, monospace`;
 
 type Ctx = CanvasRenderingContext2D;
+
+/**
+ * A pale team colour (white, cream, pale yellow) vanishes on the card's white
+ * panels, so wherever one is painted it gets a hairline in the accent navy — the
+ * same rule `paleOutline` applies on screen. Strokes the current path.
+ */
+function outlineIfPale(ctx: Ctx, color: string) {
+  if (!isPaleColor(color)) return;
+  ctx.strokeStyle = C.paleOutline;
+  // Half a point on a card drawn at 2x: one image pixel, as on screen.
+  ctx.lineWidth = 0.5;
+  ctx.stroke();
+}
+
+/** A team colour drawn as a line: navy instead when it would vanish on white. */
+const edgeOf = (color: string) => (isPaleColor(color) ? C.paleOutline : color);
 
 /** `ctx.roundRect` is recent enough that older mobile Safari misses it; arcTo is everywhere. */
 function roundRect(ctx: Ctx, x: number, y: number, w: number, h: number, r: number) {
@@ -158,6 +180,66 @@ function panelBox(ctx: Ctx, x: number, y: number, w: number, h: number) {
   ctx.strokeStyle = C.line;
   ctx.lineWidth = 1;
   ctx.stroke();
+}
+
+/**
+ * The section glyphs from icons.tsx, as path data a canvas can stroke — the same
+ * drawing spec (24 viewBox, 1.75 stroke, square caps, mitred joins) and the same
+ * shapes, duplicated for the reason the palette is: a canvas cannot render JSX.
+ * Keep in step with StatsIcon, PlayersIcon and LogIcon.
+ */
+const GLYPHS: Record<'stats' | 'players' | 'log', { paths: string[]; squares?: number[][] }> = {
+  stats: { paths: ['M4 4v16h16M7.5 15l4-4.5 3 3 5-6'] },
+  players: {
+    paths: [
+      'M12.25 8a3.25 3.25 0 1 1-6.5 0a3.25 3.25 0 1 1 6.5 0',
+      'M3 20v-1.5A3.5 3.5 0 0 1 6.5 15h5a3.5 3.5 0 0 1 3.5 3.5V20',
+      'M15.5 4.9a3.25 3.25 0 0 1 0 6.2M18 15h.5a3.5 3.5 0 0 1 3.5 3.5V20',
+    ],
+  },
+  log: {
+    paths: ['M10 7h10.5M10 12h10.5M10 17h10.5'],
+    squares: [
+      [3.5, 5.75],
+      [3.5, 10.75],
+      [3.5, 15.75],
+    ],
+  },
+};
+
+/**
+ * A section heading the way the report screen draws it: the glyph in the accent,
+ * then the title in tracked capitals. A browser without Path2D just gets the title.
+ */
+function sectionTitle(
+  ctx: Ctx,
+  glyph: keyof typeof GLYPHS,
+  title: string,
+  x: number,
+  midY: number,
+) {
+  let textX = x;
+  if (typeof Path2D !== 'undefined') {
+    const { paths, squares } = GLYPHS[glyph];
+    ctx.save();
+    ctx.translate(x, midY - ICON / 2);
+    ctx.scale(ICON / 24, ICON / 24);
+    ctx.strokeStyle = C.signal;
+    ctx.fillStyle = C.signal;
+    ctx.lineWidth = 1.75;
+    ctx.lineCap = 'square';
+    ctx.lineJoin = 'miter';
+    for (const d of paths) ctx.stroke(new Path2D(d));
+    for (const [sx, sy] of squares ?? []) ctx.fillRect(sx, sy, 2.5, 2.5);
+    ctx.restore();
+    textX = x + ICON + ICON_GAP;
+  }
+  ctx.textAlign = 'left';
+  ctx.fillStyle = C.signal;
+  ctx.font = board(13, 700);
+  withTracking(ctx, '1.5px');
+  ctx.fillText(title.toUpperCase(), textX, midY);
+  withTracking(ctx, '0px');
 }
 
 function separator(ctx: Ctx, left: number, right: number, y: number) {
@@ -256,7 +338,7 @@ function drawTrack(
         TRACK_STROKE - 1.5,
         1.5,
       );
-      ctx.strokeStyle = color;
+      ctx.strokeStyle = edgeOf(color);
       ctx.lineWidth = 1.5;
       ctx.setLineDash([3, 2]);
       ctx.stroke();
@@ -265,6 +347,7 @@ function drawTrack(
       roundRect(ctx, x(p.x0), y(mid - TRACK_STROKE / 2), p.x1 - p.x0, TRACK_STROKE, 1.5);
       ctx.fillStyle = color;
       ctx.fill();
+      outlineIfPale(ctx, color);
     }
     ctx.font = clock(11, 600);
     ctx.fillStyle = C.chalkDim;
@@ -278,7 +361,7 @@ function drawTrack(
     ctx.arc(x(last.x1), y(mid), 4.5, 0, Math.PI * 2);
     ctx.fillStyle = C.chalk;
     ctx.fill();
-    ctx.strokeStyle = model.colors[last.team];
+    ctx.strokeStyle = edgeOf(model.colors[last.team]);
     ctx.lineWidth = 2;
     ctx.stroke();
   }
@@ -355,6 +438,7 @@ function drawPoints(
       ctx.arc(hx + 5, headY, 5, 0, Math.PI * 2);
       ctx.fillStyle = colorOf(row.scoredBy);
       ctx.fill();
+      outlineIfPale(ctx, colorOf(row.scoredBy));
       hx += 16;
     }
     if (row.score) {
@@ -416,6 +500,7 @@ function drawPoints(
         ctx.arc(dotX, firstMid, 3.5, 0, Math.PI * 2);
         ctx.fillStyle = colorOf(line.team);
         ctx.fill();
+        outlineIfPale(ctx, colorOf(line.team));
       }
       ctx.font = timelineFont(line.goal);
       ctx.fillStyle = line.goal ? C.chalk : C.chalkMid;
@@ -471,14 +556,25 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
   const panelWidth = contentWidth;
   const innerWidth = panelWidth - PANEL_PAD * 2;
 
-  measuring.font = board(14, 500);
-  const metaLines = packSegments(measuring, model.meta, contentWidth);
+  measuring.font = board(13, 500);
+  withTracking(measuring, '1px');
+  const metaLines = packSegments(
+    measuring,
+    model.meta.map((m) => m.toUpperCase()),
+    innerWidth,
+  );
+  withTracking(measuring, '0px');
 
-  const headerH = metaLines.length * META_LINE_H;
-  const scoreH = PANEL_PAD * 2 + SCORE_BOX_H + TEAM_NAME_H;
-  // No header row: the team names are on the score boxes directly above.
+  // The meta line sits inside the score panel, centred over the boxes, as on screen.
+  const metaH = metaLines.length ? metaLines.length * META_LINE_H + 8 : 0;
+  const scoreH = PANEL_PAD * 2 + metaH + SCORE_BOX_H + TEAM_NAME_H;
+  // A heading, then a row naming each figure column after its team.
   const statsH =
-    PANEL_PAD * 2 + model.statRows.reduce((h, r) => h + (r.sub ? STAT_SUB_H : STAT_ROW_H), 0);
+    PANEL_PAD * 2 +
+    SECTION_TITLE_H +
+    10 +
+    TEAM_HEAD_H +
+    model.statRows.reduce((h, r) => h + (r.sub ? STAT_SUB_H : STAT_ROW_H), 0);
   const groupH = model.playerGroups ? PLAYER_GROUP_H : 0;
   const playersH = hasPlayers
     ? PANEL_PAD * 2 + SECTION_TITLE_H + 10 + groupH + TABLE_HEAD_H + model.playerRows.length * ROW_H
@@ -489,8 +585,6 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
 
   const height =
     PAD +
-    headerH +
-    GAP +
     scoreH +
     GAP +
     statsH +
@@ -513,37 +607,38 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
 
   let y = PAD;
 
-  // Header — the meta line only. See ReportCardModel.meta for why there is no
-  // heading over it.
-  ctx.textAlign = 'left';
-  ctx.font = board(14, 500);
-  ctx.fillStyle = C.chalkDim;
-  for (const line of metaLines) {
-    ctx.fillText(line, PAD, y + META_LINE_H / 2);
-    y += META_LINE_H;
-  }
-  y += GAP;
-
-  // Final score. Each team owns half the panel — the boxes could sit closer
+  // Final score, under the meta line — see ReportCardModel.meta for why there is no
+  // heading over it. Each team owns half the panel — the boxes could sit closer
   // together, but the names underneath are what needs the room, and a club name
   // ellipsised down to two words is the one thing on the card nobody can infer.
   panelBox(ctx, PAD, y, panelWidth, scoreH);
-  const scoreLeft = PAD + PANEL_PAD;
-  const boxTop = y + PANEL_PAD;
   ctx.textAlign = 'center';
+  ctx.font = board(13, 500);
+  ctx.fillStyle = C.chalkDim;
+  withTracking(ctx, '1px');
+  metaLines.forEach((line, i) => {
+    ctx.fillText(line, PAD + panelWidth / 2, y + PANEL_PAD + META_LINE_H * i + META_LINE_H / 2);
+  });
+  withTracking(ctx, '0px');
+  const scoreLeft = PAD + PANEL_PAD;
+  const boxTop = y + PANEL_PAD + metaH;
   model.teams.forEach((team, i) => {
     const column = scoreLeft + innerWidth * (i === 0 ? 0.25 : 0.75);
     const boxLeft = column - SCORE_BOX_W / 2;
+    // The loser's box steps back, as on screen; a game still open has neither.
+    ctx.globalAlpha = team.result === 'loss' ? 0.4 : 1;
     roundRect(ctx, boxLeft, boxTop, SCORE_BOX_W, SCORE_BOX_H, 10);
     ctx.fillStyle = team.color;
     ctx.fill();
+    outlineIfPale(ctx, team.color);
 
     ctx.fillStyle = contrastText(team.color);
     ctx.font = clock(56, 600);
     ctx.fillText(team.score, column, boxTop + SCORE_BOX_H / 2 + 2);
+    ctx.globalAlpha = 1;
 
-    ctx.fillStyle = C.chalk;
-    ctx.font = board(17, 600);
+    ctx.fillStyle = team.result === 'loss' ? C.chalkDim : C.chalk;
+    ctx.font = board(17, team.result === 'win' ? 700 : 600);
     ctx.fillText(
       fitText(ctx, team.name, innerWidth / 2 - 16),
       column,
@@ -564,6 +659,29 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
   const colB = right - 112;
 
   let rowY = y + PANEL_PAD;
+  sectionTitle(ctx, 'stats', model.teamsTitle, left, rowY + SECTION_TITLE_H / 2);
+  rowY += SECTION_TITLE_H + 10;
+
+  // Each figure column headed by its team's dot and name, on the column's inner
+  // edge where its figures are aligned — so a column says whose it is without
+  // sending the eye back up to the score.
+  ctx.font = board(13, 700);
+  withTracking(ctx, '1px');
+  model.teams.forEach((team, i) => {
+    const midY = rowY + TEAM_HEAD_H / 2 - 4;
+    const name = fitText(ctx, team.name.toUpperCase(), colA - left - 18);
+    // Mirrored: "NAME ●" ending on the left column's edge, "● NAME" starting on the right's.
+    ctx.fillStyle = C.chalk;
+    ctx.textAlign = i === 0 ? 'right' : 'left';
+    ctx.fillText(name, i === 0 ? colA - 16 : colB + 16, midY);
+    ctx.beginPath();
+    ctx.arc(i === 0 ? colA - 5 : colB + 5, midY, 5, 0, Math.PI * 2);
+    ctx.fillStyle = team.color;
+    ctx.fill();
+    outlineIfPale(ctx, team.color);
+  });
+  withTracking(ctx, '0px');
+  rowY += TEAM_HEAD_H;
 
   // Each figure big against the inner column edge, its percentage small on the
   // outer side and the label in capitals between them; a small row qualifying it
@@ -586,7 +704,7 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
       rowY += STAT_SUB_H;
       continue;
     }
-    if (row !== model.statRows[0]) separator(ctx, left, right, rowY);
+    separator(ctx, left, right, rowY);
     const midY = rowY + STAT_ROW_H / 2;
     ctx.font = clock(21, 600);
     ctx.fillStyle = C.chalk;
@@ -621,12 +739,7 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
     panelBox(ctx, PAD, y, panelWidth, playersH);
     let pY = y + PANEL_PAD;
 
-    ctx.textAlign = 'left';
-    ctx.fillStyle = C.signal;
-    ctx.font = board(13, 700);
-    withTracking(ctx, '1.5px');
-    ctx.fillText(model.playerTitle.toUpperCase(), left, pY + SECTION_TITLE_H / 2);
-    withTracking(ctx, '0px');
+    sectionTitle(ctx, 'players', model.playerTitle, left, pY + SECTION_TITLE_H / 2);
     pY += SECTION_TITLE_H + 10;
 
     // Each column's text sits on its own right edge, walked in from the panel's, so
@@ -699,6 +812,7 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
         ctx.arc(left + 5, midY, 5, 0, Math.PI * 2);
         ctx.fillStyle = player.color;
         ctx.fill();
+        outlineIfPale(ctx, player.color);
         nameX = left + 18;
       }
       ctx.textAlign = 'left';
@@ -724,12 +838,7 @@ export function drawReportCard(model: ReportCardModel): HTMLCanvasElement | null
   if (points && model.points) {
     panelBox(ctx, PAD, y, panelWidth, pointsH);
     let pY = y + PANEL_PAD;
-    ctx.textAlign = 'left';
-    ctx.fillStyle = C.signal;
-    ctx.font = board(13, 700);
-    withTracking(ctx, '1.5px');
-    ctx.fillText(model.points.title.toUpperCase(), left, pY + SECTION_TITLE_H / 2);
-    withTracking(ctx, '0px');
+    sectionTitle(ctx, 'log', model.points.title, left, pY + SECTION_TITLE_H / 2);
     pY += SECTION_TITLE_H + 10;
     drawPoints(ctx, model.points, points, left, right, pY);
     y += pointsH + GAP;

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import PastGamesScreen from '../components/PastGamesScreen';
+import { useRoute } from '../hooks/useRoute';
 import { I18nProvider } from '../i18n';
 import { GameProvider } from '../state/GameContext';
 import { saveGameToHistory, loadGameHistory } from '../state/gameHistory';
@@ -29,10 +30,19 @@ const AUG_18 = new Date(2026, 7, 18, 18, 30).getTime();
 const AUG_18_LATER = new Date(2026, 7, 18, 20, 15).getTime();
 const AUG_17 = new Date(2026, 7, 17, 9, 0).getTime();
 
-function renderScreen(onClose = () => {}) {
+/** The screen as App shows it: the list at #/history, one game's report at #/history/<id>. */
+function Routed() {
+  const route = useRoute();
+  return <PastGamesScreen openId={route.name === 'historyGame' ? route.id : null} />;
+}
+
+function renderScreen() {
+  history.replaceState(null, '', '#/history');
   return render(
     <I18nProvider>
-      <PastGamesScreen onClose={onClose} />
+      <GameProvider>
+        <Routed />
+      </GameProvider>
     </I18nProvider>,
   );
 }
@@ -58,7 +68,8 @@ describe('the past-games screen', () => {
     // every locale carries rather than on one language's word order.
     const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent ?? '');
     expect(headings).toHaveLength(2);
-    expect(headings[0]).toMatch(/August/);
+    // en-GB order: the day before the month, never "August 18".
+    expect(headings[0]).toMatch(/18 August 2026/);
     expect(headings[0]).toMatch(/\b18\b/);
     expect(headings[1]).toMatch(/\b17\b/);
 
@@ -77,8 +88,8 @@ describe('the past-games screen', () => {
     const row = container.querySelector('[data-past-game]') as HTMLElement;
     expect(within(row).getByText('15')).toBeInTheDocument();
     expect(within(row).getByText('12')).toBeInTheDocument();
-    expect(row.textContent).toMatch(/Aug/);
-    expect(row.textContent).toMatch(/2026/);
+    // The day is the card's heading; the row carries the 24-hour start time.
+    expect(row.textContent).toContain('18:30');
   });
 
   it('marks a game left from the menu as unfinished, and only that one', () => {
@@ -113,19 +124,22 @@ describe('the past-games screen', () => {
     expect(screen.queryByRole('button', { name: /RAVENS/ })).not.toBeInTheDocument();
   });
 
-  it('opens the game as a report, with a way back to the list and no way to start a new game', () => {
+  it('opens the game as a report, with a way back to the list and no way to start a new game', async () => {
     saveGameToHistory(finishedGame(['RAVENS', 'FOXES'], [15, 12], AUG_18));
     const { container } = renderScreen();
 
     fireEvent.click(container.querySelector('[data-past-game]') as HTMLElement);
+    // Its own address, so the browser's back comes back to the list.
+    expect(location.hash).toMatch(/^#\/history\/.+/);
     // The report, with the archive's way out rather than the game's — and without
     // the one button that discards a game.
-    expect(screen.getByText('Copy to clipboard')).toBeInTheDocument();
+    expect(screen.getByText('Copy')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'New game' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Back to the game/ })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Back/ }));
-    expect(screen.getByRole('heading', { name: 'Match History' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Match history' })).toBeInTheDocument();
+    expect(location.hash).toBe('#/history');
   });
 });
 

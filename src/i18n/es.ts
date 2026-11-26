@@ -8,8 +8,8 @@ export const es: typeof en = {
   templateCustomGroup: 'Tus plantillas',
   templateGrassName: 'Hierba',
   templateBeachName: 'Playa',
-  saveAsTemplateBtn: 'Guardar como plantilla',
-  saveTemplateTitle: 'Guardar como plantilla',
+  saveAsTemplateBtn: 'Guardar plantilla',
+  saveTemplateTitle: 'Guardar plantilla',
   saveTemplateHint:
     'Guarda estas reglas y los ajustes de estadísticas para reutilizarlos — no los equipos, el resultado del lanzamiento de moneda, los jugadores ni qué equipo se sigue.',
   saveTemplateNamePlaceholder: 'p. ej. Liga de verano',
@@ -22,6 +22,25 @@ export const es: typeof en = {
   btnDeleteTemplate: 'Eliminar plantilla',
   confirmDeleteTemplateTitle: '¿Eliminar plantilla guardada?',
   confirmDeleteTemplate: '¿Eliminar "{name}"? Esta acción no se puede deshacer.',
+  fieldTime: 'Tiempo',
+  fieldBreak: 'Descanso',
+  fieldDuration: 'Duración',
+  unitMin: 'min',
+  unitSec: 's',
+  stepDown: 'Reducir {label}',
+  stepUp: 'Aumentar {label}',
+  endCapNoneShort: 'Sin CAP',
+  endCapCondShort: 'Condicional',
+  matchTitle: 'Partido',
+  startFix: 'Revisa {section} para empezar',
+  sumPoints: '{n} pts',
+  sumCapNone: 'sin CAP',
+  sumCapCond: 'CAP +{n} si dif. >{x}',
+  sumAt: 'a {n}',
+  sumBreak: 'descanso {d}',
+  sumNoBreak: 'sin descanso',
+  sumOff: 'Desactivado',
+  sumAutoOff: 'Automáticas desactivadas',
   setupTitle: 'Configuración del partido',
   division: 'División',
   divisionOpen: 'Open',
@@ -39,26 +58,29 @@ export const es: typeof en = {
   confirmDeleteTeam:
     '¿Eliminar "{name}" y su plantilla guardada de este dispositivo? Esta acción no se puede deshacer.',
   btnDeleteTeam: 'Eliminar equipo',
-  mixedRatioRule: 'Regla de ratio de género (mixto)',
-  ruleA: 'Regla A — prescrita (alterna cada 2 puntos)',
-  ruleB: 'Regla B — la zona de anotación decide cada punto',
+  genderRatioTitle: 'Ratio de género',
+  ratioAbbaLabel: 'Anunciar la ratio de género (ABBA)',
+  ratioAbbaOnHint:
+    'La aplicación anuncia la ratio de cada punto, alternando cada dos puntos, y la muestra en la pantalla del partido.',
+  ratioAbbaOffHint: 'Los equipos acuerdan la ratio en cada punto; la aplicación no la anuncia.',
   coinToss: 'Resultado del sorteo',
-  coinTossHelp:
-    'Pide a los capitanes que lancen un disco antes del partido y registra aquí el resultado.',
+  coinTossHelp: 'Lanzad un disco con los capitanes y anotad el resultado:',
   startingOffense: 'Equipo que recibe el primer pull (ataque)',
   startingSide: 'Equipo que empieza a la izquierda',
   startingRatio: 'Ratio de género inicial',
   ratioMale: 'Chicos',
   ratioFemale: 'Chicas',
+  ratioPosition1: 'Primero de {genderLower}',
+  ratioPosition2: 'Segundo de {genderLower}',
   startingTimeEnabled: 'El partido tiene una hora de inicio programada',
   startingTimeLabel: 'Hora de inicio',
   startingTimeInPast: 'La hora de inicio debe ser posterior a la hora actual',
+  startsIn: 'Empieza en {d}',
   winConditions: 'Condiciones de victoria',
   targetScore: 'Puntuación',
   halfScore: 'Puntuación',
   timeLimit: 'Tiempo (minutos)',
   halfTimeLimit: 'TIEMPO (Minutos)',
-  halfTimeBreak: 'descanso (segundos)',
   endCapLabel: 'CAP',
   endCapNone: 'Sin CAP — terminar el punto actual',
   endCapPlus: 'CAP +{n}',
@@ -73,7 +95,6 @@ export const es: typeof en = {
   timeoutsScope: 'Asignación',
   timeoutsScopeHalf: 'Por half',
   timeoutsScopeGame: 'Por partido',
-  timeoutDuration: 'tiempo (segundos)',
   timeoutLastFive: 'Permitir tiempos muertos en los últimos 5 minutos del partido',
   setupNoTimeoutsLastFive: 'No hay tiempos muertos en los últimos 5 minutos del partido.',
   waterBreakTitle: 'Pausas de hidratación',
@@ -81,15 +102,14 @@ export const es: typeof en = {
     'Pausas de hidratación por calor (Apéndice B4.3 de la WFDF): paradas adicionales entre puntos que deciden los oficiales del torneo. Nunca consumen los tiempos muertos de ningún equipo. También puedes pedir una a mano durante el partido, con el botón de la mano levantada.',
   waterBreakEnabled: 'Pedir las pausas automáticamente',
   waterBreakScores: 'Cuando el primer equipo llegue a',
-  waterBreakDuration: 'Duración de la pausa (segundos)',
   startGame: 'Empezar partido',
-  teamsRequired: 'Introduce o selecciona ambos equipos para empezar',
+  teamsRequired: 'Pon nombre a los dos equipos para empezar',
   duplicateTeamNames: 'Los nombres de los equipos deben ser diferentes',
   halfScoreInvalid: 'El marcador de descanso debe ser menor que el marcador objetivo',
   language: 'Idioma',
   pastGamesTitle: 'Historial de partidos',
   pastGamesEmpty:
-    'Todavía no hay partidos guardados. Un partido se guarda aquí automáticamente en cuanto se anota su último punto.',
+    'Todavía no hay partidos guardados. Un partido se guarda aquí en cuanto termina: al anotarse su último punto o al terminarlo desde el menú.',
   pastGameUnfinished: 'Sin terminar',
   deleteGameAria: 'Eliminar {match} de los partidos anteriores',
   confirmDeleteGameTitle: '¿Eliminar este partido?',
@@ -121,16 +141,14 @@ export const es: typeof en = {
   dismissBanner: 'Descartar',
 
   statsTitle: 'Estadísticas',
+  statsEnabled: 'Registrar estadísticas',
   statsModeLabel: 'Registrar',
-  statsModeNone: 'Solo el marcador',
-  statsModeNoneHint:
-    'Marcador, relojes y ratio. Las faltas y las paradas siguen quedando en el registro, pero sin decir de quién fueron.',
-  statsModeTeams: 'Por equipo',
+  statsModeTeams: 'Equipo',
   statsModeTeamsHint:
     'Añade la pregunta "¿qué equipo?" a cada falta, travelling y parada. No hace falta roster, y nunca se nombra a nadie.',
-  statsModePlayers: 'Por jugador',
+  statsModePlayers: 'Jugador',
   statsModePlayersHint:
-    'Añade un roster, para que los goles, asistencias, pérdidas y lesiones puedan nombrar a un jugador. Escríbela debajo.',
+    'Los goles, asistencias, pérdidas y lesiones pueden nombrar a un jugador del roster. El roster de cada equipo está en Equipos, arriba.',
   trackedTeamLabel: 'Jugadores de',
   trackedTeamBoth: 'Ambos equipos',
   trackTurnoversLabel: 'Pérdidas',
@@ -220,7 +238,7 @@ export const es: typeof en = {
   playerSortRest: 'más descansados primero',
   lineSavedRecord: '{won} de {played} puntos ganados',
   lineModeCurrent: 'Este punto',
-  lineModeNext: 'Punto siguiente',
+  lineModeNext: 'Próximo punto',
   lineCountOf: '{count} de {size}',
   lineCountPlain: '{count} en la línea',
   lineUnmarked: '{count} sin definir',
@@ -228,7 +246,7 @@ export const es: typeof en = {
   lineIssueRatio: 'Eso rompe la proporción que pide este punto ({female} FMP / {male} MMP).',
   lineNoRoster: 'Añade jugadores al roster primero — la línea se elige de ahí.',
   linePromptBtn: 'Registrar línea',
-  lineNextPending: 'Punto siguiente: {count} registrados',
+  lineNextPending: 'Próximo punto: {count} registrados',
   btnLineSaveAnyway: 'Guardar igualmente',
   btnLineConfirmAnyway: 'Toca otra vez para guardar',
   btnSaveLine: 'Guardar esta línea',
@@ -241,6 +259,17 @@ export const es: typeof en = {
   playersTitle: 'Roster',
   collapseSection: 'Contraer {title}',
   expandSection: 'Expandir {title}',
+  rosterEmpty: 'Sin jugadores',
+  rosterCount: '{n} jugadores',
+  rosterCountOne: '1 jugador',
+  rosterSplit: '{female} FMP / {male} MMP',
+  rosterUnusedHint:
+    'Este partido no preguntará por estos jugadores — para eso hacen falta estadísticas por jugador de {team}. El roster se guarda con el equipo igualmente.',
+  rosterUnsavedHint:
+    '{team} todavía no está guardado. Su roster se guarda cuando empiece el partido, o guarda el equipo ahora.',
+  rosterSaveTeam: 'Guardar {team}',
+  rosterMissingNudge:
+    'Recomendado: añade el roster de {team} en Equipos antes de empezar. También se pueden añadir jugadores durante el partido.',
   rosterHelp:
     'Puedes añadir jugadores con el partido ya en marcha — no hace falta rellenar todo el roster antes de empezar.',
   playerNumber: '#',
@@ -361,8 +390,8 @@ export const es: typeof en = {
   slotStatsLabel: 'Estadísticas en directo',
   slotHolds: 'Holds',
   slotBreaks: 'Breaks',
-  slotBreakCh: 'Op. break',
-  slotTurns: 'Pérdidas',
+  slotBreakCh: 'Op. brk',
+  slotTurns: 'Turns',
   slotPasses: 'Pases',
   slotThisPoint: 'Este punto · {n} pérdidas',
   slotAvgHold: 'media {time}',
@@ -373,12 +402,11 @@ export const es: typeof en = {
   slotNext: 'Estadística siguiente',
 
   btnEndGame: 'Fin del partido',
-  btnBackToSetup: 'Volver a la configuración',
   btnEndTimeout: 'Fin del tiempo muerto',
 
   menuTitle: 'Menú',
+  menuNewGame: 'Empezar nuevo partido',
   menuGameSetup: 'Configuración del partido',
-  setupFieldTeams: 'Campo y equipos',
   teamNameRequired: 'Los dos equipos necesitan un nombre',
   btnSaveChanges: 'Guardar cambios',
   setupTeamLoadNote:
@@ -389,7 +417,7 @@ export const es: typeof en = {
   menuRoster: 'Roster',
   menuLine: 'Línea',
   btnBackToGame: 'Volver al partido',
-  btnExitReport: 'Salir del informe',
+  reportPageTitle: 'Informe',
 
   setupScheduled: 'Previsto',
   setupStarted: 'Empezado',
@@ -424,7 +452,6 @@ export const es: typeof en = {
   capTargetOption: 'A {n}',
   sideLeft: 'Izquierda',
   sideRight: 'Derecha',
-  target: 'Objetivo: {n}',
 
   // Llamadas — el diálogo tras el botón del bocadillo. Todo lo que hay dentro
   // responde a una sola pregunta («¿qué se ha llamado?»), y por eso el travel va
@@ -544,7 +571,7 @@ export const es: typeof en = {
   now_awaitingPullRatio:
     'Los equipos se están alineando. Pulsa «Pull lanzado» en el momento del lanzamiento. Mantén la señal hasta asegurarte que las líneas están bien montadas.',
   now_awaitingPullCapRatio:
-    'Los equipos se están alineando. Pulsa «Pull lanzado» en el momento del lanzamiento. Toca el objetivo de arriba si el gol fue antes de la bocina. Mantén la señal hasta asegurarte que las líneas están bien montadas.',
+    'Los equipos se alinean. Pulsa «Pull lanzado» al lanzarse el disco. Toca el objetivo de arriba si el gol fue antes de la bocina. Mantén la señal hasta que las líneas estén listas.',
   now_timeout: 'Tiempo muerto en curso. Termina solo, o pulsa «Fin del tiempo muerto».',
   now_toReady30:
     'El tiempo muerto acaba — 30 segundos para que el ataque esté listo. Un silbato a los 30.',
@@ -555,7 +582,7 @@ export const es: typeof en = {
   now_halftimeWarn:
     'Un minuto para la segunda parte — pull de {halfTeam} desde la {halfSide}. Un silbato — los equipos deberían ir preparándose.',
   now_waterBreak:
-    'Pausa de hidratación — los jugadores están bebiendo y el reloj del partido sigue corriendo. Pulsa «Fin de la pausa» cuando los dos equipos estén en la línea; la app te avisa cuando se cumple el tiempo.',
+    'Pausa de hidratación — el reloj del partido sigue corriendo. Pulsa «Fin de la pausa» cuando los dos equipos estén en la línea; la app te avisa cuando se cumple el tiempo.',
   now_waterBreakDue:
     'Se ha cumplido el tiempo de la pausa — manda a los dos equipos a la línea y pulsa «Fin de la pausa».',
   now_stoppagePending:
@@ -618,6 +645,9 @@ export const es: typeof en = {
   statBreaks: 'Breaks',
   statTimeouts: 'Tiempos muertos',
   statPossessionsScored: 'Posesiones con gol',
+  reportTeamsTitle: 'Equipos',
+  playerStatsTeamLabel: 'Equipo',
+  playerStatsViewLabel: 'Datos',
   playerStatsTitle: 'Estadísticas de jugadores',
   filterAllTeams: 'Todos',
   colPlayer: 'Jugador',
@@ -667,9 +697,10 @@ export const es: typeof en = {
   pointPull: 'Pull para {team}',
   pointOpen: 'en posesión',
   pointFlagSotg: 'SOTG',
-  btnFullLog: 'Registro completo',
-  fullLogTitle: 'Registro completo del partido',
-  copyLog: 'Copiar registro',
+  pointsOpenAll: 'Abrir todos los puntos',
+  pointsFoldAll: 'Plegar todos los puntos',
+  btnFullLog: 'Logs',
+  fullLogTitle: 'Logs',
   colClock: 'Reloj',
   colScore: 'Marcador',
   colEvent: 'Evento',
@@ -689,7 +720,7 @@ export const es: typeof en = {
   shareImagePreparing: 'Preparando…',
   shareImageSaved: 'Imagen guardada',
   shareImageFailed: 'No se pudo crear la imagen',
-  copyReport: 'Copiar al portapapeles',
+  copyReport: 'Copiar',
   copied: '¡Copiado!',
   copyFailed: 'No se pudo copiar — inténtalo de nuevo',
   newGame: 'Nuevo partido',
@@ -747,7 +778,7 @@ export const es: typeof en = {
     'La primera pantalla describe el partido que vas a anotar. Casi todo viene ya relleno: normalmente solo tienes que escribir los nombres de los dos equipos.',
   guideStep1Template: 'Plantilla',
   guideStep1TemplateBody:
-    'Hierba y Playa rellenan todas las reglas de abajo con los valores habituales de esa superficie, y dejan las estadísticas como estén. Si tu torneo juega con otras, cambia los campos y pulsa "Guardar como plantilla" al final para reutilizarlas la próxima vez — una plantilla que guardes también recuerda qué registra este partido.',
+    'Hierba y Playa rellenan todas las reglas de abajo con los valores habituales de esa superficie, y dejan las estadísticas como estén. Si tu torneo juega con otras, cambia los campos y pulsa "Guardar plantilla" junto al título de la sección para reutilizarlas la próxima vez — una plantilla que guardes también recuerda qué registra este partido.',
   guideStep1Division: 'División',
   guideStep1DivisionBody:
     'Open, Femenino o Mixto. La mixta añade la ratio de género, que tendrás que anunciar cada punto (paso 7).',
@@ -756,7 +787,7 @@ export const es: typeof en = {
     'Escribe cada nombre, o elige un equipo que guardaste antes. Elige un color parecido al de las camisetas de cada equipo: los paneles del marcador van pintados con esos colores todo el partido, así nunca tienes que recordar qué lado es cuál.',
   guideStep1Players: 'Estadísticas',
   guideStep1PlayersBody:
-    'Dos preguntas. Primero, cuánto detalle: "Solo el marcador" es lo predeterminado — marcador, relojes y ratio, con faltas, travelling y paradas técnicas registradas sin equipo. "Por equipo" lo atribuye todo a un equipo, sin necesidad de roster. "Por jugador" atribuye goles, asistencias, pérdidas y lesiones a un jugador concreto, una vez añadas el roster de abajo, para un equipo o para ambos. Segundo, los interruptores de debajo: qué registra realmente este partido. Pérdidas añade el botón Turn a la pantalla de juego; los demás preguntan quién marcó, quién perdió el disco y quién jugó cada punto. Activa los que puedas seguir y deja el resto apagados.',
+    'Dos preguntas. Primero, activa Estadísticas si quieres algo más que el marcador — apagado, la app lleva el marcador, los relojes y el ratio, y registra faltas, travelling y paradas técnicas sin equipo. Encendido, elige el detalle: "Equipo" lo atribuye todo a un equipo, sin necesidad de roster; "Jugador" atribuye goles, asistencias, pérdidas y lesiones a un jugador concreto una vez añadas el roster en la tarjeta Partido, para un equipo o para ambos. Segundo, los interruptores de debajo: qué registra realmente este partido. Pérdidas añade el botón Turn a la pantalla de juego; los demás preguntan quién marcó, quién perdió el disco y quién jugó cada punto. Activa los que puedas seguir y deja el resto apagados.',
   guideStep1Time: 'Hora de inicio prevista',
   guideStep1TimeBody:
     'Opcional. Márcalo y la aplicación hace la cuenta atrás hasta la hora de inicio y desbloquea el juego sola cuando llega.',
@@ -798,7 +829,7 @@ export const es: typeof en = {
   guideStep4Body:
     'Es la única pantalla que usarás durante el partido. Nada de lo que hay aquí se puede pulsar sin querer de forma irreversible.',
   guideTour1:
-    'Número de campo, la hora, en qué parte vamos y el marcador al que se juega el partido. El menú de la izquierda contiene esta guía, la configuración con la que se juega el partido (donde aún se pueden corregir el campo, los nombres de los equipos y sus colores) y la salida del partido.',
+    'Número de campo, en qué parte vamos y la hora. El menú de la derecha contiene la configuración con la que se juega el partido (donde aún se pueden corregir el campo, los nombres de los equipos y sus colores), el informe hasta el momento y la salida del partido.',
   guideTour2:
     'Un panel por equipo, pintado con el color del equipo. Aquí es donde sumas goles (paso 5), y el botón de tiempo muerto de cada equipo está en la esquina superior exterior de su propio panel.',
   guideTour3:
@@ -808,7 +839,7 @@ export const es: typeof en = {
   guideTour5:
     'El reloj del partido y, al lado, el segundo reloj: los segundos desde el último gol entre punto y punto, o la cuenta atrás del tiempo muerto o del half.',
   guideTour6:
-    'Los botones que escriben en el historial: el roster (si el registro de jugadores está activado), el historial, una parada, un llamado y una pérdida.',
+    'Los botones que escriben en el historial: el historial, una parada y un llamado, y además Turn y Pass si el partido los registra.',
   guideTour7: 'La barra de ayuda: qué cantar y qué hacer. Ver el paso 6.',
   guideTour8:
     'El pequeño botón de pausa junto al reloj del partido. Todo lo demás —un tiempo muerto, el half, una falta— ya funciona sin pararlo; pulsa esto solo para los casos extraordinarios que pregunta la confirmación: una parada de SOTG, una parada técnica del torneo, una parada prolongada o mal tiempo. El reloj se para en cuanto confirmas, y sigue parado hasta que reanudas.',
@@ -871,7 +902,7 @@ export const es: typeof en = {
   guideStep7Chip:
     'La ratio del punto que viene se muestra en una etiqueta sobre los paneles del marcador. Parpadea cuando cambia: cántala para que los dos equipos se coloquen bien. Toca la etiqueta para volver a mostrar la señal de manos.',
   guideStep7Rules:
-    'Qué regla de ratio se aplica se decide en la configuración: la Regla A sigue una secuencia fija que alterna cada dos puntos, y la aplicación la sigue por ti. La Regla B deja que lo decida la zona de anotación en cada punto, así que no hay nada que anunciar. Si no sabes cuál se usa, pregunta a los capitanes.',
+    'Si la aplicación anuncia la ratio se decide en la configuración. Con ABBA activado, sigue una secuencia fija que alterna cada dos puntos y te dice cada una. Con ABBA desactivado, los equipos acuerdan la ratio entre ellos, así que no hay nada que anunciar. Si no sabes cuál se usa, pregunta a los capitanes.',
 
   guideStep8Title: 'Tiempos muertos, half y CAP',
   guideStep8Timeout: 'Tiempo muerto',
@@ -931,7 +962,7 @@ export const es: typeof en = {
   guideStep10Body:
     'La aplicación termina el partido sola cuando un equipo llega al objetivo. Si tienes que pararlo antes, pulsa la ✕ de la esquina superior izquierda, al lado del número de campo, y confirma.',
   guideStep10Report:
-    'Entonces aparece el informe: el marcador final, unas cuantas estadísticas de cada equipo y el partido punto a punto. "Compartir" manda una foto del marcador, las estadísticas y cada punto directamente a un chat. "Copiar al portapapeles" lo convierte todo en texto plano que puedes pegar en un mensaje o en una hoja de cálculo; hazlo antes de salir de la pantalla. "Nuevo partido" te devuelve a la configuración para el siguiente.',
+    'Entonces aparece el informe: el marcador final, unas cuantas estadísticas de cada equipo y el partido punto a punto. "Compartir" manda una foto del marcador, las estadísticas y cada punto directamente a un chat. "Copiar" lo convierte todo en texto plano que puedes pegar en un mensaje o en una hoja de cálculo; hazlo antes de salir de la pantalla. "Nuevo partido" te devuelve a la configuración para el siguiente.',
 
   guideCheatTitle: 'Resumen rápido',
   guideCheatTap: 'Tocar el panel de un equipo',
@@ -957,6 +988,10 @@ export const es: typeof en = {
     'Vibra al tocar Turn o Pass, siempre que la vibración del móvil esté activada.',
   settingsSound: 'Sonido',
   settingsSoundHint: 'Reproduce los silbatos.',
+  settingsTheme: 'Tema',
+  settingsThemeSystem: 'Sistema',
+  settingsThemeLight: 'Claro',
+  settingsThemeDark: 'Oscuro',
   statsGuideTitle: 'Guía avanzada',
   statsGuideSubtitle: 'Qué registrar, cómo registrarlo y qué sale al final',
   statsGuideIntro:
@@ -969,7 +1004,7 @@ export const es: typeof en = {
     'La pantalla de configuración pregunta primero con cuánto detalle atribuir las cosas y, por separado, qué cosas registrar. Que sean dos preguntas es lo que te permite anotar goles y asistencias de todo un torneo sin poner nunca el botón de pérdida en pantalla, o seguir las líneas de un equipo sin que te pregunte quién marcó.',
   statsGuideModelDetail: 'Detalle — a quién se nombra',
   statsGuideModelDetailBody:
-    '«Solo marcador» no nombra a nadie: una decisión o una parada se registran sin decir de quién eran. «Por equipo» añade la pregunta «¿qué equipo?» a cada decisión, pasos y parada — sin necesidad de roster. «Por jugador» añade el roster, así que goles, asistencias, pérdidas y lesiones pueden nombrar a una persona, de un equipo o de los dos.',
+    'Con Estadísticas apagado no se nombra a nadie: una decisión o una parada se registran sin decir de quién eran. «Equipo» añade la pregunta «¿qué equipo?» a cada decisión, pasos y parada — sin necesidad de roster. «Jugador» añade el roster, así que goles, asistencias, pérdidas y lesiones pueden nombrar a una persona, de un equipo o de los dos.',
   statsGuideModelFeatures: 'Funciones — qué se registra',
   statsGuideModelFeaturesBody:
     'Pérdidas, quién marcó, quién perdió el disco y quién juega cada punto son cuatro interruptores independientes, ofrecidos solo donde el detalle de arriba puede responderlos. Apaga uno y desaparece todo lo derivado de él, también en el informe, que nunca muestra una columna de la que no tiene datos.',
@@ -982,7 +1017,7 @@ export const es: typeof en = {
     'Todo está en la sección Estadísticas de la pantalla de configuración. Bajar el detalle retira lo que ya no puede responder y lo devuelve si vuelves a subirlo, así que no se pierde nada por probar.',
   statsGuideStep1Detail: 'Registrar',
   statsGuideStep1DetailBody:
-    'Solo marcador, Por equipo o Por jugador — el detalle de arriba. Todo lo demás de esta lista depende de él.',
+    'El interruptor de Estadísticas y luego Equipo o Jugador — el detalle de arriba. Todo lo demás de esta lista depende de él.',
   statsGuideStep1Team: 'Jugadores de',
   statsGuideStep1TeamBody:
     'Qué roster se nombra: un equipo o los dos. Seguir a un solo equipo es lo que hace casi todo el mundo en un torneo, y es el único ajuste que permite seguir las líneas — dos líneas por punto es más de lo que nadie sigue desde la banda.',
@@ -1004,7 +1039,7 @@ export const es: typeof en = {
 
   statsGuideStep2Title: 'Escribe el roster una vez',
   statsGuideStep2Body:
-    'Nombrar jugadores necesita un roster, y vale la pena escribirlo una vez por torneo: se guarda con el equipo, así que el siguiente partido empieza con ella puesta. También puedes añadir jugadores con el partido en marcha — un dorsal desconocido nunca es un callejón sin salida.',
+    'Nombrar jugadores necesita un roster, y vale la pena escribirlo una vez por torneo: se guarda con el equipo, así que el siguiente partido empieza con él ya puesto. Ábrelo desde Roster, bajo el nombre de cada equipo en Equipos. También puedes añadir jugadores con el partido en marcha — un dorsal desconocido nunca es un callejón sin salida.',
   statsGuideStep2Add: 'Dorsal y nombre',
   statsGuideStep2AddBody:
     'Cualquiera de los dos por separado es una entrada válida, que es lo que hace falta cuando desde la banda solo ves un dorsal.',
@@ -1026,9 +1061,9 @@ export const es: typeof en = {
   statsGuideTour2:
     'Las estadísticas en vivo, en el hueco que usa el botón ámbar cuando lo hay. Tres páginas, que se pasan con las flechas de los lados — ver más abajo.',
   statsGuideTour3:
-    'El roster y el diálogo de línea están en el menú, arriba a la izquierda, junto a la configuración del partido y las guías.',
+    'El roster y el diálogo de línea están en el menú, arriba a la derecha, junto a la configuración del partido.',
   statsGuideTour4:
-    'Decisión. Desde «Por equipo» en adelante, cada decisión, pasos y parada técnica pregunta de qué equipo era; una lesión pregunta quién se ha hecho daño.',
+    'Decisión. Con Estadísticas activado, cada decisión, pasos y parada técnica pregunta de qué equipo era; una lesión pregunta quién se ha hecho daño.',
   statsGuideTour5:
     'Turn: un toque por pérdida, con la insignia contándolas dentro del punto. Mantén pulsado para deshacer la última. Fíjate en la insignia para saber que el toque ha entrado: cuando el disco vuelve a un equipo que ya lo ha tenido en ese punto, la barra de posesión regresa a un lado en el que ya ha estado y nada más se mueve en pantalla.',
 
@@ -1142,15 +1177,15 @@ export const es: typeof en = {
   statsGuideShare: 'Compartir',
   statsGuideShareBody:
     'El marcador, las cifras de equipo, la tabla de jugadores y cada punto del partido, dibujados como imagen para un chat de equipo. La imagen muestra cada punto abierto, con toda su historia, y lleva las columnas de todas las vistas a la vez, agrupadas bajo Juego, Anotación y Posesión — una imagen no se puede tocar, que es por lo que la pantalla pliega los puntos y separa las columnas en vistas.',
-  statsGuideCopy: 'Copiar al portapapeles',
+  statsGuideCopy: 'Copiar',
   statsGuideCopyBody:
     'El archivo: todo en texto plano para una hoja de cálculo o un correo, con las columnas de todas las vistas disponibles en una línea por jugador y las líneas predefinidas en las que apareció cada uno. Hazlo antes de salir de la pantalla.',
-  statsGuideFullLog: 'Registro completo',
+  statsGuideFullLog: 'Logs',
   statsGuideFullLogBody:
-    'Punto a punto cuenta cada punto en orden. El registro completo es cada entrada tal como se anotó, correcciones incluidas, a un toque detrás de «Registro completo», con su propio botón de copiar.',
+    'Punto a punto cuenta cada punto en orden. Los logs son cada entrada tal como se anotó, correcciones incluidas, a un toque detrás de «Logs», con su propio botón de copiar.',
   statsGuideHistory: 'Historial de partidos',
   statsGuideHistoryBody:
-    'Un partido que terminó por marcador se archiva solo, y abrirlo desde el Historial te da este mismo informe, exactamente como estaba ese día — se guarda el partido entero, no un resumen. Se conservan los últimos 50, en este dispositivo.',
+    'Un partido se archiva solo en cuanto termina —al anotarse su último punto o al terminarlo desde el menú—, y abrirlo desde el Historial te da este mismo informe, exactamente como estaba ese día: se guarda el partido entero, no un resumen. Se conservan los últimos 50, en este dispositivo.',
 
   statsGuideCheatTitle: 'Qué cuenta cada cifra',
   statsGuideDefHold: 'Hold',
@@ -1179,7 +1214,7 @@ export const es: typeof en = {
   statsGuideFigSetupAlt:
     'La sección Estadísticas de la pantalla de configuración, con todo activado',
   statsGuideFigRosterAlt:
-    'La sección Roster de la pantalla de configuración, con jugadores y líneas predefinidas',
+    'El roster de un equipo en la pantalla de configuración, con jugadores y líneas predefinidas',
   statsGuideFigDashboardAlt:
     'La pantalla de juego a mitad de punto, con la barra de posesión y las estadísticas en vivo',
   statsGuideFigGoalAlt: 'El diálogo que pregunta quién lanzó el gol',

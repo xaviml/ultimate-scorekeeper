@@ -4,15 +4,19 @@ import { I18nProvider } from '../i18n';
 import { GameProvider } from '../state/GameContext';
 import ConfigScreen from '../components/ConfigScreen';
 import { loadSavedTemplates } from '../state/templates';
+import { choose, chosen, openRules } from './configFields';
 
 function renderConfigScreen() {
-  return render(
+  const view = render(
     <I18nProvider>
       <GameProvider>
         <ConfigScreen />
       </GameProvider>
     </I18nProvider>,
   );
+  // These tests are about the rules, which start folded to their summaries.
+  openRules();
+  return view;
 }
 
 function section(title: string): HTMLElement {
@@ -29,7 +33,7 @@ beforeEach(() => {
  * section heading. Off folds the section down to that heading.
  */
 describe.each([
-  ['Half-time', 'Play a half-time', 'break (seconds)'],
+  ['Half-time', 'Play a half-time', 'Break'],
   ['Timeouts', 'Allow timeouts', 'Per team'],
 ])('the %s section toggle', (title, toggleName, fieldText) => {
   it('is on by default, with its settings shown', () => {
@@ -64,7 +68,7 @@ describe('timeouts in the last 5 minutes', () => {
     fireEvent.click(allow);
     expect(allow).not.toBeChecked();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save as template' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }));
     fireEvent.change(screen.getByPlaceholderText('e.g. Summer League'), {
       target: { value: 'Strict' },
     });
@@ -92,33 +96,32 @@ describe('half-time switched off', () => {
   it('hides the timeout allowance, and brings back per half with half-time', () => {
     renderConfigScreen();
     const timeouts = section('Timeouts');
-    const allowance = () =>
-      within(timeouts).queryByText('Allowance')?.parentElement!.querySelector('select') ?? null;
-    fireEvent.change(allowance()!, { target: { value: 'half' } });
+    const allowance = () => within(timeouts).queryByText('Allowance');
+    choose('Allowance', 'half');
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Play a half-time' }));
     expect(allowance()).toBeNull();
     expect(within(timeouts).getByText('Per team')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Play a half-time' }));
-    expect(allowance()!.value).toBe('half');
+    expect(chosen('Allowance')).toBe('half');
   });
 
   it('is saved with a template and restored when it is applied', () => {
     renderConfigScreen();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Play a half-time' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save as template' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }));
     fireEvent.change(screen.getByPlaceholderText('e.g. Summer League'), {
       target: { value: 'Pickup' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(loadSavedTemplates()[0].settings.halfTimeEnabled).toBe(false);
 
-    fireEvent.change(screen.getByLabelText('Template'), { target: { value: 'predefined:grass' } });
+    choose('Template', 'predefined:grass');
     expect(screen.getByRole('checkbox', { name: 'Play a half-time' })).toBeChecked();
 
-    fireEvent.change(screen.getByLabelText('Template'), { target: { value: 'custom:Pickup' } });
+    choose('Template', 'custom:Pickup');
     expect(screen.getByRole('checkbox', { name: 'Play a half-time' })).not.toBeChecked();
   });
 });

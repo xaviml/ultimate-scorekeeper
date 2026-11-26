@@ -4,6 +4,7 @@ import { playerLabel } from '../state/stats';
 import type { Gender, PlayerInfo } from '../state/types';
 import { ConfirmRemovePlayerDialog } from './ConfirmRemovePlayerDialog';
 import { inputClass } from './ui';
+import { CrossIcon } from './icons';
 
 /** unset → MMP → FMP → unset. Unset is a real answer: most rosters arrive unmarked. */
 const NEXT_GENDER: Record<'unset' | Gender, Gender | null> = {
@@ -35,8 +36,8 @@ function GenderToggle({
   return (
     <button
       type="button"
-      className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[11px] font-board tabular-nums ${
-        player.gender ? 'border-signal text-signal' : 'border-line text-chalk/40'
+      className={`shrink-0 rounded border px-1.5 py-0.5 text-[11px] font-board tabular-nums ${
+        player.gender ? 'border-accent text-accent' : 'border-line text-chalk/40'
       }`}
       aria-label={t('genderToggle', { name: playerLabel(player), value: label })}
       onClick={() => onSetGender(NEXT_GENDER[key])}
@@ -117,7 +118,7 @@ export function PlayerRosterEditor({
           {players.map((p) => (
             <li
               key={p.id}
-              className="flex items-center justify-between rounded-lg bg-pitch border border-line px-3 py-1.5 text-sm"
+              className="flex items-center justify-between rounded bg-pitch border border-line px-3 py-1.5 text-sm"
             >
               <span className="truncate">{playerLabel(p)}</span>
               <span className="flex items-center gap-1 shrink-0">
@@ -131,7 +132,7 @@ export function PlayerRosterEditor({
                     aria-label={`${t('removePlayer')} ${playerLabel(p)}`}
                     onClick={() => setRemoving(p)}
                   >
-                    ✕
+                    <CrossIcon size="w-4 h-4" />
                   </button>
                 )}
               </span>
@@ -165,7 +166,7 @@ export function PlayerRosterEditor({
         />
         <button
           type="button"
-          className="rounded-lg bg-signal text-pitch font-board px-3 active:scale-[0.99]"
+          className="rounded bg-accent text-pitch font-board px-3 active:scale-[0.99]"
           onClick={add}
         >
           {t('addPlayer')}

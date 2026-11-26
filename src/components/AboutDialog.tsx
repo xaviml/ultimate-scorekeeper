@@ -14,7 +14,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
   return (
     <Modal title={t('aboutTitle')} onClose={onClose} size="sm">
       <div>
-        <p className="text-sm text-chalk/80 text-justify">
+        <p className="text-sm text-chalk/80">
           <strong>{t('aboutStoryBold')}</strong>
           {t('aboutStory')}
           {t('aboutStory2')}
@@ -25,7 +25,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
         <p className="text-sm text-chalk/80">
           {t('aboutDesignedByPrefix')}
           <a
-            className="text-signal underline"
+            className="text-accent underline"
             href={EGARA_INSTAGRAM_URL}
             target="_blank"
             rel="noopener noreferrer"
@@ -37,7 +37,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
         <p className="text-sm text-chalk/80 mt-2">
           {t('aboutBasedOnPrefix')}
           <a
-            className="text-signal underline"
+            className="text-accent underline"
             href={ANDROID_APP_URL}
             target="_blank"
             rel="noopener noreferrer"
@@ -46,7 +46,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
           </a>
           {t('aboutBasedOnMiddle')}
           <a
-            className="text-signal underline"
+            className="text-accent underline"
             href={EUC_INSTAGRAM_URL}
             target="_blank"
             rel="noopener noreferrer"
@@ -59,7 +59,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
       <p className="text-sm text-chalk/80">
         {t('aboutQuestion')}{' '}
         <a
-          className="text-signal underline"
+          className="text-accent underline"
           href={GITHUB_URL}
           target="_blank"
           rel="noopener noreferrer"

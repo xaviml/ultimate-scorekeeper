@@ -62,9 +62,9 @@ describe('the stats slot', () => {
   it('cycles figures → ledger → pace → figures with the chevrons, looping both ways', () => {
     mount(liveGame());
 
-    // Page 1 is the team figures, in the requested order: Holds, Breaks, Break ch., Turns.
+    // Page 1 is the team figures, in the requested order: Holds, Breaks, Brk ch., Turns.
     const slot = pager() as HTMLElement;
-    expect(slot.textContent).toMatch(/Holds.*Breaks.*Break ch\..*Turns/);
+    expect(slot.textContent).toMatch(/Holds.*Breaks.*Brk ch\..*Turns/);
     expect(slot.textContent).not.toContain('Clean');
     expect(ledger()).toBeNull();
 
@@ -77,7 +77,7 @@ describe('the stats slot', () => {
     expect(screen.getAllByText(/This point/).length).toBeGreaterThan(0);
 
     fireEvent.click(next());
-    expect(slot.textContent).toMatch(/Holds.*Breaks.*Break ch\..*Turns/); // looped back around
+    expect(slot.textContent).toMatch(/Holds.*Breaks.*Brk ch\..*Turns/); // looped back around
 
     fireEvent.click(screen.getByLabelText('Previous statistic'));
     expect(screen.getAllByText(/This point/).length).toBeGreaterThan(0); // and backwards past the start
@@ -91,7 +91,7 @@ describe('the stats slot', () => {
     mount(state);
 
     const slot = pager() as HTMLElement;
-    expect(slot.textContent).toMatch(/Holds.*Breaks.*Break ch\..*Turns.*Pass/);
+    expect(slot.textContent).toMatch(/Holds.*Breaks.*Brk ch\..*Turns.*Pass/);
     expect(slot.textContent).toContain('42');
     expect(slot.textContent).toContain('37');
   });

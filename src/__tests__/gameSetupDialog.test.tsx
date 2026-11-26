@@ -66,7 +66,7 @@ describe('the game setup dialog', () => {
     expect(within(panel).getByText(/swap ends after every point/i)).toBeInTheDocument();
   });
 
-  it('shows the starting ratio under Rule A', () => {
+  it('shows the starting ratio when the app announces it (ABBA)', () => {
     const panel = openSetup(
       game((s) => {
         s.config.division = 'mixed';
@@ -76,12 +76,12 @@ describe('the game setup dialog', () => {
     );
 
     expect(valueFor(panel, 'Starting gender ratio')).toBe('Women');
-    expect(within(panel).getByText(/Rule A/)).toBeInTheDocument();
+    expect(within(panel).getByText(/alternating every two points/)).toBeInTheDocument();
   });
 
-  // Rule B has no starting ratio at all — state.ratio stays null all game and the
-  // dashboard chip never appears — so the rule itself has to be the answer.
-  it('explains the rule instead of a ratio under Rule B', () => {
+  // Without ABBA there is no starting ratio at all — state.ratio stays null all game
+  // and the dashboard chip never appears — so saying the teams decide is the answer.
+  it('says the teams decide instead of showing a ratio without ABBA', () => {
     const panel = openSetup(
       game((s) => {
         s.config.division = 'mixed';
@@ -90,12 +90,12 @@ describe('the game setup dialog', () => {
     );
 
     expect(within(panel).queryByText('Starting gender ratio')).toBeNull();
-    expect(within(panel).getByText(/Rule B/)).toBeInTheDocument();
+    expect(within(panel).getByText(/teams agree on the ratio/)).toBeInTheDocument();
   });
 
   it('leaves out the ratio section entirely when the game is not mixed', () => {
     const panel = openSetup(game((s) => (s.config.division = 'open')));
-    expect(within(panel).queryByText('Mixed gender-ratio rule')).toBeNull();
+    expect(within(panel).queryByText('Gender ratio')).toBeNull();
     expect(within(panel).getByText('Open')).toBeInTheDocument();
   });
 
@@ -129,7 +129,7 @@ describe('the game setup dialog', () => {
 
     expect(valueFor(panel, 'Per team')).toBe('3');
     expect(valueFor(panel, 'Allowance')).toBe('Per game');
-    expect(valueFor(panel, 'Duration')).toBe("1' 10''");
+    expect(valueFor(panel, 'Duration')).toBe('1m 10s');
   });
 
   it('notes when timeouts are not allowed in the last 5 minutes', () => {
@@ -162,9 +162,9 @@ describe('the game setup dialog', () => {
       }),
     );
 
-    expect(valueFor(panel, 'Break')).toBe("45''");
+    expect(valueFor(panel, 'Break')).toBe('45 s');
     // Exactly three minutes: no dangling zero seconds.
-    expect(within(panel).getAllByText('Duration')[1].nextElementSibling?.textContent).toBe("3'");
+    expect(within(panel).getAllByText('Duration')[1].nextElementSibling?.textContent).toBe('3m');
   });
 
   it('shows the water break scores when automatic breaks are configured', () => {

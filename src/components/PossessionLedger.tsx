@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { teamEdge, teamOutline } from './ui';
 import { possessionTopShare } from '../state/stats';
 import type { PointRecord, TeamId } from '../state/types';
 
@@ -124,9 +125,12 @@ export function PossessionLedger({
             else style.top = lineY + 1;
             // Hairline outlines: a 2px border on a short hollow bar left no
             // interior at all, so a brief possession read as a filled box.
-            if (inProgress) style.border = `1.5px dashed ${colors[team]}`;
-            else if (c.scoredBy === team) style.backgroundColor = colors[team];
-            else style.border = `1px solid ${colors[team]}`;
+            // A colour that would vanish into the background gets the theme's edge (teamEdge).
+            const edge = teamEdge(colors[team]);
+            if (inProgress) style.border = `1.5px dashed ${edge}`;
+            else if (c.scoredBy === team)
+              Object.assign(style, { backgroundColor: colors[team] }, teamOutline(colors[team]));
+            else style.border = `1px solid ${edge}`;
             return style;
           };
 
@@ -160,7 +164,7 @@ export function PossessionLedger({
                   className="absolute left-0 right-0 flex justify-center"
                   style={c.offense === topTeam ? { top: 0 } : { bottom: 0 }}
                 >
-                  <span className="w-[3px] h-[3px] rounded-full bg-signal/60" />
+                  <span className="w-[3px] h-[3px] rounded-full bg-accent/60" />
                 </span>
               )}
             </span>

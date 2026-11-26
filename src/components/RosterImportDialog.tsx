@@ -67,7 +67,7 @@ export function RosterImportDialog({
       <p className="text-sm text-chalk/60">{t('rosterImportHint')}</p>
 
       <textarea
-        className="w-full h-40 rounded-lg bg-pitch border border-line px-3 py-2 text-chalk text-sm font-mono focus:outline-none focus:border-signal"
+        className="w-full h-40 rounded bg-pitch border border-line px-3 py-2 text-chalk text-sm focus:outline-none focus:border-accent"
         placeholder={t('rosterImportPlaceholder')}
         aria-label={t('rosterImportTextareaLabel')}
         value={text}
@@ -116,9 +116,9 @@ export function RosterImportDialog({
               {parse.players.map((p, i) => (
                 <li
                   key={`${p.number}|${p.name}|${i}`}
-                  className="flex items-center gap-2 rounded-lg bg-pitch border border-line px-3 py-1 text-sm"
+                  className="flex items-center gap-2 rounded bg-pitch border border-line px-3 py-1 text-sm"
                 >
-                  {p.number && <span className="font-board text-signal">#{p.number}</span>}
+                  {p.number && <span className="font-board text-accent">#{p.number}</span>}
                   <span className={p.name ? '' : 'text-chalk/40 italic'}>
                     {p.name || t('rosterImportNoName')}
                   </span>
@@ -149,6 +149,7 @@ export function RosterImportDialog({
 
       {existing.length > 0 && (
         <CheckField
+          variant="switch"
           label={t('rosterImportReplace', { count: existing.length })}
           checked={replace}
           onChange={setReplace}

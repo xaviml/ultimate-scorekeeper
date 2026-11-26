@@ -1,21 +1,35 @@
 import { Fragment, useMemo, useState } from 'react';
-import { handOverBackGuard, useBackGuard } from '../hooks/useBackGuard';
 import { useReportImage } from '../hooks/useReportImage';
 import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import { turnoverPlayersTracked } from '../state/gameReducer';
 import { lineTrackingEnabled } from '../state/lines';
 import { copyText } from '../state/clipboard';
-import { APP_URL, playerStatsTeams, reportCardModel, teamStatRows } from '../state/reportCard';
+import {
+  APP_URL,
+  gameLoser,
+  playerStatsTeams,
+  reportCardModel,
+  reportMeta,
+  teamStatRows,
+} from '../state/reportCard';
 import { pointsModel, pointsTextLines } from '../state/pointStory';
 import { formatClock, playerStatLines, sortPlayerStatLines, teamStats } from '../state/stats';
 import type { PlayerStatView } from '../state/stats';
 import type { TeamId } from '../state/types';
 import { FullLogDialog } from './FullLogDialog';
+import { CopyIcon, FoldIcon, LogIcon, PlayersIcon, StatsIcon, UnfoldIcon } from './icons';
+import { PageHeader } from './PageHeader';
+import { SectionCard } from './SectionCard';
+import { Segmented } from './Segmented';
 import { PlayerStatsTable } from './PlayerStatsTable';
 import { PointByPoint } from './PointByPoint';
 import { playerStatColumns, statCellText } from './playerStatColumns';
-import { contrastText, pillClass, primaryButton, secondaryButtonOnPitch, sectionTitle } from './ui';
+import { contrastText, teamOutline, primaryButton, secondaryButtonOnPitch } from './ui';
+
+/** A control in a section heading's corner — the same 32px height as the nav buttons. */
+const smallControl =
+  'inline-flex items-center justify-center h-8 min-w-8 rounded-md bg-pitch border border-line px-2 font-board text-xs font-semibold uppercase tracking-wide text-chalk/80 whitespace-nowrap active:scale-95';
 
 const VIEW_KEY = {
   scoring: 'viewScoring',
@@ -69,24 +83,16 @@ export default function ReportScreen({
   const [teamFilter, setTeamFilter] = useState<TeamId | 'all'>('all');
   const [view, setView] = useState<PlayerStatView>('scoring');
   const [showFullLog, setShowFullLog] = useState(false);
+  // Which points of "Point by point" are open — held here rather than in the list,
+  // so the section heading can open or fold them all at once.
+  const [openPoints, setOpenPoints] = useState<ReadonlySet<string>>(() => new Set());
 
-  // The phone back gesture reads as "back to the game", the same as the button —
-  // this screen is a layer over one, not the end of the app. It is the "complete
-  // and land" shape: the press has already spent the entry, so nothing re-arms it
-  // and the dashboard pushes its own on the way in. Live mode takes no guard at
-  // all: GameScreen is still mounted underneath and peels this layer off with its
-  // own (two hooks would each answer the other's press).
-  // A layer over a screen that guards for it (the dashboard in `live`, the
-  // past-games list in `archived`) takes no guard of its own: two hooks would each
-  // attach a window listener and answer the other's press.
+  // Live (over the game) and archived (over match history) are pages opened over
+  // another screen, and their way back is the caller's. The report of a game that has
+  // been left goes back by dispatching, like every other move of the game itself —
+  // App turns "back to the game" and "new game" into the matching navigation.
   const layered = mode !== 'phase';
-  const resolveBack = useBackGuard(!layered, () => dispatch({ type: 'BACK_TO_GAME' }));
-  const backToGame = () => {
-    // Handed over rather than resolved, for the same reason the dashboard hands it
-    // here: the game screen guards from where this one leaves off.
-    handOverBackGuard();
-    dispatch({ type: 'BACK_TO_GAME' });
-  };
+  const backToGame = () => dispatch({ type: 'BACK_TO_GAME' });
 
   const A = teamStats(state, 'A');
   const B = teamStats(state, 'B');
@@ -124,6 +130,14 @@ export default function ReportScreen({
     ),
     view,
   );
+
+  const pointNumbers = points.rows.flatMap((r) => (r.kind === 'point' ? [r.number] : []));
+  const allPointsOpen = pointNumbers.length > 0 && pointNumbers.every((n) => openPoints.has(n));
+
+  // The line over the score and who lost, shared with the image (state/reportCard.ts)
+  // so the two can never tell the game differently.
+  const meta = reportMeta(state, t, lang);
+  const loser = gameLoser(state);
 
   // Memoised because the hook renders the image off it the moment it changes,
   // and a fresh object every render would redraw the canvas every render.
@@ -192,40 +206,25 @@ export default function ReportScreen({
   };
 
   return (
-    <div className="min-h-dvh bg-pitch text-chalk p-4 pb-10 max-w-2xl mx-auto space-y-4">
-      <div className="flex items-center justify-between gap-2 mt-2">
-        {/* The way back, in every mode. Live mode hands its own callback in because
-            the dashboard is still mounted behind it; the report phase leaves the game
-            exactly as it found it, so BACK_TO_GAME is the whole of returning. */}
-        <button
-          type="button"
-          className="rounded-lg bg-panel border border-line px-3 py-1 text-sm text-chalk/70 whitespace-nowrap"
-          onClick={layered ? onBack : backToGame}
-        >
-          {/* Worded per mode for the same reason the guide's is worded neutrally:
-              "Back to the game" is a lie from the archive, where there is no game to
-              go back to — the way out is the list this one was opened from. */}
-          ← {mode === 'archived' ? t('btnBack') : t('btnBackToGame')}
-        </button>
-        {/* A second way out: closing the report straight to setup, without first
-            stepping back through the dashboard. Offered in exactly the cases
-            "New game" at the bottom already is (see below) — this is the same
-            action, reachable without scrolling. */}
-        {!layered && (
-          <button
-            type="button"
-            className="rounded-lg bg-panel border border-line px-3 py-1 text-sm text-chalk/70 whitespace-nowrap"
-            onClick={() => {
-              resolveBack();
-              dispatch({ type: 'BACK_TO_CONFIG' });
-            }}
-          >
-            {t('btnExitReport')} →
-          </button>
-        )}
-      </div>
+    <div className="min-h-dvh bg-pitch text-chalk px-4 pt-4 max-w-2xl mx-auto space-y-4">
+      {/* The way back, in every mode: the game for a report reached from it (live
+          mode hands its own callback in, the dashboard being mounted underneath; the
+          report of a left game goes back by dispatching), the list for an archived
+          one — named per mode, since "Back to the game" is a lie from the archive.
+          Neutral title: nothing on this page claims the game is over. */}
+      <PageHeader
+        title={t('reportPageTitle')}
+        backLabel={mode === 'archived' ? t('btnBack') : t('btnBackToGame')}
+        onBack={layered ? onBack! : backToGame}
+      />
 
-      <section className="rounded-xl bg-panel border border-line p-4">
+      <SectionCard data-score-card>
+        <p
+          data-report-meta
+          className="text-center font-board text-xs uppercase tracking-wide text-chalk/60"
+        >
+          {meta.join(' · ')}
+        </p>
         {/* Two rows, not one: a name that wraps to a second line must never nudge its
             own score box out of alignment with the other team's. The name row mirrors
             the dash with an invisible twin so both name columns still land under their
@@ -235,9 +234,13 @@ export default function ReportScreen({
             <Fragment key={id}>
               {i === 1 && <span className="font-clock text-3xl text-chalk/40">—</span>}
               <div
-                className="w-28 text-center font-clock text-6xl font-semibold rounded-lg px-4 py-2"
+                data-result={loser === null ? undefined : loser === id ? 'loss' : 'win'}
+                className={`w-28 text-center font-clock text-6xl font-semibold rounded-md px-4 py-2 ${
+                  loser === id ? 'opacity-40' : ''
+                }`}
                 style={{
                   backgroundColor: state.config.teams[id].color,
+                  ...teamOutline(state.config.teams[id].color),
                   color: contrastText(state.config.teams[id].color),
                 }}
               >
@@ -250,26 +253,58 @@ export default function ReportScreen({
           {(['A', 'B'] as TeamId[]).map((id, i) => (
             <Fragment key={id}>
               {i === 1 && <span className="font-clock text-3xl invisible">—</span>}
-              <div className="w-28 text-center font-board break-words">{nameOf(id)}</div>
+              <div
+                className={`w-28 text-center font-board break-words ${
+                  loser === id ? 'text-chalk/50' : loser !== null ? 'font-semibold' : ''
+                }`}
+              >
+                {nameOf(id)}
+              </div>
             </Fragment>
           ))}
         </div>
-      </section>
+      </SectionCard>
 
       {/* Modelled on a broadcast game summary: large figures, each followed by the
           small rows that qualify it (the clean count under Holds, the average under
           Passes) with no rule in between. The percentage shares the figure's cell
           rather than taking a column of its own: at 360px a fifth column would leave
           the labels between them a few words wide. */}
-      <section className="rounded-xl bg-panel border border-line p-4">
-        {/* No header row: the team names are on the score boxes directly above, in
-            the same left/right order. */}
-        <table className="w-full text-sm" data-team-stats>
+      <SectionCard title={t('reportTeamsTitle')} icon={<StatsIcon size="w-4 h-4" />}>
+        {/* Named and dotted at the head of each column: the score card above uses the
+            same left/right order, but a column of figures should say whose it is
+            without sending the eye back up the page. */}
+        <table className="w-full table-fixed text-sm" data-team-stats>
           <colgroup>
             <col className="w-[30%]" />
             <col />
             <col className="w-[30%]" />
           </colgroup>
+          <thead>
+            <tr className="font-board text-xs font-semibold uppercase tracking-wide">
+              {(['A', null, 'B'] as const).map((id, i) =>
+                id === null ? (
+                  <th key={i} />
+                ) : (
+                  <th key={id} scope="col" data-team-column={id} className="pb-2 font-semibold">
+                    <span
+                      className={`flex items-center gap-1.5 ${id === 'A' ? 'flex-row-reverse' : ''}`}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="shrink-0 w-2.5 h-2.5 rounded-full"
+                        style={{
+                          backgroundColor: state.config.teams[id].color,
+                          ...teamOutline(state.config.teams[id].color),
+                        }}
+                      />
+                      <span className="truncate">{nameOf(id)}</span>
+                    </span>
+                  </th>
+                ),
+              )}
+            </tr>
+          </thead>
           <tbody>
             {statRows.map((row, i) =>
               row.sub ? (
@@ -283,7 +318,7 @@ export default function ReportScreen({
               ) : (
                 <tr
                   key={`${i}-${row.label}`}
-                  className={i === 0 ? '' : 'border-t border-line'}
+                  className="border-t border-line"
                   data-stat-tier="main"
                 >
                   <td className="pt-1.5 pb-1 text-right whitespace-nowrap">
@@ -314,45 +349,40 @@ export default function ReportScreen({
             )}
           </tbody>
         </table>
-      </section>
+      </SectionCard>
 
       {playerLines.length > 0 && (
-        <section className="rounded-xl bg-panel border border-line p-4 overflow-x-auto">
-          <h2 className={`${sectionTitle} mb-2`}>{t('playerStatsTitle')}</h2>
+        <SectionCard
+          title={t('playerStatsTitle')}
+          icon={<PlayersIcon size="w-4 h-4" />}
+          className="overflow-x-auto"
+        >
           {showTeamFilter && (
-            <div className="flex gap-2 mb-3">
-              {(['all', 'A', 'B'] as const).map((f) => (
-                <button
-                  key={f}
-                  className={pillClass(teamFilter === f)}
-                  onClick={() => setTeamFilter(f)}
-                >
-                  {f === 'all' ? t('filterAllTeams') : nameOf(f)}
-                </button>
-              ))}
-            </div>
+            <Segmented
+              labelHidden
+              label={t('playerStatsTeamLabel')}
+              value={teamFilter}
+              onChange={setTeamFilter}
+              options={(['all', 'A', 'B'] as const).map((f) => ({
+                value: f,
+                label: f === 'all' ? t('filterAllTeams') : nameOf(f),
+              }))}
+            />
           )}
           {/* Three views over one roster, rather than one table too wide for a phone.
-              Pills are offered only for the views that have real data: Playing needs
-              line tracking, Possession needs "Ask who turned it over" — the two are
+              Offered only for the views that have real data: Playing needs line
+              tracking, Possession needs "Ask who turned it over" — the two are
               independent, so a game can offer either, both or neither. With only
-              Scoring available the pill row would be one tab onto the columns already
-              on screen, so it stays hidden. Playing and the team filter still never
-              share a screen (line tracking is Team mode only), but Possession can now
-              sit above the filter in Player mode, since it asks nothing of the line. */}
+              Scoring available the switch would be one choice onto the columns
+              already on screen, so it stays hidden. */}
           {availableViews.length > 1 && (
-            <div className="flex gap-2 mb-3">
-              {availableViews.map((v) => (
-                <button
-                  key={v}
-                  className={pillClass(view === v)}
-                  aria-pressed={view === v}
-                  onClick={() => setView(v)}
-                >
-                  {t(VIEW_KEY[v])}
-                </button>
-              ))}
-            </div>
+            <Segmented
+              labelHidden
+              label={t('playerStatsViewLabel')}
+              value={view}
+              onChange={setView}
+              options={availableViews.map((v) => ({ value: v, label: t(VIEW_KEY[v]) }))}
+            />
           )}
           <PlayerStatsTable
             lines={visiblePlayerLines}
@@ -360,45 +390,49 @@ export default function ReportScreen({
             teamColor={showTeamFilter ? (p) => state.config.teams[p.team].color : undefined}
             t={t}
           />
-        </section>
+        </SectionCard>
       )}
 
       {/* Point by point — the game told one point at a time, folded here and painted
           opened up on the image. The log itself, entry for entry, is behind the
           button, which is what keeps the corrections out of the story. */}
-      <section className="rounded-xl bg-panel border border-line p-4" data-points-section>
-        <div className="flex items-center justify-between gap-2 mb-2">
-          <h2 className={sectionTitle}>{points.title}</h2>
-          <button
-            className="rounded-lg bg-pitch border border-line px-2 py-1.5 text-[11px] font-board uppercase tracking-wide text-chalk active:scale-95 shrink-0"
-            onClick={() => setShowFullLog(true)}
-          >
-            {t('btnFullLog')}
-          </button>
-        </div>
-        <PointByPoint model={points} teams={state.config.teams} />
-      </section>
+      <SectionCard
+        data-points-section
+        title={points.title}
+        icon={<LogIcon size="w-4 h-4" />}
+        action={
+          <>
+            {/* Opens every point at once, or folds them all back — reading a whole
+                game is otherwise a tap per point. An icon with a name rather than
+                words: the heading has the room for one short label, and Full log
+                is it. */}
+            {pointNumbers.length > 0 && (
+              <button
+                type="button"
+                data-points-fold={allPointsOpen ? 'open' : 'folded'}
+                className={smallControl}
+                aria-label={t(allPointsOpen ? 'pointsFoldAll' : 'pointsOpenAll')}
+                title={t(allPointsOpen ? 'pointsFoldAll' : 'pointsOpenAll')}
+                onClick={() => setOpenPoints(allPointsOpen ? new Set() : new Set(pointNumbers))}
+              >
+                {allPointsOpen ? <FoldIcon size="w-4 h-4" /> : <UnfoldIcon size="w-4 h-4" />}
+              </button>
+            )}
+            <button type="button" className={smallControl} onClick={() => setShowFullLog(true)}>
+              {t('btnFullLog')}
+            </button>
+          </>
+        }
+      >
+        <PointByPoint
+          model={points}
+          teams={state.config.teams}
+          open={openPoints}
+          onOpenChange={setOpenPoints}
+        />
+      </SectionCard>
 
       {showFullLog && <FullLogDialog onClose={() => setShowFullLog(false)} />}
-
-      <div className="grid grid-cols-2 gap-3">
-        <button className={primaryButton} onClick={share}>
-          {shareStatus === 'working'
-            ? t('shareImagePreparing')
-            : shareStatus === 'saved'
-              ? t('shareImageSaved')
-              : shareStatus === 'failed'
-                ? t('shareImageFailed')
-                : t('shareImage')}
-        </button>
-        <button className={secondaryButtonOnPitch} onClick={copy}>
-          {copyState === 'copied'
-            ? t('copied')
-            : copyState === 'failed'
-              ? t('copyFailed')
-              : t('copyReport')}
-        </button>
-      </div>
 
       {/* Starting a new game is what actually discards this one, the game screen
           having been left behind — so it is offered here and not in live mode.
@@ -407,13 +441,43 @@ export default function ReportScreen({
         <button
           className={`${secondaryButtonOnPitch} w-full`}
           onClick={() => {
-            resolveBack();
             dispatch({ type: 'BACK_TO_CONFIG' });
           }}
         >
           {t('newGame')}
         </button>
       )}
+      {/* Share and Copy, always within reach: sending the report to the team chat is
+          what this screen is mostly for, and with a whole game of points above them
+          they used to be a long scroll away. The setup screen's Start bar, the same
+          ground, hairline and safe-area padding, so the two read as one pattern. */}
+      <div
+        data-report-actions
+        className="sticky bottom-0 z-20 -mx-4 border-t border-line bg-pitch/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur"
+      >
+        <div className="grid grid-cols-2 gap-3">
+          <button className={primaryButton} onClick={share}>
+            {shareStatus === 'working'
+              ? t('shareImagePreparing')
+              : shareStatus === 'saved'
+                ? t('shareImageSaved')
+                : shareStatus === 'failed'
+                  ? t('shareImageFailed')
+                  : t('shareImage')}
+          </button>
+          <button
+            className={`${secondaryButtonOnPitch} inline-flex items-center justify-center gap-2`}
+            onClick={copy}
+          >
+            <CopyIcon size="w-5 h-5" />
+            {copyState === 'copied'
+              ? t('copied')
+              : copyState === 'failed'
+                ? t('copyFailed')
+                : t('copyReport')}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

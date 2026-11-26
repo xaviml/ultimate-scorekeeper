@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
+import { teamEdge, teamOutline } from './ui';
 import type { PointRowModel, PointsModel, TrackSegment } from '../state/pointStory';
 import type { TeamId } from '../state/types';
 import { ChevronRightIcon } from './icons';
@@ -18,19 +19,29 @@ import { TRACK_HEIGHT, TRACK_STROKE, layoutTrack } from './possessionTrack';
 export function PointByPoint({
   model,
   teams,
+  open: openProp,
+  onOpenChange,
 }: {
   model: PointsModel;
   teams: Record<TeamId, { name: string; color: string }>;
+  /**
+   * Which points are open, when the caller wants to hold it — the report does, for
+   * its "open all / fold all" control in the section heading. Left out, the list
+   * keeps its own.
+   */
+  open?: ReadonlySet<string>;
+  onOpenChange?: (open: ReadonlySet<string>) => void;
 }) {
-  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
+  const [ownOpen, setOwnOpen] = useState<ReadonlySet<string>>(() => new Set());
+  const open = openProp ?? ownOpen;
+  const setOpen = onOpenChange ?? setOwnOpen;
 
-  const toggle = (number: string) =>
-    setOpen((prev) => {
-      const next = new Set(prev);
-      if (next.has(number)) next.delete(number);
-      else next.add(number);
-      return next;
-    });
+  const toggle = (number: string) => {
+    const next = new Set(open);
+    if (next.has(number)) next.delete(number);
+    else next.add(number);
+    setOpen(next);
+  };
 
   return (
     <div>
@@ -114,7 +125,10 @@ function PointRow({
           {row.scoredBy && (
             <span
               className="w-2.5 h-2.5 rounded-full shrink-0"
-              style={{ backgroundColor: teams[row.scoredBy].color }}
+              style={{
+                backgroundColor: teams[row.scoredBy].color,
+                ...teamOutline(teams[row.scoredBy].color),
+              }}
             />
           )}
           {row.score && (
@@ -125,7 +139,7 @@ function PointRow({
               unfinished
                 ? 'border-dashed border-chalk/40 text-chalk/60'
                 : row.isBreak
-                  ? 'border-signal/60 text-signal'
+                  ? 'border-accent/60 text-accent'
                   : 'border-line text-chalk/60'
             }`}
           >
@@ -163,7 +177,14 @@ function PointRow({
               <span className="font-clock text-chalk/50 w-9 shrink-0">{line.clock}</span>
               <span
                 className="w-2 h-2 rounded-full mt-[3px] shrink-0"
-                style={line.team ? { backgroundColor: teams[line.team].color } : undefined}
+                style={
+                  line.team
+                    ? {
+                        backgroundColor: teams[line.team].color,
+                        ...teamOutline(teams[line.team].color),
+                      }
+                    : undefined
+                }
               />
               <span className="min-w-0 break-words">{line.text}</span>
             </li>
@@ -249,7 +270,7 @@ function Track({
                 height={TRACK_STROKE - 1.5}
                 rx={1.5}
                 fill="none"
-                stroke={teams[p.team].color}
+                style={{ stroke: teamEdge(teams[p.team].color) }}
                 strokeWidth={1.5}
                 strokeDasharray="3 2"
               />
@@ -261,6 +282,9 @@ function Track({
                 height={TRACK_STROKE}
                 rx={1.5}
                 fill={teams[p.team].color}
+                {...(teamEdge(teams[p.team].color) !== teams[p.team].color
+                  ? { style: { stroke: teamEdge(teams[p.team].color) }, strokeWidth: 0.5 }
+                  : {})}
               />
             )}
             {p.time && label(p.time)}
@@ -273,7 +297,7 @@ function Track({
             cy={mid}
             r={4.5}
             className="fill-chalk"
-            stroke={teams[last.team].color}
+            style={{ stroke: teamEdge(teams[last.team].color) }}
             strokeWidth={2}
             data-disc
           />

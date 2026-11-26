@@ -96,7 +96,7 @@ describe('dialogs render through the shared Modal', () => {
 
   it('GameLog shows the full log heading and column headers', () => {
     renderWithProviders(<GameLog onClose={noop} onAddEvent={noop} />);
-    expect(screen.getByText('Full game log')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Logs' })).toBeInTheDocument();
     // Twice over: the table's own column header, and the header button that adds one.
     expect(screen.getAllByText('Event')).toHaveLength(2);
   });

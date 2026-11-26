@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useT, type Lang } from '../i18n/useT';
+import { useT } from '../i18n/useT';
 import { defaultConfig, rosterTeams, statsTrackingEnabled } from '../state/gameReducer';
 import { useGame, useGameDispatch } from '../state/gameHooks';
-import { useBackGuard } from '../hooks/useBackGuard';
 import { ratioGenderCheckAvailable } from '../state/lines';
 import { deleteTeam, loadSavedTeams, saveTeam, saveTeamLines } from '../state/rosterStorage';
 import {
@@ -24,29 +23,34 @@ import type {
   SavedTemplate,
   TeamId,
 } from '../state/types';
-import {
-  loadPlayersSectionCollapsed,
-  loadWaterBreakSectionCollapsed,
-  savePlayersSectionCollapsed,
-  saveWaterBreakSectionCollapsed,
-} from '../state/uiPreferences';
-import { AboutDialog } from './AboutDialog';
+import { AppMenu } from './AppMenu';
 import { CheckField } from './CheckField';
-import { ConfigMenuDialog } from './ConfigMenuDialog';
-import { SettingsDialog } from './SettingsDialog';
 import { ConfirmDeleteTemplateDialog } from './ConfirmDeleteTemplateDialog';
-import GuideScreen from './GuideScreen';
-import { MenuIcon } from './icons';
-import PastGamesScreen from './PastGamesScreen';
-import StatsGuideScreen from './StatsGuideScreen';
-import { PlayerRosterEditor } from './PlayerRosterEditor';
+import {
+  ChevronRightIcon,
+  CoinIcon,
+  DropIcon,
+  FlagIcon,
+  HalfIcon,
+  MenuIcon,
+  PlayersIcon,
+  PlusIcon,
+  SetupIcon,
+  ShirtIcon,
+  StatsIcon,
+  TimeoutIcon,
+} from './icons';
 import { SavedLinesEditor } from './SavedLinesEditor';
 import { RosterImportDialog } from './RosterImportDialog';
 import { SaveTemplateDialog } from './SaveTemplateDialog';
 import { TeamColorPicker } from './TeamColorPicker';
 import { TeamNameCombobox } from './TeamNameCombobox';
+import { TeamRosterDialog } from './TeamRosterDialog';
 import { uid } from '../state/uid';
-import { fieldLabel, inputClass, secondaryButtonOnPitch, sectionTitle } from './ui';
+import { AppLogo } from './AppLogo';
+import { Segmented, type SegmentOption } from './Segmented';
+import { Stepper } from './Stepper';
+import { fieldLabel, hintText, inputClass, pillClass, specSection, specTitle } from './ui';
 
 const PREDEFINED_TEMPLATES = {
   grass: GRASS_TEMPLATE,
@@ -62,6 +66,16 @@ function suggestedStartingTime(date: Date = new Date()): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+/** Whole minutes from now until a configured "HH:MM" today, rounded up; null if not ahead. */
+function minutesUntil(time: string, nowMs: number): number | null {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(time);
+  if (!match) return null;
+  const d = new Date(nowMs);
+  d.setHours(Number(match[1]), Number(match[2]), 0, 0);
+  const ms = d.getTime() - nowMs;
+  return ms > 0 ? Math.ceil(ms / 60000) : null;
+}
+
 /** Whether a configured "HH:MM" starting time is still ahead of the current time (today). */
 function startingTimeIsFuture(time: string): boolean {
   const match = /^(\d{1,2}):(\d{2})$/.exec(time);
@@ -72,20 +86,32 @@ function startingTimeIsFuture(time: string): boolean {
 }
 
 function Section({
+  id,
   title,
+  icon,
+  action,
   children,
-  collapsible,
-  collapsed,
-  onToggleCollapsed,
-  toggleAriaLabel,
+  fold,
+  summary,
   enabled,
 }: {
+  /** An anchor, so the Start bar can scroll to the section that is holding it up. */
+  id?: string;
   title: string;
+  /** A glyph from the icon set, drawn before the title in the accent. */
+  icon?: React.ReactNode;
+  /** A small control in the heading's right-hand corner, for a section with no on/off. */
+  action?: React.ReactNode;
   children: React.ReactNode;
-  collapsible?: boolean;
-  collapsed?: boolean;
-  onToggleCollapsed?: () => void;
-  toggleAriaLabel?: string;
+  /**
+   * Folds the section to its heading and `summary` — the rules, which are set once a
+   * tournament and then only glanced at. The whole heading is the toggle, through a
+   * transparent button laid over it (so the heading stays a heading, with its own
+   * name), named "Expand/Collapse {title}" for a screen reader.
+   */
+  fold?: { open: boolean; onToggle: () => void; label: string };
+  /** One line that stands in for the folded contents: "15 pts · 100 min · CAP +1". */
+  summary?: React.ReactNode;
   /**
    * An on/off for the whole section, drawn as an unlabelled switch in the heading's
    * top-right corner. Off folds the section down to its title: there is nothing in it
@@ -93,12 +119,40 @@ function Section({
    */
   enabled?: { checked: boolean; onChange: (checked: boolean) => void; label: string };
 }) {
+  const on = !enabled || enabled.checked;
+  const canOpen = fold !== undefined && on;
+  const open = on && (!fold || fold.open);
+  const heading = (
+    <h2 className={`${specTitle} flex items-center gap-2`}>
+      {icon && (
+        <span aria-hidden="true" className="shrink-0">
+          {icon}
+        </span>
+      )}
+      {title}
+    </h2>
+  );
   return (
-    <section className="rounded-xl bg-panel border border-line p-4 space-y-3">
-      {enabled ? (
-        <div className="flex items-center justify-between">
-          <h2 className={sectionTitle}>{title}</h2>
-          <div className="-my-1.5">
+    <section id={id} className={`${specSection} scroll-mt-4`}>
+      <div className="relative flex items-center gap-3">
+        <div className="flex-1 min-w-0">
+          {heading}
+          {summary && !open && (
+            <div className="mt-1 text-xs leading-snug text-chalk/60 truncate">{summary}</div>
+          )}
+        </div>
+        {canOpen && (
+          <button
+            type="button"
+            className="absolute inset-0 w-full"
+            aria-expanded={fold.open}
+            aria-label={fold.label}
+            onClick={fold.onToggle}
+          />
+        )}
+        {enabled && (
+          // Above the fold button, so the switch takes its own taps.
+          <div className="relative z-10 -my-1.5 shrink-0">
             <CheckField
               variant="switch"
               label={enabled.label}
@@ -107,33 +161,47 @@ function Section({
               onChange={enabled.onChange}
             />
           </div>
-        </div>
-      ) : collapsible ? (
-        <button
-          type="button"
-          className="w-full flex items-center justify-between"
-          aria-expanded={!collapsed}
-          aria-label={toggleAriaLabel}
-          onClick={onToggleCollapsed}
-        >
-          <h2 className={sectionTitle}>{title}</h2>
+        )}
+        {action && <div className="relative z-10 shrink-0">{action}</div>}
+        {canOpen && (
+          // pointer-events-none: rotated, the chevron is transformed, which lifts it
+          // above the fold button laid over the heading — and would swallow the tap.
           <span
             aria-hidden="true"
-            className={`text-chalk/60 transition-transform ${collapsed ? '-rotate-90' : ''}`}
+            className={`pointer-events-none shrink-0 text-chalk/50 transition-transform ${fold.open ? 'rotate-90' : ''}`}
           >
-            ▾
+            <ChevronRightIcon size="w-4 h-4" />
           </span>
-        </button>
-      ) : (
-        <h2 className={sectionTitle}>{title}</h2>
-      )}
-      {(!collapsible || !collapsed) && (!enabled || enabled.checked) && children}
+        )}
+      </div>
+      {open && children}
     </section>
   );
 }
 
+/**
+ * A duration set in seconds, read back in minutes — "1m 30s", "7m" — under the
+ * fields that count in seconds, so 420 doesn't have to be divided in your head.
+ * Nothing under a minute, where the seconds already say it.
+ */
+function secondsInMinutes(seconds: number): string | null {
+  if (seconds < 60) return null;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s === 0 ? `${m}m` : `${m}m ${s}s`;
+}
+
+/** A problem with a field, said right under it. */
+const errorText = 'text-xs leading-snug text-signal';
+
+const DIVISION_LABEL = {
+  open: 'divisionOpen',
+  women: 'divisionWomen',
+  mixed: 'divisionMixed',
+} as const;
+
 export default function ConfigScreen() {
-  const { t, lang, setLang } = useT();
+  const { t } = useT();
   const dispatch = useGameDispatch();
   const state = useGame();
   // BACK_TO_CONFIG seeds state.config with the just-finished game's config (a
@@ -176,40 +244,36 @@ export default function ConfigScreen() {
     window.scrollTo(0, 0);
   }, []);
   const [savedTeams, setSavedTeams] = useState<SavedTeam[]>(() => loadSavedTeams());
-  const [showAbout, setShowAbout] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  // The header menu, and the two full screens behind it. Both are rendered from
-  // here rather than from App so this screen stays mounted underneath them —
-  // everything already typed into the form is still there when the volunteer
-  // comes back — which is also why neither is a phase in the reducer.
+  // The header menu. Match history and the guides behind it are pages of their own
+  // (#/history, #/guide, #/guide/advanced) that App opens over this screen, keeping it
+  // mounted underneath so everything already typed into the form is still there when
+  // the volunteer comes back.
   const [showMenu, setShowMenu] = useState(false);
-  const [showGuide, setShowGuide] = useState(false);
-  const [showStatsGuide, setShowStatsGuide] = useState(false);
-  const [showPastGames, setShowPastGames] = useState(false);
-  // Collapsed by default; a fresh load/reload always starts collapsed regardless of what
-  // was saved, since that saved value only means something relative to a just-finished
-  // game. Coming back from BACK_TO_CONFIG (see startingFresh above) is the one case where
-  // "the user had it open" is worth honoring.
-  const [playersCollapsed, setPlayersCollapsed] = useState(() =>
-    startingFresh ? true : loadPlayersSectionCollapsed(),
-  );
-  const togglePlayersCollapsed = () =>
-    setPlayersCollapsed((prev) => {
-      const next = !prev;
-      savePlayersSectionCollapsed(next);
-      return next;
-    });
-  // Same treatment as Roster, for the same reason: hot weather is the exception, so
-  // the section is folded away until a tournament actually runs the protocol.
-  const [waterBreakCollapsed, setWaterBreakCollapsed] = useState(() =>
-    startingFresh ? true : loadWaterBreakSectionCollapsed(),
-  );
-  const toggleWaterBreakCollapsed = () =>
-    setWaterBreakCollapsed((prev) => {
-      const next = !prev;
-      saveWaterBreakSectionCollapsed(next);
-      return next;
-    });
+  // "Now", for the scheduled start's countdown. It only needs to move while a start
+  // time is set, and half a minute is fine-grained enough for a figure in minutes.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (!cfg.startingTime.enabled) return;
+    setNowMs(Date.now());
+    const id = window.setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, [cfg.startingTime.enabled, cfg.startingTime.time]);
+  // Which team's roster sheet is open, from its row in the Teams card.
+  const [rosterTeam, setRosterTeam] = useState<TeamId | null>(null);
+  // Which of the rule sections are unfolded. All start folded to their one-line
+  // summaries: the rules are set once a tournament and then only glanced at.
+  type RuleSection = 'win' | 'half' | 'timeouts' | 'water';
+  const [openRules, setOpenRules] = useState<Record<RuleSection, boolean>>({
+    win: false,
+    half: false,
+    timeouts: false,
+    water: false,
+  });
+  const foldFor = (key: RuleSection, title: string) => ({
+    open: openRules[key],
+    onToggle: () => setOpenRules((o) => ({ ...o, [key]: !o[key] })),
+    label: t(openRules[key] ? 'collapseSection' : 'expandSection', { title }),
+  });
   const removeSavedTeam = (name: string) => {
     deleteTeam(name);
     setSavedTeams((prev) => prev.filter((t) => t.name !== name));
@@ -241,7 +305,6 @@ export default function ConfigScreen() {
     // the user meant — the moment for any knock-on clamp of another field.
     commit: (n: number, final: boolean) => void,
   ) => ({
-    className: inputClass,
     inputMode: 'numeric' as const,
     value: numberDrafts[key] ?? String(value),
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -261,6 +324,51 @@ export default function ConfigScreen() {
       });
     },
   });
+
+  // Every number on this screen is a Stepper around those same props: typing keeps
+  // the draft-then-clamp behaviour above, and − / + commit at once (dropping any
+  // half-typed draft, which the tap has just overruled).
+  const numberField = (
+    key: string,
+    label: string,
+    value: number,
+    min: number,
+    max: number,
+    commit: (n: number, final: boolean) => void,
+    {
+      step = 1,
+      unit,
+      id,
+      note,
+    }: { step?: number; unit?: string; id?: string; note?: string | null } = {},
+  ) => (
+    <>
+      <Stepper
+        label={label}
+        input={{ ...numberFieldProps(key, value, min, max, commit), id }}
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        unit={unit}
+        onStep={(n) => {
+          setNumberDrafts((d) => {
+            const rest = { ...d };
+            delete rest[key];
+            return rest;
+          });
+          commit(n, true);
+        }}
+      />
+      {/* On the label's line, at the far right — the wrapper around the label and
+          this field is \`relative\` for it. */}
+      {note && (
+        <span className="absolute top-0 right-0 text-xs leading-4 text-chalk/50 font-clock font-semibold">
+          {note}
+        </span>
+      )}
+    </>
+  );
 
   // The water-break trigger scores are a list, not a single number, so they can't go
   // through numberFieldProps: the field holds free text ("4, 12") while it is being
@@ -333,8 +441,16 @@ export default function ConfigScreen() {
    * are visible on the same screen, so silently rewriting them on a mode change is
    * the surprising behaviour, not keeping them.
    */
-  const setStatsMode = (mode: GameConfig['statsMode']) =>
+  const setStatsMode = (mode: GameConfig['statsMode']) => {
+    if (mode !== 'none') setStatsDetail(mode);
     setCfg((c) => ({ ...c, statsMode: mode, trackedTeam: null }));
+  };
+  // The detail the Statistics switch turns back on to: whichever was last picked
+  // this visit, Team the first time. Off is `statsMode: 'none'`, so the choice itself
+  // is not in the config while the switch is off — this is what remembers it.
+  const [statsDetail, setStatsDetail] = useState<'teams' | 'players'>(() =>
+    cfg.statsMode === 'players' ? 'players' : 'teams',
+  );
   /**
    * `cfg.lines.saved` holds one team's lines, so moving the tracked team has to swap
    * them for that team's — otherwise Ravens' lines would follow the pointer onto
@@ -362,12 +478,24 @@ export default function ConfigScreen() {
       // whose lines are the ones being tracked, since cfg holds a single list.
       ...(c.trackedTeam === id ? { lines: { ...c.lines, saved: team.lines ?? [] } } : {}),
     }));
-  // Renaming never touches the roster: turning a loaded "Ravens" into "Ravens B"
-  // is the common way to build a second squad out of the first, and silently
-  // emptying the list would throw away exactly what the user meant to keep. The
-  // saved "Ravens" is untouched either way — the store is only written by
-  // addSavedTeam below and by the roster sync once a game starts.
-  const changeTeamName = (id: TeamId, name: string) => setTeam(id, { name });
+  // Editing a name keeps the roster: turning a loaded "Ravens" into "Ravens B" is
+  // the common way to build a second squad out of the first. Emptying the box is
+  // different — the team is gone, and its players (and, for the followed team, its
+  // predefined lines) go with it, so whatever is typed next starts from an empty
+  // roster rather than inheriting the last team's. The saved "Ravens" is untouched
+  // either way — the store is only written by addSavedTeam below and by the roster
+  // sync once a game starts.
+  const changeTeamName = (id: TeamId, name: string) =>
+    setCfg((c) => {
+      const teams = { ...c.teams, [id]: { ...c.teams[id], name } };
+      if (name.trim() !== '') return { ...c, teams };
+      return {
+        ...c,
+        teams,
+        players: { ...c.players, [id]: [] },
+        ...(c.trackedTeam === id ? { lines: { ...c.lines, saved: [] } } : {}),
+      };
+    });
   // "Add <name> as a new team" writes to the saved-teams store there and then,
   // with whatever name, colour and roster the form currently holds, instead of
   // waiting for START_GAME. So a team can be set up (and reused next time) even
@@ -426,46 +554,6 @@ export default function ConfigScreen() {
     setSavedTeams(loadSavedTeams());
   };
 
-  // Phone back button on the guide: same as tapping its own "back to setup" —
-  // it's a screen reached from a link, not an external page, so the gesture
-  // should return here rather than exit the app. This "lands" (no stay()), so a
-  // single press drops us straight back onto the setup form, leaving nothing on
-  // the history stack behind it.
-  // One guard for both guides: they are opened from the same menu and only ever
-  // one at a time, so a second hook would just be a second window listener
-  // answering the first one's press.
-  const resolveGuide = useBackGuard(showGuide || showStatsGuide, () => {
-    setShowGuide(false);
-    setShowStatsGuide(false);
-  });
-
-  // Closing via the guide's own button (not the gesture) has to drop the still-
-  // pending history entry too, so the next back press doesn't hit a dead one.
-  if (showGuide)
-    return (
-      <GuideScreen
-        onBack={() => {
-          setShowGuide(false);
-          resolveGuide();
-        }}
-      />
-    );
-
-  if (showStatsGuide)
-    return (
-      <StatsGuideScreen
-        onBack={() => {
-          setShowStatsGuide(false);
-          resolveGuide();
-        }}
-      />
-    );
-
-  // The archive of finished games. Unlike the guide it brings its own back guard
-  // (it has a report layer of its own to peel off first), so this screen's guard
-  // above is inactive the whole time it is up — the two are never open at once.
-  if (showPastGames) return <PastGamesScreen onClose={() => setShowPastGames(false)} />;
-
   const teamsReady = cfg.teams.A.name.trim() !== '' && cfg.teams.B.name.trim() !== '';
   const duplicateTeamNames =
     teamsReady && normalizeTeamName(cfg.teams.A.name) === normalizeTeamName(cfg.teams.B.name);
@@ -474,13 +562,108 @@ export default function ConfigScreen() {
   const startingTimeReady =
     !cfg.startingTime.enabled || startingTimeIsFuture(cfg.startingTime.time);
   const canStart = teamsReady && !duplicateTeamNames && halfScoreValid && startingTimeReady;
+  const minutesToStart = cfg.startingTime.enabled
+    ? minutesUntil(cfg.startingTime.time, nowMs)
+    : null;
+  const startsIn =
+    minutesToStart === null
+      ? null
+      : minutesToStart < 60
+        ? `${minutesToStart} ${t('unitMin')}`
+        : minutesToStart % 60 === 0
+          ? `${Math.floor(minutesToStart / 60)} h`
+          : `${Math.floor(minutesToStart / 60)} h ${minutesToStart % 60} ${t('unitMin')}`;
 
-  const statsModeHintKey = {
-    none: 'statsModeNoneHint',
-    teams: 'statsModeTeamsHint',
-    players: 'statsModePlayersHint',
-  }[cfg.statsMode] as 'statsModeNoneHint' | 'statsModeTeamsHint' | 'statsModePlayersHint';
+  // The folded rule sections' one-line summaries.
+  const duration = (seconds: number) => secondsInMinutes(seconds) ?? `${seconds} ${t('unitSec')}`;
+  const minutes = (n: number) => `${n} ${t('unitMin')}`;
+  const capText = (cap: GameConfig['endCap']) =>
+    cap.kind === 'none'
+      ? t('sumCapNone')
+      : cap.kind === 'cap'
+        ? t('endCapPlus', { n: cap.plus })
+        : t('sumCapCond', { n: cap.plus, x: cap.minDiff });
+  const winSummary = [
+    t('sumPoints', { n: cfg.targetScore }),
+    minutes(cfg.timeLimitMinutes),
+    capText(cfg.endCap),
+  ].join(' · ');
+  const halfSummary = !cfg.halfTimeEnabled ? (
+    t('sumOff')
+  ) : !halfScoreValid ? (
+    <span className="text-signal">{t('halfScoreInvalid')}</span>
+  ) : (
+    [
+      t('sumAt', { n: cfg.halfScore }),
+      minutes(cfg.halfTimeLimitMinutes),
+      cfg.halfTimeBreakSeconds === 0
+        ? t('sumNoBreak')
+        : t('sumBreak', { d: duration(cfg.halfTimeBreakSeconds) }),
+      ...(cfg.halfCap.kind === 'cap' ? [t('endCapPlus', { n: cfg.halfCap.plus })] : []),
+    ].join(' · ')
+  );
+  const timeoutsPerHalf = cfg.halfTimeEnabled && cfg.timeouts.perGame === null;
+  const timeoutsSummary = !cfg.timeouts.enabled
+    ? t('sumOff')
+    : [
+        `${cfg.timeouts.perHalf ?? cfg.timeouts.perGame ?? 0} ${t(
+          timeoutsPerHalf ? 'timeoutsScopeHalf' : 'timeoutsScopeGame',
+        ).toLowerCase()}`,
+        duration(cfg.timeouts.durationSeconds),
+      ].join(' · ');
+  const waterSummary = [
+    cfg.waterBreaks.enabled
+      ? t('sumAt', { n: cfg.waterBreaks.atScores.join(', ') })
+      : t('sumAutoOff'),
+    duration(cfg.waterBreaks.durationSeconds),
+  ].join(' · ');
+
+  // The Start bar: the headline rules, or the first thing holding the start up and a
+  // way to it. The full wording of each problem sits at its field; the bar names it.
+  const startSummary = [
+    t(DIVISION_LABEL[cfg.division]),
+    t('sumPoints', { n: cfg.targetScore }),
+    minutes(cfg.timeLimitMinutes),
+  ].join(' · ');
+  const goTo = (id: string) =>
+    requestAnimationFrame(() =>
+      document.getElementById(id)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }),
+    );
+  const startProblem = !teamsReady
+    ? { text: t('teamsRequired'), go: () => goTo('setup-match') }
+    : duplicateTeamNames || !startingTimeReady
+      ? { text: t('startFix', { section: t('matchTitle') }), go: () => goTo('setup-match') }
+      : !halfScoreValid
+        ? {
+            text: t('startFix', { section: t('halfTimeTitle') }),
+            go: () => {
+              setOpenRules((o) => ({ ...o, half: true }));
+              goTo('setup-half');
+            },
+          }
+        : null;
+
+  const statsModeHintKey =
+    cfg.statsMode === 'players' ? 'statsModePlayersHint' : 'statsModeTeamsHint';
+  // The two teams as segments, by name (or "Team 1/2" before they have one) — how
+  // the coin toss and "Players of" are answered. Drawn like every other choice on
+  // the screen: the team colours stay in the Teams card.
+  const teamOptions: (SegmentOption<TeamId> & { label: string })[] = (['A', 'B'] as TeamId[]).map(
+    (id) => ({
+      value: id,
+      label: cfg.teams[id].name.trim() || t(id === 'A' ? 'teamA' : 'teamB'),
+    }),
+  );
   const rosters = rosterTeams(cfg);
+  /** "14 players · 6 FMP / 8 MMP" — the split only once anyone is marked. */
+  const rosterSummary = (players: PlayerInfo[]) => {
+    if (players.length === 0) return t('rosterEmpty');
+    const count =
+      players.length === 1 ? t('rosterCountOne') : t('rosterCount', { n: players.length });
+    const female = players.filter((p) => p.gender === 'female').length;
+    const male = players.filter((p) => p.gender === 'male').length;
+    return female + male === 0 ? count : `${count} · ${t('rosterSplit', { female, male })}`;
+  };
   const showRoster = rosters.length > 0;
   // Line tracking follows a single roster, so the section only exists where one team
   // is followed — see lineTrackingEnabled, which is the same rule at runtime.
@@ -507,31 +690,26 @@ export default function ConfigScreen() {
       : undefined;
 
   return (
-    <div className="min-h-dvh bg-pitch text-chalk p-4 pb-10 max-w-2xl mx-auto space-y-4">
+    <div className="min-h-dvh bg-pitch text-chalk px-4 pt-4 max-w-2xl mx-auto space-y-4">
       {/* The language picker sits back beside the menu button now that the guide
           chip is gone. It had been moved to a full-width row of its own precisely
           because that chip needed the room — with one control left there is no row
           to justify, and an all-but-empty one under the title read as a gap. */}
       <header className="flex items-start justify-between gap-2 pt-2">
-        <h1 className="font-board text-2xl font-bold">{t('appTitle')}</h1>
+        {/* The wordmark: the logo beside the name set in two capitalised lines —
+            `w-min` puts each word on its own line whatever the language. */}
+        <h1 className="flex items-center gap-3 font-board text-xl font-bold uppercase tracking-wide leading-[0.95]">
+          <AppLogo />
+          <span className="w-min">{t('appTitle')}</span>
+        </h1>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <select
-            aria-label={t('language')}
-            className="rounded-lg bg-panel border border-line px-2 py-1"
-            value={lang}
-            onChange={(e) => setLang(e.target.value as Lang)}
-          >
-            <option value="en">EN</option>
-            <option value="es">ES</option>
-            <option value="ca">CA</option>
-          </select>
           {/* The ⓘ that used to sit here opened one dialog and said so; the menu it
               became holds that dialog plus the things the setup screen had no door
               to — the archive of past games, and both guides. Same control, same
               corner, as the game screen's menu. */}
           <button
             type="button"
-            className="rounded-lg bg-panel border border-line w-8 h-8 text-chalk/70 flex items-center justify-center"
+            className="rounded-md bg-panel border border-line w-8 h-8 text-chalk/70 flex items-center justify-center"
             aria-label={t('menuTitle')}
             onClick={() => setShowMenu(true)}
           >
@@ -540,83 +718,159 @@ export default function ConfigScreen() {
         </div>
       </header>
 
-      {showMenu && (
-        <ConfigMenuDialog
-          onClose={() => setShowMenu(false)}
-          onPastGames={() => {
-            setShowMenu(false);
-            setShowPastGames(true);
-          }}
-          onGuide={() => {
-            setShowMenu(false);
-            setShowGuide(true);
-          }}
-          onStatsGuide={() => {
-            setShowMenu(false);
-            setShowStatsGuide(true);
-          }}
-          onSettings={() => {
-            setShowMenu(false);
-            setShowSettings(true);
-          }}
-          onAbout={() => {
-            setShowMenu(false);
-            setShowAbout(true);
-          }}
-        />
-      )}
-      {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
-      {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
+      <AppMenu open={showMenu} onClose={() => setShowMenu(false)} newGame={false} />
 
-      <Section title={t('setupTitle')}>
-        <div>
-          <label className={fieldLabel}>{t('templateSelectLabel')}</label>
-          <select
-            aria-label={t('templateSelectLabel')}
-            className={inputClass}
-            value={selectedTemplateKey}
-            onChange={(e) => applyTemplateChoice(e.target.value)}
-          >
-            <optgroup label={t('templatePredefinedGroup')}>
-              <option value="predefined:grass">{t('templateGrassName')}</option>
-              <option value="predefined:beach">{t('templateBeachName')}</option>
-            </optgroup>
-            {savedTemplates.length > 0 && (
-              <optgroup label={t('templateCustomGroup')}>
-                {savedTemplates.map((template) => (
-                  <option key={template.name} value={`custom:${template.name}`}>
-                    {template.name}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-          </select>
-        </div>
-        {selectedCustomName && (
+      {/* First, because what follows depends on it: the coin toss asks the ratio
+          only for mixed with ABBA, and the template sets the rules below. */}
+      <Section
+        title={t('setupTitle')}
+        icon={<SetupIcon size="w-4 h-4" />}
+        action={
           <button
             type="button"
-            className="text-xs text-chalk/60 underline"
-            onClick={() => setPendingDeleteTemplate(selectedCustomName)}
+            className="-my-1 shrink-0 h-8 rounded-md px-2 text-xs border border-line text-accent font-board font-semibold flex items-center gap-1 active:bg-pitch"
+            onClick={() => setShowSaveTemplate(true)}
           >
-            {t('btnDeleteTemplate')}
+            <PlusIcon size="w-3.5 h-3.5" />
+            {t('saveAsTemplateBtn')}
           </button>
-        )}
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={fieldLabel}>{t('division')}</label>
-            <select
-              className={inputClass}
-              value={cfg.division}
-              onChange={(e) =>
-                setDivisionOrMixedRule({ division: e.target.value as GameConfig['division'] })
-              }
-            >
-              <option value="open">{t('divisionOpen')}</option>
-              <option value="women">{t('divisionWomen')}</option>
-              <option value="mixed">{t('divisionMixed')}</option>
-            </select>
+        }
+      >
+        {/* Templates as chips: the built-in two, then the saved ones (saving another is
+            the heading's corner button). Picking one rewrites the rules below. */}
+        <div>
+          <span id="template-label" className={fieldLabel}>
+            {t('templateSelectLabel')}
+          </span>
+          <div role="radiogroup" aria-labelledby="template-label" className="flex flex-wrap gap-2">
+            {[
+              { key: 'predefined:grass', name: t('templateGrassName') },
+              { key: 'predefined:beach', name: t('templateBeachName') },
+              ...savedTemplates.map((template) => ({
+                key: `custom:${template.name}`,
+                name: template.name,
+              })),
+            ].map(({ key, name }) => (
+              <button
+                key={key}
+                type="button"
+                role="radio"
+                aria-checked={selectedTemplateKey === key}
+                data-value={key}
+                className={`${pillClass(selectedTemplateKey === key)} h-9 font-board font-semibold`}
+                onClick={() => applyTemplateChoice(key)}
+              >
+                {name}
+              </button>
+            ))}
           </div>
+          {selectedCustomName && (
+            <button
+              type="button"
+              className="pt-2 text-xs text-chalk/50 underline"
+              onClick={() => setPendingDeleteTemplate(selectedCustomName)}
+            >
+              {t('btnDeleteTemplate')}
+            </button>
+          )}
+        </div>
+
+        <Segmented
+          label={t('division')}
+          value={cfg.division}
+          options={[
+            { value: 'open', label: t('divisionOpen') },
+            { value: 'women', label: t('divisionWomen') },
+            { value: 'mixed', label: t('divisionMixed') },
+          ]}
+          onChange={(division) => setDivisionOrMixedRule({ division })}
+        />
+
+        {/* What matters about the mixed ratio is only whether the app calls it: ABBA
+            (stored as mixedRule 'A') is announced point by point; off ('B') leaves
+            it to the teams, however they settle it. */}
+        {cfg.division === 'mixed' && (
+          <CheckField
+            variant="switch"
+            label={t('ratioAbbaLabel')}
+            hint={t(cfg.mixedRule === 'A' ? 'ratioAbbaOnHint' : 'ratioAbbaOffHint')}
+            checked={cfg.mixedRule === 'A'}
+            onChange={(on) => setDivisionOrMixedRule({ mixedRule: on ? 'A' : 'B' })}
+          />
+        )}
+      </Section>
+
+      {/* The matchup first: the one thing set every game, laid out like the
+          scoreboard it is about to become — each team's colour as a large tile,
+          the name beside it in board type, "vs" between them — then where and when. */}
+      <Section id="setup-match" title={t('matchTitle')} icon={<ShirtIcon size="w-4 h-4" />}>
+        {(['A', 'B'] as TeamId[]).map((id) => (
+          <div key={id}>
+            {id === 'B' && (
+              <div
+                aria-hidden="true"
+                className="flex items-center gap-3 pb-3 font-board text-xs font-bold tracking-widest text-chalk/40"
+              >
+                <span className="h-px flex-1 bg-line" />
+                VS
+                <span className="h-px flex-1 bg-line" />
+              </div>
+            )}
+            <div className="flex items-end gap-3">
+              <TeamColorPicker
+                label={`${t('teamColor')} — ${cfg.teams[id].name}`}
+                color={cfg.teams[id].color}
+                onChange={(color) => setTeam(id, { color })}
+                className="shrink-0 h-14 w-14 rounded-lg border border-line flex items-center justify-center"
+              />
+              <div className="flex-1 min-w-0">
+                <label className={fieldLabel}>{id === 'A' ? t('teamA') : t('teamB')}</label>
+                <TeamNameCombobox
+                  label={id === 'A' ? t('teamA') : t('teamB')}
+                  value={cfg.teams[id].name}
+                  savedTeams={savedTeams}
+                  otherTeamName={cfg.teams[id === 'A' ? 'B' : 'A'].name}
+                  onChangeText={(name) => changeTeamName(id, name)}
+                  onSelectTeam={(team) => selectSavedTeam(id, team)}
+                  onAddAsNewTeam={(name) => addSavedTeam(id, name)}
+                  onDeleteTeam={removeSavedTeam}
+                  maxLength={40}
+                  inputClassName="w-full h-14 rounded-md bg-panel border border-line px-3 font-board text-xl font-bold tracking-wide text-chalk placeholder:text-chalk/30 focus:outline-none focus:border-accent"
+                />
+              </div>
+            </div>
+            {/* The roster lives with its team: always editable, whatever the
+                statistics are set to, in a sheet so a squad of twenty doesn't push
+                the rest of the page down. Indented to sit under the name, and only
+                once there is a team — typed or picked — for it to belong to. */}
+            {cfg.teams[id].name.trim() !== '' && (
+              <button
+                type="button"
+                data-roster-team={id}
+                className="ml-[4.25rem] mt-1.5 flex max-w-[calc(100%-4.25rem)] items-center gap-2 py-1 text-left active:opacity-70"
+                onClick={() => setRosterTeam(id)}
+              >
+                <span className="shrink-0 text-accent">
+                  <PlayersIcon size="w-4 h-4" />
+                </span>
+                {/* Two lines, so a full squad's count and split never get cut off. */}
+                <span className="min-w-0 flex flex-col leading-tight">
+                  <span className="font-board text-sm font-semibold text-accent">
+                    {t('playersTitle')}
+                  </span>
+                  <span className="truncate text-xs text-chalk/60">
+                    {rosterSummary(cfg.players[id])}
+                  </span>
+                </span>
+                <span className="shrink-0 text-chalk/40">
+                  <ChevronRightIcon size="w-3.5 h-3.5" />
+                </span>
+              </button>
+            )}
+          </div>
+        ))}
+        {duplicateTeamNames && <p className={errorText}>{t('duplicateTeamNames')}</p>}
+        <div className="border-t border-line pt-3 space-y-3">
           <div>
             <label className={fieldLabel}>{t('fieldNumber')}</label>
             <input
@@ -626,85 +880,383 @@ export default function ConfigScreen() {
               onChange={(e) => set('fieldNumber', e.target.value)}
             />
           </div>
+
+          <CheckField
+            variant="switch"
+            label={t('startingTimeEnabled')}
+            checked={cfg.startingTime.enabled}
+            onChange={(v) => set('startingTime', { ...cfg.startingTime, enabled: v })}
+          />
+          {cfg.startingTime.enabled && (
+            <div>
+              <label className={fieldLabel}>{t('startingTimeLabel')}</label>
+              <input
+                type="time"
+                className={inputClass}
+                value={cfg.startingTime.time}
+                onChange={(e) => set('startingTime', { ...cfg.startingTime, time: e.target.value })}
+              />
+              {!startingTimeReady && <p className={errorText}>{t('startingTimeInPast')}</p>}
+              {/* How far away it is, so 14:00 typed for 16:00 is caught here rather
+                than when the countdown looks odd. */}
+              {startsIn !== null && <p className={hintText}>{t('startsIn', { d: startsIn })}</p>}
+            </div>
+          )}
         </div>
+      </Section>
 
-        {(['A', 'B'] as TeamId[]).map((id) => (
-          <div key={id} className="grid grid-cols-[1fr_auto] gap-3 items-end">
-            <div>
-              <label className={fieldLabel}>{id === 'A' ? t('teamA') : t('teamB')}</label>
-              <TeamNameCombobox
-                label={id === 'A' ? t('teamA') : t('teamB')}
-                value={cfg.teams[id].name}
-                savedTeams={savedTeams}
-                otherTeamName={cfg.teams[id === 'A' ? 'B' : 'A'].name}
-                onChangeText={(name) => changeTeamName(id, name)}
-                onSelectTeam={(team) => selectSavedTeam(id, team)}
-                onAddAsNewTeam={(name) => addSavedTeam(id, name)}
-                onDeleteTeam={removeSavedTeam}
-                maxLength={40}
-              />
-            </div>
-            <div>
-              <label className={fieldLabel}>{t('teamColor')}</label>
-              <TeamColorPicker
-                label={`${t('teamColor')} ${cfg.teams[id].name}`}
-                color={cfg.teams[id].color}
-                onChange={(color) => setTeam(id, { color })}
-              />
-            </div>
-          </div>
-        ))}
-
-        {cfg.division === 'mixed' && (
-          <div>
-            <label className={fieldLabel}>{t('mixedRatioRule')}</label>
-            <select
-              className={inputClass}
-              value={cfg.mixedRule}
-              onChange={(e) => setDivisionOrMixedRule({ mixedRule: e.target.value as 'A' | 'B' })}
-            >
-              <option value="A">{t('ruleA')}</option>
-              <option value="B">{t('ruleB')}</option>
-            </select>
-          </div>
-        )}
-
-        <CheckField
-          variant="switch"
-          label={t('startingTimeEnabled')}
-          checked={cfg.startingTime.enabled}
-          onChange={(v) => set('startingTime', { ...cfg.startingTime, enabled: v })}
+      {/* After the teams, which it asks about, and after Game setup, since its ratio
+          question depends on the division and ABBA. Answered with the captains in
+          front of you, so the choices are the teams by name. */}
+      <Section title={t('coinToss')} icon={<CoinIcon size="w-4 h-4" />}>
+        <p className={hintText}>{t('coinTossHelp')}</p>
+        <Segmented
+          label={t('startingOffense')}
+          value={cfg.startingOffense}
+          options={teamOptions}
+          onChange={(v) => set('startingOffense', v)}
         />
-        {cfg.startingTime.enabled && (
+        <Segmented
+          label={t('startingSide')}
+          value={cfg.startingSide}
+          options={teamOptions}
+          onChange={(v) => set('startingSide', v)}
+        />
+        {cfg.division === 'mixed' && cfg.mixedRule === 'A' && (
+          <Segmented
+            label={t('startingRatio')}
+            value={cfg.startingRatio}
+            options={[
+              { value: 'female', label: t('ratioFemale') },
+              { value: 'male', label: t('ratioMale') },
+            ]}
+            onChange={(v) => set('startingRatio', v)}
+          />
+        )}
+      </Section>
+
+      <Section
+        title={t('winConditions')}
+        icon={<FlagIcon size="w-4 h-4" />}
+        fold={foldFor('win', t('winConditions'))}
+        summary={winSummary}
+      >
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className={fieldLabel}>{t('startingTimeLabel')}</label>
-            <input
-              type="time"
-              className={inputClass}
-              value={cfg.startingTime.time}
-              onChange={(e) => set('startingTime', { ...cfg.startingTime, time: e.target.value })}
+            <label className={fieldLabel}>{t('targetScore')}</label>
+            {numberField('targetScore', t('targetScore'), cfg.targetScore, 1, 99, (targetScore) =>
+              set('targetScore', targetScore),
+            )}
+          </div>
+          <div>
+            <label className={fieldLabel}>{t('fieldTime')}</label>
+            {numberField(
+              'timeLimit',
+              t('fieldTime'),
+              cfg.timeLimitMinutes,
+              1,
+              180,
+              // The half-time limit can't outlive the game, but it is only pulled
+              // down once this field is finished: cascading per keystroke would
+              // collapse a 55 to 4 on the way to typing 40, and leave it there.
+              (timeLimitMinutes, final) =>
+                setCfg((c) => ({
+                  ...c,
+                  timeLimitMinutes,
+                  halfTimeLimitMinutes: final
+                    ? Math.min(c.halfTimeLimitMinutes, timeLimitMinutes)
+                    : c.halfTimeLimitMinutes,
+                })),
+              { step: 5, unit: t('unitMin') },
+            )}
+          </div>
+        </div>
+        <Segmented
+          label={t('endCapLabel')}
+          equal={false}
+          value={cfg.endCap.kind === 'cap' ? (`cap${cfg.endCap.plus}` as const) : cfg.endCap.kind}
+          options={[
+            { value: 'none', label: t('endCapNoneShort') },
+            { value: 'cap1', label: '+1' },
+            { value: 'cap2', label: '+2' },
+            { value: 'conditional', label: t('endCapCondShort') },
+          ]}
+          onChange={(v) => {
+            if (v === 'none') set('endCap', { kind: 'none' });
+            else if (v === 'cap1') set('endCap', { kind: 'cap', plus: 1 });
+            else if (v === 'cap2') set('endCap', { kind: 'cap', plus: 2 });
+            else set('endCap', { kind: 'conditional', plus: 1, minDiff: 2 });
+          }}
+          hint={
+            cfg.endCap.kind === 'none'
+              ? t('endCapNone')
+              : cfg.endCap.kind === 'conditional'
+                ? t('endCapCond', { n: cfg.endCap.plus, x: cfg.endCap.minDiff })
+                : undefined
+          }
+        />
+        {cfg.endCap.kind === 'conditional' && (
+          <div className="grid grid-cols-2 gap-3">
+            <Segmented
+              label="CAP +"
+              value={String(cfg.endCap.plus) as '1' | '2'}
+              options={[
+                { value: '1', label: '+1' },
+                { value: '2', label: '+2' },
+              ]}
+              onChange={(v) =>
+                set('endCap', {
+                  kind: 'conditional',
+                  plus: Number(v) as 1 | 2,
+                  minDiff: cfg.endCap.kind === 'conditional' ? cfg.endCap.minDiff : 2,
+                })
+              }
+            />
+            <Segmented
+              label={t('capDiff')}
+              value={String(cfg.endCap.minDiff) as '1' | '2' | '3'}
+              options={[
+                { value: '1', label: '1' },
+                { value: '2', label: '2' },
+                { value: '3', label: '3' },
+              ]}
+              onChange={(v) =>
+                set('endCap', {
+                  kind: 'conditional',
+                  plus: cfg.endCap.kind === 'conditional' ? cfg.endCap.plus : 1,
+                  minDiff: Number(v) as 1 | 2 | 3,
+                })
+              }
             />
           </div>
         )}
       </Section>
 
-      <Section title={t('statsTitle')}>
-        <div>
-          <label className={fieldLabel}>{t('statsModeLabel')}</label>
-          <select
-            className={inputClass}
-            value={cfg.statsMode}
-            onChange={(e) => setStatsMode(e.target.value as GameConfig['statsMode'])}
-          >
-            <option value="none">{t('statsModeNone')}</option>
-            <option value="teams">{t('statsModeTeams')}</option>
-            <option value="players">{t('statsModePlayers')}</option>
-          </select>
-          <p className="text-xs text-chalk/50 pt-1">{t(statsModeHintKey)}</p>
+      <Section
+        id="setup-half"
+        title={t('halfTimeTitle')}
+        icon={<HalfIcon size="w-4 h-4" />}
+        fold={foldFor('half', t('halfTimeTitle'))}
+        summary={halfSummary}
+        enabled={{
+          checked: cfg.halfTimeEnabled,
+          onChange: (v) => set('halfTimeEnabled', v),
+          label: t('halfTimeEnabled'),
+        }}
+      >
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={fieldLabel}>{t('halfScore')}</label>
+            {numberField('halfScore', t('halfScore'), cfg.halfScore, 1, 99, (halfScore) =>
+              set('halfScore', halfScore),
+            )}
+          </div>
+          <div>
+            <label className={fieldLabel}>{t('fieldTime')}</label>
+            {numberField(
+              'halfTimeLimit',
+              t('fieldTime'),
+              cfg.halfTimeLimitMinutes,
+              1,
+              cfg.timeLimitMinutes,
+              (halfTimeLimitMinutes) => set('halfTimeLimitMinutes', halfTimeLimitMinutes),
+              { step: 5, unit: t('unitMin') },
+            )}
+          </div>
+          <div className="relative">
+            <label className={fieldLabel}>{t('fieldBreak')}</label>
+            {numberField(
+              'halfTimeBreak',
+              t('fieldBreak'),
+              cfg.halfTimeBreakSeconds,
+              // 0 is a legal setting, not a slip: the Beach template ships with
+              // no half-time break at all.
+              0,
+              1800,
+              (halfTimeBreakSeconds) => set('halfTimeBreakSeconds', halfTimeBreakSeconds),
+              { step: 30, unit: t('unitSec'), note: secondsInMinutes(cfg.halfTimeBreakSeconds) },
+            )}
+          </div>
         </div>
+        {!halfScoreValid && <p className={errorText}>{t('halfScoreInvalid')}</p>}
+        <CheckField
+          variant="switch"
+          label={t('halfCapPlus')}
+          checked={cfg.halfCap.kind === 'cap'}
+          onChange={(v) => set('halfCap', v ? { kind: 'cap', plus: 1 } : { kind: 'none' })}
+        />
+      </Section>
+
+      <Section
+        title={t('timeoutsTitle')}
+        icon={<TimeoutIcon size="w-4 h-4" />}
+        fold={foldFor('timeouts', t('timeoutsTitle'))}
+        summary={timeoutsSummary}
+        enabled={{
+          checked: cfg.timeouts.enabled,
+          onChange: (v) => set('timeouts', { ...cfg.timeouts, enabled: v }),
+          label: t('timeoutsEnabled'),
+        }}
+      >
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={fieldLabel}>{t('timeoutsCount')}</label>
+            {numberField(
+              'timeoutsCount',
+              t('timeoutsCount'),
+              cfg.timeouts.perHalf ?? cfg.timeouts.perGame ?? 0,
+              0,
+              10,
+              (count) => {
+                const perHalf = cfg.timeouts.perGame === null;
+                set('timeouts', {
+                  ...cfg.timeouts,
+                  perHalf: perHalf ? count : null,
+                  perGame: perHalf ? null : count,
+                });
+              },
+            )}
+          </div>
+          {/* With no half-time there is no second half to budget for, so per half and
+              per game are the same allowance and the choice is hidden. What was
+              picked is kept, and comes back with half-time. */}
+          {cfg.halfTimeEnabled && (
+            <div className="col-span-2 order-last">
+              <Segmented
+                label={t('timeoutsScope')}
+                value={cfg.timeouts.perGame === null ? 'half' : 'game'}
+                options={[
+                  { value: 'half', label: t('timeoutsScopeHalf') },
+                  { value: 'game', label: t('timeoutsScopeGame') },
+                ]}
+                onChange={(v) => {
+                  const count = cfg.timeouts.perHalf ?? cfg.timeouts.perGame ?? 0;
+                  const perHalf = v === 'half';
+                  set('timeouts', {
+                    ...cfg.timeouts,
+                    perHalf: perHalf ? count : null,
+                    perGame: perHalf ? null : count,
+                  });
+                }}
+              />
+            </div>
+          )}
+          <div className="relative">
+            <label className={fieldLabel}>{t('fieldDuration')}</label>
+            {numberField(
+              'timeoutDuration',
+              t('fieldDuration'),
+              cfg.timeouts.durationSeconds,
+              15,
+              300,
+              (durationSeconds) => set('timeouts', { ...cfg.timeouts, durationSeconds }),
+              {
+                step: 15,
+                unit: t('unitSec'),
+                note: secondsInMinutes(cfg.timeouts.durationSeconds),
+              },
+            )}
+          </div>
+          {/* Both full-width rows sit after the two numbers; order-last keeps the
+              allowance (earlier in the markup, beside the count it qualifies)
+              ahead of this switch. */}
+          <div className="col-span-2 order-last">
+            <CheckField
+              variant="switch"
+              label={t('timeoutLastFive')}
+              // Worded as a permission, so the switch is the stored flag inverted.
+              checked={!cfg.timeouts.disallowLastFiveMinutes}
+              onChange={(v) => set('timeouts', { ...cfg.timeouts, disallowLastFiveMinutes: !v })}
+            />
+          </div>
+        </div>
+      </Section>
+
+      {/* Hot-weather hydration breaks (WFDF Appendix B4.3). Folded like the other
+          rules — most games never run the protocol — and the checkbox governs only the
+          automatic ones: a break can always be called by hand from the game screen's
+          raised-hand button, which is why the duration stays editable either way. */}
+      <Section
+        title={t('waterBreakTitle')}
+        icon={<DropIcon size="w-4 h-4" />}
+        fold={foldFor('water', t('waterBreakTitle'))}
+        summary={waterSummary}
+      >
+        <p className={hintText}>{t('waterBreakHelp')}</p>
+        <CheckField
+          variant="switch"
+          label={t('waterBreakEnabled')}
+          checked={cfg.waterBreaks.enabled}
+          onChange={(v) => set('waterBreaks', { ...cfg.waterBreaks, enabled: v })}
+        />
+        {/* Bottom-aligned: the scores label runs to two lines (three in some
+            languages), and the two boxes should still sit level. */}
+        <div className="grid grid-cols-2 gap-3 items-end">
+          <div className={cfg.waterBreaks.enabled ? '' : 'opacity-40'}>
+            <label className={fieldLabel} htmlFor="water-break-scores">
+              {t('waterBreakScores')}
+            </label>
+            <input
+              id="water-break-scores"
+              className={inputClass}
+              inputMode="numeric"
+              disabled={!cfg.waterBreaks.enabled}
+              value={scoresDraft ?? cfg.waterBreaks.atScores.join(', ')}
+              onChange={(e) => setScoresDraft(e.target.value)}
+              onBlur={commitScores}
+            />
+          </div>
+          <div className="relative">
+            <label className={fieldLabel} htmlFor="water-break-duration">
+              {t('fieldDuration')}
+            </label>
+            {numberField(
+              'waterBreakDuration',
+              t('fieldDuration'),
+              cfg.waterBreaks.durationSeconds,
+              15,
+              900,
+              (durationSeconds) => set('waterBreaks', { ...cfg.waterBreaks, durationSeconds }),
+              {
+                step: 15,
+                unit: t('unitSec'),
+                id: 'water-break-duration',
+                note: secondsInMinutes(cfg.waterBreaks.durationSeconds),
+              },
+            )}
+          </div>
+        </div>
+      </Section>
+
+      {/* What this game records on top of the score. Last, because nothing above
+          depends on it — the rosters live with their teams. */}
+      {/* Off by default, like a section that can be switched off: off is the plain
+          score-only game (statsMode 'none'), and the choice below is then only how
+          much detail — a team, or a named player. */}
+      <Section
+        title={t('statsTitle')}
+        icon={<StatsIcon size="w-4 h-4" />}
+        enabled={{
+          checked: cfg.statsMode !== 'none',
+          onChange: (on) => setStatsMode(on ? statsDetail : 'none'),
+          label: t('statsEnabled'),
+        }}
+      >
+        <Segmented
+          label={t('statsModeLabel')}
+          value={cfg.statsMode === 'players' ? 'players' : 'teams'}
+          options={[
+            { value: 'teams', label: t('statsModeTeams') },
+            { value: 'players', label: t('statsModePlayers') },
+          ]}
+          onChange={setStatsMode}
+          hint={t(statsModeHintKey)}
+        />
         {/* Which rosters, once there are players to name. "Both teams" is the value
             `trackedTeam: null` carries here — the same null that means "no roster at
             all" in the other modes, which is why nothing tries to remember it. */}
+        {/* A dropdown, not segments: two team names and "Both teams" side by side
+            would cut long names off. */}
         {cfg.statsMode === 'players' && (
           <div>
             <label className={fieldLabel}>{t('trackedTeamLabel')}</label>
@@ -715,12 +1267,24 @@ export default function ConfigScreen() {
                 setTrackedTeam(e.target.value === 'both' ? null : (e.target.value as TeamId))
               }
             >
-              <option value="A">{cfg.teams.A.name.trim() || t('teamA')}</option>
-              <option value="B">{cfg.teams.B.name.trim() || t('teamB')}</option>
+              {teamOptions.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
               <option value="both">{t('trackedTeamBoth')}</option>
             </select>
           </div>
         )}
+        {/* A followed roster that is still empty gets a quiet suggestion, not a
+            warning: players can just as well be added once the game is underway. */}
+        {rosters
+          .filter((id) => cfg.teams[id].name.trim() !== '' && cfg.players[id].length === 0)
+          .map((id) => (
+            <p key={id} className={hintText}>
+              {t('rosterMissingNudge', { team: teamOptions.find((o) => o.value === id)!.label })}
+            </p>
+          ))}
         {/* What this game records, on top of the detail above. Each is opt-in for the
             same reason line tracking is: the volunteer who wants goals and assists for
             a tournament has no use for the most frequent button on the action row, and
@@ -792,11 +1356,9 @@ export default function ConfigScreen() {
               <>
                 <div>
                   <label className={fieldLabel}>{t('lineSizeLabel')}</label>
-                  <input
-                    {...numberFieldProps('lineSize', cfg.lineSize, 1, 15, (n) =>
-                      set('lineSize', n),
-                    )}
-                  />
+                  {numberField('lineSize', t('lineSizeLabel'), cfg.lineSize, 1, 15, (n) =>
+                    set('lineSize', n),
+                  )}
                 </div>
 
                 <div>
@@ -807,31 +1369,28 @@ export default function ConfigScreen() {
                     onChange={(e) => setLines({ genderCheck: e.target.value as LineGenderCheck })}
                   >
                     <option value="none">{t('lineGenderCheckNone')}</option>
-                    {/* Rule B never computes a ratio and the other divisions have none,
+                    {/* Without ABBA no ratio is computed and the other divisions have none,
                     so there would be nothing for a line to be checked against. */}
                     {ratioGenderCheckAvailable(cfg.division, cfg.mixedRule) && (
                       <option value="gameRatio">{t('lineGenderCheckRatio')}</option>
                     )}
                     <option value="fixed">{t('lineGenderCheckFixed')}</option>
                   </select>
-                  <p className="text-xs text-chalk/50 pt-1">
-                    {t(genderCheckHintKey, genderCheckVars)}
-                  </p>
+                  <p className={hintText}>{t(genderCheckHintKey, genderCheckVars)}</p>
                 </div>
 
                 {cfg.lines.genderCheck === 'fixed' && (
                   <div>
                     <label className={fieldLabel}>{t('lineFixedFemaleLabel')}</label>
-                    <input
-                      {...numberFieldProps(
-                        'lines.fixedFemale',
-                        cfg.lines.fixedFemale,
-                        0,
-                        cfg.lineSize,
-                        (n) => setLines({ fixedFemale: n }),
-                      )}
-                    />
-                    <p className="text-xs text-chalk/50 pt-1">
+                    {numberField(
+                      'lines.fixedFemale',
+                      t('lineFixedFemaleLabel'),
+                      cfg.lines.fixedFemale,
+                      0,
+                      cfg.lineSize,
+                      (n) => setLines({ fixedFemale: n }),
+                    )}
+                    <p className={hintText}>
                       {t('lineFixedSplit', {
                         female: cfg.lines.fixedFemale,
                         male: cfg.lineSize - cfg.lines.fixedFemale,
@@ -845,393 +1404,39 @@ export default function ConfigScreen() {
         )}
       </Section>
 
-      {showRoster && (
-        <Section
-          title={t('playersTitle')}
-          collapsible
-          collapsed={playersCollapsed}
-          onToggleCollapsed={togglePlayersCollapsed}
-          toggleAriaLabel={t(playersCollapsed ? 'expandSection' : 'collapseSection', {
-            title: t('playersTitle'),
-          })}
-        >
-          <p className="text-xs text-chalk/50">{t('rosterHelp')}</p>
-          {rosters.includes('A') && (
-            <PlayerRosterEditor
-              label={cfg.teams.A.name.trim() || t('teamA')}
-              players={cfg.players.A}
-              onAdd={(number, name) => addPlayer('A', number, name)}
-              onRemove={(id) => removePlayer('A', id)}
-              onSetGender={(id, gender) => setGender('A', id, gender)}
-              onImport={() => setImportingTeam('A')}
-            />
-          )}
-          {rosters.includes('B') && (
-            <PlayerRosterEditor
-              label={cfg.teams.B.name.trim() || t('teamB')}
-              players={cfg.players.B}
-              onAdd={(number, name) => addPlayer('B', number, name)}
-              onRemove={(id) => removePlayer('B', id)}
-              onSetGender={(id, gender) => setGender('B', id, gender)}
-              onImport={() => setImportingTeam('B')}
-            />
-          )}
-          {/* Lines live with the roster they are made of, and the two are filled in
-              at the same moment — a tournament's squad and its lines are settled
-              together. They can still be named mid-game from the Roster button; this
-              is the door for the ones already known. */}
-          {showLines && cfg.lines.enabled && (
-            <SavedLinesEditor
-              players={cfg.players[cfg.trackedTeam!]}
-              lines={cfg.lines.saved}
-              onChange={setSavedLines}
-            />
-          )}
-        </Section>
-      )}
-
-      <Section title={t('coinToss')}>
-        <p className="text-sm text-chalk/60">{t('coinTossHelp')}</p>
-        <div>
-          <label className={fieldLabel}>{t('startingOffense')}</label>
-          <select
-            className={inputClass}
-            value={cfg.startingOffense}
-            onChange={(e) => set('startingOffense', e.target.value as TeamId)}
-          >
-            <option value="A">{cfg.teams.A.name.trim() || t('teamA')}</option>
-            <option value="B">{cfg.teams.B.name.trim() || t('teamB')}</option>
-          </select>
-        </div>
-        <div>
-          <label className={fieldLabel}>{t('startingSide')}</label>
-          <select
-            className={inputClass}
-            value={cfg.startingSide}
-            onChange={(e) => set('startingSide', e.target.value as TeamId)}
-          >
-            <option value="A">{cfg.teams.A.name.trim() || t('teamA')}</option>
-            <option value="B">{cfg.teams.B.name.trim() || t('teamB')}</option>
-          </select>
-        </div>
-        {cfg.division === 'mixed' && cfg.mixedRule === 'A' && (
-          <div>
-            <label className={fieldLabel}>{t('startingRatio')}</label>
-            <select
-              className={inputClass}
-              value={cfg.startingRatio}
-              onChange={(e) => set('startingRatio', e.target.value as 'male' | 'female')}
-            >
-              <option value="female">{t('ratioFemale')}</option>
-              <option value="male">{t('ratioMale')}</option>
-            </select>
-          </div>
-        )}
-      </Section>
-
-      <Section title={t('winConditions')}>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={fieldLabel}>{t('targetScore')}</label>
-            <input
-              {...numberFieldProps('targetScore', cfg.targetScore, 1, 99, (targetScore) =>
-                set('targetScore', targetScore),
-              )}
-            />
-          </div>
-          <div>
-            <label className={fieldLabel}>{t('timeLimit')}</label>
-            <input
-              {...numberFieldProps(
-                'timeLimit',
-                cfg.timeLimitMinutes,
-                1,
-                180,
-                // The half-time limit can't outlive the game, but it is only pulled
-                // down once this field is finished: cascading per keystroke would
-                // collapse a 55 to 4 on the way to typing 40, and leave it there.
-                (timeLimitMinutes, final) =>
-                  setCfg((c) => ({
-                    ...c,
-                    timeLimitMinutes,
-                    halfTimeLimitMinutes: final
-                      ? Math.min(c.halfTimeLimitMinutes, timeLimitMinutes)
-                      : c.halfTimeLimitMinutes,
-                  })),
-              )}
-            />
-          </div>
-        </div>
-        <div>
-          <label className={fieldLabel}>{t('endCapLabel')}</label>
-          <select
-            className={inputClass}
-            value={cfg.endCap.kind === 'cap' ? `cap${cfg.endCap.plus}` : cfg.endCap.kind}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (v === 'none') set('endCap', { kind: 'none' });
-              else if (v === 'cap1') set('endCap', { kind: 'cap', plus: 1 });
-              else if (v === 'cap2') set('endCap', { kind: 'cap', plus: 2 });
-              else set('endCap', { kind: 'conditional', plus: 1, minDiff: 2 });
-            }}
-          >
-            <option value="none">{t('endCapNone')}</option>
-            <option value="cap1">{t('endCapPlus', { n: 1 })}</option>
-            <option value="cap2">{t('endCapPlus', { n: 2 })}</option>
-            <option value="conditional">
-              {t('endCapCond', {
-                n: cfg.endCap.kind === 'conditional' ? cfg.endCap.plus : 1,
-                x: cfg.endCap.kind === 'conditional' ? cfg.endCap.minDiff : 2,
-              })}
-            </option>
-          </select>
-          {cfg.endCap.kind === 'conditional' && (
-            <div className="grid grid-cols-2 gap-3 pt-3">
-              <div>
-                <label className={fieldLabel}>CAP +</label>
-                <select
-                  className={inputClass}
-                  value={cfg.endCap.plus}
-                  onChange={(e) =>
-                    set('endCap', {
-                      kind: 'conditional',
-                      plus: Number(e.target.value) as 1 | 2,
-                      minDiff: cfg.endCap.kind === 'conditional' ? cfg.endCap.minDiff : 2,
-                    })
-                  }
-                >
-                  <option value={1}>+1</option>
-                  <option value={2}>+2</option>
-                </select>
-              </div>
-              <div>
-                <label className={fieldLabel}>{t('capDiff')}</label>
-                <select
-                  className={inputClass}
-                  value={cfg.endCap.minDiff}
-                  onChange={(e) =>
-                    set('endCap', {
-                      kind: 'conditional',
-                      plus: cfg.endCap.kind === 'conditional' ? cfg.endCap.plus : 1,
-                      minDiff: Number(e.target.value) as 1 | 2 | 3,
-                    })
-                  }
-                >
-                  <option value={1}>1</option>
-                  <option value={2}>2</option>
-                  <option value={3}>3</option>
-                </select>
-              </div>
-            </div>
-          )}
-        </div>
-      </Section>
-
-      <Section
-        title={t('halfTimeTitle')}
-        enabled={{
-          checked: cfg.halfTimeEnabled,
-          onChange: (v) => set('halfTimeEnabled', v),
-          label: t('halfTimeEnabled'),
-        }}
-      >
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={fieldLabel}>{t('halfScore')}</label>
-            <input
-              {...numberFieldProps('halfScore', cfg.halfScore, 1, 99, (halfScore) =>
-                set('halfScore', halfScore),
-              )}
-            />
-          </div>
-          <div>
-            <label className={fieldLabel}>{t('halfTimeLimit')}</label>
-            <input
-              {...numberFieldProps(
-                'halfTimeLimit',
-                cfg.halfTimeLimitMinutes,
-                1,
-                cfg.timeLimitMinutes,
-                (halfTimeLimitMinutes) => set('halfTimeLimitMinutes', halfTimeLimitMinutes),
-              )}
-            />
-          </div>
-          <div>
-            <label className={fieldLabel}>{t('halfTimeBreak')}</label>
-            <input
-              {...numberFieldProps(
-                'halfTimeBreak',
-                cfg.halfTimeBreakSeconds,
-                // 0 is a legal setting, not a slip: the Beach template ships with
-                // no half-time break at all.
-                0,
-                1800,
-                (halfTimeBreakSeconds) => set('halfTimeBreakSeconds', halfTimeBreakSeconds),
-              )}
-            />
-          </div>
-        </div>
-        <CheckField
-          variant="switch"
-          label={t('halfCapPlus')}
-          checked={cfg.halfCap.kind === 'cap'}
-          onChange={(v) => set('halfCap', v ? { kind: 'cap', plus: 1 } : { kind: 'none' })}
-        />
-      </Section>
-
-      <Section
-        title={t('timeoutsTitle')}
-        enabled={{
-          checked: cfg.timeouts.enabled,
-          onChange: (v) => set('timeouts', { ...cfg.timeouts, enabled: v }),
-          label: t('timeoutsEnabled'),
-        }}
-      >
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={fieldLabel}>{t('timeoutsCount')}</label>
-            <input
-              {...numberFieldProps(
-                'timeoutsCount',
-                cfg.timeouts.perHalf ?? cfg.timeouts.perGame ?? 0,
-                0,
-                10,
-                (count) => {
-                  const perHalf = cfg.timeouts.perGame === null;
-                  set('timeouts', {
-                    ...cfg.timeouts,
-                    perHalf: perHalf ? count : null,
-                    perGame: perHalf ? null : count,
-                  });
-                },
-              )}
-            />
-          </div>
-          {/* With no half-time there is no second half to budget for, so per half and
-              per game are the same allowance and the choice is hidden. What was
-              picked is kept, and comes back with half-time. */}
-          {cfg.halfTimeEnabled && (
-            <div>
-              <label className={fieldLabel}>{t('timeoutsScope')}</label>
-              <select
-                className={inputClass}
-                value={cfg.timeouts.perGame === null ? 'half' : 'game'}
-                onChange={(e) => {
-                  const count = cfg.timeouts.perHalf ?? cfg.timeouts.perGame ?? 0;
-                  const perHalf = e.target.value === 'half';
-                  set('timeouts', {
-                    ...cfg.timeouts,
-                    perHalf: perHalf ? count : null,
-                    perGame: perHalf ? null : count,
-                  });
-                }}
+      {/* Start, always within reach: the matchup and the headline rules, and while
+          something blocks the start, what it is — a tap takes you there. */}
+      <div className="sticky bottom-0 z-20 -mx-4 border-t border-line bg-pitch/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-board text-sm font-bold uppercase">
+              {teamOptions[0].label} <span className="text-chalk/40">vs</span>{' '}
+              {teamOptions[1].label}
+            </p>
+            {startProblem ? (
+              <button
+                type="button"
+                className="flex max-w-full items-center gap-1 text-left text-xs text-signal"
+                onClick={startProblem.go}
               >
-                <option value="half">{t('timeoutsScopeHalf')}</option>
-                <option value="game">{t('timeoutsScopeGame')}</option>
-              </select>
-            </div>
-          )}
-          <div>
-            <label className={fieldLabel}>{t('timeoutDuration')}</label>
-            <input
-              {...numberFieldProps(
-                'timeoutDuration',
-                cfg.timeouts.durationSeconds,
-                15,
-                300,
-                (durationSeconds) => set('timeouts', { ...cfg.timeouts, durationSeconds }),
-              )}
-            />
+                <span className="truncate">{startProblem.text}</span>
+                <span className="shrink-0">
+                  <ChevronRightIcon size="w-3 h-3" />
+                </span>
+              </button>
+            ) : (
+              <p className="truncate text-xs text-chalk/60">{startSummary}</p>
+            )}
           </div>
-          <div className="col-span-2">
-            <CheckField
-              variant="switch"
-              label={t('timeoutLastFive')}
-              // Worded as a permission, so the switch is the stored flag inverted.
-              checked={!cfg.timeouts.disallowLastFiveMinutes}
-              onChange={(v) => set('timeouts', { ...cfg.timeouts, disallowLastFiveMinutes: !v })}
-            />
-          </div>
+          <button
+            className="shrink-0 rounded-lg bg-accent px-5 py-3 font-board text-base font-bold text-panel active:scale-[0.99] disabled:opacity-40 disabled:active:scale-100"
+            disabled={!canStart}
+            onClick={() => dispatch({ type: 'START_GAME', config: cfg })}
+          >
+            {t('startGame')}
+          </button>
         </div>
-      </Section>
-
-      {/* Hot-weather hydration breaks (WFDF Appendix B4.3). Collapsed by default —
-          most games never run the protocol — and the checkbox governs only the
-          automatic ones: a break can always be called by hand from the game screen's
-          raised-hand button, which is why the duration stays editable either way. */}
-      <Section
-        title={t('waterBreakTitle')}
-        collapsible
-        collapsed={waterBreakCollapsed}
-        onToggleCollapsed={toggleWaterBreakCollapsed}
-        toggleAriaLabel={t(waterBreakCollapsed ? 'expandSection' : 'collapseSection', {
-          title: t('waterBreakTitle'),
-        })}
-      >
-        <p className="text-xs text-chalk/50">{t('waterBreakHelp')}</p>
-        <CheckField
-          variant="switch"
-          label={t('waterBreakEnabled')}
-          checked={cfg.waterBreaks.enabled}
-          onChange={(v) => set('waterBreaks', { ...cfg.waterBreaks, enabled: v })}
-        />
-        <div className="grid grid-cols-2 gap-3">
-          <div className={cfg.waterBreaks.enabled ? '' : 'opacity-40'}>
-            <label className={fieldLabel} htmlFor="water-break-scores">
-              {t('waterBreakScores')}
-            </label>
-            <input
-              id="water-break-scores"
-              className={inputClass}
-              inputMode="numeric"
-              disabled={!cfg.waterBreaks.enabled}
-              value={scoresDraft ?? cfg.waterBreaks.atScores.join(', ')}
-              onChange={(e) => setScoresDraft(e.target.value)}
-              onBlur={commitScores}
-            />
-          </div>
-          <div>
-            <label className={fieldLabel} htmlFor="water-break-duration">
-              {t('waterBreakDuration')}
-            </label>
-            <input
-              id="water-break-duration"
-              {...numberFieldProps(
-                'waterBreakDuration',
-                cfg.waterBreaks.durationSeconds,
-                15,
-                900,
-                (durationSeconds) => set('waterBreaks', { ...cfg.waterBreaks, durationSeconds }),
-              )}
-            />
-          </div>
-        </div>
-      </Section>
-
-      <button
-        type="button"
-        className={`${secondaryButtonOnPitch} w-full`}
-        onClick={() => setShowSaveTemplate(true)}
-      >
-        {t('saveAsTemplateBtn')}
-      </button>
-      <button
-        className="w-full rounded-xl bg-signal text-pitch font-board font-bold text-lg py-4 active:scale-[0.99] disabled:opacity-40 disabled:active:scale-100"
-        disabled={!canStart}
-        onClick={() => dispatch({ type: 'START_GAME', config: cfg })}
-      >
-        {t('startGame')}
-      </button>
-      {!teamsReady && <p className="text-sm text-chalk/60 text-center">{t('teamsRequired')}</p>}
-      {teamsReady && duplicateTeamNames && (
-        <p className="text-sm text-chalk/60 text-center">{t('duplicateTeamNames')}</p>
-      )}
-      {teamsReady && !duplicateTeamNames && !halfScoreValid && (
-        <p className="text-sm text-chalk/60 text-center">{t('halfScoreInvalid')}</p>
-      )}
-      {teamsReady && !duplicateTeamNames && halfScoreValid && !startingTimeReady && (
-        <p className="text-sm text-chalk/60 text-center">{t('startingTimeInPast')}</p>
-      )}
+      </div>
 
       {showSaveTemplate && (
         <SaveTemplateDialog
@@ -1257,6 +1462,36 @@ export default function ConfigScreen() {
               applyTemplateChoice('predefined:grass');
             setPendingDeleteTemplate(null);
           }}
+        />
+      )}
+      {rosterTeam && cfg.teams[rosterTeam].name.trim() !== '' && (
+        <TeamRosterDialog
+          // Keyed by team, so a half-typed player never carries over to the other roster.
+          key={rosterTeam}
+          team={teamOptions.find((o) => o.value === rosterTeam)!.label}
+          players={cfg.players[rosterTeam]}
+          onAdd={(number, name) => addPlayer(rosterTeam, number, name)}
+          onRemove={(id) => removePlayer(rosterTeam, id)}
+          onSetGender={(id, gender) => setGender(rosterTeam, id, gender)}
+          onImport={() => setImportingTeam(rosterTeam)}
+          usedByGame={rosters.includes(rosterTeam)}
+          onSaveTeam={
+            cfg.teams[rosterTeam].name.trim() !== '' && !isSavedTeamName(cfg.teams[rosterTeam].name)
+              ? () => addSavedTeam(rosterTeam, cfg.teams[rosterTeam].name.trim())
+              : undefined
+          }
+          lines={
+            // Lines are made of this roster, so they are edited beside it — for the
+            // team whose lines this game tracks.
+            showLines && cfg.lines.enabled && cfg.trackedTeam === rosterTeam ? (
+              <SavedLinesEditor
+                players={cfg.players[rosterTeam]}
+                lines={cfg.lines.saved}
+                onChange={setSavedLines}
+              />
+            ) : undefined
+          }
+          onClose={() => setRosterTeam(null)}
         />
       )}
       {importingTeam && (

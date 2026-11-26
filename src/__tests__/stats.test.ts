@@ -4,6 +4,7 @@ import type { TFunc } from '../i18n/useT';
 import { createInitialState, defaultConfig, gameReducer } from '../state/gameReducer';
 import {
   formatSeconds,
+  goalPassLine,
   goalPlayersDetail,
   logRow,
   logTextLines,
@@ -210,6 +211,37 @@ describe('playerStatLines', () => {
 
     const goal = s.log.find((e) => e.type === 'goal' && e.team === 'A')!;
     expect(goalPlayersDetail(s, goal, t)).toBe(' — Goal: Alex - Assist: Sam');
+  });
+
+  describe('goalPassLine', () => {
+    const goal = (patch: Partial<LogEntry>): LogEntry => ({
+      id: 99,
+      wallClock: '',
+      atMs: 0,
+      gameSeconds: 0,
+      type: 'goal',
+      team: 'A',
+      ...patch,
+    });
+
+    it('reads thrower to scorer', () => {
+      expect(goalPassLine(withRoster(), goal({ assistId: 'a2', scorerId: 'a1' }), t)).toBe(
+        'Sam → Alex',
+      );
+    });
+
+    it('names the one known half with its label instead of a one-ended arrow', () => {
+      const s = withRoster();
+      expect(goalPassLine(s, goal({ scorerId: 'a1' }), t)).toBe('Goal: Alex');
+      expect(goalPassLine(s, goal({ assistId: 'a2' }), t)).toBe('Assist: Sam');
+      expect(goalPassLine(s, goal({}), t)).toBe('');
+    });
+
+    it('names a Callahan after the scorer, with no thrower', () => {
+      expect(goalPassLine(withRoster(), goal({ scorerId: 'a1', callahan: true }), t)).toBe(
+        'Alex (Callahan)',
+      );
+    });
   });
 
   describe('the unassigned aggregate', () => {

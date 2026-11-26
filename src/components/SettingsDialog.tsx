@@ -3,12 +3,31 @@ import { haptic } from '../audio/haptics';
 import { useT, type Lang } from '../i18n/useT';
 import {
   loadSoundEnabled,
+  loadTheme,
   loadVibrationEnabled,
   saveSoundEnabled,
+  saveTheme,
   saveVibrationEnabled,
+  type ThemePref,
 } from '../state/uiPreferences';
 import { CheckField } from './CheckField';
 import { Modal } from './Modal';
+import { Segmented } from './Segmented';
+
+const LANGUAGES: { value: Lang; label: string }[] = [
+  { value: 'en', label: 'English' },
+  { value: 'es', label: 'Español' },
+  { value: 'ca', label: 'Català' },
+];
+
+const THEMES: {
+  value: ThemePref;
+  key: 'settingsThemeSystem' | 'settingsThemeLight' | 'settingsThemeDark';
+}[] = [
+  { value: 'system', key: 'settingsThemeSystem' },
+  { value: 'light', key: 'settingsThemeLight' },
+  { value: 'dark', key: 'settingsThemeDark' },
+];
 
 /**
  * How this phone behaves, as opposed to how this game is played — which is why it
@@ -21,22 +40,28 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const { t, lang, setLang } = useT();
   const [vibration, setVibration] = useState(loadVibrationEnabled);
   const [sound, setSound] = useState(loadSoundEnabled);
+  const [theme, setTheme] = useState(loadTheme);
 
   return (
     <Modal title={t('settingsTitle')} onClose={onClose} size="sm" showClose>
-      <div className="flex flex-col gap-3">
-        <label className="flex items-center justify-between gap-3">
-          <span className="font-semibold">{t('language')}</span>
-          <select
-            className="rounded-lg bg-panel border border-line px-3 py-2"
-            value={lang}
-            onChange={(e) => setLang(e.target.value as Lang)}
-          >
-            <option value="en">English</option>
-            <option value="es">Español</option>
-            <option value="ca">Català</option>
-          </select>
-        </label>
+      <div className="flex flex-col gap-4">
+        {/* Each language names itself, so a phone set to the wrong one can still
+            find its own. */}
+        <Segmented
+          label={t('language')}
+          value={lang}
+          options={LANGUAGES}
+          onChange={(value) => setLang(value)}
+        />
+        <Segmented
+          label={t('settingsTheme')}
+          value={theme}
+          options={THEMES.map(({ value, key }) => ({ value, label: t(key) }))}
+          onChange={(value) => {
+            setTheme(value);
+            saveTheme(value);
+          }}
+        />
         <CheckField
           variant="switch"
           label={t('settingsVibration')}

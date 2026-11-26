@@ -39,7 +39,7 @@ export function GameLog({ onClose, onAddEvent }: { onClose: () => void; onAddEve
       showClose
       headerAction={
         <button
-          className="flex items-center gap-1.5 rounded-lg bg-pitch border border-line px-2 py-1.5 text-[11px] font-board uppercase tracking-wide text-chalk active:scale-95"
+          className="flex items-center gap-1.5 rounded bg-pitch border border-line px-2 py-1.5 text-[11px] font-board uppercase tracking-wide text-chalk active:scale-95"
           onClick={tryAdd}
           aria-label={t('btnNote')}
         >

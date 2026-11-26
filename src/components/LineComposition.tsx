@@ -43,7 +43,7 @@ export function LineComposition({
       // The dialog's tests read the state off here rather than off the wording, the
       // same way the possession rule exposes data-possession.
       data-line-issues={issues.join(' ')}
-      className={`rounded-lg border px-3 py-2 ${
+      className={`rounded border px-3 py-2 ${
         off ? 'border-signal bg-signal/10' : 'border-line bg-pitch'
       }`}
     >

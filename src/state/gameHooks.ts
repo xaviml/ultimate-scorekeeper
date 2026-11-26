@@ -13,6 +13,23 @@ export const DispatchCtx = createContext<Dispatch<Action> | null>(null);
  */
 export const AssistCtx = createContext<Occurrence | null>(null);
 
+/**
+ * The game actually in hand, whatever a screen is reading. Match history shows an
+ * archived game by providing it as `StateCtx` with a dispatch that does nothing, so
+ * anything about the *current* game opened from inside it — the app menu's "Start
+ * new game" — reads this instead. Provided once, by GameProvider, and never overridden.
+ */
+export const CurrentGameCtx = createContext<{
+  state: GameState;
+  dispatch: Dispatch<Action>;
+} | null>(null);
+
+export function useCurrentGame(): { state: GameState; dispatch: Dispatch<Action> } {
+  const c = useContext(CurrentGameCtx);
+  if (!c) throw new Error('useCurrentGame outside GameProvider');
+  return c;
+}
+
 export function useGame(): GameState {
   const s = useContext(StateCtx);
   if (!s) throw new Error('useGame outside GameProvider');

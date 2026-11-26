@@ -1,6 +1,6 @@
 import { useT } from '../i18n/useT';
 import { Modal } from './Modal';
-import { primaryButton, secondaryButton } from './ui';
+import { dangerButton, secondaryButton } from './ui';
 
 /**
  * Deleting a game out of the archive — the same shape as deleting a saved team,
@@ -25,7 +25,7 @@ export function ConfirmDeleteGameDialog({
         <button className={secondaryButton} onClick={onCancel}>
           {t('btnCancel')}
         </button>
-        <button className={primaryButton} onClick={onConfirm}>
+        <button className={dangerButton} onClick={onConfirm}>
           {t('btnDeleteGame')}
         </button>
       </div>

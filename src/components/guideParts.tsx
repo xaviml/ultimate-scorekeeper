@@ -1,6 +1,7 @@
+import { PageHeader } from './PageHeader';
 import { useEffect } from 'react';
-import { useT, type Dict, type Lang } from '../i18n/useT';
-import { sectionTitle } from './ui';
+import { useT, type Dict } from '../i18n/useT';
+import { specSection, specTitle } from './ui';
 
 /**
  * The pieces both walkthroughs are built from — the numbered screenshot, the
@@ -31,10 +32,10 @@ export type Marker = readonly [x: number, y: number];
 const asset = (file: string) => `${import.meta.env.BASE_URL}guide/${file}`;
 
 const markerClass =
-  'absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-signal text-pitch font-clock text-sm font-bold ring-2 ring-pitch shadow-lg';
+  'absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-accent text-pitch font-clock text-sm font-bold ring-2 ring-pitch shadow-lg';
 
 const badgeClass =
-  'shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-signal text-pitch font-clock text-sm font-bold';
+  'shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-accent text-pitch font-clock text-sm font-bold';
 
 /**
  * A screenshot with numbered pointers on it. The captions are NOT baked into the
@@ -61,7 +62,7 @@ export function Figure({
     <figure
       className={`relative mx-auto w-full ${
         wide ? 'max-w-[28rem]' : 'max-w-[20rem]'
-      } rounded-xl overflow-hidden border border-line`}
+      } rounded overflow-hidden border border-line`}
     >
       <img src={asset(file)} alt={alt} className="block w-full" loading="lazy" />
       {markers.map(([x, y], i) => (
@@ -95,7 +96,7 @@ export function Numbered({ n, label, body }: { n: number; label?: string; body: 
 export function Bullet({ label, body }: { label?: string; body: string }) {
   return (
     <li className="flex gap-2">
-      <span aria-hidden="true" className="text-signal leading-snug">
+      <span aria-hidden="true" className="text-accent leading-snug">
         ▸
       </span>
       <p className="text-sm text-chalk/80 leading-snug">
@@ -116,10 +117,10 @@ export function Card({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl bg-panel border border-line p-4 space-y-3">
+    <section className={specSection}>
       <h2 className="flex items-center gap-2">
         {step !== undefined && <span className={badgeClass}>{step}</span>}
-        <span className={sectionTitle}>{title}</span>
+        <span className={specTitle}>{title}</span>
       </h2>
       {children}
     </section>
@@ -147,13 +148,13 @@ export function Definitions({ rows }: { rows: readonly (readonly [Key, Key])[] }
 }
 
 /**
- * The shell every guide page shares: the heading, the language picker (a guide is
- * read in the reader's own language, whatever the app was left in), the one way
- * back, and the note that the pictures are English whatever that picker says.
+ * The shell every guide page shares: the page header (the way back, the title, the
+ * menu — where Settings changes the language), the subtitle under it, and the note
+ * that the pictures are English whatever language the text is in.
  *
- * The back button is worded neutrally on purpose — these pages are reached from
- * more than one place, so naming a destination would be a lie from one of them.
- * There is no second button at the bottom for the same reason.
+ * The back arrow is named neutrally on purpose — these pages are reached from more
+ * than one place, so naming a destination would be a lie from one of them. There is
+ * no second button at the bottom for the same reason.
  */
 export function GuidePage({
   title,
@@ -166,7 +167,7 @@ export function GuidePage({
   onBack: () => void;
   children: React.ReactNode;
 }) {
-  const { t, lang, setLang } = useT();
+  const { t } = useT();
 
   // Opened from a link partway down a long screen, so without this the guide
   // would open already scrolled into the middle of itself.
@@ -176,31 +177,8 @@ export function GuidePage({
 
   return (
     <div className="min-h-dvh bg-pitch text-chalk p-4 pb-10 max-w-2xl mx-auto space-y-4">
-      <header className="flex items-start justify-between gap-3 pt-2">
-        <div>
-          <h1 className="font-board text-2xl font-bold">{title}</h1>
-          <p className="text-chalk/50 text-sm">{subtitle}</p>
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          <select
-            aria-label={t('language')}
-            className="rounded-lg bg-panel border border-line px-2 py-1"
-            value={lang}
-            onChange={(e) => setLang(e.target.value as Lang)}
-          >
-            <option value="en">EN</option>
-            <option value="es">ES</option>
-            <option value="ca">CA</option>
-          </select>
-          <button
-            type="button"
-            className="rounded-lg bg-panel border border-line px-3 py-1 text-sm text-chalk/70 whitespace-nowrap"
-            onClick={onBack}
-          >
-            ← {t('guideBackShort')}
-          </button>
-        </div>
-      </header>
+      <PageHeader title={title} backLabel={t('guideBackShort')} onBack={onBack} />
+      <p className="text-chalk/60 text-sm">{subtitle}</p>
 
       {children}
 

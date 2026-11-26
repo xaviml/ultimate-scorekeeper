@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
-import ConfigScreen from '../components/ConfigScreen';
+import App from '../App';
 import { I18nProvider } from '../i18n';
 import { GameProvider } from '../state/GameContext';
 
@@ -8,7 +8,7 @@ function renderConfigScreen() {
   return render(
     <I18nProvider>
       <GameProvider>
-        <ConfigScreen />
+        <App />
       </GameProvider>
     </I18nProvider>,
   );
@@ -41,8 +41,9 @@ describe('the statistics guide', () => {
     openStatsGuide();
 
     expect(screen.getByRole('heading', { name: 'Advanced guide' })).toBeInTheDocument();
-    // A page, not a dialog: the form underneath is gone, not merely covered.
-    expect(screen.queryByText('Game setup')).toBeNull();
+    // A page, not a dialog: the form underneath is out of sight (kept mounted, hidden,
+    // so what was typed survives the round trip).
+    expect(screen.queryByRole('heading', { name: 'Game setup' })).toBeNull();
   });
 
   it('comes back to the config screen with what was typed still there', () => {
@@ -50,20 +51,23 @@ describe('the statistics guide', () => {
     fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'RAVENS' } });
 
     openStatsGuide();
-    fireEvent.click(screen.getByRole('button', { name: '← Back' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
 
     expect(screen.getByText('Game setup')).toBeInTheDocument();
     expect(screen.getByLabelText('Team 1')).toHaveValue('RAVENS');
   });
 
-  it('translates on the fly from its own language picker, like the walkthrough', () => {
+  it('translates on the fly when the language is changed from its menu, like the walkthrough', () => {
     renderConfigScreen();
     openStatsGuide();
 
-    fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'es' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    fireEvent.click(screen.getByText('Settings'));
+    fireEvent.click(screen.getByRole('radio', { name: 'Español' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
 
     expect(screen.getByRole('heading', { name: 'Guía avanzada' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '← Volver' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Volver' }));
     expect(screen.getByText('Configuración del partido')).toBeInTheDocument();
   });
 

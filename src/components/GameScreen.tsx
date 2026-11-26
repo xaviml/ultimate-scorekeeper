@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import {
@@ -35,7 +35,8 @@ import {
 } from '../state/gameReducer';
 import { lineTeam } from '../state/lines';
 import { formatClock } from '../state/stats';
-import { handOverBackGuard, useBackGuard } from '../hooks/useBackGuard';
+import { navigate } from '../hooks/useRoute';
+import { newGameAsksFirst } from '../state/newGame';
 import { useLongPress } from '../hooks/useLongPress';
 import { haptic } from '../audio/haptics';
 import type { CallKind, CallResolution, GameState, TeamId } from '../state/types';
@@ -51,18 +52,28 @@ import { GameLog } from './GameLog';
 import { GameMenuDialog, type LeaveKind } from './GameMenuDialog';
 import { SettingsDialog } from './SettingsDialog';
 import { GameSetupDialog } from './GameSetupDialog';
-import GuideScreen from './GuideScreen';
-import { CallIcon, LogIcon, MenuIcon, PassIcon, StoppageIcon, SwapIcon, TurnIcon } from './icons';
+import {
+  CallIcon,
+  LogIcon,
+  MenuIcon,
+  PassIcon,
+  PauseIcon,
+  PlayIcon,
+  StoppageIcon,
+  SwapIcon,
+  TimeoutIcon,
+  TurnIcon,
+} from './icons';
 import { NoteDialog } from './NoteDialog';
 import { LineDialog } from './LineDialog';
 import { PlayersDialog } from './PlayersDialog';
-import ReportScreen from './ReportScreen';
 import { SignalCard } from './SignalCard';
 import { StatsSlot } from './StatsSlot';
 import { StoppageDialog } from './StoppageDialog';
 import { TravelTeamDialog } from './TravelTeamDialog';
 import { TurnoverDialog } from './TurnoverDialog';
-import { contrastText } from './ui';
+import { contrastText, teamOutline } from './ui';
+import { ratioPhrase } from '../state/assistOccurrence';
 
 const END_GAME_CONFIRM_KEY = 'ultimate-scorekeeper:end-game-confirm-open';
 const ASSIST_DISMISSED_KEY = 'ultimate-scorekeeper:assist-dismissed-up-to';
@@ -104,29 +115,54 @@ function ScorePanel({ team, side }: { team: TeamId; side: 'left' | 'right' }) {
 
   const cfg = state.config.teams[team];
   const ink = contrastText(cfg.color);
+  // A small disc beside the name of whoever has it, where the eye already is —
+  // the rule under the panels says the same thing by position, but it is a thin
+  // line at the far edge of the board. Same gate as that rule, and like it only
+  // while the disc is actually live.
+  const holding = possessionTracked(state) && state.possessionTeam === team;
+  const disc = 'shrink-0 w-2.5 h-2.5 lscape:w-1.5 lscape:h-1.5 rounded-full';
   return (
     <button
       {...press}
       aria-label={`${cfg.name}: ${state.scores[team]}`}
-      className={`relative flex-1 flex flex-col items-center justify-center overflow-hidden select-none touch-none transition-opacity ${
-        scoreCheck.ok ? '' : 'opacity-70'
-      } ${side === 'left' ? 'rounded-r-none' : 'rounded-l-none'}`}
+      // The team colour stays at full strength whether or not a goal can be
+      // scored right now. The whole panel used to fade to 70% between points —
+      // which is half the game — washing red and blue out to pink and lavender;
+      // the amber button below already says what has to happen next, so only the
+      // number steps back.
+      // The top padding is the chip stack's reach (--chip-room, set on the board), so
+      // the name and number centre in the room under the chips rather than behind
+      // them. Landscape panels are wide with the stack on the seam, clear of both.
+      className={`relative flex-1 flex flex-col items-center justify-center overflow-hidden select-none touch-none pt-[var(--chip-room,0px)] lscape:pt-0 ${
+        side === 'left' ? 'rounded-r-none' : 'rounded-l-none'
+      }`}
       style={{ backgroundColor: cfg.color }}
     >
       <span
-        className="font-board font-semibold text-base sm:text-xl lscape:text-[9px] leading-tight drop-shadow px-2 truncate max-w-full"
-        style={{ color: ink, opacity: 0.9 }}
+        className="flex items-center gap-2 lscape:gap-1 max-w-full px-2 font-board font-semibold uppercase tracking-wider text-base sm:text-xl lscape:text-[9px] leading-tight"
+        style={{ color: ink }}
       >
-        {cfg.name}
+        {/* The invisible twin on the other side keeps the name centred whether or
+            not the disc is showing, so a turnover moves nothing but the dot. */}
+        <span
+          aria-hidden="true"
+          data-holding={holding || undefined}
+          className={`${disc} ${holding ? '' : 'invisible'}`}
+          style={{ backgroundColor: ink }}
+        />
+        <span className="truncate opacity-90">{cfg.name}</span>
+        <span aria-hidden="true" className={`${disc} invisible`} />
       </span>
       <span
-        className="font-clock font-semibold text-[clamp(7.5rem,36vw,16.5rem)] lscape:text-[clamp(3rem,27vh,8.25rem)] leading-none drop-shadow-lg"
+        className={`font-clock font-semibold text-[length:var(--score-digit)] lscape:text-[clamp(3rem,27vh,8.25rem)] leading-none transition-opacity ${
+          scoreCheck.ok ? '' : 'opacity-75'
+        }`}
         style={{ color: ink }}
       >
         {state.scores[team]}
       </span>
       {flash && (
-        <span className="absolute bottom-2 inset-x-2 text-center text-xs sm:text-sm lscape:text-[10px] bg-black/60 text-white rounded-md px-2 py-1">
+        <span className="absolute bottom-2 inset-x-2 text-center text-xs sm:text-sm lscape:text-[10px] bg-chalk/85 text-panel rounded-sm px-2 py-1">
           {t(`assist_blocked_${flash}` as never)}
         </span>
       )}
@@ -144,21 +180,32 @@ function timeoutsLeft(state: GameState, team: TeamId): number {
 }
 
 const utility =
-  'rounded-lg bg-panel border border-line px-2 py-2 lscape:px-1 lscape:py-1 text-xs sm:text-sm lscape:text-[9px] font-board uppercase tracking-wide active:scale-95 disabled:opacity-40';
+  'rounded-lg px-2 py-2 lscape:px-1 lscape:py-1 text-xs sm:text-sm lscape:text-[9px] font-board font-semibold uppercase tracking-wide active:scale-95 disabled:opacity-40';
+
+/**
+ * How loud an action button is. The row used to be five identical outlined boxes,
+ * so nothing on it said which buttons get pressed every few seconds: the ones that
+ * only open something (Log, Stoppage, Call) are now soft unbordered tiles, and the
+ * two that record play (Turn, Pass) are filled.
+ */
+const ACTION_TONE = {
+  quiet: 'bg-pitch text-chalk',
+  strong: 'bg-accent text-panel',
+} as const;
 
 /**
  * The two flavours of the wide action-row button under the score panels: the amber
  * one that moves play on (start, pull, resume, report) and the quieter outline one
  * that ends a break.
  *
- * Both fade and stop pulsing while an open stoppage blocks them — a stoppage
+ * Both fade and stop glowing while an open stoppage blocks them — a stoppage
  * freezes the pull/timeout/half-time clocks and the reducer refuses all three
  * until it is resolved, so a button still inviting a tap would be lying.
  */
 const playAdvanceButton =
-  'w-full rounded-lg bg-signal text-pitch px-3 py-3 lscape:py-1.5 font-board font-bold text-base lscape:text-xs animate-pulse disabled:opacity-40 disabled:animate-none';
+  'w-full rounded-lg bg-signal text-panel px-3 py-3 lscape:py-1.5 font-board font-bold uppercase tracking-wide text-base lscape:text-xs motion-safe:animate-glow disabled:opacity-40 disabled:animate-none';
 const breakEndButton =
-  'w-full rounded-lg bg-panel border border-line px-3 py-3 lscape:py-1.5 font-board text-base lscape:text-xs';
+  'w-full rounded-lg bg-panel border border-line px-3 py-3 lscape:py-1.5 font-board font-semibold uppercase tracking-wide text-base lscape:text-xs';
 
 /**
  * One action-row button: a glyph with a micro-label — a 9px uppercase word small
@@ -184,6 +231,7 @@ function ActionButton({
   icon,
   label,
   name,
+  tone = 'quiet',
   badge,
   badgeColor,
   big,
@@ -198,6 +246,8 @@ function ActionButton({
   label?: string;
   /** Accessible name — the full wording, which the micro-label abbreviates. */
   name: string;
+  /** Quiet for the buttons that open something, strong for the two that record play. */
+  tone?: keyof typeof ACTION_TONE;
   /**
    * A count in the button's top-right corner, hidden below 1 and shown as `99+`
    * past ninety-nine so the disc keeps one size. Two digits rather than one
@@ -224,7 +274,7 @@ function ActionButton({
   badgeColor?: string;
   /**
    * The two-column portrait block (see the action row), where a button is ~170px
-   * wide and 56px or 88px tall rather than ~60px square. It only changes what
+   * wide and 48px or 76px tall rather than ~60px square. It only changes what
    * goes *inside*: the glyph moves beside the word instead of above it, and the
    * label grows from a 9px hint to something readable.
    *
@@ -263,16 +313,16 @@ function ActionButton({
   // wide-and-tall treatment is portrait-only, because landscape is short rather
   // than narrow and its row never changes shape (see the action row).
   const layout = big
-    ? 'flex-row gap-2 lscape:gap-1.5'
-    : 'flex-col lscape:flex-row gap-0.5 lscape:gap-1.5';
-  const labelSize = big ? 'text-[13px] lscape:text-[10px]' : 'text-[9px] lscape:text-[10px]';
+    ? 'flex-row justify-start gap-3 px-4 lscape:justify-center lscape:gap-1.5 lscape:px-1'
+    : 'flex-col lscape:flex-row justify-center gap-1 lscape:gap-1.5';
+  const labelSize = big ? 'text-[12px] lscape:text-[10px]' : 'text-[9px] lscape:text-[10px]';
   const badgeSize = big
     ? 'top-1 right-1 lscape:top-px lscape:right-px min-w-[18px] h-[18px] lscape:min-w-[11px] lscape:h-[11px] text-[11px] lscape:text-[7px]'
     : 'top-0.5 right-0.5 lscape:top-px lscape:right-px min-w-[14px] h-[14px] lscape:min-w-[11px] lscape:h-[11px] text-[9px] lscape:text-[7px]';
   return (
     <button
       {...(onHold ? press : { onClick })}
-      className={`${utility} relative isolate flex ${layout} items-center justify-center aria-disabled:opacity-40 aria-disabled:active:scale-100 ${
+      className={`${utility} ${ACTION_TONE[tone]} relative isolate flex ${layout} items-center aria-disabled:opacity-40 aria-disabled:active:scale-100 ${
         onHold ? 'select-none touch-none' : ''
       } ${className ?? ''}`}
       disabled={disabled}
@@ -291,7 +341,7 @@ function ActionButton({
         />
       )}
       {icon}
-      {label && <span className={`${labelSize} leading-none tracking-wide`}>{label}</span>}
+      {label && <span className={`${labelSize} leading-none`}>{label}</span>}
       {badge !== undefined && badge >= 1 && (
         <span
           // Remounted on every change, which replays the pop: the count moving is
@@ -302,12 +352,18 @@ function ActionButton({
           // name to assert against — this carries the colour it was painted in, the
           // same way the possession rule exposes `data-possession`.
           data-badge={badgeColor ?? 'signal'}
-          className={`absolute ${badgeSize} flex items-center justify-center px-[3px] rounded-full motion-safe:animate-badgePop font-board font-bold leading-none tabular-nums ${
-            badgeColor ? '' : 'bg-signal text-pitch'
+          // Ringed in the surface colour so a team colour close to the button's own
+          // fill (a navy team on the navy Pass button) still reads as a badge.
+          className={`absolute ${badgeSize} flex items-center justify-center px-[3px] rounded-md outline outline-2 outline-panel motion-safe:animate-badgePop font-clock font-bold leading-none tabular-nums ${
+            badgeColor ? '' : 'bg-panel text-accent'
           }`}
           style={
             badgeColor
-              ? { backgroundColor: badgeColor, color: contrastText(badgeColor) }
+              ? {
+                  backgroundColor: badgeColor,
+                  color: contrastText(badgeColor),
+                  ...teamOutline(badgeColor),
+                }
               : undefined
           }
         >
@@ -315,33 +371,6 @@ function ActionButton({
         </span>
       )}
     </button>
-  );
-}
-
-function PauseIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="w-4 h-4 lscape:w-3 lscape:h-3"
-      fill="currentColor"
-      aria-hidden="true"
-    >
-      <rect x="6" y="5" width="4" height="14" rx="1" />
-      <rect x="14" y="5" width="4" height="14" rx="1" />
-    </svg>
-  );
-}
-
-function PlayIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="w-4 h-4 lscape:w-3 lscape:h-3"
-      fill="currentColor"
-      aria-hidden="true"
-    >
-      <path d="M7 5v14l12-7z" />
-    </svg>
   );
 }
 
@@ -375,21 +404,11 @@ function TimeoutButton({
   const left = timeoutsLeft(state, team);
   const label = `${cfg.name} — ${t('timeoutsLeft', { n: left })}`;
 
-  const icon = (
-    <svg
-      viewBox="0 0 24 24"
-      className="w-5 h-5 lscape:w-4 lscape:h-4"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="14" r="7" />
-      <path d="M12 11v3M9.5 2h5M12 2v3" />
-    </svg>
+  const ink = contrastText(cfg.color);
+  const icon = <TimeoutIcon />;
+  const count = (
+    <span className="font-clock font-medium text-base lscape:text-xs leading-none">{left}</span>
   );
-  const count = <span className="font-clock text-base lscape:text-xs leading-none">{left}</span>;
 
   return (
     <button
@@ -399,7 +418,11 @@ function TimeoutButton({
       title={label}
       className={`absolute top-2 lscape:top-1 ${
         side === 'left' ? 'left-2 lscape:left-1' : 'right-2 lscape:right-1'
-      } z-10 flex items-center justify-center gap-1 rounded-lg bg-black/60 border border-white/25 px-3 py-2 lscape:px-2 lscape:py-1.5 text-chalk active:scale-95 disabled:opacity-40`}
+      } z-10 flex items-center justify-center gap-1.5 rounded-md border px-2.5 py-1.5 lscape:px-1.5 lscape:py-1 active:scale-95 disabled:opacity-40`}
+      style={{
+        color: ink,
+        borderColor: ink === '#ffffff' ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.4)',
+      }}
     >
       {/* Invisible, larger-than-visible hit area: the pill itself stays small so it
           doesn't eat into the score panel's thumb zone, but a near-miss tap should
@@ -458,7 +481,7 @@ function CallResolutionRow() {
       {RESOLUTIONS.map((resolution) => (
         <button
           key={resolution}
-          className="rounded-lg bg-signal/20 border border-signal text-signal px-2 py-3 lscape:px-1 lscape:py-1.5 text-xs sm:text-sm lscape:text-[9px] font-board uppercase tracking-wide active:scale-95"
+          className="rounded-lg bg-signal/10 border border-signal text-signal px-2 py-3 lscape:px-1 lscape:py-1.5 text-xs sm:text-sm lscape:text-[9px] font-board font-semibold uppercase tracking-wide active:scale-95"
           onClick={() => dispatch({ type: 'CALL_RESOLVED', resolution })}
         >
           {t(`callResolution_${resolution}` as never)}
@@ -497,7 +520,7 @@ function StoppageResolutionRow() {
         {t('stoppagePending' as never, { kind })}
       </p>
       <button
-        className="w-full rounded-lg bg-signal/20 border border-signal text-signal px-2 py-2 lscape:px-1 lscape:py-1 text-xs sm:text-sm lscape:text-[9px] font-board uppercase tracking-wide active:scale-95"
+        className="w-full rounded-lg bg-signal/10 border border-signal text-signal px-2 py-2 lscape:px-1 lscape:py-1 text-xs sm:text-sm lscape:text-[9px] font-board font-semibold uppercase tracking-wide active:scale-95"
         onClick={() => dispatch({ type: 'STOPPAGE_RESOLVED' })}
       >
         {t('btnStoppageResolved')}
@@ -524,8 +547,11 @@ function linePromptVisible(state: GameState): boolean {
   return canSetLine(state).ok && state.pointLine.length === 0;
 }
 
+// Grey, not amber: these can wait for a free moment, and amber means "now" — it is
+// what "Pull thrown" right above them is saying. An outline rather than a tile, so
+// the row still reads as something left to answer.
 const PROMPT_BUTTON =
-  'rounded-lg bg-signal/20 border border-signal text-signal px-2 py-2 lscape:px-1 lscape:py-1 text-xs sm:text-sm lscape:text-[9px] font-board uppercase tracking-wide active:scale-95';
+  'rounded-lg bg-panel border border-chalk/30 text-chalk/80 px-2 py-2 lscape:px-1 lscape:py-1 text-xs sm:text-sm lscape:text-[9px] font-board font-semibold uppercase tracking-wide active:scale-95';
 
 /**
  * The dashboard's to-do row: things the volunteer should answer, but when it suits
@@ -578,7 +604,10 @@ function PromptRow({
             <span
               aria-hidden
               className="inline-block w-2 h-2 rounded-full shrink-0"
-              style={{ backgroundColor: state.config.teams[goal].color }}
+              style={{
+                backgroundColor: state.config.teams[goal].color,
+                ...teamOutline(state.config.teams[goal].color),
+              }}
             />
             <span className="truncate">
               {t('goalPromptBtn', { score: `${state.scores.A}-${state.scores.B}` })}
@@ -648,9 +677,9 @@ function CapChip({ which, onOpen }: { which: 'game' | 'half'; onOpen: () => void
             options[0] ??
             (half ? effectiveHalfTarget(state) : effectiveTarget(state)),
         });
-  const className = `rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-white/95 border text-pitch ${
+  const className = `rounded-md px-2.5 py-1 text-xs sm:text-sm font-board font-semibold bg-panel border text-chalk ${
     universe
-      ? 'border-signal animate-pulse'
+      ? 'border-signal motion-safe:animate-glow'
       : capped !== null || options.length > 0
         ? 'border-signal'
         : 'border-line'
@@ -681,9 +710,11 @@ function ratioLabel(
 ) {
   const g = state.nextRatio ?? state.ratio;
   if (!g) return null;
-  const gender = g === 'male' ? t('ratioMale' as never) : t('ratioFemale' as never);
-  const position = ratioBlockPosition(state.points.length);
-  return t('currentRatio' as never, { gender: position ? `${gender} (${position})` : gender });
+  // Read out the same way the call-out says it; the chip itself keeps the compact
+  // "MEN (1)", which has to fit on the seam between the panels.
+  return t('currentRatio' as never, {
+    gender: ratioPhrase(g, ratioBlockPosition(state.points.length), t),
+  });
 }
 
 /**
@@ -709,8 +740,8 @@ function RatioSignalChip() {
       aria-live="polite"
       aria-label={ratioLabel(state, t as never) ?? undefined}
       onClick={() => dispatch({ type: 'SHOW_RATIO_SIGNAL' })}
-      className={`flex items-center gap-2 overflow-hidden rounded-lg lscape:rounded-md border bg-white/95 pr-3 active:scale-95 ${
-        state.nextRatio ? 'border-signal animate-pulse' : 'border-line'
+      className={`flex items-center gap-2 overflow-hidden rounded-md border bg-panel pr-3 active:scale-95 ${
+        state.nextRatio ? 'border-signal motion-safe:animate-glow' : 'border-line'
       }`}
     >
       <img
@@ -720,7 +751,7 @@ function RatioSignalChip() {
       />
       <span
         aria-hidden="true"
-        className="font-board font-bold uppercase tracking-wide text-sm sm:text-base lscape:text-xs text-pitch"
+        className="font-board font-bold uppercase tracking-wide text-sm sm:text-base lscape:text-xs text-chalk"
       >
         {t(genderKey as never)}
         {position ? ` (${position})` : ''}
@@ -894,22 +925,23 @@ function SecondaryClockBox({
   onToggle: (() => void) | null;
   toggleLabel: string;
 }) {
-  const box = 'rounded-lg bg-pitch border border-line p-2 lscape:p-0.5';
+  // No box of its own: it is the right half of the clock strip.
+  const box = 'rounded-r-lg px-3 py-1.5 lscape:px-1.5 lscape:py-0.5';
   const inner = (
     <>
-      <div className="flex items-center gap-1 text-[10px] lscape:text-[8px] uppercase tracking-widest text-chalk/50">
+      <div className="flex items-center gap-1 font-board text-[10px] lscape:text-[8px] uppercase tracking-widest text-chalk/60">
         {dotColor && (
           <span
             aria-hidden="true"
             className="shrink-0 w-2 h-2 lscape:w-1.5 lscape:h-1.5 rounded-full"
-            style={{ backgroundColor: dotColor }}
+            style={{ backgroundColor: dotColor, ...teamOutline(dotColor) }}
           />
         )}
         <span className="min-w-0 truncate">{label}</span>
         {onToggle && <SwapIcon size="shrink-0 ml-auto w-3 h-3 lscape:w-2.5 lscape:h-2.5" />}
       </div>
       <div
-        className={`font-clock text-3xl lscape:text-base ${amber ? 'text-signal' : 'text-chalk'}`}
+        className={`font-clock font-semibold text-4xl leading-none lscape:text-base ${amber ? 'text-signal' : 'text-chalk'}`}
       >
         {value}
       </div>
@@ -935,7 +967,11 @@ function SecondaryClockBox({
   );
 }
 
-export default function GameScreen() {
+/**
+ * `backRequest` is bumped by App each time the back gesture is pressed on a game in
+ * progress — see the effect that answers it.
+ */
+export default function GameScreen({ backRequest = 0 }: { backRequest?: number } = {}) {
   const state = useGame();
   const dispatch = useGameDispatch();
   const { t } = useT();
@@ -943,18 +979,12 @@ export default function GameScreen() {
   const [showLog, setShowLog] = useState(false);
   const [showPlayers, setShowPlayers] = useState(false);
   const [showLine, setShowLine] = useState(false);
-  // The header menu and the two read-only surfaces behind it. The guide is a
-  // whole screen rather than a dialog (see the early return below), which is why
-  // it isn't grouped with the rest of the dialog state at the bottom.
+  // The header menu and the dialogs behind it. The guide and the report so far are
+  // pages of their own (#/guide, #/report), opened over this screen, which App keeps
+  // mounted underneath — nothing about the game pauses for them.
   const [showMenu, setShowMenu] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
-  const [showGuide, setShowGuide] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  // The report on the game so far — the same screen the finished game opens,
-  // minus its finished-game furniture (see ReportScreen's `live` mode), with a way
-  // back. A screen like the guide, and for the same reason: the dashboard stays
-  // mounted underneath and nothing about the game pauses for it.
-  const [showReport, setShowReport] = useState(false);
   const [showStoppage, setShowStoppage] = useState(false);
   const [showPauseConfirm, setShowPauseConfirm] = useState(false);
   const [showCall, setShowCall] = useState(false);
@@ -962,6 +992,26 @@ export default function GameScreen() {
   const [showTravel, setShowTravel] = useState(false);
   /** Which cap chip was tapped, if any — see CapChip. */
   const [capTarget, setCapTarget] = useState<'game' | 'half' | null>(null);
+  // How far down the board the chip stack over the seam reaches (ratio, caps, pull),
+  // so the panels can centre their name and number in the room under it. Centred
+  // in the whole panel, a short board (before kickoff, with the five-button block
+  // and a prompt row) put the names behind the chips.
+  const chipsRef = useRef<HTMLDivElement | null>(null);
+  const [chipRoom, setChipRoom] = useState(0);
+  const chipsShown = state.status !== 'finished';
+  useLayoutEffect(() => {
+    const el = chipsRef.current;
+    if (!el) {
+      setChipRoom(0);
+      return;
+    }
+    const measure = () => setChipRoom(el.offsetTop + el.offsetHeight);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [chipsShown]);
   /** Which reading the secondary clock is on while the disc is live — see livePointClock. */
   const [clockView, setClockView] = useState<ClockView>(() =>
     loadClockView(clockViewGameKey(state)),
@@ -981,63 +1031,30 @@ export default function GameScreen() {
   // pause/play toggle below.
   const gameStarted = state.status !== 'notStarted' && state.status !== 'awaitingStart';
 
-  // Phone back button while a game is running: same intent as the beforeunload
-  // guard in GameContext, but that only fires on an actual page unload, which a
-  // back-gesture in an installed PWA skips entirely. This traps it and asks first.
-  // A script can't force a real app exit on confirm (browsers reserve that for a
-  // direct user gesture), so confirming instead abandons back to setup — a real,
-  // one-tap, always-working in-app transition, same as BACK_TO_CONFIG elsewhere.
-  //
-  // Before the game has started there's nothing to lose, so the press just goes
-  // straight back to setup (the same as the "Back to setup" button) with no
-  // confirmation — only once play is under way does it stop to ask.
+  // The back gesture on a game in progress. App puts the game page back and bumps
+  // `backRequest` (see App), and this decides what the press meant: an open menu or
+  // dialog closes first, innermost first, the way back closes a sheet anywhere else;
+  // only then does it ask whether to leave, since leaving discards the game. A game
+  // not yet started is left without asking — App handles that one itself.
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
-  const resolveBack = useBackGuard(true, ({ stay }) => {
-    // The menu's own layers peel off one at a time before the press means
-    // "leave the game" — the guide especially, which is a full screen and would
-    // otherwise be exited by abandoning the game underneath it. This is handled
-    // here rather than by a second useBackGuard because both hooks would attach
-    // their own window `popstate` listener and each would answer the other's
-    // press. The layers are checked innermost-first, and each absorbs the press
-    // with stay() so the screen keeps guarding.
-    const layer = showGuide
-      ? setShowGuide
-      : showReport
-        ? setShowReport
-        : showSetup
-          ? setShowSetup
-          : showSettings
-            ? setShowSettings
-            : showMenu
-              ? setShowMenu
-              : null;
-    if (layer) {
-      stay();
-      layer(false);
-      return;
-    }
-    if (!gameStarted) {
-      // Nothing to lose yet — the gesture already popped our guard entry, so
-      // just drop back to setup, exactly like the "Back to setup" button.
-      dispatch({ type: 'BACK_TO_CONFIG' });
-      return;
-    }
-    // Absorb the press and keep guarding while the dialog is up, so a second
-    // back can't slip past it.
-    stay();
-    setShowLeaveConfirm(true);
-  });
-  // Every path that unmounts the game screen to another screen settles the trapped
-  // history entry first, so nothing dead is left on the stack for the destination's
-  // own back button to swallow. Which way it settles depends on where it lands: the
-  // report guards its own way back here, so it takes the entry over (resolving and
-  // letting it re-push would race — see handOverBackGuard); setup guards nothing,
-  // so that entry has to be spent.
-  const leaveGameTo = (action: Parameters<typeof dispatch>[0]) => {
-    if (action.type === 'OPEN_REPORT' || action.type === 'END_GAME') handOverBackGuard();
-    else resolveBack();
-    dispatch(action);
-  };
+  const layersRef = useRef<{ open: boolean; close: (v: false) => void }[]>([]);
+  layersRef.current = [
+    { open: showSetup, close: setShowSetup },
+    { open: showSettings, close: setShowSettings },
+    { open: showMenu, close: setShowMenu },
+  ];
+  // Only presses made while this game is on screen count: the counter lives in App
+  // and outlives a game, so a new game must not take the last one's press as its own.
+  const seenBackRequest = useRef(backRequest);
+  useEffect(() => {
+    if (backRequest === seenBackRequest.current) return;
+    seenBackRequest.current = backRequest;
+    const layer = layersRef.current.find((l) => l.open);
+    if (layer) layer.close(false);
+    else setShowLeaveConfirm(true);
+  }, [backRequest]);
+  // Where each way off this screen goes is App's to decide from the phase it sets.
+  const leaveGameTo = (action: Parameters<typeof dispatch>[0]) => dispatch(action);
 
   // The action row (Start game / Pull thrown / Resume game / End timeout / End
   // halftime) only exists in the DOM while one of these statuses is active, which
@@ -1102,17 +1119,21 @@ export default function GameScreen() {
     sessionStorage.removeItem(END_GAME_CONFIRM_KEY);
   };
 
-  // The one way off this screen, and the same three-way split the header button
-  // used to carry alone — nothing has been played yet so backing out is free, a
-  // game is under way so leaving means ending it, or it is already over and the
-  // report is all that's left. The menu names the destination instead of encoding
-  // it in a glyph; ending still stops at ConfirmEndGameDialog.
-  const leaveKind: LeaveKind =
-    state.status === 'finished' ? 'openReport' : gameStarted ? 'endGame' : 'backToSetup';
+  // The menu's way off the game, per status: a game under way is ended (stopping at
+  // ConfirmEndGameDialog), one already over opens its report, and before kickoff there
+  // is no row at all — "Start new game" above it already goes back to setup for free.
+  const leaveKind: LeaveKind | null =
+    state.status === 'finished' ? 'openReport' : gameStarted ? 'endGame' : null;
   const leaveFromMenu = () => {
     setShowMenu(false);
     if (leaveKind === 'openReport') leaveGameTo({ type: 'OPEN_REPORT' });
     else if (leaveKind === 'endGame') openEndGameConfirm();
+  };
+  // "Start new game": asks first while this game is being played (the same question
+  // the back gesture asks), and otherwise goes straight back to setup.
+  const startNewGame = () => {
+    setShowMenu(false);
+    if (newGameAsksFirst(state)) setShowLeaveConfirm(true);
     else leaveGameTo({ type: 'BACK_TO_CONFIG' });
   };
 
@@ -1123,7 +1144,6 @@ export default function GameScreen() {
   const left: TeamId = state.config.startingSide;
   const right: TeamId = left === 'A' ? 'B' : 'A';
 
-  const target = state.cappedTarget ?? state.config.targetScore;
   const isMixed = state.config.division === 'mixed';
   const paused = state.status === 'paused';
   // Mirrors the SOTG_TOGGLE guard in the reducer: the clock can be stopped at any
@@ -1398,64 +1418,58 @@ export default function GameScreen() {
   // Landscape keeps the size it has always had, in both layouts.
   const actionIcon = twoColumnActions ? 'w-7 h-7 lscape:w-4 lscape:h-4' : undefined;
 
-  // The guide is a screen, not a dialog — same early return ConfigScreen uses, so
-  // the game screen's own state survives the round trip and the reducer stays free
-  // of a UI-only phase. Nothing about the game pauses for it: the clock, the
-  // whistles and the assistance queue all live in GameContext, which is above this
-  // component and never unmounts.
-  if (showGuide) return <GuideScreen onBack={() => setShowGuide(false)} />;
-  if (showReport) return <ReportScreen mode="live" onBack={() => setShowReport(false)} />;
-
   return (
     <div className="h-dvh flex flex-col bg-pitch text-chalk overflow-y-auto">
-      {/* Header */}
-      <header className="grid grid-cols-3 items-center px-3 py-1.5 lscape:py-0.5 text-sm lscape:text-[11px] bg-panel border-b border-line shrink-0">
-        <span className="flex items-center gap-2 justify-self-start min-w-0">
-          {/* The menu, in the slot the leave button used to hold on its own — that
-              button was moved up here out of an old full-width row at the bottom,
-              which cost the score panels a line of height on every screen for
-              something pressed once a game. One slot was carrying three different
-              destinations, distinguished only by its glyph, so what it did was
-              legible only after pressing it. The menu keeps the single slot and
-              names the destination in words instead, and gives the setup and the
-              guide a door they never had once a game was under way. */}
-          <button
-            className="shrink-0 flex items-center justify-center w-7 h-7 lscape:w-6 lscape:h-6 rounded-lg border border-line text-chalk/70 active:scale-95"
-            onClick={() => setShowMenu(true)}
-            aria-label={t('menuTitle')}
-            title={t('menuTitle')}
-          >
-            <MenuIcon size="w-4 h-4 lscape:w-3.5 lscape:h-3.5" />
-          </button>
-          <span className="font-board text-signal truncate">
+      {/* Header: where and when on the left, the menu on the right — the same corner
+          the setup screen keeps it in. The target is not shown: it is set before
+          the game and rarely asked mid-game, and once a cap moves it the cap chip
+          on the board says so (the setup dialog in the menu has the rest). */}
+      <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-1.5 lscape:py-0.5 text-sm lscape:text-[11px] bg-panel border-b border-line shrink-0">
+        <span className="flex items-baseline gap-2 min-w-0 justify-self-start">
+          <span className="font-board font-semibold uppercase tracking-wide truncate">
             {t('field', { n: state.config.fieldNumber })}
           </span>
-        </span>
-        <span className="font-clock justify-self-center">
-          {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </span>
-        <span className="font-board justify-self-end flex flex-col items-end leading-tight">
           {/* A game played straight through has no halves to number. */}
           {state.config.halfTimeEnabled && (
-            <span>{state.half === 1 ? t('half1') : t('half2')}</span>
+            <span className="shrink-0 font-board text-xs lscape:text-[9px] uppercase tracking-wide text-chalk/60">
+              {state.half === 1 ? t('half1') : t('half2')}
+            </span>
           )}
-          {/* Always the target actually in force: the configured score until a cap
-              lowers it, and the capped one from then on. */}
-          <span>{t('target', { n: target })}</span>
         </span>
+        <span className="font-clock justify-self-center text-chalk/60">
+          {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}
+        </span>
+        {/* One menu for every status, naming its destinations in words — see
+            GameMenuDialog. */}
+        <button
+          type="button"
+          className="justify-self-end shrink-0 flex items-center justify-center w-8 h-8 lscape:w-6 lscape:h-6 rounded-md bg-panel border border-line text-chalk/70 active:scale-95"
+          onClick={() => setShowMenu(true)}
+          aria-label={t('menuTitle')}
+          title={t('menuTitle')}
+        >
+          <MenuIcon size="w-5 h-5 lscape:w-3.5 lscape:h-3.5" />
+        </button>
       </header>
 
-      {actionHint && (
-        <p
-          role="tooltip"
-          className="text-center text-xs lscape:text-[10px] text-signal bg-panel px-3 py-1 border-b border-line shrink-0"
-        >
-          {actionHint}
-        </p>
-      )}
-
-      {/* Score panels */}
-      <div className="flex flex-1 min-h-0 relative">
+      {/* Score panels. A size container, so the hand-signal card can size itself to
+          the room left under the numbers (see SignalCard and .score-board). */}
+      <div
+        className="score-board flex flex-1 min-h-0 relative"
+        style={{ '--chip-room': `${chipRoom}px` } as CSSProperties}
+      >
+        {/* Why a tap was refused. It floats over the top of the board rather than
+            taking a row of its own: a row pushed the panels down for 2.5 s, right
+            under the thumb that had just been refused. It takes no taps, so the
+            timeouts and chips it covers stay pressable underneath. */}
+        {actionHint && (
+          <p
+            role="tooltip"
+            className="pointer-events-none absolute top-2 lscape:top-1 inset-x-3 z-30 mx-auto w-fit max-w-full rounded-lg bg-chalk text-pitch px-3 py-2 lscape:py-1 text-center text-sm lscape:text-[10px] leading-snug shadow-lg animate-signalIn"
+          >
+            {actionHint}
+          </p>
+        )}
         <ScorePanel team={left} side="left" />
         <ScorePanel team={right} side="right" />
         {/* Each team's timeout, in the top outer corner of that team's own panel.
@@ -1472,8 +1486,11 @@ export default function GameScreen() {
             no more universe point, targets already reached) — hidden along with the
             rest of the blocked UI, and back the moment an undo of the finishing goal
             un-finishes the game. */}
-        {state.status !== 'finished' && (
-          <div className="absolute left-1/2 top-2 -translate-x-1/2 flex flex-col items-center gap-1">
+        {chipsShown && (
+          <div
+            ref={chipsRef}
+            className="absolute left-1/2 top-2 -translate-x-1/2 flex flex-col items-center gap-1"
+          >
             {isMixed && <RatioSignalChip />}
             {/* A game cap in force is the number that decides the game — a half
                 target next to it would only argue with it, so the half chip steps
@@ -1504,7 +1521,7 @@ export default function GameScreen() {
               state.status === 'waterBreak') && (
               <div
                 aria-live="polite"
-                className="rounded-full px-3 py-1 text-xs sm:text-sm font-board bg-white/95 border border-line text-pitch"
+                className="rounded-md px-2.5 py-1 text-xs sm:text-sm font-board bg-panel border border-line text-chalk"
               >
                 {pullLabel(state, t as never)}
               </div>
@@ -1532,7 +1549,7 @@ export default function GameScreen() {
         <div
           data-possession={state.possessionTeam ?? 'none'}
           aria-hidden="true"
-          className="h-[4px] lscape:h-[3px] bg-pitch border-t border-line shrink-0 overflow-hidden"
+          className="h-[6px] lscape:h-[4px] bg-pitch border-t border-line shrink-0 overflow-hidden"
         >
           {/* Mounted only while the disc is live, and that is what makes the motion
               read right: inside a point the element persists, so a turnover slides
@@ -1541,7 +1558,7 @@ export default function GameScreen() {
               lost it. */}
           {state.possessionTeam !== null && (
             <div
-              className={`h-full w-1/2 bg-signal transition-transform duration-200 ease-out motion-reduce:transition-none ${
+              className={`h-full w-1/2 bg-accent transition-transform duration-200 ease-out motion-reduce:transition-none ${
                 state.possessionTeam === right ? 'translate-x-full' : ''
               }`}
             />
@@ -1645,15 +1662,16 @@ export default function GameScreen() {
             spare but not the width, so they share one row instead — clocks first,
             then buttons, each keeping its own internal grid. */}
         <div className="flex flex-col gap-2 lscape:flex-row lscape:items-stretch lscape:gap-1.5">
-          {/* Both clocks side by side. */}
-          <div className="grid grid-cols-2 gap-2 lscape:gap-1 lscape:flex-none lscape:basis-[38%]">
-            <div className="rounded-lg bg-pitch border border-line p-2 lscape:p-0.5">
-              <div className="text-[10px] lscape:text-[8px] uppercase tracking-widest text-chalk/50">
+          {/* Both clocks in one strip, split by a hairline rather than boxed apart:
+              they are one instrument, read together. */}
+          <div className="grid grid-cols-2 divide-x divide-line rounded-lg bg-pitch lscape:flex-none lscape:basis-[38%]">
+            <div className="px-3 py-1.5 lscape:px-1.5 lscape:py-0.5">
+              <div className="font-board text-[10px] lscape:text-[8px] uppercase tracking-widest text-chalk/60">
                 {countdownSeconds !== null ? t('timeBeforeGame') : t('gameClock')}
               </div>
               <div className="flex items-center justify-between gap-1">
                 <div
-                  className={`font-clock text-3xl lscape:text-base ${paused ? 'text-chalk/40' : 'text-chalk'}`}
+                  className={`font-clock font-semibold text-4xl leading-none lscape:text-base ${paused ? 'text-chalk/40' : 'text-chalk'}`}
                 >
                   {formatClock(countdownSeconds ?? displayGameSeconds)}
                 </div>
@@ -1664,7 +1682,7 @@ export default function GameScreen() {
                     disabled={!canTogglePause}
                     aria-label={t(paused ? 'btnResumeGame' : 'btnPauseGame')}
                     title={t(paused ? 'btnResumeGame' : 'btnPauseGame')}
-                    className="shrink-0 flex items-center justify-center w-7 h-7 lscape:w-5 lscape:h-5 rounded-full border border-line text-chalk active:scale-95 disabled:opacity-30"
+                    className="shrink-0 flex items-center justify-center w-8 h-8 lscape:w-5 lscape:h-5 rounded-md bg-panel border border-line text-chalk active:scale-95 disabled:opacity-40"
                   >
                     {paused ? <PlayIcon /> : <PauseIcon />}
                   </button>
@@ -1738,7 +1756,7 @@ export default function GameScreen() {
           <div
             className={
               twoColumnActions
-                ? 'grid grid-cols-2 gap-2 h-[184px] lscape:h-auto lscape:grid-cols-5 lscape:gap-1 lscape:flex-1'
+                ? 'grid grid-cols-2 gap-2 h-[160px] lscape:h-auto lscape:grid-cols-5 lscape:gap-1 lscape:flex-1'
                 : `grid ${actionRowColsClass} gap-2 lscape:gap-1 lscape:flex-1`
             }
           >
@@ -1785,6 +1803,7 @@ export default function GameScreen() {
               {showTurnBtn && (
                 <ActionButton
                   big={twoColumnActions}
+                  tone="strong"
                   icon={<TurnIcon size={actionIcon} />}
                   label={t('lblTurn')}
                   name={t('btnTurnoverHold')}
@@ -1805,6 +1824,7 @@ export default function GameScreen() {
               {showPassBtn && (
                 <ActionButton
                   big={twoColumnActions}
+                  tone="strong"
                   icon={<PassIcon size={actionIcon} />}
                   label={t('lblPass')}
                   name={t('btnPass')}
@@ -1857,16 +1877,13 @@ export default function GameScreen() {
       {showMenu && (
         <GameMenuDialog
           leave={leaveKind}
+          onNewGame={startNewGame}
           onClose={() => setShowMenu(false)}
           // Both surfaces replace the menu rather than stacking on it: the menu is
           // a signpost, and there is nothing left to choose once you have arrived.
           onSetup={() => {
             setShowMenu(false);
             setShowSetup(true);
-          }}
-          onGuide={() => {
-            setShowMenu(false);
-            setShowGuide(true);
           }}
           onSettings={() => {
             setShowMenu(false);
@@ -1898,7 +1915,7 @@ export default function GameScreen() {
             leaveKind !== 'openReport'
               ? () => {
                   setShowMenu(false);
-                  setShowReport(true);
+                  navigate({ name: 'report' });
                 }
               : undefined
           }

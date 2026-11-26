@@ -137,7 +137,7 @@ export function InjurySubDialog({
         // Read by the tests rather than the wording, the same way the line dialog's
         // composition exposes data-line-issues.
         data-sub-issues={issues.join(' ')}
-        className={`rounded-lg border px-3 py-2 ${
+        className={`rounded border px-3 py-2 ${
           issues.length > 0 ? 'border-signal bg-signal/10' : 'border-line bg-pitch'
         }`}
       >
@@ -182,7 +182,7 @@ export function InjurySubDialog({
           {t('injurySubSkip')}
         </button>
         <button
-          className={armed ? `${primaryButton} animate-pulse` : primaryButton}
+          className={armed ? `${primaryButton} motion-safe:animate-glow` : primaryButton}
           data-sub-save={armed ? 'armed' : issues.length > 0 ? 'warned' : 'ready'}
           disabled={off.length === 0 && coming.length === 0}
           onClick={save}

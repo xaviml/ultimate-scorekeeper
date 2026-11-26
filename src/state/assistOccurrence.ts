@@ -399,3 +399,22 @@ export function nextOccurrence(
     },
   };
 }
+
+/**
+ * The ratio as it is said aloud: the gender, and — from point two on, where the
+ * ratios come in pairs — which of the pair this is, in words ("Primero de chicos",
+ * "Men, first of two") rather than a bare "(1)" nobody can read out. Spanish and
+ * Catalan put the gender mid-sentence, so their strings take it in lower case.
+ */
+export function ratioPhrase(
+  gender: 'male' | 'female',
+  position: 1 | 2 | null,
+  t: (k: never, v?: Record<string, string | number>) => string,
+): string {
+  const word = t((gender === 'male' ? 'ratioMale' : 'ratioFemale') as never);
+  if (!position) return word;
+  return t((position === 1 ? 'ratioPosition1' : 'ratioPosition2') as never, {
+    gender: word,
+    genderLower: word.toLowerCase(),
+  });
+}

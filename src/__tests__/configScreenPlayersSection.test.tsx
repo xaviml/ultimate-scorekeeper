@@ -1,10 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { I18nProvider } from '../i18n';
-import { defaultConfig } from '../state/gameReducer';
 import { GameProvider } from '../state/GameContext';
-import { useGame, useGameDispatch } from '../state/gameHooks';
 import ConfigScreen from '../components/ConfigScreen';
+import { openRoster, rosterSheet, track } from './configFields';
 
 function renderConfigScreen() {
   return render(
@@ -16,62 +15,17 @@ function renderConfigScreen() {
   );
 }
 
-/** Labels sit above their input as plain sibling text, not an associated <label for>. */
-function fieldSelect(labelText: string): HTMLSelectElement {
-  const label = screen.getByText(labelText);
-  return label.parentElement!.querySelector('select') as HTMLSelectElement;
-}
-
 const ROSTER_HELP_TEXT =
   "You can add players once the game is underway — there's no need to fill in the full roster before kickoff.";
 
-/** The Roster section only exists at all once a mode with a roster is picked. */
-function pickPlayerStats() {
-  fireEvent.change(fieldSelect('Track'), { target: { value: 'players' } });
-}
+const rosterRow = (team: 'A' | 'B') =>
+  document.querySelector(`[data-roster-team="${team}"]`) as HTMLElement | null;
 
-/**
- * Starts a game and immediately sends it back to the config screen (as ReportScreen's
- * "back to config" button does), without a page reload — the one case where a
- * previously-expanded Players section should reappear expanded.
- */
-function GameThenBackToConfig() {
-  const dispatch = useGameDispatch();
-  const state = useGame();
-  return (
-    <div>
-      <button
-        onClick={() =>
-          dispatch({
-            type: 'START_GAME',
-            config: {
-              ...defaultConfig,
-              statsMode: 'players',
-              trackTurnovers: true,
-              teams: {
-                A: { ...defaultConfig.teams.A, name: 'Foxes' },
-                B: { ...defaultConfig.teams.B, name: 'Wolves' },
-              },
-            },
-          })
-        }
-      >
-        start game
-      </button>
-      <button onClick={() => dispatch({ type: 'BACK_TO_CONFIG' })}>back to config</button>
-      {state.phase !== 'game' && <ConfigScreen />}
-    </div>
-  );
-}
-
-function renderGameThenBackToConfig() {
-  return render(
-    <I18nProvider>
-      <GameProvider>
-        <GameThenBackToConfig />
-      </GameProvider>
-    </I18nProvider>,
-  );
+function addPlayer(number: string, name: string) {
+  const sheet = rosterSheet();
+  fireEvent.change(within(sheet).getByPlaceholderText('#'), { target: { value: number } });
+  fireEvent.change(within(sheet).getByPlaceholderText('Name'), { target: { value: name } });
+  fireEvent.click(within(sheet).getByRole('button', { name: 'Add' }));
 }
 
 beforeEach(() => {
@@ -79,68 +33,105 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-describe('config screen players section', () => {
-  it('does not exist at all while the game is not tracking a roster', () => {
+describe('team rosters in the Teams card', () => {
+  // A roster belongs to a team: no team, no roster.
+  it('shows a team’s roster only once the team is named', () => {
     renderConfigScreen();
+    expect(rosterRow('A')).toBeNull();
+    expect(rosterRow('B')).toBeNull();
 
-    expect(screen.queryByText(ROSTER_HELP_TEXT)).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Expand Roster' })).toBeNull();
-
-    fireEvent.change(fieldSelect('Track'), { target: { value: 'teams' } });
-    expect(screen.queryByRole('button', { name: 'Expand Roster' })).toBeNull();
+    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'FOXES' } });
+    expect(rosterRow('A')).not.toBeNull();
+    expect(rosterRow('B')).toBeNull();
   });
 
-  it('appears, collapsed by default, once player detail is picked', () => {
+  // ...and once named, it can be filled in whatever the game tracks.
+  it('offers a named team’s roster in every statistics setting', () => {
     renderConfigScreen();
-    pickPlayerStats();
-
+    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'FOXES' } });
+    for (const mode of ['none', 'teams', 'players'] as const) {
+      track(mode);
+      expect(rosterRow('A')).not.toBeNull();
+    }
     expect(screen.queryByText(ROSTER_HELP_TEXT)).toBeNull();
-    expect(screen.getByRole('button', { name: 'Expand Roster' })).toBeInTheDocument();
   });
 
-  it('expands on toggle, showing the roster editors', () => {
+  // Removing the team removes its players: the next name typed into the box is a
+  // different team, and must not inherit them.
+  it('empties the roster when the team is removed, so a new team starts empty', () => {
+    localStorage.setItem(
+      'ultimate-scorekeeper:saved-teams',
+      JSON.stringify([
+        { name: 'RAVENS', color: '#111111', players: [{ id: 'p1', number: '7', name: 'Ana' }] },
+      ]),
+    );
     renderConfigScreen();
-    pickPlayerStats();
+    fireEvent.focus(screen.getByLabelText('Team 1'));
+    fireEvent.click(screen.getByRole('button', { name: 'RAVENS' }));
+    expect(rosterRow('A')!.textContent).toContain('1 player');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear Team 1' }));
+    expect(rosterRow('A')).toBeNull();
 
-    expect(screen.getByText(ROSTER_HELP_TEXT)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Collapse Roster' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'FOXES' } });
+    expect(rosterRow('A')!.textContent).toContain('No players yet');
+    // The saved RAVENS keeps its players.
+    const stored = JSON.parse(localStorage.getItem('ultimate-scorekeeper:saved-teams')!);
+    expect(stored[0].players).toHaveLength(1);
   });
 
-  it('stays collapsed on a fresh reload even if it was left expanded last time', () => {
-    const { unmount } = renderConfigScreen();
-    pickPlayerStats();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
-    unmount();
-
-    // A new render with no BACK_TO_CONFIG in between simulates a reload.
+  // Editing the name in place keeps the players — the way to build a second squad.
+  it('keeps the roster when the name is edited rather than removed', () => {
     renderConfigScreen();
-    pickPlayerStats();
-
-    expect(screen.queryByText(ROSTER_HELP_TEXT)).toBeNull();
-    expect(screen.getByRole('button', { name: 'Expand Roster' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'FOXES' } });
+    openRoster('A');
+    addPlayer('7', 'Ana');
+    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'FOXES B' } });
+    expect(rosterRow('A')!.textContent).toContain('1 player');
   });
 
-  it('reopens expanded when coming back from the game screen, not a reload', () => {
-    renderGameThenBackToConfig();
-    pickPlayerStats();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
+  it('opens the team’s roster in a sheet', () => {
+    renderConfigScreen();
+    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'FOXES' } });
+    openRoster('A');
 
-    fireEvent.click(screen.getByText('start game'));
-    fireEvent.click(screen.getByText('back to config'));
-
-    expect(screen.getByText(ROSTER_HELP_TEXT)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Collapse Roster' })).toBeInTheDocument();
+    expect(within(rosterSheet()).getByText(ROSTER_HELP_TEXT)).toBeInTheDocument();
+    expect(within(rosterSheet()).getByText('FOXES')).toBeInTheDocument();
   });
 
-  it('stays collapsed coming back from the game screen if it was never expanded', () => {
-    renderGameThenBackToConfig();
+  it('summarises the roster on its row, with the split once anyone is marked', () => {
+    renderConfigScreen();
+    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'FOXES' } });
+    expect(rosterRow('A')!.textContent).toContain('No players yet');
 
-    fireEvent.click(screen.getByText('start game'));
-    fireEvent.click(screen.getByText('back to config'));
+    openRoster('A');
+    addPlayer('7', 'Ana');
+    expect(rosterRow('A')!.textContent).toContain('1 player');
+    addPlayer('9', 'Jo');
+    expect(rosterRow('A')!.textContent).toContain('2 players');
+    expect(rosterRow('A')!.textContent).not.toContain('FMP');
 
-    expect(screen.queryByText(ROSTER_HELP_TEXT)).toBeNull();
-    expect(screen.getByRole('button', { name: 'Expand Roster' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '#7 Ana — gender: Not set' }));
+    expect(rosterRow('A')!.textContent).toContain('2 players · 0 FMP / 1 MMP');
+  });
+
+  // The kickoff sync stores both teams anyway; saving from the sheet is for a roster
+  // typed for a game that may never be played.
+  it('saves a team that is not saved yet, roster included', () => {
+    renderConfigScreen();
+    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'FOXES' } });
+    openRoster('A');
+    addPlayer('7', 'Ana');
+
+    fireEvent.click(within(rosterSheet()).getByRole('button', { name: 'Save FOXES' }));
+
+    const stored = JSON.parse(localStorage.getItem('ultimate-scorekeeper:saved-teams')!);
+    expect(stored).toEqual([
+      expect.objectContaining({
+        name: 'FOXES',
+        players: [expect.objectContaining({ number: '7', name: 'Ana' })],
+      }),
+    ]);
+    expect(within(rosterSheet()).queryByRole('button', { name: 'Save FOXES' })).toBeNull();
   });
 });

@@ -36,6 +36,7 @@ import { lineTeam } from './lines';
 import {
   formatClock,
   formatSeconds,
+  goalPassLine,
   goalPlayersLine,
   logRow,
   turnoverPlayersDetail,
@@ -671,7 +672,7 @@ function pointRow(state: GameState, story: PointStory, t: TFunc): PointRowModel 
           }),
     );
   }
-  const scorers = story.goal ? goalPlayersLine(state, story.goal, t) : '';
+  const scorers = story.goal ? goalPassLine(state, story.goal, t) : '';
   if (scorers) summary.push(scorers);
   if (story.lineName) summary.push(t('pointLineName', { name: story.lineName }));
   summary.push(...flagsOf(story, t));

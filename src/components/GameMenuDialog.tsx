@@ -1,8 +1,7 @@
 import { useT } from '../i18n/useT';
 import {
-  ArrowBackIcon,
+  PlusIcon,
   CrossIcon,
-  GuideIcon,
   LineIcon,
   PlayersIcon,
   ReportIcon,
@@ -12,11 +11,13 @@ import {
 import { MENU_ICON, MenuRow } from './MenuRow';
 import { Modal } from './Modal';
 
-/** Which door off the game screen this game's status offers — see GameScreen's header. */
-export type LeaveKind = 'backToSetup' | 'endGame' | 'openReport';
+/**
+ * Which door off the game this status offers, or null before kickoff — when "Start
+ * new game" at the top already goes back to setup, and costs nothing.
+ */
+export type LeaveKind = 'endGame' | 'openReport';
 
 const LEAVE = {
-  backToSetup: { Icon: ArrowBackIcon, labelKey: 'btnBackToSetup' },
   endGame: { Icon: CrossIcon, labelKey: 'btnEndGame' },
   openReport: { Icon: ReportIcon, labelKey: 'openReport' },
 } as const;
@@ -33,19 +34,20 @@ const LEAVE = {
  */
 export function GameMenuDialog({
   leave,
+  onNewGame,
   onClose,
   onSetup,
-  onGuide,
   onSettings,
   onReport,
   onRoster,
   onLine,
   onLeave,
 }: {
-  leave: LeaveKind;
+  leave: LeaveKind | null;
+  /** Back to setup for another game — asking first, by the caller, while one is being played. */
+  onNewGame: () => void;
   onClose: () => void;
   onSetup: () => void;
-  onGuide: () => void;
   /** Sound and vibration — about the phone, so it is here and not in the setup. */
   onSettings: () => void;
   /**
@@ -72,11 +74,17 @@ export function GameMenuDialog({
   onLeave: () => void;
 }) {
   const { t } = useT();
-  const { Icon, labelKey } = LEAVE[leave];
+  const leaveRow = leave ? LEAVE[leave] : null;
 
   return (
     <Modal title={t('menuTitle')} onClose={onClose} size="sm" showClose>
       <div className="flex flex-col gap-2">
+        <MenuRow
+          primary
+          icon={<PlusIcon size={MENU_ICON} />}
+          label={t('menuNewGame')}
+          onClick={onNewGame}
+        />
         <MenuRow
           icon={<SetupIcon size={MENU_ICON} />}
           label={t('menuGameSetup')}
@@ -102,13 +110,18 @@ export function GameMenuDialog({
         {onLine && (
           <MenuRow icon={<LineIcon size={MENU_ICON} />} label={t('menuLine')} onClick={onLine} />
         )}
-        <MenuRow icon={<GuideIcon size={MENU_ICON} />} label={t('menuGuide')} onClick={onGuide} />
         <MenuRow
           icon={<SettingsIcon size={MENU_ICON} />}
           label={t('settingsTitle')}
           onClick={onSettings}
         />
-        <MenuRow icon={<Icon size={MENU_ICON} />} label={t(labelKey)} onClick={onLeave} />
+        {leaveRow && (
+          <MenuRow
+            icon={<leaveRow.Icon size={MENU_ICON} />}
+            label={t(leaveRow.labelKey)}
+            onClick={onLeave}
+          />
+        )}
       </div>
     </Modal>
   );

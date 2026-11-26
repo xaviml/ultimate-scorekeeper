@@ -8,7 +8,17 @@ import type { Division, EndCapRule, GameConfig, Gender, LogEntry, TeamId } from 
 import { useGameInfoDraft } from '../hooks/useGameInfoDraft';
 import { GameInfoFields, GameInfoSaveBar } from './GameInfoEditor';
 import { Modal } from './Modal';
-import { sectionTitle } from './ui';
+import {
+  CoinIcon,
+  DropIcon,
+  FlagIcon,
+  HalfIcon,
+  LineIcon,
+  SetupIcon,
+  ShirtIcon,
+  TimeoutIcon,
+} from './icons';
+import { hintText, sectionTitle } from './ui';
 
 const DIVISION_KEY: Record<Division, 'divisionOpen' | 'divisionWomen' | 'divisionMixed'> = {
   open: 'divisionOpen',
@@ -40,80 +50,98 @@ export function GameSetupDialog({ onClose }: { onClose: () => void }) {
   const kickoff = startedAt(state.log);
   const timeouts = timeoutsConfigured(cfg.timeouts);
   const info = useGameInfoDraft();
+  // Units on the value, the way the setup screen's folded summaries write them
+  // ("100 min", "1m 15s"), so the labels can be the setup screen's short ones.
+  const minutes = (n: number) => `${n} ${t('unitMin')}`;
+  const duration = (seconds: number) => breakDuration(seconds, t('unitSec'));
 
   return (
     <Modal title={t('menuGameSetup')} onClose={onClose} showClose>
-      <div className="flex flex-col gap-4">
-        <GameInfoFields draft={info} />
+      <div className="flex flex-col">
+        {/* The one block that can be changed — so it leads, under the setup screen's
+            own heading for it. When the game was scheduled, the slot and the actual
+            kickoff sit with it, as the starting time does on the setup screen. */}
+        <Block title={t('matchTitle')} icon={<ShirtIcon size="w-4 h-4" />} first>
+          <GameInfoFields draft={info}>
+            {cfg.startingTime.enabled && (
+              <Rows>
+                <Row label={t('setupScheduled')} value={cfg.startingTime.time} />
+                {/* What a tournament desk actually asks about once the game is under
+                    way: a 17:00 slot that kicked off at 17:06 is the interesting fact. */}
+                {kickoff && <Row label={t('setupStarted')} value={kickoff} />}
+              </Rows>
+            )}
+          </GameInfoFields>
+        </Block>
 
-        <Group title={t('division')}>
-          <Row label={t('division')} value={t(DIVISION_KEY[cfg.division])} />
-        </Group>
-
-        {cfg.division === 'mixed' && (
-          <Group
-            title={t('mixedRatioRule')}
-            // Rule B has no starting ratio to show — state.ratio is null all game
-            // and the dashboard chip never appears — so the rule itself is the
-            // answer to "what ratio are we on?", and the note is what carries it.
-            note={t(cfg.mixedRule === 'A' ? 'ruleA' : 'ruleB')}
-          >
-            {cfg.mixedRule === 'A' && (
+        {/* The division in the heading's corner rather than a row repeating the
+            heading ("Division — Division: Mixed"); mixed adds the ratio below it. */}
+        <Block
+          title={t('division')}
+          icon={<SetupIcon size="w-4 h-4" />}
+          value={t(DIVISION_KEY[cfg.division])}
+          note={
+            cfg.division === 'mixed'
+              ? t(cfg.mixedRule === 'A' ? 'ratioAbbaOnHint' : 'ratioAbbaOffHint')
+              : undefined
+          }
+        >
+          {cfg.division === 'mixed' && cfg.mixedRule === 'A' && (
+            <Rows>
               <Row
                 label={t('startingRatio')}
                 value={t(cfg.startingRatio === 'male' ? 'ratioMale' : 'ratioFemale')}
               />
-            )}
-          </Group>
-        )}
-
-        {cfg.startingTime.enabled && (
-          <Group title={t('startingTimeLabel')}>
-            <Row label={t('setupScheduled')} value={cfg.startingTime.time} />
-            {/* What a tournament desk actually asks about once the game is under
-                way: a 17:00 slot that kicked off at 17:06 is the interesting fact. */}
-            {kickoff && <Row label={t('setupStarted')} value={kickoff} />}
-          </Group>
-        )}
+            </Rows>
+          )}
+        </Block>
 
         {/* Both rows describe the opening pull only. The ends swap every point, so
             the team named here is somewhere else by now — hence the note. */}
-        <Group title={t('coinToss')} note={t('setupSidesNote')}>
-          <Row label={t('startingOffense')} value={teamName(cfg.startingOffense)} />
-          <Row label={t('startingSide')} value={teamName(cfg.startingSide)} />
-        </Group>
+        <Block title={t('coinToss')} icon={<CoinIcon size="w-4 h-4" />} note={t('setupSidesNote')}>
+          <Rows>
+            <Row label={t('startingOffense')} value={teamName(cfg.startingOffense)} />
+            <Row label={t('startingSide')} value={teamName(cfg.startingSide)} />
+          </Rows>
+        </Block>
 
-        <Group
+        <Block
           title={t('winConditions')}
-          // The header chip shows the target actually in force; once a cap has
-          // fixed a new one, this dialog would otherwise quietly contradict it.
+          icon={<FlagIcon size="w-4 h-4" />}
           note={
             state.cappedTarget !== null
               ? t('setupCapInForce', { n: state.cappedTarget })
               : undefined
           }
         >
-          <Row label={t('targetScore')} value={cfg.targetScore} />
-          <Row label={t('timeLimit')} value={cfg.timeLimitMinutes} />
-          <Row label={t('endCapLabel')} value={endCapText(cfg.endCap, t)} />
-        </Group>
+          <Rows>
+            <Row label={t('targetScore')} value={cfg.targetScore} />
+            <Row label={t('fieldTime')} value={minutes(cfg.timeLimitMinutes)} />
+            <Row label={t('endCapLabel')} value={endCapText(cfg.endCap, t)} />
+          </Rows>
+        </Block>
 
-        <Group title={t('halfTimeTitle')} note={cfg.halfTimeEnabled ? undefined : t('setupNoHalf')}>
+        <Block
+          title={t('halfTimeTitle')}
+          icon={<HalfIcon size="w-4 h-4" />}
+          note={cfg.halfTimeEnabled ? undefined : t('setupNoHalf')}
+        >
           {cfg.halfTimeEnabled && (
-            <>
+            <Rows>
               <Row label={t('halfScore')} value={cfg.halfScore} />
-              <Row label={t('halfTimeLimit')} value={cfg.halfTimeLimitMinutes} />
-              <Row label={t('setupBreak')} value={formatDuration(cfg.halfTimeBreakSeconds)} />
+              <Row label={t('fieldTime')} value={minutes(cfg.halfTimeLimitMinutes)} />
+              <Row label={t('fieldBreak')} value={duration(cfg.halfTimeBreakSeconds)} />
               <Row
                 label={t('endCapLabel')}
                 value={t(cfg.halfCap.kind === 'cap' ? 'halfCapPlus' : 'setupNoCap')}
               />
-            </>
+            </Rows>
           )}
-        </Group>
+        </Block>
 
-        <Group
+        <Block
           title={t('timeoutsTitle')}
+          icon={<TimeoutIcon size="w-4 h-4" />}
           note={
             !timeouts
               ? t('setupNoTimeouts')
@@ -123,7 +151,7 @@ export function GameSetupDialog({ onClose }: { onClose: () => void }) {
           }
         >
           {timeouts && (
-            <>
+            <Rows>
               <Row
                 label={t('timeoutsCount')}
                 value={cfg.timeouts.perHalf ?? cfg.timeouts.perGame ?? 0}
@@ -131,48 +159,46 @@ export function GameSetupDialog({ onClose }: { onClose: () => void }) {
               <Row
                 label={t('timeoutsScope')}
                 value={t(
-                  // Without a half-time a per-half allowance is the game's allowance.
                   cfg.halfTimeEnabled && cfg.timeouts.perGame === null
                     ? 'timeoutsScopeHalf'
                     : 'timeoutsScopeGame',
                 )}
               />
-              <Row
-                label={t('setupDuration')}
-                value={formatDuration(cfg.timeouts.durationSeconds)}
-              />
-            </>
+              <Row label={t('fieldDuration')} value={duration(cfg.timeouts.durationSeconds)} />
+            </Rows>
           )}
-        </Group>
+        </Block>
+
+        {/* Only the automatic breaks are configuration. One can always be called by
+            hand from the raised-hand button, whatever this says — see canWaterBreak. */}
+        {cfg.waterBreaks.enabled && (
+          <Block title={t('waterBreakTitle')} icon={<DropIcon size="w-4 h-4" />}>
+            <Rows>
+              <Row label={t('waterBreakScores')} value={cfg.waterBreaks.atScores.join(', ')} />
+              <Row label={t('fieldDuration')} value={duration(cfg.waterBreaks.durationSeconds)} />
+            </Rows>
+          </Block>
+        )}
 
         {/* Omitted entirely when line tracking is off, the same way the water-break
             block follows waterBreaks.enabled: a captain asking what is being recorded
             is better served by the section not being there than by a row of zeroes. */}
         {lineTrackingEnabled(cfg) && (
-          <Group
+          <Block
             title={t('linesTitle')}
+            icon={<LineIcon size="w-4 h-4" />}
             note={t('lineSavedForTeam', { team: teamName(cfg.trackedTeam!) })}
           >
-            <Row label={t('lineSizeLabel')} value={cfg.lineSize} />
-            {/* The split of the point being played or lined up — not `state.ratio`,
-                which is still the finished point's until the pull is thrown. */}
-            <Row
-              label={t('lineGenderCheckLabel')}
-              value={genderCheckText(cfg, ratioForPoint(cfg, state.points.length), t)}
-            />
-          </Group>
-        )}
-
-        {/* Only the automatic breaks are configuration. One can always be called by
-            hand from the raised-hand button, whatever this says — see canWaterBreak. */}
-        {cfg.waterBreaks.enabled && (
-          <Group title={t('waterBreakTitle')}>
-            <Row label={t('waterBreakScores')} value={cfg.waterBreaks.atScores.join(', ')} />
-            <Row
-              label={t('setupDuration')}
-              value={formatDuration(cfg.waterBreaks.durationSeconds)}
-            />
-          </Group>
+            <Rows>
+              <Row label={t('lineSizeLabel')} value={cfg.lineSize} />
+              {/* The split of the point being played or lined up — not `state.ratio`,
+                  which is still the finished point's until the pull is thrown. */}
+              <Row
+                label={t('lineGenderCheckLabel')}
+                value={genderCheckText(cfg, ratioForPoint(cfg, state.points.length), t)}
+              />
+            </Rows>
+          </Block>
         )}
       </div>
       <GameInfoSaveBar draft={info} />
@@ -181,49 +207,72 @@ export function GameSetupDialog({ onClose }: { onClose: () => void }) {
 }
 
 /**
- * A titled block of label/value rows, with an optional sentence underneath for
- * whatever doesn't fit in a value — a rule, a caveat, or the reason a block has
- * no rows at all (a game played with no timeouts).
+ * One section of the dialog, headed the way the setup screen heads its cards — the
+ * glyph in the accent, the title in tracked capitals — but without the card: the
+ * dialog is already a panel, so sections are split by a hairline instead of boxed
+ * inside it. `value` puts a one-word answer in the heading's corner, for a section
+ * that is a single fact. `note` is the sentence underneath for whatever doesn't fit
+ * a value: a rule, a caveat, or why a section has no rows at all.
  */
-function Group({ title, note, children }: { title: string; note?: string; children?: ReactNode }) {
+function Block({
+  title,
+  icon,
+  value,
+  note,
+  first = false,
+  children,
+}: {
+  title: string;
+  icon: ReactNode;
+  value?: string;
+  note?: string;
+  first?: boolean;
+  children?: ReactNode;
+}) {
   return (
-    <section className="space-y-1.5">
-      <h3 className={sectionTitle}>{title}</h3>
-      {/* A block whose rows are all conditional renders `false`, not undefined —
-          so the empty bordered box has to be checked for rather than assumed away. */}
-      {Boolean(children) && (
-        <dl className="rounded-lg border border-line bg-pitch px-3">{children}</dl>
-      )}
-      {note && <p className="text-xs text-chalk/50 leading-snug">{note}</p>}
+    <section className={`space-y-2 ${first ? '' : 'mt-4 pt-4 border-t border-line'}`}>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className={`${sectionTitle} flex items-center gap-2`}>
+          <span aria-hidden="true" className="shrink-0">
+            {icon}
+          </span>
+          {title}
+        </h3>
+        {value && <span className="font-board font-semibold text-sm">{value}</span>}
+      </div>
+      {children}
+      {note && <p className={hintText}>{note}</p>}
     </section>
   );
 }
 
+/** Label/value rows on hairlines — no box of their own, as on the report's team table. */
+function Rows({ children }: { children: ReactNode }) {
+  return <dl>{children}</dl>;
+}
+
 function Row({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="flex justify-between items-baseline gap-4 py-2 border-b border-line last:border-0">
+    <div className="flex justify-between items-baseline gap-4 py-2 border-t border-line first:border-t-0">
       {/* Uppercased like every label on the setup form — which is also what keeps
-          the dictionary's inconsistent casing ("TIME (Minutes)") from showing. */}
-      <dt className="text-[11px] uppercase tracking-wide text-chalk/60">{label}</dt>
-      <dd className="font-board text-sm text-right">{value}</dd>
+          the dictionary's inconsistent casing from showing. */}
+      <dt className="text-xs uppercase tracking-wide text-chalk/60">{label}</dt>
+      <dd className="font-board font-semibold text-sm text-right">{value}</dd>
     </div>
   );
 }
 
 /**
- * A configured break as a duration rather than a raw count of seconds: 45'', 1' 15'',
- * 3'. Every break in the config is stored in seconds because that is what the timers
+ * A configured break as the setup screen's summaries write it: "45 s", "1m 15s", "7m".
+ * Every break in the config is stored in seconds because that is what the timers
  * count, but past a minute "75" is a number the reader has to convert themselves.
- *
- * Not formatClock: that is the running mm:ss of a clock ticking, and a setting is
- * neither ticking nor zero-padded. The unit marks are always shown, which is why the
- * labels beside these values drop the "(seconds)" the setup form's inputs need.
+ * Not formatClock: that is the running mm:ss of a clock ticking.
  */
-function formatDuration(totalSeconds: number): string {
+function breakDuration(totalSeconds: number, unitSec: string): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
-  if (minutes === 0) return `${seconds}''`;
-  return seconds === 0 ? `${minutes}'` : `${minutes}' ${seconds}''`;
+  if (minutes === 0) return `${seconds} ${unitSec}`;
+  return seconds === 0 ? `${minutes}m` : `${minutes}m ${seconds}s`;
 }
 
 /** The wall-clock time play actually began, from the log's own gameStart entry. */

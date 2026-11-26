@@ -162,6 +162,8 @@ function wallClock(): string {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
+    // 24-hour whatever the phone's locale: a tournament schedule is written that way.
+    hourCycle: 'h23',
   });
 }
 

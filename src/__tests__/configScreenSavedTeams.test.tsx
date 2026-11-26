@@ -5,6 +5,7 @@ import { GameProvider } from '../state/GameContext';
 import { loadSavedTeams } from '../state/rosterStorage';
 import type { SavedTeam } from '../state/types';
 import ConfigScreen from '../components/ConfigScreen';
+import { openRoster, track } from './configFields';
 
 function renderConfigScreen() {
   return render(
@@ -38,9 +39,7 @@ function loadRavensIntoTeamA() {
 
 /** The Roster section (and its Expand/Collapse toggle) only exists once a mode with a roster is picked. */
 function pickPlayerStats() {
-  const label = screen.getByText('Track');
-  const select = label.parentElement!.querySelector('select') as HTMLSelectElement;
-  fireEvent.change(select, { target: { value: 'players' } });
+  track('players');
 }
 
 beforeEach(() => {
@@ -53,8 +52,8 @@ describe('config screen saved teams', () => {
     seedSavedTeams([RAVENS]);
     renderConfigScreen();
     pickPlayerStats();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
     loadRavensIntoTeamA();
+    openRoster();
     expect(screen.getByText('#7 Ana')).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'RAVENS B' } });
@@ -66,8 +65,8 @@ describe('config screen saved teams', () => {
   it('saves the team as soon as "add as a new team" is clicked, without starting a game', () => {
     renderConfigScreen();
     pickPlayerStats();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
     fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'FOXES' } });
+    openRoster();
     fireEvent.change(screen.getAllByPlaceholderText('#')[0], { target: { value: '9' } });
     fireEvent.change(screen.getAllByPlaceholderText('Name')[0], { target: { value: 'Sam' } });
     fireEvent.click(screen.getAllByRole('button', { name: 'Add' })[0]);
@@ -89,10 +88,10 @@ describe('config screen saved teams', () => {
     seedSavedTeams([RAVENS]);
     renderConfigScreen();
     pickPlayerStats();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
     // A brand new team, saved from the combobox with an empty roster...
     fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'FOXES' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add "FOXES" as a new team' }));
+    openRoster();
     // ...then filled in.
     fireEvent.change(screen.getAllByPlaceholderText('#')[0], { target: { value: '9' } });
     fireEvent.change(screen.getAllByPlaceholderText('Name')[0], { target: { value: 'Sam' } });
@@ -112,8 +111,8 @@ describe('config screen saved teams', () => {
   it('does not write a roster edit into a team that was never saved', () => {
     renderConfigScreen();
     pickPlayerStats();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
     fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'FOXES' } });
+    openRoster();
     fireEvent.change(screen.getAllByPlaceholderText('#')[0], { target: { value: '9' } });
     fireEvent.change(screen.getAllByPlaceholderText('Name')[0], { target: { value: 'Sam' } });
     fireEvent.click(screen.getAllByRole('button', { name: 'Add' })[0]);

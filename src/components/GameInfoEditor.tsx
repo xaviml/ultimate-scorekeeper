@@ -5,13 +5,20 @@ import { loadSavedTeams } from '../state/rosterStorage';
 import type { SavedTeam, TeamId } from '../state/types';
 import { TeamColorPicker } from './TeamColorPicker';
 import { TeamNameCombobox } from './TeamNameCombobox';
-import { fieldLabel, inputClass, primaryButton, sectionTitle } from './ui';
+import { fieldLabel, inputClass, primaryButton } from './ui';
 
 const TEAMS: TeamId[] = ['A', 'B'];
 const normalize = (name: string) => name.trim().toLowerCase();
 
 /** The field and both teams, editable — the draft and what Save does are in useGameInfoDraft. */
-export function GameInfoFields({ draft: game }: { draft: GameInfoDraft }) {
+export function GameInfoFields({
+  draft: game,
+  children,
+}: {
+  draft: GameInfoDraft;
+  /** Read-only facts that belong with the match — the scheduled start — after the fields. */
+  children?: React.ReactNode;
+}) {
   const { t } = useT();
   const { cfg, draft, setDraft, setTeam } = game;
   // Read from the store whenever a name box is used rather than once on open: the
@@ -20,7 +27,6 @@ export function GameInfoFields({ draft: game }: { draft: GameInfoDraft }) {
 
   return (
     <section className="space-y-3" onFocusCapture={() => setSavedTeams(loadSavedTeams())}>
-      <h3 className={sectionTitle}>{t('setupFieldTeams')}</h3>
       <div>
         <label className={fieldLabel} htmlFor="game-info-field">
           {t('fieldNumber')}
@@ -65,7 +71,7 @@ export function GameInfoFields({ draft: game }: { draft: GameInfoDraft }) {
               <div>
                 <label className={fieldLabel}>{t('teamColor')}</label>
                 <TeamColorPicker
-                  label={`${t('teamColor')} ${d.name}`}
+                  label={`${t('teamColor')} — ${d.name}`}
                   color={d.color}
                   onChange={(color) => setTeam(id, { color })}
                 />
@@ -84,6 +90,7 @@ export function GameInfoFields({ draft: game }: { draft: GameInfoDraft }) {
           </div>
         );
       })}
+      {children}
     </section>
   );
 }

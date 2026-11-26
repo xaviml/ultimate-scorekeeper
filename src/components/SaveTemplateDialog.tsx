@@ -105,9 +105,9 @@ export function SaveTemplateDialog({
               type="button"
               role="radio"
               aria-checked={target === n}
-              className={`rounded-lg border px-3 py-2.5 text-left ${
+              className={`rounded border px-3 py-2.5 text-left ${
                 target === n
-                  ? 'border-signal bg-signal/10 text-chalk'
+                  ? 'border-accent bg-accent/10 text-chalk'
                   : 'border-line bg-pitch text-chalk/80'
               }`}
               onClick={() => setTarget(n)}

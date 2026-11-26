@@ -2,7 +2,7 @@ import { useT } from '../i18n/useT';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import type { CallKind, TeamId } from '../state/types';
 import { Modal } from './Modal';
-import { contrastText, secondaryButton, teamChoiceButton } from './ui';
+import { contrastText, teamOutline, secondaryButton, teamChoiceButton } from './ui';
 
 /**
  * "Who called it?" — the one question every call has to answer before it can be
@@ -34,6 +34,7 @@ export function CallTeamDialog({ kind, onClose }: { kind: CallKind; onClose: () 
             className={teamChoiceButton()}
             style={{
               backgroundColor: state.config.teams[id].color,
+              ...teamOutline(state.config.teams[id].color),
               color: contrastText(state.config.teams[id].color),
             }}
             onClick={() => choose(id)}

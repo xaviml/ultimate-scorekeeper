@@ -34,19 +34,34 @@ export function SignalCard() {
   if (!signal) return null;
 
   const caption = t(signal.caption as never);
+  // A whistle needs no words: the picture already carries its blast count ("x3"),
+  // and "Triple whistle" beside it only made the card wider over the score. The
+  // caption stays as the image's name for a screen reader.
+  const showCaption = !signal.file.startsWith('whistle');
   // A public/ asset: build the URL via BASE_URL so it keeps working under the
   // GitHub Pages base path (a plain "/signals/..." would not).
   const src = `${import.meta.env.BASE_URL}signals/${signal.file}.png`;
 
+  // The card is white in both themes because the WFDF pictograms are drawn on white,
+  // so its caption keeps the light theme's navy ink rather than following `chalk`.
+  //
+  // In portrait it must not cover the score: it lands right after a goal, which is
+  // exactly when the volunteer checks the number. So it lies flat — picture and
+  // caption side by side, which is the shape that fits under the digits — and the
+  // picture takes only the height left there (`.signal-art`, index.css). Landscape
+  // panels are wide and the number sits in their middle, so the corner is clear
+  // and the card keeps its upright shape.
   return (
     <figure
       aria-label={t('handSignal')}
-      className="pointer-events-none absolute bottom-3 left-3 lscape:bottom-1.5 lscape:left-1.5 z-10 flex flex-col items-center gap-1 rounded-xl border border-line bg-white/95 p-2 lscape:p-1 shadow-2xl animate-signalIn"
+      className="pointer-events-none absolute bottom-2 left-2 lscape:bottom-1.5 lscape:left-1.5 z-10 flex flex-row lscape:flex-col items-center gap-2 lscape:gap-1 rounded-lg border border-line bg-white p-1.5 lscape:p-1 shadow-lg animate-signalIn"
     >
-      <img src={src} alt={caption} className="w-24 h-24 lscape:w-11 lscape:h-11 object-contain" />
-      <figcaption className="font-board text-xs lscape:text-[8px] leading-tight text-center text-pitch">
-        {caption}
-      </figcaption>
+      <img src={src} alt={caption} className="signal-art lscape:w-11 lscape:h-11 object-contain" />
+      {showCaption && (
+        <figcaption className="max-w-[4.5rem] lscape:max-w-none font-board uppercase tracking-wide text-[10px] lscape:text-[8px] leading-tight text-left lscape:text-center text-[#101C30]">
+          {caption}
+        </figcaption>
+      )}
     </figure>
   );
 }

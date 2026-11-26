@@ -175,7 +175,7 @@ describe('report screen — share as image', () => {
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
 
     renderReport();
-    await clickButton('Copy to clipboard');
+    await clickButton('Copy');
     await screen.findByText('Copied!');
 
     expect(writeText.mock.calls[0][0]).toContain('Point by point');

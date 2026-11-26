@@ -176,10 +176,19 @@ describe('reportCardModel', () => {
     state.scores = { A: 15, B: 12 };
 
     const model = reportCardModel(state, t, 'en');
-    expect(model.teams).toEqual([
+    expect(model.teams.map(({ name, color, score }) => ({ name, color, score }))).toEqual([
       { name: 'Foxes', color: '#ff0000', score: '15' },
       { name: 'Wolves', color: '#0000ff', score: '12' },
     ]);
+  });
+
+  it('marks the winner and loser only once the scoreline finished the game', () => {
+    const state = baseState();
+    state.scores = { A: 15, B: 12 };
+    state.status = 'finished';
+    expect(reportCardModel(state, t, 'en').teams.map((x) => x.result)).toEqual(['win', 'loss']);
+    state.status = 'paused';
+    expect(reportCardModel(state, t, 'en').teams.map((x) => x.result)).toEqual([null, null]);
   });
 
   it('has no heading over the meta line — the score speaks for itself in a chat', () => {
@@ -197,7 +206,7 @@ describe('reportCardModel', () => {
     expect(footer.url).toBe('https://xaviml.github.io/ultimate-scorekeeper/');
   });
 
-  it('puts the field, date and the clock times of the game in the meta line', () => {
+  it('puts the field, the date and start time, and the duration in the meta line', () => {
     const state = baseState();
     state.config.fieldNumber = '3';
     const start = Date.UTC(2026, 6, 30, 9, 0, 0);
@@ -207,11 +216,11 @@ describe('reportCardModel', () => {
     ];
 
     const meta = reportCardModel(state, t, 'en').meta;
-    expect(meta).toContain('Field 3');
-    expect(meta).toContain('Started: 11:00:00');
-    expect(meta).toContain('Finished: 12:07:30');
-    expect(meta).toContain('Duration: 67:30');
-    expect(meta.some((m) => m.includes('2026'))).toBe(true);
+    expect(meta).toHaveLength(3);
+    expect(meta[0]).toBe('Field 3');
+    // The year stays: an image opened weeks later still says when it was played.
+    expect(meta[1]).toMatch(/^30 Jul 2026, \d{2}:\d{2}$/);
+    expect(meta[2]).toBe('68 min');
   });
 
   it('leaves the field out when none was entered, rather than printing an empty one', () => {

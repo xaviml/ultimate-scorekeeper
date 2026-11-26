@@ -77,13 +77,13 @@ export function LineSheet({
         {t('lineColLast')}
       </span>
       <span
-        className={`text-right ${side === 'O' ? 'text-signal' : ''}`}
+        className={`text-right ${side === 'O' ? 'text-accent' : ''}`}
         title={t('lineColHoldFull')}
       >
         {t('lineColHold')}
       </span>
       <span
-        className={`text-right ${side === 'D' ? 'text-signal' : ''}`}
+        className={`text-right ${side === 'D' ? 'text-accent' : ''}`}
         title={t('lineColBreakFull')}
       >
         {t('lineColBreak')}
@@ -148,7 +148,10 @@ function SheetRow({
 }) {
   const { t } = useT();
   const r = rotation.players.get(player.id);
-  const dim = (col: 'O' | 'D') => (side && side !== col ? 'text-chalk/40' : '');
+  // A selected row is filled in the accent, like a picked chip in every other
+  // player picker, so its figures switch to the surface colour.
+  const dim = (col: 'O' | 'D') =>
+    side && side !== col ? (active ? 'text-panel/50' : 'text-chalk/40') : '';
   const ratio = (made: number, of: number) => (of > 0 ? `${made}/${of}` : '—');
 
   return (
@@ -158,14 +161,16 @@ function SheetRow({
       aria-label={playerLabel(player)}
       data-line-row={player.id}
       data-rest={r?.rest ?? 'none'}
-      className={`grid ${cols} w-full items-center gap-x-1.5 rounded-lg border px-2 py-1.5 text-left text-sm leading-tight active:scale-[0.99] ${
-        active ? 'bg-signal/15 border-signal' : 'bg-pitch border-line'
+      className={`grid ${cols} w-full items-center gap-x-1.5 rounded border px-2 py-1.5 text-left text-sm leading-tight active:scale-[0.99] ${
+        active ? 'bg-accent border-accent text-panel' : 'bg-pitch border-line'
       }`}
       onClick={() => onToggle(player.id)}
     >
       <span className="flex min-w-0 items-center gap-1.5">
         {player.number && (
-          <span className="relative top-px shrink-0 font-clock font-semibold text-signal">
+          <span
+            className={`relative top-px shrink-0 font-clock font-semibold ${active ? 'text-panel' : 'text-accent'}`}
+          >
             #{player.number}
           </span>
         )}
@@ -173,7 +178,9 @@ function SheetRow({
           <span className={`truncate min-w-0 ${active ? 'font-semibold' : ''}`}>{player.name}</span>
         )}
         {marking && player.gender && (
-          <span className="shrink-0 text-[10px] font-board text-chalk/50">
+          <span
+            className={`shrink-0 text-[10px] font-board ${active ? 'text-panel/70' : 'text-chalk/50'}`}
+          >
             {t(player.gender === 'male' ? 'genderMmp' : 'genderFmp')}
           </span>
         )}
@@ -181,7 +188,7 @@ function SheetRow({
       <span className="text-right font-clock text-xs" data-points>
         {r?.played ?? 0}
       </span>
-      <Strip marks={r?.strip ?? []} maxSeconds={rotation.maxSeconds} />
+      <Strip marks={r?.strip ?? []} maxSeconds={rotation.maxSeconds} onFill={active} />
       <span className={`text-right font-clock text-xs ${dim('O')}`} data-holds>
         {ratio(r?.holds ?? 0, r?.oPlayed ?? 0)}
       </span>
@@ -217,7 +224,16 @@ const CODE: Record<StripMark['kind'], (m: StripMark) => string> = {
  * empty: nobody knows, and a dot would claim a rest that may not have happened. The
  * point being played, while the next line is picked, is an outline at full height.
  */
-function Strip({ marks, maxSeconds }: { marks: (StripMark | null)[]; maxSeconds: number }) {
+function Strip({
+  marks,
+  maxSeconds,
+  onFill,
+}: {
+  marks: (StripMark | null)[];
+  maxSeconds: number;
+  /** Drawn on a selected (accent-filled) row, so in the surface colour. */
+  onFill: boolean;
+}) {
   return (
     <span
       className="flex h-4 items-end justify-center gap-[2px]"
@@ -226,11 +242,28 @@ function Strip({ marks, maxSeconds }: { marks: (StripMark | null)[]; maxSeconds:
     >
       {marks.map((m, i) => {
         if (!m || m.kind === 'unknown') return <span key={i} className="w-1" />;
-        if (m.kind === 'out') return <span key={i} className="h-1 w-1 rounded-full bg-chalk/25" />;
+        if (m.kind === 'out')
+          return (
+            <span
+              key={i}
+              className={`h-1 w-1 rounded-full ${onFill ? 'bg-panel/40' : 'bg-chalk/25'}`}
+            />
+          );
         if (m.kind === 'pending')
-          return <span key={i} className="h-full w-1 rounded-sm border border-chalk/60" />;
+          return (
+            <span
+              key={i}
+              className={`h-full w-1 rounded-sm border ${onFill ? 'border-panel/70' : 'border-chalk/60'}`}
+            />
+          );
         const pct = maxSeconds > 0 ? Math.max(30, (m.seconds / maxSeconds) * 100) : 100;
-        return <span key={i} className="w-1 rounded-sm bg-signal" style={{ height: `${pct}%` }} />;
+        return (
+          <span
+            key={i}
+            className={`w-1 rounded-sm ${onFill ? 'bg-panel' : 'bg-accent'}`}
+            style={{ height: `${pct}%` }}
+          />
+        );
       })}
     </span>
   );

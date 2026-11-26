@@ -1,40 +1,3 @@
-const PLAYERS_SECTION_COLLAPSED_KEY = 'ultimate-scorekeeper:players-section-collapsed';
-const WATER_BREAK_SECTION_COLLAPSED_KEY = 'ultimate-scorekeeper:water-break-section-collapsed';
-
-/** Collapsed unless the user explicitly expanded it last time — that's the default too. */
-export function loadPlayersSectionCollapsed(): boolean {
-  try {
-    return localStorage.getItem(PLAYERS_SECTION_COLLAPSED_KEY) !== 'false';
-  } catch {
-    return true;
-  }
-}
-
-export function savePlayersSectionCollapsed(collapsed: boolean): void {
-  try {
-    localStorage.setItem(PLAYERS_SECTION_COLLAPSED_KEY, String(collapsed));
-  } catch {
-    /* storage unavailable (private mode, quota, ...) — collapse state just won't persist */
-  }
-}
-
-/** Same rule as the Roster section: collapsed unless it was explicitly opened last time. */
-export function loadWaterBreakSectionCollapsed(): boolean {
-  try {
-    return localStorage.getItem(WATER_BREAK_SECTION_COLLAPSED_KEY) !== 'false';
-  } catch {
-    return true;
-  }
-}
-
-export function saveWaterBreakSectionCollapsed(collapsed: boolean): void {
-  try {
-    localStorage.setItem(WATER_BREAK_SECTION_COLLAPSED_KEY, String(collapsed));
-  } catch {
-    /* storage unavailable (private mode, quota, ...) — collapse state just won't persist */
-  }
-}
-
 /*
  * The Settings dialog's switches. Both are about this device rather than about a
  * game — a phone that should stay quiet stays quiet for every game played on it —
@@ -148,4 +111,57 @@ export function saveLang(lang: 'en' | 'es' | 'ca'): void {
   } catch {
     /* storage unavailable — the choice just won't outlive the tab */
   }
+}
+
+/*
+ * Light, dark, or whatever the phone is set to. Per device like the rest of this
+ * file. The stored value is applied to <html data-theme> — and before first paint by
+ * the inline script in index.html, which reads the same key, so a dark phone never
+ * flashes white on launch. "system" is the absence of the attribute: index.css then
+ * follows `prefers-color-scheme` by itself, live, with no listener needed here except
+ * for the browser bar colour.
+ */
+export type ThemePref = 'system' | 'light' | 'dark';
+const THEME_KEY = 'ultimate-scorekeeper:theme';
+
+export function loadTheme(): ThemePref {
+  try {
+    const v = localStorage.getItem(THEME_KEY);
+    return v === 'light' || v === 'dark' ? v : 'system';
+  } catch {
+    return 'system';
+  }
+}
+
+export function saveTheme(theme: ThemePref): void {
+  try {
+    if (theme === 'system') localStorage.removeItem(THEME_KEY);
+    else localStorage.setItem(THEME_KEY, theme);
+  } catch {
+    /* storage unavailable — the theme just won't survive a reload */
+  }
+  applyTheme(theme);
+}
+
+/** The browser bar takes the surface colour of whichever theme is showing. */
+const THEME_BAR = { light: '#FFFFFF', dark: '#141D2E' } as const;
+const darkQuery = () =>
+  typeof window !== 'undefined' && window.matchMedia
+    ? window.matchMedia('(prefers-color-scheme: dark)')
+    : null;
+
+export function applyTheme(theme: ThemePref = loadTheme()): void {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  if (theme === 'system') delete root.dataset.theme;
+  else root.dataset.theme = theme;
+  const resolved = theme === 'system' ? (darkQuery()?.matches ? 'dark' : 'light') : theme;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_BAR[resolved]);
+}
+
+/** Keeps the browser bar in step when the phone itself switches while on "system". */
+export function watchSystemTheme(): void {
+  darkQuery()?.addEventListener?.('change', () => {
+    if (loadTheme() === 'system') applyTheme('system');
+  });
 }

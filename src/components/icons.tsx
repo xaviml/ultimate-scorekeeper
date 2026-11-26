@@ -1,9 +1,12 @@
 /**
- * The glyphs for the dashboard action row and the log dialog.
+ * The app's own glyph set — the dashboard action row, the menus and the log.
  *
- * All of them share one drawing spec so the row reads as a set: a 24 viewBox,
- * no fill, 1.5 stroke in currentColor, round caps and joins. A new icon that
- * departs from that will look pasted in next to the others.
+ * One drawing spec, so the set reads as a set and as nobody else's: a 24 viewBox,
+ * no fill, a 1.75 stroke in currentColor, **square caps and mitred joins**. Built
+ * from straight runs and plain geometry, the way a measuring instrument's panel is
+ * labelled; where a glyph needs a solid mark (a bullet, a dot) it is a small square,
+ * never a round blob. A new icon that departs from that — rounded caps above all —
+ * will look pasted in next to the others.
  *
  * `size` is the Tailwind width/height pair rather than a number, because the
  * action row shrinks its icons under the custom `lscape:` breakpoint and the
@@ -19,9 +22,9 @@ function Glyph({ size = ACTION_SIZE, children }: { size?: string; children: Reac
       className={size}
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      strokeWidth="1.75"
+      strokeLinecap="square"
+      strokeLinejoin="miter"
       aria-hidden="true"
     >
       {children}
@@ -29,15 +32,28 @@ function Glyph({ size = ACTION_SIZE, children }: { size?: string; children: Reac
   );
 }
 
+/** A solid square mark — the set's bullet and its dot (on an "i", under a "!"). */
+function Dot({ x, y, s = 2.5 }: { x: number; y: number; s?: number }) {
+  return <rect x={x} y={y} width={s} height={s} fill="currentColor" stroke="none" />;
+}
+
 // Shared by the Log button and the log dialog's "add event" control, which is the
-// same list with a "+" badge — recording an event adds a row to this very list.
-const LIST_GLYPH_PATH =
-  'M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0z';
+// same list with a "+" on its corner — recording an event adds a row to this list.
+function ListMarks() {
+  return (
+    <>
+      <Dot x={3.5} y={5.75} />
+      <Dot x={3.5} y={10.75} />
+      <Dot x={3.5} y={15.75} />
+      <path d="M10 7h10.5M10 12h10.5M10 17h10.5" />
+    </>
+  );
+}
 
 export function LogIcon({ size }: { size?: string }) {
   return (
     <Glyph size={size}>
-      <path d={LIST_GLYPH_PATH} />
+      <ListMarks />
     </Glyph>
   );
 }
@@ -45,13 +61,16 @@ export function LogIcon({ size }: { size?: string }) {
 export function PlayersIcon({ size }: { size?: string }) {
   return (
     <Glyph size={size}>
-      <path d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0z" />
+      <circle cx="9" cy="8" r="3.25" />
+      <path d="M3 20v-1.5A3.5 3.5 0 0 1 6.5 15h5a3.5 3.5 0 0 1 3.5 3.5V20" />
+      <path d="M15.5 4.9a3.25 3.25 0 0 1 0 6.2M18 15h.5a3.5 3.5 0 0 1 3.5 3.5V20" />
     </Glyph>
   );
 }
 
 /**
- * Turn: two arrows running opposite ways. Deliberately not the cycle/refresh
+ * Turn: two arrows running opposite ways, each with a single hook — the top one
+ * heading right, the bottom one coming back. Deliberately not the cycle/refresh
  * loop, which reads as "again" and would compete with the long-press undo on the
  * score panels; a turnover is a reversal of direction, and the two arrows mirror
  * the two score panels sitting left and right above the row.
@@ -59,105 +78,88 @@ export function PlayersIcon({ size }: { size?: string }) {
 export function TurnIcon({ size }: { size?: string }) {
   return (
     <Glyph size={size}>
-      <path d="M3.5 8.5h13m0 0L13 5m3.5 3.5L13 12" />
-      <path d="M20.5 15.5h-13m0 0L11 12m-3.5 3.5L11 19" />
+      <path d="M5 8h13l-3-3" />
+      <path d="M19 16H6l3 3" />
     </Glyph>
   );
 }
 
 /**
- * Line: the seven on the field, drawn as a row of figures rather than the roster's
- * overlapping pair. It sits directly under Roster in the game menu, so the contrast
- * is the whole point — a squad against the handful of them taking this point.
+ * Line: the handful taking this point, drawn as markers standing on one line rather
+ * than the roster's pair of figures. It sits directly under Roster in the game menu,
+ * so the contrast is the whole point — a squad against the few of them on now.
  */
 export function LineIcon({ size }: { size?: string }) {
   return (
     <Glyph size={size}>
-      <circle cx="6" cy="7.25" r="2" />
-      <circle cx="12" cy="7.25" r="2" />
-      <circle cx="18" cy="7.25" r="2" />
-      <path d="M3 17.5a3 3 0 0 1 6 0m0 0a3 3 0 0 1 6 0m0 0a3 3 0 0 1 6 0" />
+      <circle cx="6" cy="7.5" r="2" />
+      <circle cx="12" cy="7.5" r="2" />
+      <circle cx="18" cy="7.5" r="2" />
+      <path d="M6 11.5v7M12 11.5v7M18 11.5v7M3 19.5h18" />
     </Glyph>
   );
 }
 
 /**
- * Pass: thrower and receiver as two small circles, joined by an arrow running from
- * one to the other. It sits immediately right of Turn in the action row, so it is
- * drawn to read against it rather than on its own — Turn's two arrows oppose each
- * other because the disc came back, this one goes one way because it arrived.
- *
- * The two dots are doing a second job: naming who threw to whom is where this
- * feature is heading, and a glyph that already shows two people will still be
- * telling the truth when it asks.
+ * Pass: the disc's flight — a throw curving up and over to the receiver, ending in
+ * an arrowhead. It sits beside Turn in the action row, so it is drawn to read
+ * against it: Turn's two arrows oppose each other because the disc came back, this
+ * one arcs one way because it arrived.
  */
 export function PassIcon({ size }: { size?: string }) {
   return (
     <Glyph size={size}>
-      <circle cx="4.75" cy="12" r="2.25" />
-      <circle cx="19.25" cy="12" r="2.25" />
-      <path d="M8 12h8m0 0-2.75-2.75M16 12l-2.75 2.75" />
+      <path d="M4 17c3-7 9-10 15-8" />
+      <path d="M15 5l4 4-4 4" />
     </Glyph>
   );
 }
 
 /**
- * Call: a shout, with the same speech metaphor the assistance bar already uses
- * for the green `say_*` call-outs. Explicitly not a whistle — Ultimate is
- * self-refereed, nobody blows one to make a call, and in this app a whistle
- * already means the clock talking (the 45/60/75s pull, timeout end, cap).
+ * Call: a shout — a squared speech block with a "!" in it, the same block the
+ * assistance bar uses for the words to say. Explicitly not a whistle: Ultimate is
+ * self-refereed, nobody blows one to make a call, and in this app a whistle already
+ * means the clock talking (the 45/60/75s pull, timeout end, cap).
  */
 export function CallIcon({ size }: { size?: string }) {
   return (
     <Glyph size={size}>
-      <path d="M12 19.5c4.556 0 8.25-3.19 8.25-7.125S16.556 5.25 12 5.25 3.75 8.44 3.75 12.375c0 1.77.748 3.39 1.987 4.634.14.53-.15 1.4-.737 2.116a7 7 0 0 0 2.9-.72A9.7 9.7 0 0 0 12 19.5Z" />
-      <path d="M12 9.4v3.1M12 15.2h.01" />
+      <path d="M3.5 4.5h17V16h-9L7 20v-4H3.5z" />
+      <path d="M12 7.5v3.75" />
+      <Dot x={10.85} y={13} s={2.3} />
     </Glyph>
   );
 }
 
 /**
- * Stoppage / SOTG: a raised hand, the gesture that actually halts a point.
- * Deliberately not a pause bar — the clock tile's manual-pause control already
- * owns that shape, and two pause glyphs on one screen read as the same button.
- * This is the one action-row button with no micro-label, since no single short
- * word covers injury, technical and SOTG without misleading.
+ * Stoppage / SOTG: a raised hand, the gesture that actually halts a point, cut
+ * from straight strokes — four flat-topped fingers over the palm. Deliberately not
+ * a pause bar: the clock's manual-pause control already owns that shape, and two
+ * pause glyphs on one screen read as the same button.
  */
 export function StoppageIcon({ size }: { size?: string }) {
   return (
     <Glyph size={size}>
-      <path d="M10.05 4.575a1.575 1.575 0 1 0-3.15 0v3m3.15-3v-1.5a1.575 1.575 0 0 1 3.15 0v1.5m-3.15 0 .075 5.925m3.075.75V4.575m0 0a1.575 1.575 0 0 1 3.15 0V15M6.9 7.575a1.575 1.575 0 1 0-3.15 0v8.175a6.75 6.75 0 0 0 6.75 6.75h2.018a5.25 5.25 0 0 0 3.712-1.538l1.732-1.732a5.25 5.25 0 0 0 1.538-3.712l.003-2.024a.668.668 0 0 1 .198-.471 1.575 1.575 0 1 0-2.228-2.228 3.818 3.818 0 0 0-1.12 2.687M6.9 7.575V12" />
+      <path d="M8 13.5V5.5M11.25 11V3.5M14.5 11V4.5M17.75 11.5V7" />
+      <path d="M17.75 11.5v4A5.5 5.5 0 0 1 12.25 21h-.75a5.5 5.5 0 0 1-4.4-2.2L3.75 14.3l1.1-1.1a1.6 1.6 0 0 1 2.26 0l.89.89" />
     </Glyph>
   );
 }
 
-/**
- * Add event: the log glyph with a "+" badge on its corner — the icon the old
- * "Record event" dashboard button used, now sitting in the log dialog's header
- * where the thing it adds actually lands.
- */
+/** Add event: the log glyph with a "+" on its corner — what it adds lands in the log. */
 export function AddEventIcon({ size = ACTION_SIZE }: { size?: string }) {
   return (
     <span className={`relative inline-flex ${size}`}>
+      <Glyph size="w-full h-full">
+        <ListMarks />
+      </Glyph>
       <svg
         viewBox="0 0 24 24"
-        className="w-full h-full"
+        className="absolute -bottom-1 -right-1 w-3 h-3 bg-panel"
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <path d={LIST_GLYPH_PATH} />
-      </svg>
-      <svg
-        viewBox="0 0 24 24"
-        className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-panel"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
+        strokeWidth="3.5"
+        strokeLinecap="square"
         aria-hidden="true"
       >
         <path d="M12 5v14M5 12h14" />
@@ -166,15 +168,12 @@ export function AddEventIcon({ size = ACTION_SIZE }: { size?: string }) {
   );
 }
 
-/**
- * Fix a log row: a pencil, which is the only glyph a volunteer reads as "change
- * what this says" without a caption — and the log's actions column has no room for
- * one.
- */
+/** Fix a log row: a pencil, the one glyph read as "change what this says" uncaptioned. */
 export function PencilIcon({ size }: { size?: string }) {
   return (
     <Glyph size={size}>
-      <path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+      <path d="M4 20l1-5L16 4l4 4L9 19z" />
+      <path d="M13 7l4 4" />
     </Glyph>
   );
 }
@@ -183,7 +182,7 @@ export function PencilIcon({ size }: { size?: string }) {
 export function BinIcon({ size }: { size?: string }) {
   return (
     <Glyph size={size}>
-      <path d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+      <path d="M4 6.5h16M9 6.5v-3h6v3M6 6.5l1 14h10l1-14M10 10.5v6M14 10.5v6" />
     </Glyph>
   );
 }
@@ -192,7 +191,7 @@ export function BinIcon({ size }: { size?: string }) {
 export function ArrowBackIcon({ size }: { size?: string }) {
   return (
     <Glyph size={size}>
-      <path d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+      <path d="M20 12H5M10.5 6l-6 6 6 6" />
     </Glyph>
   );
 }
@@ -201,21 +200,26 @@ export function ArrowBackIcon({ size }: { size?: string }) {
 export function CrossIcon({ size }: { size?: string }) {
   return (
     <Glyph size={size}>
-      <path d="M6 18 18 6M6 6l12 12" />
+      <path d="M6 6l12 12M18 6 6 18" />
     </Glyph>
   );
 }
 
-/**
- * The header menu. Deliberately the plain three-bar glyph rather than something
- * Ultimate-flavoured: it is the one control on the dashboard whose meaning has to
- * be obvious to someone who has never opened the app, and it replaces a slot that
- * used to change its icon (and its destination) with the game's status.
- */
+/** Install the app: a phone with an arrow coming down into it. */
+export function InstallIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <path d="M6.5 2.5h11v19h-11z" />
+      <path d="M12 6.5v8.5M8.75 11.75 12 15l3.25-3.25" />
+      <path d="M10.5 18.5h3" />
+    </Glyph>
+  );
+}
+
 export function ChevronLeftIcon({ size }: { size?: string }) {
   return (
     <Glyph size={size}>
-      <path d="M14.25 5.25 7.5 12l6.75 6.75" />
+      <path d="M14.5 5.5 8 12l6.5 6.5" />
     </Glyph>
   );
 }
@@ -223,7 +227,7 @@ export function ChevronLeftIcon({ size }: { size?: string }) {
 export function ChevronRightIcon({ size }: { size?: string }) {
   return (
     <Glyph size={size}>
-      <path d="m9.75 5.25 6.75 6.75-6.75 6.75" />
+      <path d="M9.5 5.5 16 12l-6.5 6.5" />
     </Glyph>
   );
 }
@@ -236,33 +240,40 @@ export function ChevronRightIcon({ size }: { size?: string }) {
 export function SwapIcon({ size }: { size?: string }) {
   return (
     <Glyph size={size}>
-      <path d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+      <path d="M4 8h14.5M15 4.5 18.5 8 15 11.5M20 16H5.5M9 12.5 5.5 16 9 19.5" />
     </Glyph>
   );
 }
 
+/**
+ * The header menu: two bars, the lower one short. Still unmistakably "menu" to
+ * someone who has never opened the app, which is the one thing this control must
+ * be, without being the stock three equal bars.
+ */
 export function MenuIcon({ size }: { size?: string }) {
   return (
     <Glyph size={size}>
-      <path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+      <path d="M4 8.5h16M4 15.5h10" />
     </Glyph>
   );
 }
 
-/** Game setup: the clipboard the rules were written down on before kickoff. */
+/** Game setup: two sliders, the rules as settings that were fixed before kickoff. */
 export function SetupIcon({ size }: { size?: string }) {
   return (
     <Glyph size={size}>
-      <path d="M9 12h6m-6 3.75h6M9 8.25h6m3.75-1.5v12.75a1.5 1.5 0 0 1-1.5 1.5H6.75a1.5 1.5 0 0 1-1.5-1.5V6.75a1.5 1.5 0 0 1 1.5-1.5h1.5m7.5 0h1.5a1.5 1.5 0 0 1 1.5 1.5m-10.5-1.5a2.25 2.25 0 0 1 2.25-2.25h1.5a2.25 2.25 0 0 1 2.25 2.25m-6 0a1.5 1.5 0 0 0 1.5 1.5h3a1.5 1.5 0 0 0 1.5-1.5" />
+      <path d="M4 7h8.5M17.5 7H20M4 17h2.5M11.5 17H20" />
+      <path d="M12.5 4.5h5v5h-5zM6.5 14.5h5v5h-5z" />
     </Glyph>
   );
 }
 
-/** The walkthrough, which until now had no door once a game was under way. */
+/** The beginner's guide: an open book. */
 export function GuideIcon({ size }: { size?: string }) {
   return (
     <Glyph size={size}>
-      <path d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+      <path d="M3.5 5h6A2.5 2.5 0 0 1 12 7.5V20a2 2 0 0 0-2-2H3.5z" />
+      <path d="M20.5 5h-6A2.5 2.5 0 0 0 12 7.5V20a2 2 0 0 1 2-2h6.5z" />
     </Glyph>
   );
 }
@@ -275,16 +286,16 @@ export function GuideIcon({ size }: { size?: string }) {
 export function StatsIcon({ size }: { size?: string }) {
   return (
     <Glyph size={size}>
-      <path d="M3.75 3.75v15a1.5 1.5 0 0 0 1.5 1.5h15M7.5 15.75l3.75-4.5 3 3 5.25-6.75" />
+      <path d="M4 4v16h16M7.5 15l4-4.5 3 3 5-6" />
     </Glyph>
   );
 }
 
-/** The finished game's report. */
+/** The game's report. */
 export function ReportIcon({ size }: { size?: string }) {
   return (
     <Glyph size={size}>
-      <path d="M3.75 13.5h3.75v6.75H3.75V13.5zm6.375-6h3.75v12.75h-3.75V7.5zm6.375-3.75h3.75v16.5h-3.75V3.75z" />
+      <path d="M4 13.5h3.5V20H4zM10.25 8h3.5v12h-3.5zM16.5 4H20v16h-3.5z" />
     </Glyph>
   );
 }
@@ -293,26 +304,167 @@ export function ReportIcon({ size }: { size?: string }) {
 export function HistoryIcon({ size }: { size?: string }) {
   return (
     <Glyph size={size}>
-      <path d="M12 7.5V12l2.625 1.5M3.75 8.25V4.5m0 3.75h3.75M4.02 8.25A8.25 8.25 0 1 1 3.75 12" />
+      <path d="M12 7.5V12l3 2M4 4.5v4h4M4.7 8.5A8 8 0 1 1 4 12" />
     </Glyph>
   );
 }
 
-/** About the app — the same ⓘ the config header used to carry on its own. */
+/** About the app: an "i" in a square frame. */
 export function InfoIcon({ size }: { size?: string }) {
   return (
     <Glyph size={size}>
-      <path d="M11.25 11.25h.75v4.5h.75M12 8.25h.008v.008H12V8.25zM21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+      <path d="M4 4h16v16H4zM12 11v6" />
+      <Dot x={10.85} y={6.75} s={2.3} />
     </Glyph>
   );
 }
 
-/** Settings: the cog, for what is about this phone rather than about the game. */
+/** Settings: a dial with its ticks, for what is about this phone rather than the game. */
 export function SettingsIcon({ size }: { size?: string }) {
   return (
     <Glyph size={size}>
-      <path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
-      <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+      <circle cx="12" cy="12" r="3.5" />
+      <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1" />
+    </Glyph>
+  );
+}
+
+/** The assistance bar's call-out: the words to say — the speech block, empty. */
+export function SayIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <path d="M3.5 4.5h17V16h-9L7 20v-4H3.5z" />
+      <path d="M7.5 8.75h9M7.5 12h5.5" />
+    </Glyph>
+  );
+}
+
+/** The assistance bar's standing line: what to do now — an arrow pointing at it. */
+export function NowIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <path d="M4 12h15M13 6l6 6-6 6" />
+    </Glyph>
+  );
+}
+
+/** The game clock's manual pause. Solid, square-cornered bars. */
+export function PauseIcon({ size = 'w-4 h-4 lscape:w-3 lscape:h-3' }: { size?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={size} fill="currentColor" aria-hidden="true">
+      <rect x="6" y="5" width="4" height="14" />
+      <rect x="14" y="5" width="4" height="14" />
+    </svg>
+  );
+}
+
+export function PlayIcon({ size = 'w-4 h-4 lscape:w-3 lscape:h-3' }: { size?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={size} fill="currentColor" aria-hidden="true">
+      <path d="M7 5v14l12-7z" />
+    </svg>
+  );
+}
+
+/** A team's timeout, on its score panel: a stopwatch. */
+export function TimeoutIcon({ size = 'w-5 h-5 lscape:w-4 lscape:h-4' }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <circle cx="12" cy="13.5" r="7" />
+      <path d="M12 10v3.5M9.5 2.5h5M12 2.5v4M18.5 6.5l1.5-1.5" />
+    </Glyph>
+  );
+}
+
+/* ---- Setup screen: one glyph per section, and the steppers' two signs. ---- */
+
+/** The teams: a jersey. */
+export function ShirtIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <path d="M8.5 3.5 3 6.5l2 4.5 2.5-1.25V20.5h9V9.75L19 11l2-4.5-5.5-3a3.5 3.5 0 0 1-7 0Z" />
+    </Glyph>
+  );
+}
+
+/** The coin toss: a disc seen edge-on mid-flip. */
+export function CoinIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <ellipse cx="12" cy="10" rx="8" ry="4.5" />
+      <path d="M4 10v4c0 2.5 3.6 4.5 8 4.5s8-2 8-4.5v-4" />
+    </Glyph>
+  );
+}
+
+/** Win conditions: a flag on a pole. */
+export function FlagIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <path d="M5 21V3.5" />
+      <path d="M5 4h13l-2.5 4.25L18 12.5H5" />
+    </Glyph>
+  );
+}
+
+/** Half-time: a disc split down the middle, one half filled. */
+export function HalfIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 4a8 8 0 0 0 0 16Z" fill="currentColor" />
+    </Glyph>
+  );
+}
+
+/** Water breaks: a drop. */
+export function DropIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <path d="M12 3.5s-6 6.6-6 11a6 6 0 0 0 12 0c0-4.4-6-11-6-11Z" />
+    </Glyph>
+  );
+}
+
+export function MinusIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <path d="M5.5 12h13" />
+    </Glyph>
+  );
+}
+
+export function PlusIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <path d="M5.5 12h13M12 5.5v13" />
+    </Glyph>
+  );
+}
+
+/** Open every point at once: two chevrons pulling apart. */
+export function UnfoldIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <path d="M7.5 8.5 12 4l4.5 4.5M7.5 15.5 12 20l4.5-4.5" />
+    </Glyph>
+  );
+}
+
+/** Fold every point back: the same two chevrons closing in. */
+export function FoldIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <path d="M7.5 4 12 8.5 16.5 4M7.5 20 12 15.5l4.5 4.5" />
+    </Glyph>
+  );
+}
+
+/** Copy: the sheet being copied in front, its twin offset behind it. */
+export function CopyIcon({ size }: { size?: string }) {
+  return (
+    <Glyph size={size}>
+      <path d="M8.5 8.5h11v11h-11zM15.5 8.5v-4h-11v11h4" />
     </Glyph>
   );
 }

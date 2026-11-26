@@ -19,31 +19,30 @@ import { useT } from '../i18n/useT';
  */
 
 const FIG_SETUP: readonly Marker[] = [
-  [5.1, 20.6],
-  [6.9, 30.9],
-  [5.8, 41.2],
-  [14.1, 68.7],
-  [95.7, 79.2],
+  [46.7, 18.1],
+  [89, 23.6],
+  [89.6, 50.5],
+  [89, 94.9],
 ];
 const FIG_TOSS: readonly Marker[] = [
-  [5.1, 41.8],
-  [5.1, 63.5],
-  [5.1, 85.3],
+  [89, 31],
+  [89, 54.1],
+  [89, 77.2],
 ];
 const FIG_DASHBOARD: readonly Marker[] = [
-  [28, 2.8],
-  [89, 54.2],
-  [32.1, 13.6],
-  [10.6, 72.2],
-  [46.7, 79],
-  [63.4, 89.5],
-  [92, 96.7],
-  [49.5, 82.5],
+  [62, 2.7],
+  [89, 52.3],
+  [29.3, 13.3],
+  [10.6, 69.8],
+  [31.2, 76.5],
+  [71.2, 86.4],
+  [92, 95.1],
+  [33.8, 79.7],
 ];
 const FIG_PLAY: readonly Marker[] = [
-  [10.6, 72.2],
-  [15, 23.1],
-  [42.5, 55.5],
+  [10.6, 69.8],
+  [15, 22.2],
+  [42.5, 45.1],
 ];
 
 export default function GuideScreen({ onBack }: { onBack: () => void }) {
@@ -67,8 +66,12 @@ export default function GuideScreen({ onBack }: { onBack: () => void }) {
           <Numbered n={2} label={t('guideStep1Division')} body={t('guideStep1DivisionBody')} />
           <Numbered n={3} label={t('guideStep1Teams')} body={t('guideStep1TeamsBody')} />
           <Numbered n={4} label={t('guideStep1Time')} body={t('guideStep1TimeBody')} />
-          <Numbered n={5} label={t('guideStep1Players')} body={t('guideStep1PlayersBody')} />
         </ol>
+        {/* Not numbered: Statistics is the last section of the setup screen, well
+            below what the figure can show. */}
+        <ul className="space-y-2">
+          <Bullet label={t('guideStep1Players')} body={t('guideStep1PlayersBody')} />
+        </ul>
       </Card>
 
       <Card step={2} title={t('guideStep2Title')}>

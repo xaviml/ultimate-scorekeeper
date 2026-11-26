@@ -1,4 +1,5 @@
 import type { TFunc } from '../i18n/useT';
+import { teamOutline } from './ui';
 import type { PlayerStatLine } from '../state/stats';
 import { type PlayerStatColumn, statCellText } from './playerStatColumns';
 
@@ -52,7 +53,7 @@ export function PlayerStatsTable({
               {teamColor && (
                 <span
                   className="inline-block w-2.5 h-2.5 rounded-full mr-2 align-middle"
-                  style={{ backgroundColor: teamColor(p) }}
+                  style={{ backgroundColor: teamColor(p), ...teamOutline(teamColor(p)) }}
                 />
               )}
               {p.label}

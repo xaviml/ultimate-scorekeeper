@@ -1,4 +1,5 @@
 import { Fragment } from 'react';
+import { teamOutline } from './ui';
 
 /**
  * The compact team-figures grid the stats slot shows: a header row of 9px
@@ -39,7 +40,7 @@ export function StatFiguresGrid({
         <Fragment key={i}>
           <span
             className="w-1.5 h-4 rounded-sm justify-self-start"
-            style={{ backgroundColor: r.color }}
+            style={{ backgroundColor: r.color, ...teamOutline(r.color) }}
           />
           {r.values.map((v, j) => (
             <span

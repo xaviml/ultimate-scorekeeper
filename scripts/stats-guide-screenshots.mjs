@@ -3,12 +3,13 @@
  * (src/components/StatsGuideScreen.tsx) and prints the marker coordinates that go
  * with them.
  *
- * Playwright is not a runtime dependency of this project — it is only needed to
- * run this script:
+ * Playwright is not a dependency of this project — it is only needed to run this
+ * script, so install it temporarily:
  *
  *   yarn add -D playwright && npx playwright install chromium
  *   yarn dev                                          # in another terminal
- *   node scripts/stats-guide-screenshots.mjs
+ *   node scripts/stats-guide-screenshots.mjs          # GUIDE_BASE_URL to point elsewhere
+ *   yarn remove playwright
  *
  * It drives a real, fully tracked game through the real UI — By player, one team
  * followed, turnovers, turnover players, goal players and line tracking all on —
@@ -22,8 +23,9 @@
  * which is the other half of why these are two scripts and not one: the two
  * guides photograph two different apps.
  *
- * The screenshots are intentionally English-only: the numbered captions next to
- * them live in the dictionaries and translate on their own.
+ * Always in the light theme, whatever the guide is read in, like its sibling. The
+ * screenshots are English-only too: the numbered captions next to them live in
+ * the dictionaries and translate on their own.
  */
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
@@ -34,8 +36,10 @@ const BASE = process.env.GUIDE_BASE_URL ?? 'http://localhost:5173';
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'guide');
 const VIEWPORT = { width: 390, height: 844 };
 
-const TEAM_A = 'Ravens';
-const TEAM_B = 'Foxes';
+// In capitals because that is how a team name is stored, and so how every label the
+// script finds a control by spells it.
+const TEAM_A = 'RAVENS';
+const TEAM_B = 'FOXES';
 
 /**
  * Eight players, four of each marking — enough for a line of seven plus a bench,
@@ -92,6 +96,18 @@ async function marker(page, element, clip, ax = 0.5, ay = 0.5) {
   return [Number(x.toFixed(1)), Number(y.toFixed(1))];
 }
 
+/**
+ * A marker placed horizontally against one element and vertically against another:
+ * the right end of a section, on the line of one of its switches.
+ */
+async function markerAt(page, xElement, ax, yElement, ay, clip) {
+  const bx = await pageBox(page, xElement);
+  const by = await pageBox(page, yElement);
+  const x = ((bx.x + bx.width * ax - clip.x) / clip.width) * 100;
+  const y = ((by.y + by.height * ay - clip.y) / clip.height) * 100;
+  return [Number(x.toFixed(1)), Number(y.toFixed(1))];
+}
+
 /** A clip rect spanning the page width, from the top of `from` to the bottom of `to`. */
 async function span(page, from, to, padTop = 0) {
   const a = await pageBox(page, from);
@@ -120,7 +136,7 @@ async function main() {
     viewport: VIEWPORT,
     deviceScaleFactor: 2,
     locale: 'en-GB',
-    colorScheme: 'dark',
+    colorScheme: 'light',
   });
   const shot = (name, options) => page.screenshot({ path: join(OUT, name), ...options });
   // The dialogs have no role of their own (see Modal) — the panel is the only child
@@ -131,6 +147,10 @@ async function main() {
    * chip's accessible name, since its number and name are separate elements inside it.
    */
   const pick = (label) => modal.getByLabel(label, { exact: true }).first().click();
+  /** Every player chip in the open dialog. */
+  const chips = () => modal.locator('button[aria-label^="#"]');
+  const section = (title) =>
+    page.locator('section').filter({ has: page.getByRole('heading', { name: title }) });
 
   await page.goto(BASE);
   await page.waitForSelector('text=Game setup');
@@ -142,24 +162,17 @@ async function main() {
   await page.locator('h1').click(); // close the combobox suggestion panel
   await sleep(200);
 
+  // The sticky Start bar floats over whatever is under the bottom of the window,
+  // which in a full-page capture is the middle of a section.
+  const hideStartBar = await page.addStyleTag({
+    content: 'div.sticky.bottom-0 { display: none !important; }',
+  });
+
   // The Grass template this screen opens on is already Mixed, sevens, to 15 — the
-  // division is what puts a gender split on a line, so nothing here has to change
-  // it. Sections, in render order: Setup, Statistics, then Roster (which only
-  // exists from "By player"), the coin toss and the rules.
-  const sections = page.locator('section');
-  const setup = sections.nth(0);
-  const stats = sections.nth(1);
+  // division is what puts a gender split on a line, so nothing here has to change it.
+  const stats = section('Statistics');
 
   // --- Setup: the Statistics section --------------------------------------
-  const statsSelect = stats.locator('select');
-  await statsSelect.nth(0).selectOption('players');
-  await sleep(150);
-  // "Players of" defaults to both teams; line tracking follows a single roster, so
-  // the whole line half of this guide depends on picking one here.
-  await statsSelect.nth(1).selectOption('A');
-  await sleep(150);
-
-  const switchRow = (label) => stats.locator('label').filter({ hasText: label }).first();
   // `force` because the real checkbox is `sr-only` (see CheckField): the painted
   // switch beside it is what a finger hits, so Playwright's actionability check
   // sees the box as covered. The input is still the control being toggled.
@@ -167,6 +180,14 @@ async function main() {
     await stats.getByLabel(label, { exact: true }).check({ force: true });
     await sleep(150);
   };
+  await setSwitch('Record statistics');
+  await stats.getByRole('radio', { name: 'Player' }).click();
+  await sleep(150);
+  // "Players of" defaults to both teams; line tracking follows a single roster, so
+  // the whole line half of this guide depends on picking one here.
+  const playersOf = stats.locator('select').first();
+  await playersOf.selectOption({ label: TEAM_A });
+  await sleep(150);
   await setSwitch('Turnovers');
   await setSwitch('Ask who turned it over');
   await setSwitch('Passes');
@@ -176,27 +197,29 @@ async function main() {
 
   const statsClip = await span(page, stats, stats);
   await shot('stats-setup.png', { clip: statsClip, fullPage: true });
-  // The selects are pointed at from their left edge, the switches from the empty
-  // right end of their row — a marker on the switch track would cover the very
-  // thing the caption is telling the reader to look at.
+  // The controls are pointed at from their top-right corner, the switches from the
+  // empty right end of their title line — a marker on the switch track would cover
+  // the very thing the caption is telling the reader to look at.
+  const switchTrack = (label) =>
+    stats.locator('label').filter({ hasText: label }).first().locator('> span').first();
+  const atRight = (label) => markerAt(page, stats, 0.93, switchTrack(label), 0.5, statsClip);
   out.FIG_STATS_SETUP = [
-    await marker(page, statsSelect.nth(0), statsClip, -0.04),
-    await marker(page, statsSelect.nth(1), statsClip, -0.04),
-    await marker(page, switchRow('Turnovers'), statsClip, 0.96),
-    await marker(page, switchRow('Ask who turned it over'), statsClip, 0.96),
-    await marker(page, switchRow('Passes'), statsClip, 0.96),
-    await marker(page, switchRow('Ask who scored'), statsClip, 0.96),
-    await marker(page, switchRow('Track who plays each point'), statsClip, 0.96),
+    await marker(page, stats.getByRole('radiogroup').first(), statsClip, 0.97, -0.05),
+    await marker(page, playersOf, statsClip, 0.97, -0.05),
+    await atRight('Turnovers'),
+    await atRight('Ask who turned it over'),
+    await atRight('Passes'),
+    await atRight('Ask who scored'),
+    await atRight('Track who plays each point'),
   ];
+  await hideStartBar.evaluate((el) => el.remove());
 
-  // --- Setup: the Roster section ------------------------------------------
-  // Collapsed on a fresh load, so it has to be opened before anything in it can be
-  // measured — and it is the third section only once "By player" has created it.
-  await page.getByRole('button', { name: 'Expand Roster' }).click();
-  await sleep(200);
-  const roster = sections.nth(2);
+  // --- Setup: the roster sheet --------------------------------------------
+  // A roster belongs to its team, so it is opened from that team's row in Match.
+  await page.locator('[data-roster-team]').first().click();
+  await sleep(300);
 
-  await roster.getByRole('button', { name: 'Import' }).click();
+  await modal.getByRole('button', { name: 'Import' }).click();
   await page.getByLabel('Players to import').fill(ROSTER);
   await sleep(200);
   await page.getByRole('button', { name: /^Import \d+$/ }).click();
@@ -205,38 +228,51 @@ async function main() {
   // Both predefined lines, from the editor that sits under the roster they are
   // drawn from. A saved line is checked against nothing, so this never warns.
   for (const line of [LINE_O, LINE_D]) {
-    await roster.getByRole('button', { name: 'Add a line' }).click();
+    await modal.getByRole('button', { name: 'Add a line' }).click();
     await page.getByLabel('Name this line').fill(line.name);
     for (const p of line.players) await pick(p);
-    await modal.getByRole('button', { name: 'Save', exact: true }).click();
+    await modal.last().getByRole('button', { name: 'Save', exact: true }).click();
     await sleep(250);
   }
 
-  const rosterClip = await span(page, roster, roster);
-  await shot('stats-roster.png', { clip: rosterClip, fullPage: true });
+  // A tall window, so the bottom sheet shows the whole roster rather than scrolling.
+  // The sheet is fixed, so it is measured against the window: scroll the page under
+  // it back to the top (pageBox adds the scroll), and the sheet itself too, which
+  // adding the lines has scrolled to its foot.
+  await page.setViewportSize({ width: VIEWPORT.width, height: 1600 });
+  const sheet = modal.first();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await sheet.evaluate((el) => (el.scrollTop = 0));
+  await sleep(300);
+  const rosterClip = await around(page, sheet, 0);
+  await shot('stats-roster.png', { clip: rosterClip });
   out.FIG_STATS_ROSTER = [
     // In the seam between the number box and the name box — the add row is three
     // controls wide with nothing spare either side of it, and the seam is the only
     // spot in it that covers no placeholder.
-    await marker(page, roster.locator('input[maxlength="40"]').first(), rosterClip, -0.06),
+    await marker(page, sheet.getByPlaceholder('Name'), rosterClip, -0.06),
     // Left of the marking button, over the empty middle of the player's row — to its
     // right is the ✕ that deletes them.
     await marker(
       page,
-      roster.locator('button', { hasText: /^(MMP|FMP|—)$/ }).first(),
+      sheet.locator('button', { hasText: /^(MMP|FMP|—)$/ }).first(),
       rosterClip,
       -0.55,
     ),
-    await marker(page, roster.getByRole('button', { name: 'Import' }), rosterClip, -0.45),
-    await marker(page, roster.getByRole('button', { name: 'Add a line' }), rosterClip, 0.08),
+    await marker(page, sheet.getByRole('button', { name: 'Import' }), rosterClip, -0.85),
+    await marker(page, sheet.getByRole('button', { name: 'Add a line' }), rosterClip, 0.08),
   ];
+  await sheet.getByRole('button', { name: 'Close' }).first().click();
+  await page.setViewportSize(VIEWPORT);
+  await sleep(300);
+  await page.evaluate(() => window.scrollTo(0, 0));
 
   // --- Into the game ------------------------------------------------------
   await page.getByRole('button', { name: 'Start game' }).click();
-  await page.waitForSelector(`button[aria-label^="${TEAM_A.toUpperCase()}:"]`);
+  await page.waitForSelector(`button[aria-label^="${TEAM_A}:"]`);
 
-  const panelA = page.locator(`button[aria-label^="${TEAM_A.toUpperCase()}:"]`);
-  const panelB = page.locator(`button[aria-label^="${TEAM_B.toUpperCase()}:"]`);
+  const panelA = page.locator(`button[aria-label^="${TEAM_A}:"]`);
+  const panelB = page.locator(`button[aria-label^="${TEAM_B}:"]`);
   const pullBtn = page.getByRole('button', { name: 'Pull thrown' });
   const turnBtn = page.getByRole('button', { name: 'Turnover — hold to undo' });
 
@@ -288,13 +324,11 @@ async function main() {
     if (capture) await shot(capture, { clip: { x: 0, y: 0, ...VIEWPORT } });
     // Only the followed team is ever asked about, so there is exactly one section:
     // whoever of ours is in the role this point puts them in.
-    const chips = modal.locator('button').filter({ hasText: /^#\d/ });
-    if (await chips.count()) await chips.first().click();
+    if (await chips().count()) await chips().first().click();
     await modal.getByRole('button', { name: 'Save', exact: true }).click();
     await sleep(400);
   };
 
-  /** Scores for `panel` and answers the scorer/assist dialog. */
   /**
    * Scores for `panel`, then answers who scored from the prompt the goal leaves above
    * the clocks — assist first, then scorer, one tap each, which is also what saves it.
@@ -304,12 +338,13 @@ async function main() {
   const goal = async (panel, scorer, assist, capture) => {
     await panel.click();
     await sleep(600);
-    const prompt = page.getByRole('button', { name: /^Scorer / });
+    const prompt = page.locator('[data-prompt="goal"]');
     if (await prompt.count()) {
       await prompt.first().click();
       await sleep(300);
       if (capture) await shot(capture, { clip: { x: 0, y: 0, ...VIEWPORT } });
-      const dontKnow = () => modal.getByRole('button', { name: "Don't know" }).first().click();
+      const dontKnow = () =>
+        modal.getByRole('button', { name: "Don't know", exact: true }).first().click();
       await (assist ? pick(assist) : dontKnow());
       await sleep(200);
       await (scorer ? pick(scorer) : dontKnow());
@@ -318,15 +353,16 @@ async function main() {
   };
 
   /**
-   * A few completed passes, when the followed team has the disc. Guarded on the
-   * button being enabled rather than on working out who is holding it: this game
-   * follows Ravens, so Pass goes dead for every possession that isn't theirs, and
-   * asking the button is the same question with none of the bookkeeping. Without
-   * this every passes figure in the guide would be photographed as a zero.
+   * A few completed passes, when the followed team has the disc. The other team's
+   * passes are optional in a game following one team, and this demo leaves them
+   * out, so their column reads as a dash the way it would for most volunteers.
+   * Without this every passes figure in the guide would be photographed as a zero.
    */
+  const ravensHold = async () =>
+    (await page.locator('[data-possession]').getAttribute('data-possession')) === 'A';
   const passes = async (n) => {
     const btn = page.getByRole('button', { name: 'Completed pass — hold to undo' });
-    if (!(await btn.count()) || (await btn.isDisabled())) return;
+    if (!(await btn.count()) || !(await ravensHold())) return;
     for (let i = 0; i < n; i++) {
       await btn.click();
       await sleep(60);
@@ -399,18 +435,13 @@ async function main() {
   await pullBtn.click();
   await sleep(2500);
   await passes(6);
-  await turnBtn.click();
-  await sleep(300);
-  const chips = modal.locator('button').filter({ hasText: /^#\d/ });
-  if (await chips.count()) await chips.first().click();
-  await modal.getByRole('button', { name: 'Save', exact: true }).click();
+  await turnover();
   // The figure has to catch the Pass badge mid-possession — a coloured count is
   // what its caption is about, and the turnover above has just emptied whichever
-  // possession was being built. That needs the *followed* team holding the disc,
-  // and which side received this point depends on who scored the last one, so hand
-  // it over until the button comes alive rather than assuming a direction.
-  const passBtn = page.getByRole('button', { name: 'Completed pass — hold to undo' });
-  for (let i = 0; i < 2 && (await passBtn.isDisabled()); i++) {
+  // possession was being built. That needs the followed team holding the disc, and
+  // which side received this point depends on who scored the last one, so hand it
+  // over until they have it rather than assuming a direction.
+  for (let i = 0; i < 2 && !(await ravensHold()); i++) {
     await sleep(1000);
     await turnover();
   }
@@ -432,23 +463,23 @@ async function main() {
     // fill stops, which is the one part of the strip worth seeing.
     await marker(page, page.locator('[data-possession]'), dash, 0.25, -3),
     await marker(page, page.getByRole('button', { name: 'Next statistic' }), dash, 0.5, 0.5),
-    // The roster and the line dialog live behind the header menu now — the action
-    // row is capped at five buttons and Pass took the slot Roster used to hold.
-    await marker(page, page.getByRole('button', { name: 'Menu' }), dash, 1.2, 0.5),
+    // The roster and the line dialog live behind the header menu — the action row is
+    // capped at five buttons and Pass took the slot Roster used to hold.
+    await marker(page, page.getByRole('button', { name: 'Menu' }), dash, -0.4, 0.5),
     // With five buttons the row is two columns of ~170px ones, whose glyph and
     // label sit centred — so these go *inside* each button, at the empty left end.
     // The walkthrough's own dashboard figure still uses the gutters between
     // buttons, because a three-across row is 60px wide per button and has no
     // empty end to put a badge in; at this width the gutter offsets it uses would
     // land a marker off the side of the screen entirely.
-    await marker(page, page.getByRole('button', { name: 'What was called?' }), dash, 0.08, 0.5),
-    await marker(page, turnBtn, dash, 0.08, 0.5),
+    await marker(page, page.getByRole('button', { name: 'What was called?' }), dash, 0.88, 0.5),
+    await marker(page, turnBtn, dash, 0.86, 0.62),
     await marker(
       page,
       page.getByRole('button', { name: 'Completed pass — hold to undo' }),
       dash,
-      0.08,
-      0.5,
+      0.86,
+      0.62,
     ),
   ];
 
@@ -474,12 +505,12 @@ async function main() {
   await sleep(400);
 
   // --- The report ---------------------------------------------------------
-  // Sections, in order: the score, the team figures, the player table, point by point.
-  const reportSections = page.locator('section');
-  const scoreBox = reportSections.nth(0);
-  const teamTable = reportSections.nth(1);
-  const players = reportSections.nth(2);
-  const points = reportSections.nth(3);
+  // The sticky Share bar would otherwise cover the bottom of every capture.
+  await page.addStyleTag({ content: '[data-report-actions] { display: none !important; }' });
+  const scoreBox = page.locator('section').first();
+  const teamTable = section('Teams');
+  const players = section('Player stats');
+  const points = section('Point by point');
 
   await page.evaluate(() => window.scrollTo(0, 0));
   await sleep(200);
@@ -489,6 +520,9 @@ async function main() {
   // Point by point, cropped to its first few points with the messiest one opened —
   // three turns, so its strip is the longest and its timeline has the most to say.
   await points.locator('[data-point-row="4"] > button').click();
+  // Back to the top before every full-page capture: the sticky page header is
+  // painted wherever the window is scrolled to, and clicking scrolled it.
+  await page.evaluate(() => window.scrollTo(0, 0));
   await sleep(300);
   await shot('stats-report-points.png', {
     fullPage: true,
@@ -497,7 +531,8 @@ async function main() {
 
   // Playing is the view the whole line-tracking half of this guide is about, and
   // the one a reader will not have seen anywhere else.
-  await players.getByRole('button', { name: 'Playing' }).click();
+  await players.getByRole('radio', { name: 'Playing' }).click();
+  await page.evaluate(() => window.scrollTo(0, 0));
   await sleep(300);
   await shot('stats-report-players.png', { fullPage: true, clip: await around(page, players, 4) });
 

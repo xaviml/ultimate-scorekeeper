@@ -3,7 +3,8 @@ import { useT } from '../i18n/useT';
 import { teamNameCase } from '../state/teamName';
 import type { SavedTeam } from '../state/types';
 import { ConfirmDeleteTeamDialog } from './ConfirmDeleteTeamDialog';
-import { inputClass } from './ui';
+import { CrossIcon } from './icons';
+import { inputClass, teamOutline } from './ui';
 
 const normalize = (name: string) => name.trim().toLowerCase();
 
@@ -18,6 +19,7 @@ export function TeamNameCombobox({
   onDeleteTeam,
   addedAsNew = false,
   maxLength,
+  inputClassName = inputClass,
 }: {
   label: string;
   value: string;
@@ -35,6 +37,8 @@ export function TeamNameCombobox({
    */
   addedAsNew?: boolean;
   maxLength?: number;
+  /** The box's look; the setup screen's Teams card sets the name larger. */
+  inputClassName?: string;
 }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
@@ -71,7 +75,7 @@ export function TeamNameCombobox({
       <div className="relative" ref={containerRef}>
         <input
           aria-label={label}
-          className={`${inputClass} uppercase ${value ? 'pr-9' : ''}`}
+          className={`${inputClassName} uppercase ${value ? 'pr-9' : ''}`}
           value={shown}
           maxLength={maxLength}
           autoCapitalize="characters"
@@ -87,17 +91,17 @@ export function TeamNameCombobox({
           <button
             type="button"
             aria-label={t('clearTeamNameAria', { name: label })}
-            className="absolute right-2 top-1/2 -translate-y-1/2 px-1 py-1 text-chalk/60 hover:text-chalk"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-chalk/50 hover:text-chalk"
             onClick={() => {
               onChangeText('');
               setOpen(true);
             }}
           >
-            ✕
+            <CrossIcon size="w-4 h-4" />
           </button>
         )}
         {showPanel && (
-          <div className="absolute z-10 mt-1 w-full rounded-lg bg-panel border border-line max-h-56 overflow-y-auto">
+          <div className="absolute z-10 mt-1 w-full rounded-md bg-panel border border-line shadow-lg max-h-56 overflow-y-auto">
             {matches.map((team) => (
               <div key={team.name} className="flex items-center hover:bg-pitch">
                 <button
@@ -110,7 +114,7 @@ export function TeamNameCombobox({
                 >
                   <span
                     className="inline-block w-3 h-3 rounded-full shrink-0"
-                    style={{ backgroundColor: team.color }}
+                    style={{ backgroundColor: team.color, ...teamOutline(team.color) }}
                   />
                   <span className="truncate">{team.name}</span>
                 </button>
@@ -118,13 +122,13 @@ export function TeamNameCombobox({
                   <button
                     type="button"
                     aria-label={t('deleteTeamAria', { name: team.name })}
-                    className="px-3 py-2 text-chalk/60 shrink-0"
+                    className="px-3 py-2 text-chalk/50 shrink-0"
                     onClick={(e) => {
                       e.stopPropagation();
                       setPendingDelete(team);
                     }}
                   >
-                    ✕
+                    <CrossIcon size="w-4 h-4" />
                   </button>
                 )}
               </div>
@@ -132,7 +136,7 @@ export function TeamNameCombobox({
             {showAddAsNew && (
               <button
                 type="button"
-                className="w-full px-3 py-2 text-left text-sm text-signal hover:bg-pitch"
+                className="w-full px-3 py-2 text-left text-sm text-accent hover:bg-pitch"
                 onClick={() => {
                   onAddAsNewTeam(value.trim());
                   setOpen(false);

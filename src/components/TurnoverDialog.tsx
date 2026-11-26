@@ -15,7 +15,7 @@ function teamLedLabel(t: TFunc, key: 'whoTurnedOver' | 'whoDefended', team: stri
   const full = t(key, { team });
   return (
     <>
-      <strong className="font-semibold text-signal">{team}</strong>
+      <strong className="font-semibold text-accent">{team}</strong>
       {full.slice(team.length)}
     </>
   );

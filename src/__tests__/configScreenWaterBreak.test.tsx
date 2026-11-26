@@ -47,7 +47,9 @@ describe('config screen water break section', () => {
     // so the field stays editable while the scores don't.
     expect(screen.getByLabelText(SCORES_LABEL)).toBeDisabled();
     expect(screen.getByLabelText(SCORES_LABEL)).toHaveValue('4, 12');
-    expect(screen.getByLabelText('Water break duration (seconds)')).toHaveValue('180');
+    expect(screen.getByLabelText('Duration', { selector: '#water-break-duration' })).toHaveValue(
+      '180',
+    );
 
     fireEvent.click(enabled);
     expect(screen.getByLabelText(SCORES_LABEL)).toBeEnabled();

@@ -85,7 +85,7 @@ export function GoalPlayersDialog({
 
       {step === 'assist' ? (
         <div className="space-y-2" data-goal-step="assist">
-          <p className="text-xs font-semibold uppercase tracking-wide text-signal">
+          <p className="text-xs font-semibold uppercase tracking-wide text-accent">
             {t('goalStepAssist')}
           </p>
           <PlayerPicker
@@ -98,7 +98,7 @@ export function GoalPlayersDialog({
             <button
               type="button"
               aria-pressed={callahan}
-              className={`${secondaryButton} ${callahan ? 'ring-2 ring-signal' : ''}`}
+              className={`${secondaryButton} ${callahan ? 'ring-2 ring-accent' : ''}`}
               onClick={() => toScorer(null, true)}
             >
               {t('callahan')}
@@ -110,19 +110,19 @@ export function GoalPlayersDialog({
         </div>
       ) : (
         <div className="space-y-2" data-goal-step="scorer">
-          <div className="flex items-center justify-between gap-2 rounded-lg bg-pitch border border-line px-3 py-2">
+          <div className="flex items-center justify-between gap-2 rounded bg-pitch border border-line px-3 py-2">
             <span className="text-sm truncate" data-goal-assist-summary>
               {assistSummary} →
             </span>
             <button
               type="button"
-              className="text-xs text-signal font-board uppercase tracking-wide shrink-0"
+              className="text-xs text-accent font-board uppercase tracking-wide shrink-0"
               onClick={() => setStep('assist')}
             >
               {t('goalChangeAssist')}
             </button>
           </div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-signal">
+          <p className="text-xs font-semibold uppercase tracking-wide text-accent">
             {t('goalStepScorer')}
           </p>
           <PlayerPicker

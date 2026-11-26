@@ -9,7 +9,7 @@ import { Modal } from './Modal';
 import { PlayerMultiPicker } from './PlayerPicker';
 import { PlayerRosterEditor } from './PlayerRosterEditor';
 import { PlayerSelectDialog } from './PlayerSelectDialog';
-import { contrastText, primaryButton, secondaryButton, teamChoiceButton } from './ui';
+import { contrastText, teamOutline, primaryButton, secondaryButton, teamChoiceButton } from './ui';
 
 /**
  * "Who got injured?" — the one place that question is asked, whether the stoppage
@@ -23,7 +23,7 @@ import { contrastText, primaryButton, secondaryButton, teamChoiceButton } from '
  * - none — no roster on either side, so the only question is which team, and
  *   picking one submits on the spot (there is nothing else to answer). "No team"
  *   is a real answer here, not a cancel.
- * - one — the usual named-player picker for the followed team, plus one checkbox
+ * - one — the usual named-player picker for the followed team, plus one switch
  *   naming the other team with no player, since that side never gets a player
  *   question.
  * - both — one picker per roster: a collision can hurt opponents at once, so
@@ -62,7 +62,7 @@ export function InjuryAttributionDialog({
   // Any number of players can be hurt in the same stoppage, from either team — e.g.
   // a collision between opponents — so this is a list, not a single pick. With one
   // roster it only ever holds that team's entries; the other side's involvement (if
-  // any) is the checkbox below instead.
+  // any) is the switch below instead.
   const [selected, setSelected] = useState<StoppagePlayer[]>(
     tracked ? (initialPlayers ?? []).filter((p) => p.team === tracked) : (initialPlayers ?? []),
   );
@@ -96,7 +96,7 @@ export function InjuryAttributionDialog({
       <Modal title={t('injuryDialogTitle')} onClose={onCancel}>
         <p className="text-xs text-chalk/50">{t('injuryDialogHint')}</p>
         <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-signal">
+          <p className="text-xs font-semibold uppercase tracking-wide text-accent">
             {state.config.teams[tracked].name}
           </p>
           <PlayerMultiPicker
@@ -117,6 +117,7 @@ export function InjuryAttributionDialog({
           )}
         </div>
         <CheckField
+          variant="switch"
           label={t('injuryOtherTeamToggle', { team: state.config.teams[other].name })}
           checked={otherTeamInjured}
           onChange={setOtherTeamInjured}
@@ -149,7 +150,7 @@ export function InjuryAttributionDialog({
         sections={rosters.map((id) => ({
           team: id,
           label: (
-            <strong className="font-semibold text-signal">{state.config.teams[id].name}</strong>
+            <strong className="font-semibold text-accent">{state.config.teams[id].name}</strong>
           ),
           multi: true as const,
           selected: selected.filter((p) => p.team === id).map((p) => p.playerId),
@@ -171,6 +172,7 @@ export function InjuryAttributionDialog({
             className={teamChoiceButton()}
             style={{
               backgroundColor: state.config.teams[id].color,
+              ...teamOutline(state.config.teams[id].color),
               color: contrastText(state.config.teams[id].color),
             }}
             onClick={() => onSubmit({ team: id })}

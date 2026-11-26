@@ -180,7 +180,7 @@ describe('report screen — point by point', () => {
   it('shows every entry in the full-log dialog, read-only', () => {
     renderReport(twoPointGame());
 
-    fireEvent.click(within(section()).getByRole('button', { name: 'Full log' }));
+    fireEvent.click(within(section()).getByRole('button', { name: 'Logs' }));
     const dialog = within(document.querySelector('.fixed') as HTMLElement);
 
     expect(dialog.getByText('Possession correction (undo) — TEAM A')).toBeInTheDocument();
@@ -198,7 +198,7 @@ describe('report screen — point by point', () => {
 
     renderReport(twoPointGame());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Copy to clipboard' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
     await screen.findByText('Copied!');
     const report = writeText.mock.calls[0][0] as string;
     expect(report).toContain('Point by point');
@@ -212,14 +212,81 @@ describe('report screen — point by point', () => {
     expect(report).toMatch(/\] Game start\n\n {2}0-1 · Break/);
     expect(report).toMatch(/\n\n {2}\[01:11\] Half-time\n\n {2}0-2 · Hold/);
 
-    fireEvent.click(within(section()).getByRole('button', { name: 'Full log' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Copy log' }));
+    fireEvent.click(within(section()).getByRole('button', { name: 'Logs' }));
+    fireEvent.click(document.querySelector('[data-copy-log]') as HTMLElement);
     await screen.findByText('Copied!');
     const log = writeText.mock.calls[1][0] as string;
-    expect(log).toContain('Full game log');
+    expect(log).toContain('\nLogs\n');
     expect(log).toContain('] Possession correction (undo) — TEAM A');
     expect(log).toContain('] Call made — TEAM B');
     // The log and nothing else — the stat tables are the report's copy button.
     expect(log).not.toContain('Holds');
+  });
+});
+
+describe('report screen — layout', () => {
+  const expanded = (n: number) =>
+    pointRow(n).querySelector('[aria-expanded]')?.getAttribute('aria-expanded');
+
+  it('opens every point at once, and folds them all back', () => {
+    renderReport(twoPointGame());
+    const toggle = () => section().querySelector('[data-points-fold]') as HTMLElement;
+    expect([expanded(1), expanded(2)]).toEqual(['false', 'false']);
+    expect(toggle()).toHaveAccessibleName('Open all points');
+
+    fireEvent.click(toggle());
+    expect([expanded(1), expanded(2)]).toEqual(['true', 'true']);
+    expect(toggle()).toHaveAccessibleName('Fold all points');
+
+    fireEvent.click(toggle());
+    expect([expanded(1), expanded(2)]).toEqual(['false', 'false']);
+  });
+
+  it('counts a point opened by hand towards "all open"', () => {
+    renderReport(twoPointGame());
+    fireEvent.click(pointRow(1).querySelector('[aria-expanded]') as HTMLElement);
+    fireEvent.click(pointRow(2).querySelector('[aria-expanded]') as HTMLElement);
+    expect(section().querySelector('[data-points-fold]')).toHaveAccessibleName('Fold all points');
+  });
+
+  it('says where, when and how long above the score', () => {
+    const state = twoPointGame();
+    state.log[0].atMs = Date.UTC(2026, 10, 26, 10, 0);
+    state.log[state.log.length - 1].atMs = Date.UTC(2026, 10, 26, 10, 42);
+    renderReport(state);
+    const meta = document.querySelector('[data-report-meta]') as HTMLElement;
+    expect(meta.textContent).toMatch(/^Field \d+ · .+ · 42 min$/);
+  });
+
+  it('marks the winner of a finished game, and nobody in a game still open', () => {
+    const results = () =>
+      [...document.querySelectorAll('[data-result]')].map((el) => el.getAttribute('data-result'));
+    const { unmount } = renderReport(twoPointGame());
+    // Team A lost 0-2 and sits on the left.
+    expect(results()).toEqual(['loss', 'win']);
+    unmount();
+
+    renderReport({ ...twoPointGame(), status: 'paused' });
+    expect(results()).toEqual([]);
+  });
+
+  it('keeps Share and Copy in the sticky bar at the foot of the screen', () => {
+    renderReport(twoPointGame());
+    const bar = document.querySelector('[data-report-actions]') as HTMLElement;
+    expect(bar.className).toContain('sticky');
+    expect(within(bar).getByRole('button', { name: 'Share' })).toBeInTheDocument();
+    expect(within(bar).getByRole('button', { name: 'Copy' })).toBeInTheDocument();
+    // New game discards the game, so it stays in the page rather than in the bar.
+    expect(within(bar).queryByRole('button', { name: 'New game' })).toBeNull();
+  });
+
+  it('names each team stats column after its team', () => {
+    const state = twoPointGame();
+    renderReport(state);
+    for (const id of ['A', 'B'] as const) {
+      expect(document.querySelector(`[data-team-column="${id}"]`)).toHaveTextContent(
+        state.config.teams[id].name,
+      );
+    }
   });
 });

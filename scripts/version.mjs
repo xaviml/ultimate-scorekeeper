@@ -10,7 +10,9 @@ import { execSync } from 'node:child_process';
 
 const git = (cmd, fallback) => {
   try {
-    return execSync(cmd, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+    return execSync(cmd, { stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString()
+      .trim();
   } catch {
     return fallback;
   }

@@ -5,6 +5,7 @@ import { copyText } from '../state/clipboard';
 import { logTextLines } from '../state/stats';
 import { GameLogTable } from './GameLogTable';
 import { Modal } from './Modal';
+import { CopyIcon } from './icons';
 
 /**
  * Everything the game recorded, opened from the report's "Point by point" — which
@@ -48,15 +49,19 @@ export function FullLogDialog({ onClose }: { onClose: () => void }) {
       onClose={onClose}
       showClose
       headerAction={
+        // "Copy" with its glyph, the report's own button in small: one word for one
+        // action wherever it appears.
         <button
-          className="rounded-lg bg-pitch border border-line px-2 py-1.5 text-[11px] font-board uppercase tracking-wide text-chalk active:scale-95"
+          data-copy-log
+          className="inline-flex items-center gap-1.5 rounded bg-pitch border border-line px-2 py-1.5 text-[11px] font-board uppercase tracking-wide text-chalk active:scale-95"
           onClick={copy}
         >
+          <CopyIcon size="w-4 h-4" />
           {copyState === 'copied'
             ? t('copied')
             : copyState === 'failed'
               ? t('copyFailed')
-              : t('copyLog')}
+              : t('copyReport')}
         </button>
       }
     >

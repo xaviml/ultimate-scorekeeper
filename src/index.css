@@ -2,11 +2,123 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Navy & gold, light. Keep reportCardImage.ts's canvas copy in step — the shared
+     image is always drawn light, whatever theme the phone is in. */
+  --c-ground: 236 239 244; /* #ECEFF4 cool grey */
+  --c-surface: 255 255 255; /* #FFFFFF */
+  --c-hairline: 211 217 227; /* #D3D9E3 */
+  --c-ink: 16 28 48; /* #101C30 navy ink */
+  --c-accent: 31 58 107; /* #1F3A6B navy */
+  --c-signal: 161 92 7; /* #A15C07 gold */
+  --c-call: 21 128 61; /* #15803D green */
+  --c-danger: 180 35 24; /* #B42318 red: discards something for good */
+  --c-scrim: 16 28 48; /* behind a dialog */
+  /* The soft edge round a team colour that would melt into the ground (teamEdge in
+     ui.ts). Only one of the two is defined per theme; the other stays unset, so
+     var() falls back to the team colour itself and the edge disappears. */
+  --edge-pale: rgb(var(--c-accent) / 0.55);
+  --edge-dark: initial;
+  /* The dropdown arrow, drawn in the accent (see `select` below). */
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231F3A6B' stroke-width='1.75' stroke-linecap='square' stroke-linejoin='miter'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  color-scheme: light;
+}
+
+/* Navy & gold, dark: the same navy deepened into the ground, gold and green lifted
+   so they keep their contrast on it. The accent turns to a pale steel blue — it is
+   both a text colour on the surface and a fill under surface-coloured text, so it
+   has to sit at the light end. Written twice: once for "follow the system" (no
+   data-theme, or anything but light), once for an explicit choice. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --c-ground: 10 16 28; /* #0A101C */
+    --c-surface: 20 29 46; /* #141D2E */
+    --c-hairline: 43 55 79; /* #2B374F */
+    --c-ink: 228 233 242; /* #E4E9F2 */
+    --c-accent: 143 172 224; /* #8FACE0 */
+    --c-signal: 230 168 64; /* #E6A840 */
+    --c-call: 74 196 120; /* #4AC478 */
+    --c-danger: 240 113 103; /* #F07167 */
+    --c-scrim: 0 0 0;
+    --edge-pale: initial;
+    --edge-dark: rgb(var(--c-ink) / 0.45);
+    --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238FACE0' stroke-width='1.75' stroke-linecap='square' stroke-linejoin='miter'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --c-ground: 10 16 28;
+  --c-surface: 20 29 46;
+  --c-hairline: 43 55 79;
+  --c-ink: 228 233 242;
+  --c-accent: 143 172 224;
+  --c-signal: 230 168 64;
+  --c-call: 74 196 120;
+  --c-danger: 240 113 103;
+  --c-scrim: 0 0 0;
+  --edge-pale: initial;
+  --edge-dark: rgb(var(--c-ink) / 0.45);
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238FACE0' stroke-width='1.75' stroke-linecap='square' stroke-linejoin='miter'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  color-scheme: dark;
+}
+
 html,
 body {
-  @apply bg-pitch;
+  @apply bg-pitch text-chalk font-sans;
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Dropdowns: the browser's own arrow (a different glyph, weight and inset on every
+   platform) is replaced by the icon set's square-capped chevron. Only the closed
+   box is ours — the list that opens is the phone's native picker, which is the
+   right thing on a phone and follows `color-scheme` into the dark theme by itself.
+   Unlayered and qualified by element so its right padding beats the `px-*`
+   utilities on each select, leaving room for the arrow. */
+select:not([multiple]) {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: var(--chevron);
+  background-repeat: no-repeat;
+  background-position: right 0.625rem center;
+  background-size: 1rem 1rem;
+  padding-right: 2.25rem;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+select:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* The game screen's score panels. A size container, so the hand-signal card can
+   work out how much room the numbers leave under them, and the one place the
+   digit size is written — the panel draws the number with it and the card
+   subtracts it. */
+.score-board {
+  container-type: size;
+  --score-digit: clamp(7.5rem, 36vw, 16.5rem);
+}
+
+@layer components {
+  /* The pictogram on the hand-signal card, sized to fit the band under the
+     numbers: half of what the chip stack (--chip-room, which the panels pad their
+     top by), the name and the number leave of the board's height,
+     plus the blank strip inside the digit's own line box under the glyph
+     (~15% of the font size), less the card's padding and inset. Never larger than
+     5rem, and never under 2.5rem — on the very shortest boards it still overlaps
+     the foot of the number a little rather than become unreadable. Landscape sets
+     its own size with utilities, which win over this layer. */
+  .signal-art {
+    --signal-room: calc(
+      (100cqh - var(--chip-room, 0px) - 1.25rem - var(--score-digit)) / 2 + var(--score-digit) *
+        0.15 - 1.75rem
+    );
+    width: clamp(2.5rem, var(--signal-room), 5rem);
+    height: clamp(2.5rem, var(--signal-room), 5rem);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -29,3 +29,11 @@ HTMLCanvasElement.prototype.getContext = () => null;
 HTMLCanvasElement.prototype.toBlob = function toBlob(callback: BlobCallback) {
   callback(null);
 };
+
+// Every page is an address now (hooks/useRoute), and jsdom keeps one window — and so
+// one URL and history — for a whole test file. Each test starts on a fresh entry with
+// no address, the way a new tab opens the app.
+import { beforeEach } from 'vitest';
+beforeEach(() => {
+  history.replaceState(null, '', '/');
+});

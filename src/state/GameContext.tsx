@@ -1,6 +1,6 @@
-import { useEffect, useReducer, useRef, type ReactNode } from 'react';
+import { useEffect, useMemo, useReducer, useRef, type ReactNode } from 'react';
 import { createInitialState, gameReducer } from './gameReducer';
-import { AssistCtx, DispatchCtx, StateCtx } from './gameHooks';
+import { AssistCtx, CurrentGameCtx, DispatchCtx, StateCtx } from './gameHooks';
 import { useAssistQueue } from '../hooks/useAssistQueue';
 import { whistle } from '../audio/whistle';
 import { loadSoundEnabled } from './uiPreferences';
@@ -174,11 +174,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // turn rather than overwriting each other. See useAssistQueue.
   const assist = useAssistQueue(state);
 
+  const current = useMemo(() => ({ state, dispatch }), [state]);
+
   return (
-    <StateCtx.Provider value={state}>
-      <DispatchCtx.Provider value={dispatch}>
-        <AssistCtx.Provider value={assist}>{children}</AssistCtx.Provider>
-      </DispatchCtx.Provider>
-    </StateCtx.Provider>
+    <CurrentGameCtx.Provider value={current}>
+      <StateCtx.Provider value={state}>
+        <DispatchCtx.Provider value={dispatch}>
+          <AssistCtx.Provider value={assist}>{children}</AssistCtx.Provider>
+        </DispatchCtx.Provider>
+      </StateCtx.Provider>
+    </CurrentGameCtx.Provider>
   );
 }

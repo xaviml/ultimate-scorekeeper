@@ -301,7 +301,7 @@ export function LineDialog({ team, onClose }: { team: TeamId; onClose: () => voi
           {t('btnCancel')}
         </button>
         <button
-          className={armed ? `${primaryButton} animate-pulse` : primaryButton}
+          className={armed ? `${primaryButton} motion-safe:animate-glow` : primaryButton}
           // The commit button's state, exposed the way the possession rule exposes
           // data-possession: its label is one of three strings, and "Save this line"
           // above starts with the same word as one of them.
@@ -369,7 +369,7 @@ function LineSortToggle() {
   return (
     <button
       type="button"
-      className="rounded-md border border-line px-2 py-1 text-[11px] font-board text-chalk/70"
+      className="rounded border border-line px-2 py-1 text-[11px] font-board text-chalk/70"
       data-line-order={order}
       aria-label={t('playerSortAria', {
         order: t(

@@ -13,7 +13,7 @@ import { InjuryAttributionDialog } from './InjuryAttributionDialog';
 import { Modal } from './Modal';
 import { NoteDialog } from './NoteDialog';
 import { PlayerSelectDialog, type PlayerSelectSection } from './PlayerSelectDialog';
-import { contrastText, primaryButton, secondaryButton, teamChoiceButton } from './ui';
+import { contrastText, teamOutline, primaryButton, secondaryButton, teamChoiceButton } from './ui';
 
 const RESOLUTIONS: CallResolution[] = ['accepted', 'contested', 'retracted'];
 
@@ -186,6 +186,7 @@ function TeamButtons({ selected, onPick }: { selected?: TeamId; onPick: (team: T
           className={teamChoiceButton(selected === id)}
           style={{
             backgroundColor: state.config.teams[id].color,
+            ...teamOutline(state.config.teams[id].color),
             color: contrastText(state.config.teams[id].color),
           }}
           onClick={() => onPick(id)}
@@ -281,7 +282,7 @@ function CallResolutionEdit({
             <button
               key={option}
               className={`${secondaryButton} text-xs ${
-                resolution === option ? 'ring-2 ring-signal text-signal' : ''
+                resolution === option ? 'ring-2 ring-accent text-accent' : ''
               }`}
               onClick={() => setResolution(option)}
             >

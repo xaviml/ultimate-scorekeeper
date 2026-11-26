@@ -3,11 +3,16 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { I18nProvider } from '../i18n';
 import { GameProvider } from '../state/GameContext';
 import ConfigScreen from '../components/ConfigScreen';
-
-/** The Roster section, scoped so a team name doesn't collide with the same text in the combobox above it. */
-function rosterSection(): HTMLElement {
-  return screen.getByText('Roster').closest('section') as HTMLElement;
-}
+import {
+  choices,
+  choose,
+  chosen,
+  openRoster,
+  rosterSheet,
+  statsSwitch,
+  track,
+  tracked,
+} from './configFields';
 
 function renderConfigScreen() {
   return render(
@@ -19,81 +24,104 @@ function renderConfigScreen() {
   );
 }
 
-/** Labels sit above their input as plain sibling text, not an associated <label for>. */
-function fieldSelect(labelText: string): HTMLSelectElement {
-  const label = screen.getByText(labelText);
-  return label.parentElement!.querySelector('select') as HTMLSelectElement;
-}
-
 beforeEach(() => {
   sessionStorage.clear();
   localStorage.clear();
 });
 
 describe('config screen statistics section', () => {
-  it('defaults to Score only, with no scope picker and no Roster section', () => {
+  it('starts with the Statistics switch off — the score-only game — and nothing to pick', () => {
     renderConfigScreen();
 
-    expect(fieldSelect('Track').value).toBe('none');
+    expect(statsSwitch().checked).toBe(false);
+    expect(tracked()).toBe('none');
+    expect(screen.queryByText('Track')).toBeNull();
     expect(screen.queryByText('Players of')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Expand Roster' })).toBeNull();
+  });
+
+  it('offers only Team and Player once switched on, starting at Team', () => {
+    renderConfigScreen();
+    fireEvent.click(statsSwitch());
+
+    expect(choices('Track')).toEqual(['teams', 'players']);
+    expect(tracked()).toBe('teams');
+  });
+
+  it('comes back on at the detail picked last', () => {
+    renderConfigScreen();
+    track('players');
+    fireEvent.click(statsSwitch());
+    expect(tracked()).toBe('none');
+
+    fireEvent.click(statsSwitch());
+    expect(tracked()).toBe('players');
   });
 
   // The detail axis answers "who gets named", and only naming players needs a scope.
-  it('offers three levels, and only player detail shows the scope picker', () => {
+  it('shows the scope picker at player detail only', () => {
     renderConfigScreen();
-    const select = fieldSelect('Track');
 
-    fireEvent.change(select, { target: { value: 'teams' } });
+    track('teams');
     expect(screen.queryByText('Players of')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Expand Roster' })).toBeNull();
 
-    fireEvent.change(select, { target: { value: 'players' } });
+    track('players');
     expect(screen.getByText('Players of')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Expand Roster' })).toBeInTheDocument();
   });
 
   // Both teams is the wider landing place, and is what `trackedTeam: null` carries
   // at player detail.
   it('starts at both teams and narrows to either one', () => {
     renderConfigScreen();
-    fireEvent.change(fieldSelect('Track'), { target: { value: 'players' } });
+    track('players');
 
-    expect(fieldSelect('Players of').value).toBe('both');
+    expect(chosen('Players of')).toBe('both');
 
-    fireEvent.change(fieldSelect('Players of'), { target: { value: 'B' } });
-    expect(fieldSelect('Players of').value).toBe('B');
+    choose('Players of', 'B');
+    expect(chosen('Players of')).toBe('B');
   });
 
-  it('lists both rosters for both teams, and only the followed one when narrowed', () => {
+  // Both rosters are always editable from the Teams card; the sheet only says when
+  // this game will not ask about the players in it.
+  it("says when a roster is one this game won't ask about", () => {
     renderConfigScreen();
     fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'FOXES' } });
     fireEvent.change(screen.getByLabelText('Team 2'), { target: { value: 'WOLVES' } });
-    fireEvent.change(fieldSelect('Track'), { target: { value: 'players' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Expand Roster' }));
+    const unused = () => within(rosterSheet()).queryByText(/won't ask about these players/);
 
-    expect(within(rosterSection()).getByText('FOXES')).toBeInTheDocument();
-    expect(within(rosterSection()).getByText('WOLVES')).toBeInTheDocument();
+    openRoster('A');
+    expect(unused()).not.toBeNull();
 
-    fireEvent.change(fieldSelect('Players of'), { target: { value: 'A' } });
-    expect(within(rosterSection()).getByText('FOXES')).toBeInTheDocument();
-    expect(within(rosterSection()).queryByText('WOLVES')).toBeNull();
+    track('players');
+    expect(unused()).toBeNull();
 
-    fireEvent.change(fieldSelect('Players of'), { target: { value: 'B' } });
-    expect(within(rosterSection()).queryByText('FOXES')).toBeNull();
-    expect(within(rosterSection()).getByText('WOLVES')).toBeInTheDocument();
+    choose('Players of', 'B');
+    expect(unused()).not.toBeNull();
+  });
+
+  it('suggests filling in a followed roster while it is empty', () => {
+    renderConfigScreen();
+    fireEvent.change(screen.getByLabelText('Team 1'), { target: { value: 'FOXES' } });
+    track('players');
+    choose('Players of', 'A');
+    expect(screen.getByText(/Recommended: add FOXES's roster/)).toBeInTheDocument();
+
+    openRoster('A');
+    fireEvent.change(within(rosterSheet()).getByPlaceholderText('Name'), {
+      target: { value: 'Ana' },
+    });
+    fireEvent.click(within(rosterSheet()).getByRole('button', { name: 'Add' }));
+    expect(screen.queryByText(/Recommended: add FOXES's roster/)).toBeNull();
   });
 
   // The Turn button is opt-in: the tournament scorekeeper tracking goals and assists
   // has no use for the most frequent button on the action row.
   it('offers turnovers wherever anything is tracked, off by default', () => {
     renderConfigScreen();
-    const select = fieldSelect('Track');
     const turnovers = () => screen.queryByLabelText('Turnovers');
 
     expect(turnovers()).toBeNull();
 
-    fireEvent.change(select, { target: { value: 'teams' } });
+    track('teams');
     expect(turnovers()).not.toBeChecked();
 
     fireEvent.click(turnovers()!);
@@ -101,7 +129,7 @@ describe('config screen statistics section', () => {
 
     // The flag survives a change of detail — it is visible on the same screen, so
     // rewriting it underneath the user would be the surprising behaviour.
-    fireEvent.change(select, { target: { value: 'players' } });
+    track('players');
     expect(turnovers()).toBeChecked();
   });
 
@@ -109,14 +137,13 @@ describe('config screen statistics section', () => {
   // without a roster there is nobody to name.
   it('asks who turned it over only with turnovers on and a roster to ask against', () => {
     renderConfigScreen();
-    const select = fieldSelect('Track');
     const askWho = () => screen.queryByLabelText('Ask who turned it over');
 
-    fireEvent.change(select, { target: { value: 'teams' } });
+    track('teams');
     fireEvent.click(screen.getByLabelText('Turnovers'));
     expect(askWho()).toBeNull();
 
-    fireEvent.change(select, { target: { value: 'players' } });
+    track('players');
     expect(askWho()).not.toBeChecked();
 
     fireEvent.click(askWho()!);
@@ -133,10 +160,9 @@ describe('config screen statistics section', () => {
   // button. So it needs no roster and appears from team detail up.
   it('offers passes under turnovers, with no roster needed, off by default', () => {
     renderConfigScreen();
-    const select = fieldSelect('Track');
     const passes = () => screen.queryByLabelText('Passes');
 
-    fireEvent.change(select, { target: { value: 'teams' } });
+    track('teams');
     expect(passes()).toBeNull(); // turnovers still off
 
     fireEvent.click(screen.getByLabelText('Turnovers'));
@@ -153,15 +179,14 @@ describe('config screen statistics section', () => {
   // The reason to have typed a roster, so it is on wherever there is one.
   it('asks who scored wherever there is a roster, on by default', () => {
     renderConfigScreen();
-    const select = fieldSelect('Track');
     const askScorer = () => screen.queryByLabelText('Ask who scored');
 
     expect(askScorer()).toBeNull();
 
-    fireEvent.change(select, { target: { value: 'teams' } });
+    track('teams');
     expect(askScorer()).toBeNull();
 
-    fireEvent.change(select, { target: { value: 'players' } });
+    track('players');
     expect(askScorer()).toBeChecked();
 
     fireEvent.click(askScorer()!);
@@ -170,14 +195,14 @@ describe('config screen statistics section', () => {
 
   it('picking a template never touches the stats settings', () => {
     renderConfigScreen();
-    fireEvent.change(fieldSelect('Track'), { target: { value: 'players' } });
-    fireEvent.change(fieldSelect('Players of'), { target: { value: 'B' } });
+    track('players');
+    choose('Players of', 'B');
     fireEvent.click(screen.getByLabelText('Turnovers'));
 
-    fireEvent.change(screen.getByLabelText('Template'), { target: { value: 'predefined:beach' } });
+    choose('Template', 'predefined:beach');
 
-    expect(fieldSelect('Track').value).toBe('players');
-    expect(fieldSelect('Players of').value).toBe('B');
+    expect(tracked()).toBe('players');
+    expect(chosen('Players of')).toBe('B');
     expect(screen.getByLabelText('Turnovers')).toBeChecked();
   });
 });
