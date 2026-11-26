@@ -6,10 +6,12 @@ import { InstallBanner } from './components/InstallBanner';
 import PastGamesScreen from './components/PastGamesScreen';
 import ReportScreen from './components/ReportScreen';
 import StatsGuideScreen from './components/StatsGuideScreen';
+import TeamsScreen from './components/TeamsScreen';
 import { back, home, navigate, seedHistory, undoBack, useRoute } from './hooks/useRoute';
 import { usePreservedScroll } from './hooks/usePreservedScroll';
 import { useGame, useGameDispatch } from './state/gameHooks';
 import { parseRoute, phaseRoute, type Route } from './state/route';
+import { requestTeamsLeave, teamsDraftDirty } from './state/teamsDraft';
 import type { GameState } from './state/types';
 
 /** Whether play has begun — leaving before that loses nothing, so it needs no asking. */
@@ -43,7 +45,7 @@ function startRoute(route: Route, phase: GameState['phase']): Route {
  *   can close its menu or ask whether to leave (`backRequest`).
  *
  * The setup form and the game stay mounted, hidden, under the pages opened over them
- * (history and the guides over setup; the guide and the report so far over the
+ * (history, the teams and the guides over setup; the guide and the report so far over the
  * game), so a half-filled form or an open game survives the round trip untouched.
  */
 export default function App() {
@@ -86,6 +88,19 @@ export default function App() {
     const prev = prevRoute.current;
     prevRoute.current = route.name;
     const { phase } = stateRef.current;
+    // Backing out of the Teams page with unsaved work is the other back that asks:
+    // the entry is put back and the page, mounting again over it, asks whether to
+    // discard. Pages pushed over it (a guide from its menu) are not leaving it — the
+    // draft waits for the way back (see state/teamsDraft.ts).
+    if (
+      prev === 'teams' &&
+      (route.name === 'setup' || route.name === 'report') &&
+      teamsDraftDirty()
+    ) {
+      requestTeamsLeave();
+      undoBack();
+      return;
+    }
     if (route.name === 'game') {
       if (phase === 'report') dispatch({ type: 'BACK_TO_GAME' });
       else if (phase === 'config') navigate({ name: 'setup' }, { replace: true });
@@ -116,6 +131,8 @@ export default function App() {
       case 'history':
       case 'historyGame':
         return <PastGamesScreen openId={route.name === 'historyGame' ? route.id : null} />;
+      case 'teams':
+        return <TeamsScreen onBack={() => back(phaseRoute(phase))} />;
       case 'guide':
         return <GuideScreen onBack={() => back(phaseRoute(phase))} />;
       case 'statsGuide':

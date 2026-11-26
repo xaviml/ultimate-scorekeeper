@@ -1053,6 +1053,21 @@ export const es: typeof en = {
   statsGuideStep2LinesBody:
     'Da nombre a las líneas que juega este equipo — O1, D1, Zona — y estarán a un toque durante el partido, y aquí de nuevo la próxima vez. Una línea predefinida es un grupo, no un siete, así que no se comprueba contra nada: diez jugadores es una respuesta perfectamente válida. La comprobación es cosa de la línea que de verdad salta al campo.',
 
+  statsGuideTeamsTitle: 'Equipos en este teléfono',
+  statsGuideTeamsBody:
+    'Todos los equipos guardados en este teléfono, con su roster y sus líneas predefinidas, están en la página Equipos del menú. Abre un equipo para cambiar su nombre, color, roster o líneas, o pasa la página a YAML para ver todos los equipos como texto. No se guarda nada hasta que tocas Guardar, y al guardar todos los equipos del teléfono se sustituyen por lo que muestra la página.',
+  statsGuideTeamsRequired: 'Nombre y color',
+  statsGuideTeamsRequiredBody:
+    'Cada equipo es su nombre seguido de dos puntos. Lo único que necesita es color, entre comillas.',
+  statsGuideTeamsPlayers: 'Jugadores',
+  statsGuideTeamsPlayersBody:
+    'Opcional. Uno por línea empezando por "- ", primero el número, luego el nombre y MMP o FMP si lo sabes. En YAML # empieza un comentario, así que escribe "- 12 Marc", no "- #12 Marc".',
+  statsGuideTeamsLines: 'Líneas',
+  statsGuideTeamsLinesBody:
+    'Opcional. Un nombre, dos puntos y los jugadores entre corchetes. Basta con el número o el nombre solo cuando únicamente un jugador lo tiene.',
+  statsGuideTeamsShare: 'Compartir',
+  statsGuideTeamsShareBody:
+    'Copia el YAML y envíalo a los demás anotadores. En su teléfono: Equipos, YAML, Vaciar, pegar, Guardar. Si algo no se puede leer, la página dice en qué línea y no cambia nada hasta corregirlo.',
   statsGuideStep3Title: 'Registrar con el disco en juego',
   statsGuideStep3Body:
     'Lo que activaste decide qué hay en esta pantalla. Nada de esto toca el marcador, el reloj ni el objetivo: escribe en el registro y, desde ahí, en el informe.',
@@ -1238,4 +1253,60 @@ export const es: typeof en = {
   guideFigRulesAlt:
     'Las secciones de condiciones de victoria, half y tiempos muertos de la pantalla de configuración',
   guideFigReportAlt: 'La pantalla del informe final',
+  teamsTitle: 'Equipos',
+  teamsViewLabel: 'Vista',
+  teamsViewVisual: 'Visual',
+  teamsViewYaml: 'YAML',
+  teamsSavedTitle: 'Equipos guardados',
+  teamsNewTeam: 'Nuevo equipo',
+  teamsAddTeam: 'Añadir equipo',
+  teamsEmpty:
+    'Aún no hay equipos guardados. Añade uno aquí o empieza un partido: los dos equipos se guardan al empezar.',
+  teamsPlayerCount: '{n} jugadores',
+  teamsPlayerCountOne: '1 jugador',
+  teamsLineCount: '{n} líneas',
+  teamsLineCountOne: '1 línea',
+  teamsNameRequired: 'Ponle nombre al equipo',
+  teamsNameTaken: 'Ya hay otro equipo con este nombre',
+  teamsRemoveTeam: 'Borrar equipo',
+  teamsRemoveHint: 'El equipo se borra de este teléfono al guardar.',
+  teamsDiscard: 'Descartar',
+  teamsSaveFailed: 'No se ha podido guardar en este teléfono. Comprueba que le queda espacio.',
+  teamsConfirmSaveTitle: '¿Guardar los equipos?',
+  teamsConfirmSave:
+    'Al guardar se borran estos equipos de este teléfono: {teams}. No se puede deshacer.',
+  teamsConfirmLeaveTitle: '¿Salir sin guardar?',
+  teamsConfirmLeave: 'Los cambios en los equipos no se han guardado.',
+  teamsYamlLabel: 'Equipos en YAML',
+  teamsYamlClear: 'Vaciar',
+  teamsYamlPlaceholder:
+    'RAVENS:\n  color: "#1f6feb"\n  players:\n    - 7 Ada FMP\n    - 12 Marc MMP',
+  teamsYamlHelp:
+    'Todos los equipos de este teléfono. Solo el nombre y color son obligatorios. Los jugadores van uno por línea, con el número primero (- 12 Marc MMP); las líneas nombran a sus jugadores igual. Cópialo para compartir los equipos, o vacíalo y pega los que te hayan enviado, y guarda.',
+  teamsYamlLoadFailed:
+    'No se ha podido cargar el editor YAML. Conéctate a internet una vez y vuelve a probar.',
+  teamsYamlFixToSwitch: 'Corrige esto, o descarta los cambios, para volver a la lista.',
+  teamsYamlLine: 'Línea {n}:',
+  teamsYamlErrSyntax: 'No se puede leer como YAML. Revisa la sangría y los dos puntos.',
+  teamsYamlErrRoot:
+    'Escribe cada equipo como su nombre seguido de dos puntos, con su color debajo.',
+  teamsYamlErrTeamName: 'Hay un equipo sin nombre.',
+  teamsYamlErrDuplicateTeam: '{team} aparece dos veces.',
+  teamsYamlErrTeamShape: '{team} necesita color, players y lines sangrados debajo.',
+  teamsYamlErrUnknownKey: '{team} tiene "{key}", que no es color, players ni lines.',
+  teamsYamlErrColorMissing: '{team} necesita un color, entre comillas: color: "#1f6feb"',
+  teamsYamlErrColor: 'El color "{value}" de {team} no es un color como "#1f6feb".',
+  teamsYamlErrPlayers:
+    'Los players de {team} deben ser una lista, uno por línea empezando por "- ".',
+  teamsYamlErrPlayer: '{team}: "{value}" no se puede leer como jugador.',
+  teamsYamlErrPlayerEmpty:
+    '{team} tiene un jugador vacío. En YAML # empieza un comentario, así que escribe el número primero: - 12 Marc',
+  teamsYamlErrDuplicatePlayer: '{team} tiene a {player} dos veces.',
+  teamsYamlErrLines: 'Las lines de {team} deben ser nombres seguidos de dos puntos.',
+  teamsYamlErrLineName: '{team} tiene una línea sin nombre.',
+  teamsYamlErrDuplicateLine: '{team} tiene dos líneas llamadas {line}.',
+  teamsYamlErrLine: 'La línea {line} de {team} debe ser una lista de jugadores: [7 Ada, 12 Marc]',
+  teamsYamlErrLinePlayer: 'La línea {line} de {team} nombra a {player}, que no está en el roster.',
+  teamsYamlErrLineAmbiguous:
+    'La línea {line} de {team} nombra a {player}, que encaja con más de un jugador. Escribe el número y el nombre.',
 };

@@ -39,6 +39,18 @@ const FIG_SETUP: readonly Marker[] = [
   [89.5, 63.5],
   [89.5, 72.3],
 ];
+/** What the Teams page's YAML looks like — the same text the page writes, so it can be copied as it is. */
+const TEAMS_YAML_EXAMPLE = `RAVENS:
+  color: "#1f6feb"
+  players:
+    - 7 Ada FMP
+    - 12 Marc MMP
+    - 23 Eli
+  lines:
+    O1: [7 Ada, 12 Marc, 23 Eli]
+FOXES:
+  color: "#e5534b"`;
+
 const FIG_ROSTER: readonly Marker[] = [
   [24.9, 65.6],
   [67.7, 25.3],
@@ -117,6 +129,19 @@ export default function StatsGuideScreen({ onBack }: { onBack: () => void }) {
           />
           <Numbered n={4} label={t('statsGuideStep2Lines')} body={t('statsGuideStep2LinesBody')} />
         </ol>
+      </Card>
+
+      <Card title={t('statsGuideTeamsTitle')}>
+        <Para k="statsGuideTeamsBody" />
+        <pre className="overflow-x-auto rounded bg-pitch border border-line px-3 py-2 font-mono text-[12px] leading-relaxed text-chalk/80">
+          {TEAMS_YAML_EXAMPLE}
+        </pre>
+        <ul className="space-y-2">
+          <Bullet label={t('statsGuideTeamsRequired')} body={t('statsGuideTeamsRequiredBody')} />
+          <Bullet label={t('statsGuideTeamsPlayers')} body={t('statsGuideTeamsPlayersBody')} />
+          <Bullet label={t('statsGuideTeamsLines')} body={t('statsGuideTeamsLinesBody')} />
+          <Bullet label={t('statsGuideTeamsShare')} body={t('statsGuideTeamsShareBody')} />
+        </ul>
       </Card>
 
       <Card step={3} title={t('statsGuideStep3Title')}>

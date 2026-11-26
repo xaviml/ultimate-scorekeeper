@@ -50,7 +50,7 @@ The rules this app's screens are built to. Read this before adding a page, a dia
   - a `case` in `App`.
 - **The browser's back button is the page's back.** Moving between pages pushes a history entry, and in-app back buttons call `back(fallback)`.
 - **Leaving the app's flow goes `home()`**, back to the bottom of the history, rather than pushing setup on top.
-- **Only ask before leaving when leaving discards work.** Today that is only a game being played.
+- **Only ask before leaving when leaving discards work.** Today that is a game being played, and unsaved changes on the Teams page.
 - **A page opened over another keeps the one underneath mounted and hidden.** That way a half-filled form, an open game and scroll positions survive the round trip (`usePreservedScroll`).
 
 ### Page anatomy

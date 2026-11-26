@@ -13,6 +13,7 @@ export type Route =
   | { name: 'report' }
   | { name: 'history' }
   | { name: 'historyGame'; id: string }
+  | { name: 'teams' }
   | { name: 'guide' }
   | { name: 'statsGuide' };
 
@@ -25,6 +26,7 @@ export function parseRoute(hash: string): Route {
     const id = decodeURIComponent(path.slice('/history/'.length));
     if (id) return { name: 'historyGame', id };
   }
+  if (path === '/teams') return { name: 'teams' };
   if (path === '/guide') return { name: 'guide' };
   if (path === '/guide/advanced') return { name: 'statsGuide' };
   return { name: 'setup' };
@@ -42,6 +44,8 @@ export function routeHash(route: Route): string {
       return '#/history';
     case 'historyGame':
       return `#/history/${encodeURIComponent(route.id)}`;
+    case 'teams':
+      return '#/teams';
     case 'guide':
       return '#/guide';
     case 'statsGuide':

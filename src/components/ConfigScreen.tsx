@@ -3,7 +3,14 @@ import { useT } from '../i18n/useT';
 import { defaultConfig, rosterTeams, statsTrackingEnabled } from '../state/gameReducer';
 import { useGame, useGameDispatch } from '../state/gameHooks';
 import { ratioGenderCheckAvailable } from '../state/lines';
-import { deleteTeam, loadSavedTeams, saveTeam, saveTeamLines } from '../state/rosterStorage';
+import {
+  deleteTeam,
+  loadSavedTeams,
+  saveTeam,
+  saveTeamLines,
+  subscribeSavedTeams,
+} from '../state/rosterStorage';
+import { syncFormTeams } from '../state/savedTeamSync';
 import {
   BEACH_TEMPLATE,
   GRASS_TEMPLATE,
@@ -244,6 +251,18 @@ export default function ConfigScreen() {
     window.scrollTo(0, 0);
   }, []);
   const [savedTeams, setSavedTeams] = useState<SavedTeam[]>(() => loadSavedTeams());
+  // The Teams page (#/teams) writes the store while this screen sits mounted under it,
+  // so the combobox's list follows every write, and a replace from that page also
+  // brings the form's own saved teams up to date (see syncFormTeams). The same sync
+  // runs once on mount, for edits made there while this screen was not mounted.
+  useEffect(() => {
+    setCfg((c) => syncFormTeams(c, loadSavedTeams()));
+    return subscribeSavedTeams((change) => {
+      const stored = loadSavedTeams();
+      setSavedTeams(stored);
+      if (change.replaced) setCfg((c) => syncFormTeams(c, stored, change.renames));
+    });
+  }, []);
   // The header menu. Match history and the guides behind it are pages of their own
   // (#/history, #/guide, #/guide/advanced) that App opens over this screen, keeping it
   // mounted underneath so everything already typed into the form is still there when

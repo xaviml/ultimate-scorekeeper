@@ -6,6 +6,7 @@ import {
   PlusIcon,
   SettingsIcon,
   SetupIcon,
+  ShirtIcon,
   StatsIcon,
 } from './icons';
 import { MENU_ICON, MenuRow } from './MenuRow';
@@ -24,6 +25,7 @@ export function ConfigMenuDialog({
   onNewGame,
   onGameSetup,
   onPastGames,
+  onTeams,
   onGuide,
   onStatsGuide,
   onSettings,
@@ -35,6 +37,8 @@ export function ConfigMenuDialog({
   /** The game in hand's setup (GameSetupDialog) — offered only over a game being played. */
   onGameSetup?: () => void;
   onPastGames?: () => void;
+  /** The teams saved on this phone (#/teams). */
+  onTeams?: () => void;
   onGuide?: () => void;
   /**
    * The statistics walkthrough. Only here and not in the game's menu: it is read
@@ -72,6 +76,13 @@ export function ConfigMenuDialog({
             icon={<HistoryIcon size={MENU_ICON} />}
             label={t('pastGamesTitle')}
             onClick={onPastGames}
+          />
+        )}
+        {onTeams && (
+          <MenuRow
+            icon={<ShirtIcon size={MENU_ICON} />}
+            label={t('teamsTitle')}
+            onClick={onTeams}
           />
         )}
         {onGuide && (

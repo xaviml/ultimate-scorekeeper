@@ -9,7 +9,8 @@ import { GameSetupDialog } from './GameSetupDialog';
 import { SettingsDialog } from './SettingsDialog';
 
 /**
- * The app's menu — start a new game, match history, both guides, settings, about —
+ * The app's menu — start a new game, match history, saved teams, both guides,
+ * settings, about —
  * as the setup screen and every page header open it. The dialogs behind it live here
  * too, so whoever shows the menu only says when it is open. The game screen has its
  * own menu (GameMenuDialog), about the game in hand, which leads with the same row.
@@ -64,6 +65,7 @@ export function AppMenu({
               : undefined
           }
           onPastGames={overGame ? undefined : () => go({ name: 'history' })}
+          onTeams={overGame ? undefined : () => go({ name: 'teams' })}
           onGuide={overGame ? undefined : () => go({ name: 'guide' })}
           onStatsGuide={overGame ? undefined : () => go({ name: 'statsGuide' })}
           onSettings={() => {

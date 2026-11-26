@@ -5,6 +5,7 @@ import { GameProvider } from './state/GameContext';
 import { I18nProvider } from './i18n';
 import './index.css';
 import { applyTheme, watchSystemTheme } from './state/uiPreferences';
+import { prefetchTeamsYaml } from './state/loadTeamsYaml';
 
 // Every page is a history entry (see hooks/useRoute), but some stay mounted, hidden,
 // under the page opened over them, so the browser's own scroll restoration would
@@ -17,6 +18,10 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 // bar colour to match and keeps it in step with the phone's own setting.
 applyTheme();
 watchSystemTheme();
+
+// The Teams page's YAML view is a chunk of its own; fetching it once the app is idle
+// is what puts it in the service worker's cache before anyone needs it offline.
+prefetchTeamsYaml();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

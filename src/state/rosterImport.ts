@@ -132,6 +132,19 @@ function parseLine(raw: string): ParsedPlayer | null {
   return null;
 }
 
+/**
+ * One player line on its own, in exactly the grammar the paste box reads — for the
+ * teams YAML, where each roster entry is one such line. Unlike `parseRoster` there is
+ * no header to skip (a player called "Name" is a player) and no dedupe: the caller
+ * decides what a repeat means.
+ */
+export function parsePlayerLine(raw: string): ParsedPlayer | null {
+  const line = raw.trim();
+  if (!line) return null;
+  const parsed = parseLine(line);
+  return parsed && (parsed.name || parsed.number) ? parsed : null;
+}
+
 function isHeaderLine(line: string): boolean {
   const fields = line
     .split(/\s+/)

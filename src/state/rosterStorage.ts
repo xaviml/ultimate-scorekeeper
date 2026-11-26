@@ -3,6 +3,41 @@ import type { SavedLine, SavedTeam } from './types';
 
 const STORAGE_KEY = 'ultimate-scorekeeper:saved-teams';
 
+/**
+ * What a write to the store tells whoever is listening. `renames` maps a team's old
+ * name (normalized) to its new one, so the setup form can follow a team renamed on
+ * the Teams page instead of keeping a name the store no longer has — which the
+ * kickoff sync would then quietly bring back.
+ */
+export interface SavedTeamsChange {
+  renames: Record<string, string>;
+  /**
+   * The whole store was replaced from the Teams page. Only then does the setup form
+   * take a saved team's colour and roster from the store: the form's own writes go
+   * through one team at a time and can leave the form ahead of the store (a colour
+   * picked on the form is only stored at kickoff), so taking the store's word on every
+   * write would undo the volunteer's own edit.
+   */
+  replaced?: boolean;
+}
+
+const listeners = new Set<(change: SavedTeamsChange) => void>();
+
+/**
+ * Every writer here notifies, so a screen holding its own copy of the store (the
+ * setup form, mounted underneath the Teams page) can catch up when another screen
+ * writes. Returns the unsubscribe.
+ */
+export function subscribeSavedTeams(listener: (change: SavedTeamsChange) => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+function write(all: SavedTeam[], change: SavedTeamsChange = { renames: {} }): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+  listeners.forEach((l) => l(change));
+}
+
 export function loadSavedTeams(): SavedTeam[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -16,7 +51,8 @@ export function loadSavedTeams(): SavedTeam[] {
   }
 }
 
-const normalize = (name: string) => name.trim().toLowerCase();
+export const normalizeTeamName = (name: string) => name.trim().toLowerCase();
+const normalize = normalizeTeamName;
 
 /**
  * Upserts by case-insensitive, trimmed name match. Players and color are
@@ -42,7 +78,7 @@ export function saveTeam(team: SavedTeam): void {
       if (entry.lines === undefined && all[idx].lines !== undefined) entry.lines = all[idx].lines;
       all[idx] = entry;
     } else all.push(entry);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+    write(all);
   } catch {
     /* storage unavailable (private mode, quota, ...) — game still works without it */
   }
@@ -57,7 +93,7 @@ export function saveTeamLines(name: string, lines: SavedLine[]): void {
     const idx = all.findIndex((t) => normalize(t.name) === normalize(trimmed));
     if (idx < 0) return;
     all[idx] = { ...all[idx], lines };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+    write(all);
   } catch {
     /* storage unavailable (private mode, quota, ...) — game still works without it */
   }
@@ -80,7 +116,7 @@ export function renameTeam(from: string, to: string): void {
     const rest = all.filter(
       (t) => normalize(t.name) !== normalize(from) && normalize(t.name) !== normalize(target),
     );
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...rest, { ...entry, name: target }]));
+    write([...rest, { ...entry, name: target }], { renames: { [normalize(from)]: target } });
   } catch {
     /* storage unavailable (private mode, quota, ...) — game still works without it */
   }
@@ -90,8 +126,29 @@ export function renameTeam(from: string, to: string): void {
 export function deleteTeam(name: string): void {
   try {
     const all = loadSavedTeams().filter((t) => normalize(t.name) !== normalize(name));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+    write(all);
   } catch {
     /* storage unavailable (private mode, quota, ...) — game still works without it */
+  }
+}
+
+/**
+ * Replaces the whole store — the Teams page's Save, from its visual list or its YAML
+ * alike. Names are cased and players keep whatever ids they carry (they are re-minted
+ * whenever a team is loaded into a game anyway). `renames` is passed on to listeners
+ * (see `SavedTeamsChange`). Returns whether the write went through.
+ */
+export function replaceSavedTeams(
+  teams: SavedTeam[],
+  renames: Record<string, string> = {},
+): boolean {
+  try {
+    write(
+      teams.map((team) => ({ ...team, name: teamNameCase(team.name.trim()) })),
+      { renames, replaced: true },
+    );
+    return true;
+  } catch {
+    return false;
   }
 }

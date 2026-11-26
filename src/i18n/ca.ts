@@ -1051,6 +1051,21 @@ export const ca: typeof en = {
   statsGuideStep2LinesBody:
     'Posa nom a les línies que juga aquest equip — O1, D1, Zona — i seran a un toc durant el partit, i aquí de nou la propera vegada. Una línia predefinida és un grup, no un set, així que no es comprova contra res: deu jugadors és una resposta perfectament vàlida. La comprovació és cosa de la línia que de debò salta al camp.',
 
+  statsGuideTeamsTitle: 'Equips en aquest telèfon',
+  statsGuideTeamsBody:
+    'Tots els equips desats en aquest telèfon, amb el seu roster i les línies predefinides, són a la pàgina Equips del menú. Obre un equip per canviar-ne el nom, el color, el roster o les línies, o passa la pàgina a YAML per veure tots els equips com a text. No es desa res fins que toques Desar, i en desar tots els equips del telèfon se substitueixen pel que mostra la pàgina.',
+  statsGuideTeamsRequired: 'Nom i color',
+  statsGuideTeamsRequiredBody:
+    "Cada equip és el seu nom seguit de dos punts. L'únic que necessita és color, entre cometes.",
+  statsGuideTeamsPlayers: 'Jugadors',
+  statsGuideTeamsPlayersBody:
+    'Opcional. Un per línia començant per "- ", primer el número, després el nom i MMP o FMP si ho saps. En YAML # comença un comentari, així que escriu "- 12 Marc", no "- #12 Marc".',
+  statsGuideTeamsLines: 'Línies',
+  statsGuideTeamsLinesBody:
+    "Opcional. Un nom, dos punts i els jugadors entre claudàtors. N'hi ha prou amb el número o el nom sol quan només un jugador el té.",
+  statsGuideTeamsShare: 'Compartir',
+  statsGuideTeamsShareBody:
+    "Copia el YAML i envia'l als altres anotadors. Al seu telèfon: Equips, YAML, Buida, enganxa, Desar. Si alguna cosa no es pot llegir, la pàgina diu quina línia, i no canvia res fins que es corregeix.",
   statsGuideStep3Title: 'Registrar amb el disc en joc',
   statsGuideStep3Body:
     "El que has activat decideix què hi ha en aquesta pantalla. Res d'això toca el marcador, el rellotge ni l'objectiu: escriu al registre i, des d'allà, a l'informe.",
@@ -1238,4 +1253,59 @@ export const ca: typeof en = {
   guideFigRulesAlt:
     'Les seccions de condicions de victòria, half i temps morts de la pantalla de configuració',
   guideFigReportAlt: "La pantalla de l'informe final",
+  teamsTitle: 'Equips',
+  teamsViewLabel: 'Vista',
+  teamsViewVisual: 'Visual',
+  teamsViewYaml: 'YAML',
+  teamsSavedTitle: 'Equips desats',
+  teamsNewTeam: 'Nou equip',
+  teamsAddTeam: 'Afegeix equip',
+  teamsEmpty:
+    'Encara no hi ha equips desats. Afegeix-ne un aquí o comença un partit: els dos equips es desen en començar.',
+  teamsPlayerCount: '{n} jugadors',
+  teamsPlayerCountOne: '1 jugador',
+  teamsLineCount: '{n} línies',
+  teamsLineCountOne: '1 línia',
+  teamsNameRequired: "Posa nom a l'equip",
+  teamsNameTaken: 'Ja hi ha un altre equip amb aquest nom',
+  teamsRemoveTeam: "Esborra l'equip",
+  teamsRemoveHint: "L'equip s'esborra d'aquest telèfon en desar.",
+  teamsDiscard: 'Descarta',
+  teamsSaveFailed: "No s'ha pogut desar en aquest telèfon. Comprova que li queda espai.",
+  teamsConfirmSaveTitle: 'Desar els equips?',
+  teamsConfirmSave:
+    "En desar s'esborren aquests equips d'aquest telèfon: {teams}. No es pot desfer.",
+  teamsConfirmLeaveTitle: 'Sortir sense desar?',
+  teamsConfirmLeave: "Els canvis als equips no s'han desat.",
+  teamsYamlLabel: 'Equips en YAML',
+  teamsYamlClear: 'Buida',
+  teamsYamlPlaceholder:
+    'RAVENS:\n  color: "#1f6feb"\n  players:\n    - 7 Ada FMP\n    - 12 Marc MMP',
+  teamsYamlHelp:
+    "Tots els equips d'aquest telèfon. Només el nom i color són obligatoris. Els jugadors van un per línia, amb el número primer (- 12 Marc MMP); les línies anomenen els seus jugadors igual. Copia-ho per compartir els equips, o buida-ho i enganxa els que t'hagin enviat, i desa.",
+  teamsYamlLoadFailed:
+    "No s'ha pogut carregar l'editor YAML. Connecta't a internet un cop i torna-ho a provar.",
+  teamsYamlFixToSwitch: 'Corregeix això, o descarta els canvis, per tornar a la llista.',
+  teamsYamlLine: 'Línia {n}:',
+  teamsYamlErrSyntax: 'No es pot llegir com a YAML. Revisa el sagnat i els dos punts.',
+  teamsYamlErrRoot: 'Escriu cada equip com el seu nom seguit de dos punts, amb el color a sota.',
+  teamsYamlErrTeamName: 'Hi ha un equip sense nom.',
+  teamsYamlErrDuplicateTeam: '{team} apareix dues vegades.',
+  teamsYamlErrTeamShape: '{team} necessita color, players i lines sagnats a sota.',
+  teamsYamlErrUnknownKey: '{team} té "{key}", que no és color, players ni lines.',
+  teamsYamlErrColorMissing: '{team} necessita un color, entre cometes: color: "#1f6feb"',
+  teamsYamlErrColor: 'El color "{value}" de {team} no és un color com "#1f6feb".',
+  teamsYamlErrPlayers:
+    'Els players de {team} han de ser una llista, un per línia començant per "- ".',
+  teamsYamlErrPlayer: '{team}: "{value}" no es pot llegir com a jugador.',
+  teamsYamlErrPlayerEmpty:
+    '{team} té un jugador buit. En YAML # comença un comentari, així que escriu el número primer: - 12 Marc',
+  teamsYamlErrDuplicatePlayer: '{team} té {player} dues vegades.',
+  teamsYamlErrLines: 'Les lines de {team} han de ser noms seguits de dos punts.',
+  teamsYamlErrLineName: '{team} té una línia sense nom.',
+  teamsYamlErrDuplicateLine: '{team} té dues línies anomenades {line}.',
+  teamsYamlErrLine: 'La línia {line} de {team} ha de ser una llista de jugadors: [7 Ada, 12 Marc]',
+  teamsYamlErrLinePlayer: 'La línia {line} de {team} anomena {player}, que no és al roster.',
+  teamsYamlErrLineAmbiguous:
+    'La línia {line} de {team} anomena {player}, que encaixa amb més d’un jugador. Escriu el número i el nom.',
 };

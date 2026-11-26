@@ -1122,6 +1122,21 @@ export const en = {
   statsGuideStep2LinesBody:
     'Name the lines this team plays — O1, D1, Zone — and they are one tap away during the game, and here again next time. A predefined line is a pool rather than a seven, so it is checked against nothing: a squad of ten is a perfectly good answer. The check belongs to the line that actually takes the field.',
 
+  statsGuideTeamsTitle: 'Teams on this phone',
+  statsGuideTeamsBody:
+    'Every team this phone has saved, with its roster and predefined lines, is on the Teams page in the menu. Open a team to change its name, colour, roster or lines, or switch the page to YAML to see every team as text. Nothing is kept until you tap Save, and saving replaces all the teams on the phone with what the page shows.',
+  statsGuideTeamsRequired: 'Name and color',
+  statsGuideTeamsRequiredBody:
+    'Each team is its name followed by a colon. The color is the only thing it needs, in quotes.',
+  statsGuideTeamsPlayers: 'Players',
+  statsGuideTeamsPlayersBody:
+    'Optional. One per line starting with "- ", number first, then the name and MMP or FMP if you know it. In YAML a # starts a comment, so write "- 12 Marc", not "- #12 Marc".',
+  statsGuideTeamsLines: 'Lines',
+  statsGuideTeamsLinesBody:
+    'Optional. A name, a colon and the players in square brackets. A number or a name on its own is enough when only one player has it.',
+  statsGuideTeamsShare: 'Sharing',
+  statsGuideTeamsShareBody:
+    'Copy the YAML and send it to the other scorekeepers. On their phone: Teams, YAML, Clear, paste, Save. If something cannot be read, the page says which line, and nothing changes until it is fixed.',
   statsGuideStep3Title: 'Recording while the disc is live',
   statsGuideStep3Body:
     'What you switched on decides what is on this screen. None of it touches the score, the clock or the target — it writes to the log, and from there to the report.',
@@ -1300,4 +1315,57 @@ export const en = {
   guideFigRecordAlt: 'The call dialog',
   guideFigRulesAlt: 'The win conditions, half-time and timeout sections of the setup screen',
   guideFigReportAlt: 'The final report screen',
+  // The Teams page (#/teams): the teams saved on this phone, as a list or as YAML.
+  teamsTitle: 'Teams',
+  teamsViewLabel: 'View',
+  teamsViewVisual: 'Visual',
+  teamsViewYaml: 'YAML',
+  teamsSavedTitle: 'Saved teams',
+  teamsNewTeam: 'New team',
+  teamsAddTeam: 'Add team',
+  teamsEmpty:
+    'No teams saved yet. Add one here, or start a game: both teams are saved when it starts.',
+  teamsPlayerCount: '{n} players',
+  teamsPlayerCountOne: '1 player',
+  teamsLineCount: '{n} lines',
+  teamsLineCountOne: '1 line',
+  teamsNameRequired: 'Name the team',
+  teamsNameTaken: 'Another team already has this name',
+  teamsRemoveTeam: 'Remove team',
+  teamsRemoveHint: 'The team is deleted from this phone when you save.',
+  teamsDiscard: 'Discard',
+  teamsSaveFailed: "Couldn't save on this phone. Check that it has storage space left.",
+  teamsConfirmSaveTitle: 'Save teams?',
+  teamsConfirmSave: 'Saving deletes these teams from this phone: {teams}. This cannot be undone.',
+  teamsConfirmLeaveTitle: 'Leave without saving?',
+  teamsConfirmLeave: 'Your changes to the teams have not been saved.',
+  teamsYamlLabel: 'Teams as YAML',
+  teamsYamlClear: 'Clear',
+  teamsYamlPlaceholder:
+    'RAVENS:\n  color: "#1f6feb"\n  players:\n    - 7 Ada FMP\n    - 12 Marc MMP',
+  teamsYamlHelp:
+    'Every team on this phone. Only the name and color are required. Players are one per line, number first (- 12 Marc MMP); lines list their players the same way. Copy it to share the teams, or clear it and paste teams someone sent you, then save.',
+  teamsYamlLoadFailed: "The YAML editor couldn't load. Connect to the internet once and try again.",
+  teamsYamlFixToSwitch: 'Fix this, or discard your changes, to go back to the list.',
+  teamsYamlLine: 'Line {n}:',
+  teamsYamlErrSyntax: "This can't be read as YAML. Check the indentation and the colons.",
+  teamsYamlErrRoot: 'Write each team as its name followed by a colon, with its color under it.',
+  teamsYamlErrTeamName: 'A team has no name.',
+  teamsYamlErrDuplicateTeam: '{team} appears twice.',
+  teamsYamlErrTeamShape: '{team} needs its color, players and lines indented under it.',
+  teamsYamlErrUnknownKey: '{team} has "{key}", which isn’t color, players or lines.',
+  teamsYamlErrColorMissing: '{team} needs a color, in quotes: color: "#1f6feb"',
+  teamsYamlErrColor: '{team}’s color "{value}" isn’t a colour like "#1f6feb".',
+  teamsYamlErrPlayers: '{team}’s players must be a list, one per line starting with "- ".',
+  teamsYamlErrPlayer: '{team}: "{value}" can’t be read as a player.',
+  teamsYamlErrPlayerEmpty:
+    '{team} has an empty player. In YAML # starts a comment, so write the number first: - 12 Marc',
+  teamsYamlErrDuplicatePlayer: '{team} lists {player} twice.',
+  teamsYamlErrLines: '{team}’s lines must be names followed by a colon.',
+  teamsYamlErrLineName: '{team} has a line with no name.',
+  teamsYamlErrDuplicateLine: '{team} has two lines called {line}.',
+  teamsYamlErrLine: '{team}’s line {line} must be a list of players: [7 Ada, 12 Marc]',
+  teamsYamlErrLinePlayer: '{team}’s line {line} names {player}, who isn’t on the roster.',
+  teamsYamlErrLineAmbiguous:
+    '{team}’s line {line} names {player}, which fits more than one player. Write the number and the name.',
 };
